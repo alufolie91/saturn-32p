@@ -450,7 +450,7 @@ consvar_t cv_forceskin = {"forceskin", "Off", CV_NETVAR|CV_CALL|CV_CHEAT, Forces
 consvar_t cv_downloading = {"downloading", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_allowexitlevel = {"allowexitlevel", "No", CV_NETVAR, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t votemaxrows_cons_t[] = {{1, "MIN"}, {2, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t votemaxrows_cons_t[] = {{1, "MIN"}, {3, "MAX"}, {0, NULL}};
 consvar_t cv_votemaxrows = {"votemaxrows", "2", CV_SAVE|CV_NETVAR, votemaxrows_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_killingdead = {"killingdead", "Off", CV_NETVAR|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};

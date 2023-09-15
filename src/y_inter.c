@@ -169,7 +169,7 @@ typedef struct
 	boolean loaded;
 } y_voteclient;
 
-static y_votelvlinfo levelinfo[11];
+static y_votelvlinfo levelinfo[12];
 static y_voteclient voteclient;
 static INT32 votetic;
 static INT32 lastvotetic;
