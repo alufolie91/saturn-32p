@@ -270,7 +270,7 @@ typedef union {
 #pragma pack()
 #endif
 
-extern tic_t driftsparkGrowTimer[16];
+extern tic_t driftsparkGrowTimer[MAXPLAYERS];
 
 // add game commands, needs cleanup
 void D_RegisterServerCommands(void);
