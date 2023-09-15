@@ -2602,7 +2602,7 @@ void D_SetupVote(void)
 	INT32 i;
 	UINT8 gt = (cv_kartgametypepreference.value == -1) ? gametype : cv_kartgametypepreference.value;
 	UINT8 secondgt = G_SometimesGetDifferentGametype(gt);
-	INT16 votebuffer[4] = {-1,-1,-1,0};
+	INT16 votebuffer[3] = {-1,-1,-1};
 
 	if (cv_kartencore.value && gt == GT_RACE)
 		WRITEUINT8(p, (gt|0x80));
@@ -2683,14 +2683,11 @@ void D_PickVote(void)
 
 	if (numvotes > 0)
 	{
-		WRITESINT8(p, temppicks[key]);
-		
-		//if (templevels[key] == ( (votemax*3) + ((votemax > 1) ? (votemax - 1) : 0) ) && numvotes > 1)
-			//WRITESINT8(p, ( (votemax*3) + 1 + ((votemax > 1) ? (votemax - 1) : 0) ));
-		
-		//else
-
-		WRITESINT8(p, templevels[key]);
+		WRITESINT8(p, temppicks[key]);		
+		if (templevels[key] == ( (votemax*3) + ((votemax > 1) ? (votemax - 1) : 0) ) && numvotes > 1)
+			WRITESINT8(p, ( (votemax*3) + 1 + ((votemax > 1) ? (votemax - 1) : 0) ));		
+		else
+			WRITESINT8(p, templevels[key]);
 	}
 	else
 	{
