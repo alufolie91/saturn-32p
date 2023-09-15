@@ -169,11 +169,14 @@ typedef struct
 	boolean loaded;
 } y_voteclient;
 
-static y_votelvlinfo levelinfo[5];
+static y_votelvlinfo levelinfo[12];
 static y_voteclient voteclient;
 static INT32 votetic;
 static INT32 lastvotetic;
 static INT32 voteendtic = -1;
+static INT32 votemax = 3;
+static INT32 voterowmem = 0;
+static boolean rowchange = false;
 static patch_t *cursor = NULL;
 static patch_t *cursor1 = NULL;
 static patch_t *cursor2 = NULL;
@@ -1100,9 +1103,54 @@ void Y_DrawAnimatedVoteScreenPatch(boolean widePatch){
 //
 void Y_VoteDrawer(void)
 {
-	INT32 i, x, y = 0, height = 0;
+	INT32 rowval, i, lvls, x, picdiff, y = 0, height = 0;
 	UINT8 selected[32];
 	fixed_t rubyheight = 0;
+	fixed_t picscale = FRACUNIT; // GREENRES
+	fixed_t picwidth = 160;
+	boolean unevenhypot;
+
+	// CEP: scale by screen hypotenuse for extra voting rows
+	INT32 vidx = ((vid.width) / vid.dupx);
+	INT32 vidy = ((vid.height) / vid.dupy);
+
+	fixed_t hypotf = 0;
+	INT32 hypoti = 0;
+
+	// get the hypotenuse
+	hypoti = (vidx*vidx) + (vidy*vidy);
+	hypotf = FixedSqrt(hypoti);
+
+	// convert the fixed_t back into an integer
+	hypoti = ((hypotf*10)/FRACUNIT);
+
+	if ((voterowmem != cv_votemaxrows.value) && (votemax != cv_votemaxrows.value)) // voting rows were changed(?)
+	{
+		CONS_Printf(M_GetText("Max rows will be changed to %d on the next votescreen.\n"), cv_votemaxrows.value); // notify the players
+		voterowmem = cv_votemaxrows.value;
+	}
+
+	// divisor for rescaling
+	INT32 hypotdiv = max(10, (40-hypoti));
+
+	// readjust the picscale
+	picscale *= 10;
+	picscale /= (40-hypoti);
+
+	picwidth *= picscale;
+
+	// shitty hack to prevent alignment issues
+	if ( ((hypoti % 5) == 1) || ((hypoti % 5) == 4) || ((hypoti % 5) == 2) )
+	{
+		if ((hypoti % 5) == 2) // scale DOWN the image
+			picscale -= (hypoti*16);
+		else
+			picscale += (hypoti*2); // scale UP the image
+
+		unevenhypot = true;
+	}
+	else
+		unevenhypot = false;
 
 	if (rendermode == render_none)
 		return;
@@ -1149,7 +1197,8 @@ void Y_VoteDrawer(void)
 
 	}
 
-	for (i = 0; i < 4; i++) // First, we need to figure out the height of this thing...
+	rowval = (votemax*3);
+	for (i = 0; i < (rowval+1); i++) // First, we need to figure out the height of this thing...
 	{
 		UINT8 j;
 		selected[i] = 0; // Initialize
@@ -1165,18 +1214,38 @@ void Y_VoteDrawer(void)
 		else
 			height += 25;
 
-		if (i < 3)
+		if (i < rowval)
 			height += 5-splitscreen;
 	}
+	
+	height /= votemax;
 
 	y = (200-height)/2;
-	for (i = 0; i < 4; i++)
+	picdiff = 80*( max(0, (votemax-1) ) ); // let's draw these in reverse order
+	lvls = -1; // shitty cheat
+
+	for (i = 0; i < (rowval+1); i++)
 	{
 		const char *str;
 		patch_t *pic;
 		UINT8 j, color;
 
-		if (i == 3)
+		// CEP: hack hell
+		INT32 scaledpicdiff = ((picdiff*10)/hypotdiv);
+		INT32 fillscale = 1600/hypotdiv;
+		INT32 hypotmod = (hypoti % 5); // hypotenuse mod 5, rescale the bounding box
+		INT32 hypotadd = ((hypotmod > 1) ? (hypotmod/4) : hypotmod); // how much do we add the bounding box by?
+		INT32 hypmod7 = ((hypoti % 7 == 0) ? ((hypoti % 4)*(FRACUNIT/8)) : 0);
+		INT32 hypmod6 = ((hypoti % 6 == 0) ? (FRACUNIT) : 0);
+
+		// integer scaling makes me want to DIE
+		if ((hypotmod == 3))
+			hypotadd += (1);
+
+		scaledpicdiff *= 3;
+		scaledpicdiff /= 2; // 1.5
+
+		if (i == rowval)
 		{
 			str = "RANDOM";
 			pic = randomlvl;
@@ -1238,57 +1307,93 @@ void Y_VoteDrawer(void)
 					continue;
 
 				handy += 6*(3-splitscreen) + (13*j);
-				V_DrawMappedPatch(BASEVIDWIDTH-124, handy, V_SNAPTORIGHT, thiscurs, colormap);
+				V_DrawMappedPatch(BASEVIDWIDTH-(2480/hypotdiv)-scaledpicdiff, handy, V_SNAPTORIGHT, thiscurs, colormap);
 
 				if (votetic % 10 < 4)
-					V_DrawFill(BASEVIDWIDTH-100-sizeadd, y-sizeadd, 80+(sizeadd*2), 50+(sizeadd*2), 120|V_SNAPTORIGHT);
+					V_DrawFill(BASEVIDWIDTH-(2000/hypotdiv)-sizeadd-scaledpicdiff, y-sizeadd, (fillscale + (sizeadd*2) + hypotadd), ((1000/hypotdiv)+(sizeadd*2)) + hypotadd, 120|V_SNAPTORIGHT);
 				else
-					V_DrawFill(BASEVIDWIDTH-100-sizeadd, y-sizeadd, 80+(sizeadd*2), 50+(sizeadd*2), color|V_SNAPTORIGHT);
+					V_DrawFill(BASEVIDWIDTH-(2000/hypotdiv)-sizeadd-scaledpicdiff, y-sizeadd, (fillscale + (sizeadd*2) + hypotadd), ((1000/hypotdiv)+(sizeadd*2)) + hypotadd, color|V_SNAPTORIGHT);
 
 				sizeadd--;
 			}
 
-			if (!levelinfo[i].encore)
-				V_DrawSmallScaledPatch(BASEVIDWIDTH-100, y, V_SNAPTORIGHT, pic);
+			if (!levelinfo[i].encore) // using the standard scaling will not work, gotta do this
+				V_DrawFixedPatch(((BASEVIDWIDTH-(2000/hypotdiv)-scaledpicdiff)<<FRACBITS) + ((unevenhypot) ? ((hypoti*3)/2) : 0), (y)<<FRACBITS, picscale, V_SNAPTORIGHT, pic, 0); //V_DrawSmallScaledPatch(BASEVIDWIDTH-100-picdiff, y, V_SNAPTORIGHT, pic);
 			else
 			{
-				V_DrawFixedPatch((BASEVIDWIDTH-20)<<FRACBITS, (y)<<FRACBITS, FRACUNIT/2, V_FLIP|V_SNAPTORIGHT, pic, 0);
-				V_DrawFixedPatch((BASEVIDWIDTH-60)<<FRACBITS, ((y+25)<<FRACBITS) - (rubyheight<<1), FRACUNIT, V_SNAPTORIGHT, rubyicon, NULL);
+				V_DrawFixedPatch(((BASEVIDWIDTH-(400/hypotdiv)-scaledpicdiff)<<FRACBITS) + ((unevenhypot) ? ((hypoti % 4)*(FRACUNIT/4)) : 0) + hypmod7 + ((hypmod6*6)/5), ((y)<<FRACBITS) + ((hypoti % 7 == 0) ? ((hypoti % 4)*(FRACUNIT/7)) : 0), (picscale - ((hypoti % 7 == 0) ? (FRACUNIT/1000) : 0)), V_FLIP|V_SNAPTORIGHT, pic, 0);
+				V_DrawFixedPatch(((BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff)<<FRACBITS) + ((unevenhypot) ? ((hypoti % 4)*(FRACUNIT/4)) : 0) + hypmod7 + ((hypmod6*6)/5), ((y+(500/hypotdiv))<<FRACBITS) - (rubyheight<<1), picscale*2, V_SNAPTORIGHT, rubyicon, NULL);
 			}
 
-			V_DrawRightAlignedThinString(BASEVIDWIDTH-21, 40+y, V_SNAPTORIGHT|V_6WIDTHSPACE, str);
+			V_DrawRightAlignedThinString(BASEVIDWIDTH-21-scaledpicdiff, (800/hypotdiv)+y, V_SNAPTORIGHT|V_6WIDTHSPACE, str);
 
 			if (levelinfo[i].gts)
 			{
 				INT32 w = V_ThinStringWidth(levelinfo[i].gts, V_SNAPTORIGHT)+1;
-				V_DrawFill(BASEVIDWIDTH-100, y+10, w+1, 2, V_SNAPTORIGHT|31);
-				V_DrawFill(BASEVIDWIDTH-100, y, w, 11, V_SNAPTORIGHT|levelinfo[i].gtc);
-				V_DrawDiag(BASEVIDWIDTH-100+w+1, y, 12, V_SNAPTORIGHT|31);
-				V_DrawDiag(BASEVIDWIDTH-100+w, y, 11, V_SNAPTORIGHT|levelinfo[i].gtc);
-				V_DrawThinString(BASEVIDWIDTH-99, y+1, V_SNAPTORIGHT, levelinfo[i].gts);
+				w *= 10;
+				w /= (hypotdiv);
+
+				V_DrawFill(BASEVIDWIDTH-(2000/hypotdiv)-scaledpicdiff, y+10, w+1, 2, V_SNAPTORIGHT|31);
+				V_DrawFill(BASEVIDWIDTH-(2000/hypotdiv)-scaledpicdiff, y, w, 11, V_SNAPTORIGHT|levelinfo[i].gtc);
+				V_DrawDiag(BASEVIDWIDTH-(2000/hypotdiv)-scaledpicdiff+w+1, y, 12, V_SNAPTORIGHT|31);
+				V_DrawDiag(BASEVIDWIDTH-(2000/hypotdiv)-scaledpicdiff+w, y, 11, V_SNAPTORIGHT|levelinfo[i].gtc);
+				V_DrawThinString(BASEVIDWIDTH-(1980/hypotdiv)-scaledpicdiff, y+1, V_SNAPTORIGHT, levelinfo[i].gts);
 			}
 
-			y += 50;
+			y += ((50*10) / (hypotdiv/2));
+			lvls += 1;
+
+			// screen height isn't doing us any favors
+			if (lvls >= 6) // loop over if we have an extra row
+			{
+				lvls = 0;
+				picdiff -= 90; // yes, this will overlap; no, I don't plan to change it
+				y = (200-height)/2;
+
+				y -= 5;
+			}
 		}
 		else
 		{
 			if (!levelinfo[i].encore)
-				V_DrawTinyScaledPatch(BASEVIDWIDTH-60, y, V_SNAPTORIGHT, pic);
+				V_DrawFixedPatch((BASEVIDWIDTH-60-scaledpicdiff)<<FRACBITS, y<<FRACBITS, picscale/2, V_SNAPTORIGHT, pic, 0); //V_DrawTinyScaledPatch(BASEVIDWIDTH-60-scaledpicdiff, y, V_SNAPTORIGHT, pic);
 			else
 			{
-				V_DrawFixedPatch((BASEVIDWIDTH-20)<<FRACBITS, y<<FRACBITS, FRACUNIT/4, V_FLIP|V_SNAPTORIGHT, pic, 0);
-				V_DrawFixedPatch((BASEVIDWIDTH-40)<<FRACBITS, (y<<FRACBITS) + (25<<(FRACBITS-1)) - rubyheight, FRACUNIT/2, V_SNAPTORIGHT, rubyicon, NULL);
+				V_DrawFixedPatch(((BASEVIDWIDTH-60-scaledpicdiff)<<FRACBITS) + (picwidth/2), y<<FRACBITS, picscale/2, V_FLIP|V_SNAPTORIGHT, pic, 0);
+				V_DrawFixedPatch(((BASEVIDWIDTH-60-scaledpicdiff)<<FRACBITS) + (picwidth/4), (y<<FRACBITS) + (25<<(FRACBITS-1)) - rubyheight, picscale, V_SNAPTORIGHT, rubyicon, NULL);
 			}
 
 			if (levelinfo[i].gts)
 			{
-				V_DrawDiag(BASEVIDWIDTH-60, y, 8, V_SNAPTORIGHT|31);
-				V_DrawDiag(BASEVIDWIDTH-60, y, 6, V_SNAPTORIGHT|levelinfo[i].gtc);
+				V_DrawDiag(BASEVIDWIDTH-60-scaledpicdiff, y, 8, V_SNAPTORIGHT|31);
+				V_DrawDiag(BASEVIDWIDTH-60-scaledpicdiff, y, 6, V_SNAPTORIGHT|levelinfo[i].gtc);
 			}
-			y += 25;
+			
+			y += ((25*10) / (hypotdiv/2));
+			lvls += 1;
+
+			if (lvls >= 6)
+			{
+				lvls = 0;
+				picdiff -= 90;
+				y = (200-height)/2;
+
+				y -= 5;
+			}
 		}
 
 		y += 5-splitscreen;
+		lvls += 1;
+
+		
+		if (lvls >= 6)
+		{
+			lvls = 0;
+			picdiff -= 90;
+			y = (200-height)/2;
+
+			y -= 5;
+		}
 	}
 
 	x = 20;
@@ -1303,7 +1408,7 @@ void Y_VoteDrawer(void)
 		{
 			patch_t *pic;
 
-			if (votes[i] >= 3 && (i != pickedvote || voteendtic == -1))
+			if (votes[i] >= (votemax*3) && (i != pickedvote || voteendtic == -1))
 				pic = randomlvl;
 			else
 				pic = levelinfo[votes[i]].pic;
@@ -1388,8 +1493,8 @@ static void Y_VoteStops(SINT8 pick, SINT8 level)
 {
 	nextmap = votelevels[level][0];
 
-	//if (level == 4)
-	//	S_StartSound(NULL, sfx_noooo2); // gasp
+	if (level == ((votemax*3)+1))
+		S_StartSound(NULL, sfx_noooo2); // gasp
 	if (mapheaderinfo[nextmap] && (mapheaderinfo[nextmap]->menuflags & LF2_HIDEINMENU))
 		S_StartSound(NULL, sfx_noooo1); // this is bad
 	else if (netgame && P_IsLocalPlayer(&players[pick]))
@@ -1438,7 +1543,7 @@ void Y_VoteTicker(void)
 		if (!playeringame[i] || players[i].spectator)
 			votes[i] = -1; // Spectators are the lower class, and have effectively no voice in the government. Democracy sucks.
 		else if (pickedvote != -1 && votes[i] == -1)
-			votes[i] = 3; // Slow people get random
+			votes[i] = (votemax*3); // Slow people get random
 	}
 
 	if (server && pickedvote != -1 && votes[pickedvote] == -1) // Uh oh! The person who got picked left! Recalculate, quick!
@@ -1560,10 +1665,42 @@ void Y_VoteTicker(void)
 					voteclient.playerinfo[i].selection++;
 					pressed = true;
 				}
+				
+				if (votemax > 1) // only allow side-movements for multi-row selections
+				{
+					// HORRIBLE hack, my GOD
+					if ((InputDown(gc_turnright, i+1) || JoyAxis(AXISTURN, i+1) > 0) && !pressed) // move right
+					{
+						if (voteclient.playerinfo[i].selection <= 2)
+							voteclient.playerinfo[i].selection += 4;
+						else if (voteclient.playerinfo[i].selection == (votemax*3))
+							voteclient.playerinfo[i].selection = 3;
+						else if (voteclient.playerinfo[i].selection != 3)
+							voteclient.playerinfo[i].selection += 3;
+						else
+							voteclient.playerinfo[i].selection = 6;
+
+						pressed = true;
+					}
+
+					if ((InputDown(gc_turnleft, i+1) || JoyAxis(AXISTURN, i+1) < 0) && !pressed) // move left
+					{
+						if (voteclient.playerinfo[i].selection <= 2)
+							voteclient.playerinfo[i].selection = ((votemax*3) - voteclient.playerinfo[i].selection);
+						else if ((voteclient.playerinfo[i].selection > 3)&&(voteclient.playerinfo[i].selection <= 6))
+							voteclient.playerinfo[i].selection -= 4;
+						else if (voteclient.playerinfo[i].selection != 3)
+							voteclient.playerinfo[i].selection -= 3;
+						else
+							voteclient.playerinfo[i].selection = (votemax*3);
+							
+						pressed = true;
+					}
+				}
 
 				if (voteclient.playerinfo[i].selection < 0)
-					voteclient.playerinfo[i].selection = 3;
-				if (voteclient.playerinfo[i].selection > 3)
+					voteclient.playerinfo[i].selection = votemax*3;
+				if (voteclient.playerinfo[i].selection > votemax*3)
 					voteclient.playerinfo[i].selection = 0;
 
 				if ((InputDown(gc_accelerate, i+1) || JoyAxis(AXISMOVE, i+1) > 0) && !pressed)
@@ -1587,7 +1724,7 @@ void Y_VoteTicker(void)
 				for (i = 0; i < MAXPLAYERS; i++)
 				{
 					if ((playeringame[i] && !players[i].spectator) && votes[i] == -1)
-						votes[i] = 3;
+						votes[i] = (votemax*3);
 				}
 			}
 			else
@@ -1614,6 +1751,13 @@ void Y_VoteTicker(void)
 void Y_StartVote(void)
 {
 	INT32 i = 0;
+	INT32 rowval = (cv_votemaxrows.value*3);
+
+	votemax = cv_votemaxrows.value; // can we please avoid SIGSEGVs
+	voterowmem = cv_votemaxrows.value; // this is just for the notif system
+
+	rowchange = false;
+
 	UINT8 prefgametype = (votelevels[0][1] & ~0x80);
 
 	votetic = -1;
@@ -1653,7 +1797,7 @@ void Y_StartVote(void)
 	for (i = 0; i < MAXPLAYERS; i++)
 		votes[i] = -1;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < (rowval + 2); i++)
 	{
 		lumpnum_t lumpnum;
 
@@ -1743,10 +1887,17 @@ static void Y_UnloadVoteData(void)
 	UNLOAD(randomlvl);
 	UNLOAD(rubyicon);
 
-	UNLOAD(levelinfo[3].pic);
+	INT32 rowval = (votemax*3);
+	INT32 i;
+
+	for(i = (rowval + 1); i > 0; i--)
+	{
+		UNLOAD(levelinfo[i].pic);
+	}
+	/*UNLOAD(levelinfo[3].pic);
 	UNLOAD(levelinfo[2].pic);
 	UNLOAD(levelinfo[1].pic);
-	UNLOAD(levelinfo[0].pic);
+	UNLOAD(levelinfo[0].pic);*/
 }
 
 //
@@ -1775,7 +1926,7 @@ void Y_SetupVoteFinish(SINT8 pick, SINT8 level)
 		for (i = 0; i < MAXPLAYERS; i++)
 		{
 			if ((playeringame[i] && !players[i].spectator) && votes[i] == -1)
-				votes[i] = 3;
+				votes[i] = (votemax*3);
 
 			if (votes[i] == -1 || endtype > 1) // Don't need to go on
 				continue;
