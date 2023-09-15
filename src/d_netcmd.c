@@ -450,7 +450,7 @@ consvar_t cv_forceskin = {"forceskin", "Off", CV_NETVAR|CV_CALL|CV_CHEAT, Forces
 consvar_t cv_downloading = {"downloading", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_allowexitlevel = {"allowexitlevel", "No", CV_NETVAR, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t votemaxrows_cons_t[] = {{1, "MIN"}, {3, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t votemaxrows_cons_t[] = {{1, "MIN"}, {2, "MAX"}, {0, NULL}};
 consvar_t cv_votemaxrows = {"votemaxrows", "2", CV_SAVE|CV_NETVAR, votemaxrows_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_killingdead = {"killingdead", "Off", CV_NETVAR|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -2597,7 +2597,7 @@ void D_MapChange(INT32 mapnum, INT32 newgametype, boolean pencoremode, boolean r
 
 void D_SetupVote(void)
 {
-	UINT8 buf[14*2]; // thirteen UINT16 maps (at twice the width of a UINT8), and two gametypes
+	UINT8 buf[13*2]; // twelve UINT16 maps (at twice the width of a UINT8), and two gametypes
 	UINT8 *p = buf;
 	INT32 i;
 	UINT8 gt = (cv_kartgametypepreference.value == -1) ? gametype : cv_kartgametypepreference.value;
@@ -2613,7 +2613,7 @@ void D_SetupVote(void)
 	
 	votemax = cv_votemaxrows.value;
 
-	for (i = 0; i < ((cv_votemaxrows.value*3) + 2 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ); i++)
+	for (i = 0; i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ); i++)
 	{
 		UINT16 m;
 		//UINT16 forcehell = (((cv_votemaxrows.value*3))-2);
@@ -5511,7 +5511,7 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	// Get gametype data.
 	gt = (UINT8)READUINT8(*cp);
 	secondgt = (UINT8)READUINT8(*cp);
-	votemaxsetup = (cv_votemaxrows.value*3) + 2 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0);
+	votemaxsetup = (cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0);
 
 	// Strip illegal Encore flag.
 	if (gt == (GT_MATCH|0x80))
