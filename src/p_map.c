@@ -1920,7 +1920,7 @@ static boolean PIT_CheckLine(line_t *ld)
 	|| tmbbox[BOXTOP] <= ld->bbox[BOXBOTTOM] || tmbbox[BOXBOTTOM] >= ld->bbox[BOXTOP])
 		return true;
 
-	if (P_BoxOnLineSide(tmbbox, ld) != -1)
+	if (P_CircleOnLineSide(tmx, tmy, tmthing->radius, ld) != -1)
 		return true;
 
 if (tmthing->flags & MF_PAPERCOLLISION) // Caution! Turning whilst up against a wall will get you stuck. You probably shouldn't give the player this flag.
@@ -3217,13 +3217,27 @@ isblocking:
 //
 // PTR_SlideTraverse
 //
-static boolean PTR_SlideTraverse(intercept_t *in)
+static boolean PTR_SlideTraverse(line_t *li)
 {
-	line_t *li;
+	fixed_t mmomx, mmomy, x, y, dist;
+	vertex_t closestpoint;
+	// Kludgy redo of previous work, should optimize later
+	if (slidemo->player)
+	{
+		mmomx = slidemo->player->rmomx = slidemo->momx - slidemo->player->cmomx;
+		mmomy = slidemo->player->rmomy = slidemo->momy - slidemo->player->cmomy;
+	}
+	else
+	{
+		mmomx = slidemo->momx;
+		mmomy = slidemo->momy;
+	}
 
-	I_Assert(in->isaline);
+	x = slidemo->x + mmomx;
+	y = slidemo->y + mmomy;
 
-	li = in->d.line;
+//	if (P_CircleOnLineSide(x, y, slidemo->radius, li) != -1)
+//		return true; // Not inside the line, non-blocking
 
 	// one-sided linedefs are always solid to sliding movement.
 	// one-sided linedef
@@ -3267,15 +3281,18 @@ isblocking:
 			P_ProcessSpecialSector(slidemo->player, slidemo->subsector->sector, li->polyobj->lines[0]->backsector);
 	}
 
-	if (in->frac < bestslidefrac)
+	P_ClosestPointOnLineWithinLine(x, y, li, &closestpoint);
+	dist = abs(R_PointToDist2(closestpoint.x, closestpoint.y, x, y));
+
+	if (dist < bestslidefrac)
 	{
 		secondslidefrac = bestslidefrac;
 		secondslideline = bestslideline;
-		bestslidefrac = in->frac;
+		bestslidefrac = dist;
 		bestslideline = li;
 	}
 
-	return false; // stop
+	return true;
 }
 
 //
@@ -3388,7 +3405,9 @@ stairstep:
 //
 void P_SlideMove(mobj_t *mo, boolean forceslide)
 {
-	fixed_t leadx, leady, trailx, traily, newx, newy;
+	fixed_t newx, newy;
+	fixed_t mmomx, mmomy;
+	fixed_t maxslidefrac;
 	INT16 hitcount = 0;
 	boolean success = false;
 
@@ -3431,37 +3450,21 @@ retry:
 	if (++hitcount == 3)
 		goto stairstep; // don't loop forever
 
-	// trace along the three leading corners
-	if (mo->momx > 0)
+	if (mo->player)
 	{
-		leadx = mo->x + mo->radius;
-		trailx = mo->x - mo->radius;
+		mmomx = mo->player->rmomx = mo->momx - mo->player->cmomx;
+		mmomy = mo->player->rmomy = mo->momy - mo->player->cmomy;
 	}
 	else
 	{
-		leadx = mo->x - mo->radius;
-		trailx = mo->x + mo->radius;
+		mmomx = mo->momx;
+		mmomy = mo->momy;
 	}
 
-	if (mo->momy > 0)
-	{
-		leady = mo->y + mo->radius;
-		traily = mo->y - mo->radius;
-	}
-	else
-	{
-		leady = mo->y - mo->radius;
-		traily = mo->y + mo->radius;
-	}
+	maxslidefrac = mo->radius + FixedHypot(mmomx, mmomy);
+	bestslidefrac = maxslidefrac;
 
-	bestslidefrac = FRACUNIT+1;
-
-	P_PathTraverse(leadx, leady, leadx + mo->momx, leady + mo->momy,
-		PT_ADDLINES, PTR_SlideTraverse);
-	P_PathTraverse(trailx, leady, trailx + mo->momx, leady + mo->momy,
-		PT_ADDLINES, PTR_SlideTraverse);
-	P_PathTraverse(leadx, traily, leadx + mo->momx, traily + mo->momy,
-		PT_ADDLINES, PTR_SlideTraverse);
+	P_RadiusLinesCheck(mo->radius, mo->x + mmomx, mo->y + mmomy, PTR_SlideTraverse);
 
 	// Some walls are bouncy even if you're not
 	if (!forceslide && bestslideline && !(bestslideline->flags & ML_BOUNCY)) // SRB2kart - All walls are bouncy unless specified otherwise
@@ -3471,7 +3474,7 @@ retry:
 	}
 
 	// move up to the wall
-	if (bestslidefrac == FRACUNIT+1)
+	if (bestslidefrac == maxslidefrac)
 	{
 		// the move must have hit the middle, so stairstep
 stairstep:
@@ -3556,10 +3559,9 @@ stairstep:
 
 void P_BouncePlayerMove(mobj_t *mo)
 {
-	fixed_t leadx, leady;
-	fixed_t trailx, traily;
 	fixed_t mmomx = 0, mmomy = 0;
 	fixed_t oldmomx = mo->momx, oldmomy = mo->momy;
+	fixed_t maxslidefrac;
 
 	if (!mo->player)
 		return;
@@ -3579,38 +3581,14 @@ void P_BouncePlayerMove(mobj_t *mo)
 	mo->player->kartstuff[k_driftcharge] = 0;
 	mo->player->kartstuff[k_pogospring] = 0;
 
-	// trace along the three leading corners
-	if (mo->momx > 0)
-	{
-		leadx = mo->x + mo->radius;
-		trailx = mo->x - mo->radius;
-	}
-	else
-	{
-		leadx = mo->x - mo->radius;
-		trailx = mo->x + mo->radius;
-	}
+	maxslidefrac = mo->radius + FixedHypot(mmomx, mmomy);
+	bestslidefrac = maxslidefrac;
 
-	if (mo->momy > 0)
-	{
-		leady = mo->y + mo->radius;
-		traily = mo->y - mo->radius;
-	}
-	else
-	{
-		leady = mo->y - mo->radius;
-		traily = mo->y + mo->radius;
-	}
-
-	bestslidefrac = FRACUNIT + 1;
-
-	P_PathTraverse(leadx, leady, leadx + mmomx, leady + mmomy, PT_ADDLINES, PTR_SlideTraverse);
-	P_PathTraverse(trailx, leady, trailx + mmomx, leady + mmomy, PT_ADDLINES, PTR_SlideTraverse);
-	P_PathTraverse(leadx, traily, leadx + mmomx, traily + mmomy, PT_ADDLINES, PTR_SlideTraverse);
+	P_RadiusLinesCheck(mo->radius, mo->x + mmomx, mo->y + mmomy, PTR_SlideTraverse);
 
 	// Now continue along the wall.
 	// First calculate remainder.
-	bestslidefrac = FRACUNIT - bestslidefrac;
+	bestslidefrac = maxslidefrac - bestslidefrac;
 
 	if (bestslidefrac > FRACUNIT)
 		bestslidefrac = FRACUNIT;
@@ -3660,11 +3638,10 @@ void P_BouncePlayerMove(mobj_t *mo)
 //
 void P_BounceMove(mobj_t *mo)
 {
-	fixed_t leadx, leady;
-	fixed_t trailx, traily;
 	fixed_t newx, newy;
 	INT32 hitcount;
 	fixed_t mmomx = 0, mmomy = 0;
+	fixed_t maxslidefrac;
 
 	if (mo->player)
 	{
@@ -3688,37 +3665,13 @@ retry:
 	mmomx = mo->momx;
 	mmomy = mo->momy;
 
-	// trace along the three leading corners
-	if (mo->momx > 0)
-	{
-		leadx = mo->x + mo->radius;
-		trailx = mo->x - mo->radius;
-	}
-	else
-	{
-		leadx = mo->x - mo->radius;
-		trailx = mo->x + mo->radius;
-	}
+	maxslidefrac = mo->radius + FixedHypot(mmomx, mmomy);
+	bestslidefrac = maxslidefrac;
 
-	if (mo->momy > 0)
-	{
-		leady = mo->y + mo->radius;
-		traily = mo->y - mo->radius;
-	}
-	else
-	{
-		leady = mo->y - mo->radius;
-		traily = mo->y + mo->radius;
-	}
-
-	bestslidefrac = FRACUNIT + 1;
-
-	P_PathTraverse(leadx, leady, leadx + mmomx, leady + mmomy, PT_ADDLINES, PTR_SlideTraverse);
-	P_PathTraverse(trailx, leady, trailx + mmomx, leady + mmomy, PT_ADDLINES, PTR_SlideTraverse);
-	P_PathTraverse(leadx, traily, leadx + mmomx, traily + mmomy, PT_ADDLINES, PTR_SlideTraverse);
-
+	P_RadiusLinesCheck(mo->radius, mo->x + mmomx, mo->y + mmomy, PTR_SlideTraverse);
+	
 	// move up to the wall
-	if (bestslidefrac == FRACUNIT + 1)
+	if (bestslidefrac == maxslidefrac)
 	{
 		// the move must have hit the middle, so bounce straight back
 bounceback:
@@ -4399,7 +4352,7 @@ static inline boolean PIT_GetSectors(line_t *ld)
 		tmbbox[BOXBOTTOM] >= ld->bbox[BOXTOP])
 	return true;
 
-	if (P_BoxOnLineSide(tmbbox, ld) != -1)
+	if (P_CircleOnLineSide(tmx, tmy, tmthing->radius, ld) != -1)
 		return true;
 
 	if (ld->polyobj) // line belongs to a polyobject, don't add it
@@ -4426,6 +4379,7 @@ static inline boolean PIT_GetSectors(line_t *ld)
 }
 
 // Tails 08-25-2002
+// Precipitation can stay square for hitboxes, because I would normally use tmx and tmy for P_CircleOnLineSide, but those don't seem to be set for tmprecipthing
 static inline boolean PIT_GetPrecipSectors(line_t *ld)
 {
 	if (preciptmbbox[BOXRIGHT] <= ld->bbox[BOXLEFT] ||
@@ -4434,7 +4388,7 @@ static inline boolean PIT_GetPrecipSectors(line_t *ld)
 		preciptmbbox[BOXBOTTOM] >= ld->bbox[BOXTOP])
 	return true;
 
-	if (P_BoxOnLineSide(preciptmbbox, ld) != -1)
+	if (P_CircleOnLineSide(tmx, tmy, tmprecipthing->radius, ld) != -1)
 		return true;
 
 	if (ld->polyobj) // line belongs to a polyobject, don't add it
@@ -4552,6 +4506,7 @@ void P_CreatePrecipSecNodeList(precipmobj_t *thing,fixed_t x,fixed_t y)
 	INT32 xl, xh, yl, yh, bx, by;
 	mprecipsecnode_t *node = precipsector_list;
 	precipmobj_t *saved_tmthing = tmprecipthing; /* cph - see comment at func end */
+	fixed_t saved_tmx = tmx, saved_tmy = tmy; /* ditto */
 
 	// First, clear out the existing m_thing fields. As each node is
 	// added or verified as needed, m_thing will be set properly. When
@@ -4565,6 +4520,9 @@ void P_CreatePrecipSecNodeList(precipmobj_t *thing,fixed_t x,fixed_t y)
 	}
 
 	tmprecipthing = thing;
+	
+	tmx = x;
+	tmy = y;
 
 	preciptmbbox[BOXTOP] = y + 2*FRACUNIT;
 	preciptmbbox[BOXBOTTOM] = y - 2*FRACUNIT;
@@ -4611,6 +4569,7 @@ void P_CreatePrecipSecNodeList(precipmobj_t *thing,fixed_t x,fixed_t y)
 	*  Fun. We restore its previous value unless we're in a Boom/MBF demo.
 	*/
 	tmprecipthing = saved_tmthing;
+	tmx = saved_tmx, tmy = saved_tmy;
 }
 
 /* cphipps 2004/08/30 -
