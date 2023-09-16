@@ -148,9 +148,9 @@ extern char  logfilename[1024];
 // we use comprevision and compbranch instead.
 #else
 #define VERSION    1 // Game version
-#define SUBVERSION 6 // more precise version number
-#define VERSIONSTRING "Saturn 32p.v1 (v3)"
-#define VERSIONSTRINGW L"Saturn 32p.v1 (v3)"
+#define SUBVERSION 69 // more precise version number
+#define VERSIONSTRING "Saturn - Vanilla Unsafe (v3)"
+#define VERSIONSTRINGW L"Saturn - Vanilla Unsafe (v3)"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!
