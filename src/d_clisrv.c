@@ -6340,12 +6340,7 @@ FILESTAMP
 			firstticstosend = gametic;
 			for (i = 0; i < MAXNETNODES; i++)
 				if (nodeingame[i] && nettics[i] < firstticstosend)
-				{
 					firstticstosend = nettics[i];
-
-					if (maketic + 1 >= nettics[i] + BACKUPTICS)
-						Net_ConnectionTimeout(i);
-				}
 
 			// Don't erase tics not acknowledged
 			counts = realtics;
