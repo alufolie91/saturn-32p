@@ -38,7 +38,7 @@ applications may follow different packet versions.
 #define VANILLA_GT_MATCH 3
 
 // Networking and tick handling related.
-#define BACKUPTICS 32
+#define BACKUPTICS 96
 #define TICQUEUE 512 // more than enough for most timeouts....
 #define MAXTEXTCMD 256
 //
