@@ -6742,7 +6742,8 @@ void P_SpawnSpecials(INT32 fromnetsave)
 		}
 	}
 
-	P_RunLevelLoadExecutors();
+	if (!fromnetsave)
+		P_RunLevelLoadExecutors();
 }
 
 /** Adds 3Dfloors as appropriate based on a common control linedef.
