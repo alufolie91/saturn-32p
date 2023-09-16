@@ -28,6 +28,7 @@
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
+#include "hardware/r_opengl/r_opengl.h"
 #endif
 
 // Each screen is [vid.width*vid.height];
@@ -224,8 +225,14 @@ void V_SetPalette(INT32 palettenum)
 		LoadMapPalette();
 
 #ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none)
+	if (rendermode != render_soft && rendermode != render_none) {
+		
+		if (cv_grpaletteshader.value == 1){
+		// reset our palette lookups n shit
+		gl_palette_initialized = false;
+		InitPalette();}
 		HWR_SetPalette(&pLocalPalette[palettenum*256]);
+	}		
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else
 #endif
@@ -238,8 +245,13 @@ void V_SetPaletteLump(const char *pal)
 {
 	LoadPalette(pal);
 #ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none)
+	if (rendermode != render_soft && rendermode != render_none) {
+		if (cv_grpaletteshader.value == 1){
+		// reset our palette lookups n shit
+		gl_palette_initialized = false;
+		InitPalette();}
 		HWR_SetPalette(pLocalPalette);
+	}
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else
 #endif
@@ -2480,6 +2492,11 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_WHITE:
 		case SKINCOLOR_SILVER:
 		case SKINCOLOR_SLATE:
+		case SKINCOLOR_BONE:
+		case SKINCOLOR_GHOST:
+		case SKINCOLOR_DIAMOND:
+		case SKINCOLOR_SNOW:
+		case SKINCOLOR_ORCA:
 			cstart = 0x80; // White
 			break;
 
@@ -2488,6 +2505,9 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_BLACK:
 		case SKINCOLOR_SKUNK:
 		case SKINCOLOR_JET:
+		case SKINCOLOR_CARBON:
+		case SKINCOLOR_INK:
+		case SKINCOLOR_RAVEN:
 			cstart = 0x86; // V_GRAYMAP
 			break;
 
@@ -2498,6 +2518,12 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_LEATHER:
 		case SKINCOLOR_RUST:
 		case SKINCOLOR_WRISTWATCH:
+		case SKINCOLOR_CHOCOLATE:
+		case SKINCOLOR_TAN:
+		case SKINCOLOR_MUD:
+		case SKINCOLOR_STEAMPUNK:
+		case SKINCOLOR_CHEESE:
+		case SKINCOLOR_DUNE:
 			cstart = 0x8e; // V_BROWNMAP
 			break;
 
@@ -2509,6 +2535,15 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_LEMONADE:
 		case SKINCOLOR_BUBBLEGUM:
 		case SKINCOLOR_LILAC:
+		case SKINCOLOR_MAGENTA:
+		case SKINCOLOR_THISTLE:
+		case SKINCOLOR_EARTHWORM:
+		case SKINCOLOR_YOGURT:
+		case SKINCOLOR_PEARL:
+		case SKINCOLOR_CARNATION:
+		case SKINCOLOR_CANDY:
+		case SKINCOLOR_SAKURA:
+		case SKINCOLOR_MULBERRY:
 			cstart = 0x8d; // V_PINKMAP
 			break;
 
@@ -2522,6 +2557,11 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_FLAME:
 		case SKINCOLOR_SCARLET:
 		case SKINCOLOR_KETCHUP:
+		case SKINCOLOR_STRAWBERRY:
+		case SKINCOLOR_SODA:
+		case SKINCOLOR_BLOODCELL:
+		case SKINCOLOR_MAHOGANY:
+		case SKINCOLOR_BOYSENBERRY:
 			cstart = 0x85; // V_REDMAP
 			break;
 
@@ -2533,12 +2573,18 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_ROSEWOOD:
 		case SKINCOLOR_BURGUNDY:
 		case SKINCOLOR_TANGERINE:
+		case SKINCOLOR_APRICOT:
+		case SKINCOLOR_FIERY:
+		case SKINCOLOR_AMBER:
 			cstart = 0x87; // V_ORANGEMAP
 			break;
 
 		case SKINCOLOR_PEACH:
 		case SKINCOLOR_CARAMEL:
 		case SKINCOLOR_CREAM:
+		case SKINCOLOR_PEACHY:
+		case SKINCOLOR_QUAIL:
+		case SKINCOLOR_EXOTIC:
 			cstart = 0x8f; // V_PEACHMAP
 			break;
 
@@ -2547,6 +2593,12 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_BRONZE:
 		case SKINCOLOR_COPPER:
 		case SKINCOLOR_THUNDER:
+		case SKINCOLOR_LANTERN:
+		case SKINCOLOR_SANDY:
+		case SKINCOLOR_SPICE:
+		case SKINCOLOR_KING:
+		case SKINCOLOR_HOTDOG:
+		case SKINCOLOR_BRASS:
 			cstart = 0x8a; // V_GOLDMAP
 			break;
 
@@ -2556,6 +2608,9 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_MUSTARD:
 		case SKINCOLOR_CROCODILE:
 		case SKINCOLOR_OLIVE:
+		case SKINCOLOR_BANANA:
+		case SKINCOLOR_CITRINE:
+		case SKINCOLOR_MOON:
 			cstart = 0x82; // V_YELLOWMAP
 			break;
 
@@ -2564,6 +2619,16 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_GARDEN:
 		case SKINCOLOR_TEA:
 		case SKINCOLOR_PISTACHIO:
+		case SKINCOLOR_SUNFLOWER:
+		case SKINCOLOR_PERIDOT:
+		case SKINCOLOR_APPLE:
+		case SKINCOLOR_SEAFOAM:
+		case SKINCOLOR_CARROT:
+		case SKINCOLOR_LIGHT:
+		case SKINCOLOR_PEPPERMINT:
+		case SKINCOLOR_ARMY:
+		case SKINCOLOR_CHARTEUSE:
+		case SKINCOLOR_SPEARMINT:
 			cstart = 0x8b; // V_TEAMAP
 			break;
 
@@ -2580,6 +2645,18 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_DREAM:
 		case SKINCOLOR_PLAGUE:
 		case SKINCOLOR_ALGAE:
+		case SKINCOLOR_FOREST:
+		case SKINCOLOR_CASKET:
+		case SKINCOLOR_KHAKI:
+		case SKINCOLOR_LASER:
+		case SKINCOLOR_ASPARAGUS:
+		case SKINCOLOR_CROW:
+		case SKINCOLOR_SLIME:
+		case SKINCOLOR_LEAF:
+		case SKINCOLOR_JUNGLE:
+		case SKINCOLOR_TROPIC:
+		case SKINCOLOR_IGUANA:
+		case SKINCOLOR_VACATION:
 			cstart = 0x83; // V_GREENMAP
 			break;
 
@@ -2592,12 +2669,31 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_CERULEAN:
 		case SKINCOLOR_NAVY:
 		case SKINCOLOR_SAPPHIRE:
+		case SKINCOLOR_TOPAZ:
+		case SKINCOLOR_WAVE:
+		case SKINCOLOR_ICY:
+		case SKINCOLOR_EVERGREEN:
+		case SKINCOLOR_PATINA:
+		case SKINCOLOR_ELECTRIC:
+		case SKINCOLOR_PEGASUS:
+		case SKINCOLOR_PLASMA:
+		case SKINCOLOR_COMET:
+		case SKINCOLOR_LIGHTNING:
+		case SKINCOLOR_COTTONCANDY:
 			cstart = 0x88; // V_SKYMAP
 			break;
 
 		case SKINCOLOR_PIGEON:
 		case SKINCOLOR_PLATINUM:
 		case SKINCOLOR_STEEL:
+		case SKINCOLOR_MARBLE:
+		case SKINCOLOR_BLUEBELL:
+		case SKINCOLOR_DIANNE:
+		case SKINCOLOR_LUNAR:
+		case SKINCOLOR_ONYX:
+		case SKINCOLOR_STORM:
+		case SKINCOLOR_GOTHIC:
+		case SKINCOLOR_WICKED:
 			cstart = 0x8c; // V_STEELMAP
 			break;
 
@@ -2605,12 +2701,27 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_BLUE:
 		case SKINCOLOR_BLUEBERRY:
 		case SKINCOLOR_NOVA:
+		case SKINCOLOR_PEACOCK:
+		case SKINCOLOR_VAPOR:
+		case SKINCOLOR_LAKESIDE:
+		case SKINCOLOR_TURQUOISE:
+		case SKINCOLOR_ULTRAMARINE:
+		case SKINCOLOR_DEPTHS:
+		case SKINCOLOR_LAPIS:
+		case SKINCOLOR_MIDNIGHT:
 			cstart = 0x84; // V_BLUEMAP
 			break;
 
 		case SKINCOLOR_ULTRAVIOLET:
 		case SKINCOLOR_PURPLE:
 		case SKINCOLOR_FUCHSIA:
+		case SKINCOLOR_GEMSTONE:
+		case SKINCOLOR_NEON:
+		case SKINCOLOR_PLUM:
+		case SKINCOLOR_GRAPE:
+		case SKINCOLOR_INDIGO:
+		case SKINCOLOR_DISCO:
+		case SKINCOLOR_MYSTIC:
 			cstart = 0x81; // V_PURPLEMAP
 			break;
 
@@ -2622,6 +2733,11 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_LAVENDER:
 		case SKINCOLOR_BYZANTIUM:
 		case SKINCOLOR_POMEGRANATE:
+		case SKINCOLOR_VIOLET:
+		case SKINCOLOR_NEBULA:
+		case SKINCOLOR_CYBER:
+		case SKINCOLOR_AMETHYST:
+		case SKINCOLOR_IRIS:
 			cstart = 0x89; // V_LAVENDERMAP
 			break;
 

@@ -126,6 +126,7 @@ extern consvar_t cv_kartvoices;
 extern consvar_t cv_karteliminatelast;
 
 extern consvar_t cv_votetime;
+extern consvar_t cv_votemaxrows;
 
 extern consvar_t cv_kartdebugitem, cv_kartdebugamount, cv_kartdebugshrink, cv_kartdebugdistribution, cv_kartdebughuddrop;
 extern consvar_t cv_kartdebugcheckpoint, cv_kartdebugnodes, cv_kartdebugcolorize;
@@ -270,7 +271,7 @@ typedef union {
 #pragma pack()
 #endif
 
-extern tic_t driftsparkGrowTimer[16];
+extern tic_t driftsparkGrowTimer[MAXPLAYERS];
 
 // add game commands, needs cleanup
 void D_RegisterServerCommands(void);

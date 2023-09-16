@@ -1347,7 +1347,8 @@ static menuitem_t OP_OpenGLOptionsMenu[] =
 	{IT_STRING | IT_CVAR,	NULL, "3D Models",					&cv_grmdls,					 5},
 	{IT_STRING | IT_CVAR,	NULL, "Fallback Player 3D Model",	&cv_grfallbackplayermodel,	 15},
 	{IT_STRING|IT_CVAR,		NULL, "Shaders",					&cv_grshaders,				 25},
-	{IT_STRING|IT_CVAR,		NULL, "Use custom Shaders",			&cv_grusecustomshaders,		 35},
+	//{IT_STRING|IT_CVAR,		NULL, "Use custom Shaders",			&cv_grusecustomshaders,		 35}, 
+	{IT_STRING|IT_CVAR,		NULL, "Palette Rendering",			&cv_grpaletteshader,		 35},
 	{IT_STRING | IT_CVAR, 	NULL, "Min Shader Brightness", 		&cv_secbright, 		 		 45},
 
 	{IT_STRING|IT_CVAR,		NULL, "Texture Quality",			&cv_scr_depth,				 65},
@@ -1406,7 +1407,6 @@ static menuitem_t OP_SoundOptionsMenu[] =
 	{IT_STRING|IT_CVAR,        NULL, "Play SFX While Unfocused", &cv_playsoundifunfocused, 135},
 	{IT_STRING|IT_SUBMENU, 		NULL, "Advanced Settings...", 		&OP_SoundAdvancedDef, 155}
 };
-
 
 static menuitem_t OP_SoundAdvancedMenu[] =
 {
@@ -1595,16 +1595,17 @@ static menuitem_t OP_ServerOptionsMenu[] =
 	{IT_STRING | IT_CVAR,    NULL, "Intermission Timer",			&cv_inttime,			 40},
 	{IT_STRING | IT_CVAR,    NULL, "Map Progression",				&cv_advancemap,			 50},
 	{IT_STRING | IT_CVAR,    NULL, "Voting Timer",					&cv_votetime,			 60},
-	{IT_STRING | IT_CVAR,    NULL, "Voting Rule Changes",			&cv_kartvoterulechanges, 70},
+	{IT_STRING | IT_CVAR,    NULL, "Voting Rows",					&cv_votemaxrows,		 70},
+	{IT_STRING | IT_CVAR,    NULL, "Voting Rule Changes",			&cv_kartvoterulechanges, 80},
 
 #ifndef NONET
-	{IT_STRING | IT_CVAR,    NULL, "Max. Player Count",				&cv_maxplayers,			 90},
-	{IT_STRING | IT_CVAR,    NULL, "Allow Players to Join",			&cv_allownewplayer,		100},
-	{IT_STRING | IT_CVAR,    NULL, "Allow Addon Downloading",		&cv_downloading,		110},
-	{IT_STRING | IT_CVAR,    NULL, "Pause Permission",				&cv_pause,				120},
-	{IT_STRING | IT_CVAR,    NULL, "Mute All Chat",					&cv_mute,				130},
+	{IT_STRING | IT_CVAR,    NULL, "Max. Player Count",				&cv_maxplayers,			100},
+	{IT_STRING | IT_CVAR,    NULL, "Allow Players to Join",			&cv_allownewplayer,		110},
+	{IT_STRING | IT_CVAR,    NULL, "Allow Addon Downloading",		&cv_downloading,		120},
+	{IT_STRING | IT_CVAR,    NULL, "Pause Permission",				&cv_pause,				130},
+	{IT_STRING | IT_CVAR,    NULL, "Mute All Chat",					&cv_mute,				140},
 
-	{IT_SUBMENU|IT_STRING,   NULL, "Advanced Options...",			&OP_AdvServerOptionsDef,150},
+	{IT_SUBMENU|IT_STRING,   NULL, "Advanced Options...",			&OP_AdvServerOptionsDef,160},
 #endif
 };
 
@@ -3805,7 +3806,7 @@ void M_Ticker(void)
 //
 void M_Init(void)
 {
-	UINT8 i;
+	UINT16 i;
 
 	COM_AddCommand("manual", Command_Manual_f);
 
@@ -3881,7 +3882,7 @@ void M_Init(void)
 
 void M_InitCharacterTables(void)
 {
-	UINT8 i;
+	UINT16 i;
 
 	// Setup PlayerMenu table
 	for (i = 0; i < MAXSKINS; i++)
@@ -9658,11 +9659,11 @@ static void M_DrawMPMainMenu(void)
 	INT32 lowercase = !cv_menucaps.value ? V_ALLOWLOWERCASE : 0;
 
 #ifndef NONET
-#if MAXPLAYERS != 16
+#if MAXPLAYERS != 32
 Update the maxplayers label...
 #endif
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+MP_MainMenu[4].alphaKey,
-		((itemOn == 4) ? highlightflags : 0)|lowercase, "(2-16 Players)");
+		((itemOn == 4) ? highlightflags : 0)|lowercase, "(2-32 Players)");
 #endif
 
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+MP_MainMenu[5].alphaKey,
@@ -9689,7 +9690,7 @@ Update the maxplayers label...
 #define iconwidth 32
 #define spacingwidth 32
 #define incrwidth (iconwidth + spacingwidth)
-		UINT8 i = 0, pskin, pcol;
+		UINT16 i = 0, pskin, pcol;
 		// player arrangement width, but there's also a chance i'm a furry, shhhhhh
 		const INT32 paw = iconwidth + 3*incrwidth;
 		INT32 trans = 0;
@@ -9979,7 +9980,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	UINT8 frame;
 	UINT8 speed;
 	UINT8 weight;
-	UINT8 i;
+	UINT16 i;
 	UINT8 s, w;
 	const UINT8 *flashcol = V_GetStringColormap(highlightflags);
 	INT32 statx, staty;

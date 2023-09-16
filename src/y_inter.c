@@ -116,6 +116,19 @@ static INT32 intertic;
 static INT32 endtic = -1;
 static INT32 sorttic = -1;
 
+patch_t *animVoteFramesPatches = NULL;
+// VEXTRN - Vote (V) Extra (EXT) Race (R) Normal (N - Normal sized patch)
+// VEXTBN - Vote (V) Extra (EXT) Battle (B) Normal (N - Normal sized patch)
+// VEXTBW - Vote (V) Extra (EXT) Battle (B) Normal (W - Wide patch used in software)
+// VEXTRW - Vote (V) Extra (EXT) Race (R) Normal (W - Wide patch used in software)
+char animPrefix[] = "INTSC";
+char animWidePrefix[] = "INTSW";
+char *luaVoteScreen = NULL;
+
+INT32 currentAnimFrame = 0;
+static INT32 foundAnimVoteFrames = 0;
+static INT32 foundAnimVoteWideFrames = 0;
+
 intertype_t intertype = int_none;
 
 
@@ -156,10 +169,14 @@ typedef struct
 	boolean loaded;
 } y_voteclient;
 
-static y_votelvlinfo levelinfo[5];
+static y_votelvlinfo levelinfo[12];
 static y_voteclient voteclient;
 static INT32 votetic;
+static INT32 lastvotetic;
 static INT32 voteendtic = -1;
+static INT32 votemax = 3;
+static INT32 voterowmem = 0;
+static boolean rowchange = false;
 static patch_t *cursor = NULL;
 static patch_t *cursor1 = NULL;
 static patch_t *cursor2 = NULL;
@@ -326,6 +343,54 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 }
 
 //
+// Y_AnimatedVoteScreenCheck
+//
+// Check if the lumps exist (checking for VEXTR(N|W)xx for race and VEXTRB(N|W)xx for battle)
+void Y_AnimatedVoteScreenCheck(void)
+{
+	char tmpPrefix[] = "INTS";
+	boolean stopSearching = false;
+
+	if (luaVoteScreen)
+	{
+		strncpy(tmpPrefix, luaVoteScreen, 4);
+	}
+	else
+	{
+		if(G_BattleGametype()) {
+			strcpy(tmpPrefix, "BTLS");
+		}
+	}
+
+	strncpy(animPrefix, tmpPrefix, 4);
+	animPrefix[4] = 'C';
+	strncpy(animWidePrefix, tmpPrefix, 4);
+	animWidePrefix[4] = 'W';
+
+	foundAnimVoteFrames = 0;
+	foundAnimVoteWideFrames = 0;
+	currentAnimFrame = 0;
+
+	INT32 i = 1;
+	while(!stopSearching){
+		boolean normalLumpExists = W_LumpExists(va("%sC%d", tmpPrefix, i));
+		boolean wideLumpExists = W_LumpExists(va("%sW%d", tmpPrefix, i));
+
+		if(normalLumpExists || wideLumpExists){
+			if(normalLumpExists){
+				foundAnimVoteFrames++;
+			}
+			if(wideLumpExists){
+				foundAnimVoteWideFrames++;
+			}
+		} else { // If we don't find at least frame 1 (e.g VEXTRN1), let's just stop looking
+			stopSearching = true;
+		}
+		i++;
+	}
+}
+
+//
 // Y_IntermissionDrawer
 //
 // Called by D_Display. Nothing is modified here; all it does is draw. (SRB2Kart: er, about that...)
@@ -451,13 +516,24 @@ void Y_IntermissionDrawer(void)
 
 		if (data.match.numplayers > NUMFORNEWCOLUMN)
 		{
-			V_DrawFill(x+156, 24, 1, 158, 0);
+			V_DrawFill(x+101, 24, 1, 158, 0);
+			V_DrawFill(x+207, 24, 1, 158, 0);
 			V_DrawFill((x-3) - duptweak, 182, dupadjust-2, 1, 0);
 
-			V_DrawCenteredString(x+6+(BASEVIDWIDTH/2), 24, hilicol, "#");
-			V_DrawString(x+36+(BASEVIDWIDTH/2), 24, hilicol, "NAME");
+			//V_DrawCenteredString(x+6+(BASEVIDWIDTH/2), 24, hilicol, "#");
+			//V_DrawString(x+36+(BASEVIDWIDTH/2), 24, hilicol, "NAME");
 
 			V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
+			//V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
+			y = 37;
+		}
+		else
+		{
+			V_DrawCenteredString(x+6, 24, hilicol, "#");
+			V_DrawString(x+36, 24, hilicol, "NAME");
+
+			V_DrawRightAlignedString(x+(BASEVIDWIDTH/2)+152, 24, hilicol, timeheader);
+
 		}
 
 		V_DrawCenteredString(x+6, 24, hilicol, "#");
@@ -477,15 +553,21 @@ void Y_IntermissionDrawer(void)
 				if (dojitter)
 					y--;
 
-				V_DrawCenteredString(x+6, y, 0, va("%d", data.match.pos[i]));
+				if (data.match.numplayers > NUMFORNEWCOLUMN)
+					V_DrawPingNum(x+6, y+2, 0, data.match.pos[i], NULL);
+				else
+					V_DrawCenteredString(x+6, y, 0, va("%d", data.match.pos[i]));
 
 				if (data.match.color[i])
 				{
 					UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
-					V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
+					if (data.match.numplayers > NUMFORNEWCOLUMN)
+						V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
+					else
+						V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
 				}
 
-				if (data.match.num[i] == whiteplayer)
+				if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN)
 				{
 					UINT8 cursorframe = (intertic / 4) % 8;
 					V_DrawScaledPatch(x+16, y-4, 0, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_CACHE));
@@ -494,7 +576,7 @@ void Y_IntermissionDrawer(void)
 				STRBUFCPY(strtime, data.match.name[i]);
 
 				if (data.match.numplayers > NUMFORNEWCOLUMN)
-					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+					V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 				else
 					V_DrawString(x+36, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
 
@@ -508,7 +590,7 @@ void Y_IntermissionDrawer(void)
 							snprintf(strtime, sizeof strtime, "(+  %d)", data.match.increase[data.match.num[i]]);
 
 						if (data.match.numplayers > NUMFORNEWCOLUMN)
-							V_DrawRightAlignedThinString(x+135+gutter, y-1, V_6WIDTHSPACE, strtime);
+							V_DrawRightAlignedThinString(x+83+gutter, y, V_6WIDTHSPACE, strtime);
 						else
 							V_DrawRightAlignedString(x+120+gutter, y, 0, strtime);
 					}
@@ -516,14 +598,14 @@ void Y_IntermissionDrawer(void)
 					snprintf(strtime, sizeof strtime, "%d", data.match.val[i]);
 
 					if (data.match.numplayers > NUMFORNEWCOLUMN)
-						V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, strtime);
+						V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
 					else
 						V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
 				}
 				else
 				{
 					if (data.match.val[i] == (UINT32_MAX-1))
-						V_DrawRightAlignedThinString(x+152+gutter, y-1, (data.match.numplayers > NUMFORNEWCOLUMN ? V_6WIDTHSPACE : 0), "NO CONTEST.");
+						V_DrawRightAlignedThinString(x+(data.match.numplayers > NUMFORNEWCOLUMN ? 100 : 152)+gutter, y, (data.match.numplayers > NUMFORNEWCOLUMN ? V_6WIDTHSPACE : 0), "NO CONTEST.");
 					else
 					{
 						if (intertype == int_race)
@@ -533,7 +615,7 @@ void Y_IntermissionDrawer(void)
 							strtime[sizeof strtime - 1] = '\0';
 
 							if (data.match.numplayers > NUMFORNEWCOLUMN)
-								V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, strtime);
+								V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
 							else
 								V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
 						}
@@ -553,12 +635,12 @@ void Y_IntermissionDrawer(void)
 			else
 				data.match.num[i] = MAXPLAYERS; // this should be the only field setting in this function
 
-			y += 18;
+			y += (data.match.numplayers > NUMFORNEWCOLUMN) ? 10 : 18;
 
-			if (i == NUMFORNEWCOLUMN-1)
+			if (i % 14 == 13)
 			{
-				y = 41;
-				x += BASEVIDWIDTH/2;
+				y = 37;
+				x += BASEVIDWIDTH/3;
 			}
 #undef NUMFORNEWCOLUMN
 		}
@@ -978,6 +1060,42 @@ static void Y_UnloadData(void)
 
 // SRB2Kart: Voting!
 
+// Y_DrawAnimatedVoteScreenPatch
+//
+// Draw animated patch based on frame counter on vote screen
+//
+void Y_DrawAnimatedVoteScreenPatch(boolean widePatch){
+	char tempAnimPrefix[7];
+	(widePatch) ? strcpy(tempAnimPrefix, animWidePrefix) : strcpy(tempAnimPrefix, animPrefix);
+	INT32 tempFoundAnimVoteFrames = (widePatch) ? foundAnimVoteWideFrames : foundAnimVoteFrames;
+	INT32 flags = V_SNAPTOBOTTOM | V_SNAPTOTOP;
+
+	// Just in case someone provides LESS widescreen frames than normal frames or vice versa, reset the frame counter to 0
+	if(widePatch) {
+		if(currentAnimFrame > foundAnimVoteWideFrames-1){
+			currentAnimFrame = 0;
+		}
+	} else {
+		if(currentAnimFrame > foundAnimVoteFrames-1){
+			currentAnimFrame = 0;
+		}
+	}
+
+	/*patch_t *currPatch = W_CachePatchName(va("%s%d", tempAnimPrefix, currentAnimFrame+1), PU_CACHE);
+	V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(currPatch->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
+				(vid.height / vid.dupy) - SHORT(currPatch->height),
+				V_SNAPTOTOP|V_SNAPTOLEFT, currPatch);
+	if(votetic % 3 == 0 && !paused){*/
+
+	{
+		patch_t *background = W_CachePatchName(va("%s%d", tempAnimPrefix, currentAnimFrame + 1), PU_CACHE);		
+		V_DrawScaledPatch(160 - (background->width / 2), (200 - (background->height)), flags, background);		
+	}
+	if (lastvotetic != votetic && lastvotetic % 2 == 0) {
+		currentAnimFrame = (currentAnimFrame+1 > tempFoundAnimVoteFrames-1) ? 0 : currentAnimFrame + 1; // jeez no fucking idea how to make this shit not go nuts with interpolation
+	}
+}
+
 //
 // Y_VoteDrawer
 //
@@ -985,9 +1103,54 @@ static void Y_UnloadData(void)
 //
 void Y_VoteDrawer(void)
 {
-	INT32 i, x, y = 0, height = 0;
-	UINT8 selected[4];
+	INT32 rowval, i, lvls, x, picdiff, y = 0, height = 0;
+	UINT8 selected[32];
 	fixed_t rubyheight = 0;
+	fixed_t picscale = FRACUNIT; // GREENRES
+	fixed_t picwidth = 160;
+	boolean unevenhypot;
+
+	// CEP: scale by screen hypotenuse for extra voting rows
+	INT32 vidx = ((vid.width) / vid.dupx);
+	INT32 vidy = ((vid.height) / vid.dupy);
+
+	fixed_t hypotf = 0;
+	INT32 hypoti = 0;
+
+	// get the hypotenuse
+	hypoti = (vidx*vidx) + (vidy*vidy);
+	hypotf = FixedSqrt(hypoti);
+
+	// convert the fixed_t back into an integer
+	hypoti = ((hypotf*10)/FRACUNIT);
+
+	if ((voterowmem != cv_votemaxrows.value) && (votemax != cv_votemaxrows.value)) // voting rows were changed(?)
+	{
+		CONS_Printf(M_GetText("Max rows will be changed to %d on the next votescreen.\n"), cv_votemaxrows.value); // notify the players
+		voterowmem = cv_votemaxrows.value;
+	}
+
+	// divisor for rescaling
+	INT32 hypotdiv = max(10, (40-hypoti));
+
+	// readjust the picscale
+	picscale *= 10;
+	picscale /= (40-hypoti);
+
+	picwidth *= picscale;
+
+	// shitty hack to prevent alignment issues
+	if ( ((hypoti % 5) == 1) || ((hypoti % 5) == 4) || ((hypoti % 5) == 2) )
+	{
+		if ((hypoti % 5) == 2) // scale DOWN the image
+			picscale -= (hypoti*16);
+		else
+			picscale += (hypoti*2); // scale UP the image
+
+		unevenhypot = true;
+	}
+	else
+		unevenhypot = false;
 
 	if (rendermode == render_none)
 		return;
@@ -1006,16 +1169,36 @@ void Y_VoteDrawer(void)
 
 	V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31);
 
-	if (widebgpatch && rendermode == render_soft && vid.width / vid.dupx > 320)
-		V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(widebgpatch->width)/2),
-							(vid.height / vid.dupy) - SHORT(widebgpatch->height),
-							V_SNAPTOTOP|V_SNAPTOLEFT, widebgpatch);
-	else
-		V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(bgpatch->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
-							(vid.height / vid.dupy) - SHORT(bgpatch->height),
-							V_SNAPTOTOP|V_SNAPTOLEFT, bgpatch);
+	if (widebgpatch && vid.width / vid.dupx > 320) {
 
-	for (i = 0; i < 4; i++) // First, we need to figure out the height of this thing...
+		if(foundAnimVoteWideFrames == 0){
+			V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(widebgpatch->width)/2),
+								(vid.height / vid.dupy) - SHORT(widebgpatch->height),
+								V_SNAPTOTOP|V_SNAPTOLEFT, widebgpatch);
+		} else {
+			// patch_t *currPatch = W_CachePatchName(va("%s%d", animPrefix, currentAnimFrame+1), PU_CACHE);
+			// V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(currPatch->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
+			// 			(vid.height / vid.dupy) - SHORT(currPatch->height),
+			// 			V_SNAPTOTOP|V_SNAPTOLEFT, currPatch);
+			// if(votetic % 4 == 0 && !paused){
+			// 	currentAnimFrame = (currentAnimFrame+1 > foundAnimVoteFrames-1) ? 0 : currentAnimFrame + 1;
+			// }
+			Y_DrawAnimatedVoteScreenPatch(true);
+		}
+	} else {
+		if(foundAnimVoteFrames == 0) {
+			V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(bgpatch->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
+								(vid.height / vid.dupy) - SHORT(bgpatch->height),
+								V_SNAPTOTOP|V_SNAPTOLEFT, bgpatch);
+		} else {
+			Y_DrawAnimatedVoteScreenPatch(false);
+		}
+
+
+	}
+
+	rowval = (votemax*3)+((votemax > 1) ? (votemax - 1) : 0);
+	for (i = 0; i < (rowval+1); i++) // First, we need to figure out the height of this thing...
 	{
 		UINT8 j;
 		selected[i] = 0; // Initialize
@@ -1027,22 +1210,42 @@ void Y_VoteDrawer(void)
 		}
 
 		if (selected[i])
-			height += 50;
+			height += 25; //50;
 		else
 			height += 25;
 
-		if (i < 3)
+		if (i < rowval)
 			height += 5-splitscreen;
 	}
+	
+	height /= votemax;
 
 	y = (200-height)/2;
-	for (i = 0; i < 4; i++)
+	picdiff = 80*( max(0, (votemax-1) ) ); // let's draw these in reverse order
+	lvls = -1; // shitty cheat
+
+	for (i = 0; i < (rowval+1); i++)
 	{
 		const char *str;
 		patch_t *pic;
 		UINT8 j, color;
 
-		if (i == 3)
+		// CEP: hack hell
+		INT32 scaledpicdiff = ((picdiff*10)/hypotdiv);
+		INT32 fillscale = 800/hypotdiv;
+		INT32 hypotmod = (hypoti % 5); // hypotenuse mod 5, rescale the bounding box
+		INT32 hypotadd = ((hypotmod > 1) ? (hypotmod/4) : hypotmod); // how much do we add the bounding box by?
+		INT32 hypmod7 = ((hypoti % 7 == 0) ? ((hypoti % 4)*(FRACUNIT/8)) : 0);
+		INT32 hypmod6 = ((hypoti % 6 == 0) ? (FRACUNIT) : 0);
+
+		// integer scaling makes me want to DIE
+		if ((hypotmod == 3))
+			hypotadd += (1);
+
+		scaledpicdiff *= 3;
+		scaledpicdiff /= 2; // 1.5
+
+		if (i == rowval)
 		{
 			str = "RANDOM";
 			pic = randomlvl;
@@ -1103,58 +1306,104 @@ void Y_VoteDrawer(void)
 				if (votes[p] != -1 || players[p].spectator)
 					continue;
 
-				handy += 6*(3-splitscreen) + (13*j);
-				V_DrawMappedPatch(BASEVIDWIDTH-124, handy, V_SNAPTORIGHT, thiscurs, colormap);
+				handy += 3*(3-splitscreen) + (13*j);
+
+				V_DrawMappedPatch(BASEVIDWIDTH-(1600/hypotdiv)-scaledpicdiff, handy, V_SNAPTORIGHT, thiscurs, colormap);
+
 
 				if (votetic % 10 < 4)
-					V_DrawFill(BASEVIDWIDTH-100-sizeadd, y-sizeadd, 80+(sizeadd*2), 50+(sizeadd*2), 120|V_SNAPTORIGHT);
+					V_DrawFill(BASEVIDWIDTH-(1200/hypotdiv)-sizeadd-scaledpicdiff, y-sizeadd, (fillscale + (sizeadd*2) + hypotadd), ((500/hypotdiv)+(sizeadd*2)) + hypotadd, 120|V_SNAPTORIGHT);
 				else
-					V_DrawFill(BASEVIDWIDTH-100-sizeadd, y-sizeadd, 80+(sizeadd*2), 50+(sizeadd*2), color|V_SNAPTORIGHT);
+					V_DrawFill(BASEVIDWIDTH-(1200/hypotdiv)-sizeadd-scaledpicdiff, y-sizeadd, (fillscale + (sizeadd*2) + hypotadd), ((500/hypotdiv)+(sizeadd*2)) + hypotadd, color|V_SNAPTORIGHT);
 
 				sizeadd--;
 			}
 
 			if (!levelinfo[i].encore)
-				V_DrawSmallScaledPatch(BASEVIDWIDTH-100, y, V_SNAPTORIGHT, pic);
+				V_DrawFixedPatch((BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff)<<FRACBITS, y<<FRACBITS, picscale/2, V_SNAPTORIGHT, pic, 0); //V_DrawTinyScaledPatch(BASEVIDWIDTH-60-scaledpicdiff, y, V_SNAPTORIGHT, pic);
 			else
 			{
-				V_DrawFixedPatch((BASEVIDWIDTH-20)<<FRACBITS, (y)<<FRACBITS, FRACUNIT/2, V_FLIP|V_SNAPTORIGHT, pic, 0);
-				V_DrawFixedPatch((BASEVIDWIDTH-60)<<FRACBITS, ((y+25)<<FRACBITS) - (rubyheight<<1), FRACUNIT, V_SNAPTORIGHT, rubyicon, NULL);
+				V_DrawFixedPatch(((BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff)<<FRACBITS) + (picwidth/2), y<<FRACBITS, picscale/2, V_FLIP|V_SNAPTORIGHT, pic, 0);
+				V_DrawFixedPatch(((BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff)<<FRACBITS) + (picwidth/4), (y<<FRACBITS) + (25<<(FRACBITS-1)) - rubyheight, picscale, V_SNAPTORIGHT, rubyicon, NULL);
 			}
 
-			V_DrawRightAlignedThinString(BASEVIDWIDTH-21, 40+y, V_SNAPTORIGHT|V_6WIDTHSPACE, str);
+			V_DrawRightAlignedThinString(BASEVIDWIDTH-(420/hypotdiv)-scaledpicdiff, (400/hypotdiv)+y, V_SNAPTORIGHT|V_6WIDTHSPACE, str);
 
 			if (levelinfo[i].gts)
 			{
 				INT32 w = V_ThinStringWidth(levelinfo[i].gts, V_SNAPTORIGHT)+1;
-				V_DrawFill(BASEVIDWIDTH-100, y+10, w+1, 2, V_SNAPTORIGHT|31);
-				V_DrawFill(BASEVIDWIDTH-100, y, w, 11, V_SNAPTORIGHT|levelinfo[i].gtc);
-				V_DrawDiag(BASEVIDWIDTH-100+w+1, y, 12, V_SNAPTORIGHT|31);
-				V_DrawDiag(BASEVIDWIDTH-100+w, y, 11, V_SNAPTORIGHT|levelinfo[i].gtc);
-				V_DrawThinString(BASEVIDWIDTH-99, y+1, V_SNAPTORIGHT, levelinfo[i].gts);
+				w *= 10;
+				w /= (hypotdiv);
+
+				if (hypoti >= 16)
+				{
+					V_DrawFill(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y+10, w+1, 2, V_SNAPTORIGHT|31);
+					V_DrawFill(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, w, 11, V_SNAPTORIGHT|levelinfo[i].gtc);
+					V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff+w+1, y, 12, V_SNAPTORIGHT|31);
+					V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff+w, y, 11, V_SNAPTORIGHT|levelinfo[i].gtc);
+					V_DrawThinString(BASEVIDWIDTH-(1188/hypotdiv)-scaledpicdiff, y+1, V_SNAPTORIGHT, levelinfo[i].gts);
+				}
+				else // literally almost entirely covers the map icon, let's just mark it red or something
+				{
+					V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 8, V_SNAPTORIGHT|31);
+					V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 6, V_SNAPTORIGHT|levelinfo[i].gtc); 
+				}
 			}
 
-			y += 50;
+			y += ((25*10) / (hypotdiv/2));
+			lvls += 1;
+
+			// screen height isn't doing us any favors
+			if (lvls >= 6) // loop over if we have an extra row
+			{
+				lvls = -2;
+				picdiff -= 90; // yes, this will overlap; no, I don't plan to change it
+				y = (200-height)/2;
+
+				y -= 5;
+			}
 		}
 		else
 		{
 			if (!levelinfo[i].encore)
-				V_DrawTinyScaledPatch(BASEVIDWIDTH-60, y, V_SNAPTORIGHT, pic);
+				V_DrawFixedPatch((BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff)<<FRACBITS, y<<FRACBITS, picscale/2, V_SNAPTORIGHT, pic, 0); //V_DrawTinyScaledPatch(BASEVIDWIDTH-60-scaledpicdiff, y, V_SNAPTORIGHT, pic);
 			else
 			{
-				V_DrawFixedPatch((BASEVIDWIDTH-20)<<FRACBITS, y<<FRACBITS, FRACUNIT/4, V_FLIP|V_SNAPTORIGHT, pic, 0);
-				V_DrawFixedPatch((BASEVIDWIDTH-40)<<FRACBITS, (y<<FRACBITS) + (25<<(FRACBITS-1)) - rubyheight, FRACUNIT/2, V_SNAPTORIGHT, rubyicon, NULL);
+				V_DrawFixedPatch(((BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff)<<FRACBITS) + (picwidth/2), y<<FRACBITS, picscale/2, V_FLIP|V_SNAPTORIGHT, pic, 0);
+				V_DrawFixedPatch(((BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff)<<FRACBITS) + (picwidth/4), (y<<FRACBITS) + (25<<(FRACBITS-1)) - rubyheight, picscale, V_SNAPTORIGHT, rubyicon, NULL);
 			}
 
 			if (levelinfo[i].gts)
 			{
-				V_DrawDiag(BASEVIDWIDTH-60, y, 8, V_SNAPTORIGHT|31);
-				V_DrawDiag(BASEVIDWIDTH-60, y, 6, V_SNAPTORIGHT|levelinfo[i].gtc);
+				V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 8, V_SNAPTORIGHT|31);
+				V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 6, V_SNAPTORIGHT|levelinfo[i].gtc);
 			}
-			y += 25;
+			
+			y += ((25*10) / (hypotdiv/2));
+			lvls += 1;
+
+			if (lvls >= 6)
+			{
+				lvls = -2;
+				picdiff -= 90;
+				y = (200-height)/2;
+
+				y -= 5;
+			}
 		}
 
 		y += 5-splitscreen;
+		lvls += 1;
+
+		
+		if (lvls >= 6)
+		{
+			lvls = -2;
+			picdiff -= 90;
+			y = (200-height)/2;
+
+			y -= 5;
+		}
 	}
 
 	x = 20;
@@ -1169,7 +1418,7 @@ void Y_VoteDrawer(void)
 		{
 			patch_t *pic;
 
-			if (votes[i] >= 3 && (i != pickedvote || voteendtic == -1))
+			if (votes[i] >= ((votemax*3)+((votemax > 1) ? (votemax - 1) : 0)) && (i != pickedvote || voteendtic == -1))
 				pic = randomlvl;
 			else
 				pic = levelinfo[votes[i]].pic;
@@ -1231,6 +1480,8 @@ void Y_VoteDrawer(void)
 		V_DrawCenteredString(BASEVIDWIDTH/2, 188, hilicol,
 			va("Vote ends in %d", tickdown));
 	}
+	
+	lastvotetic = votetic;
 
 #ifdef HAVE_BLUA
 	if (renderisnewtic)
@@ -1252,8 +1503,8 @@ static void Y_VoteStops(SINT8 pick, SINT8 level)
 {
 	nextmap = votelevels[level][0];
 
-	//if (level == 4)
-	//	S_StartSound(NULL, sfx_noooo2); // gasp
+	//if (level == (((votemax*3)+((votemax > 1) ? (votemax - 1) : 0))+1))
+		//S_StartSound(NULL, sfx_noooo2); // gasp
 	if (mapheaderinfo[nextmap] && (mapheaderinfo[nextmap]->menuflags & LF2_HIDEINMENU))
 		S_StartSound(NULL, sfx_noooo1); // this is bad
 	else if (netgame && P_IsLocalPlayer(&players[pick]))
@@ -1302,7 +1553,7 @@ void Y_VoteTicker(void)
 		if (!playeringame[i] || players[i].spectator)
 			votes[i] = -1; // Spectators are the lower class, and have effectively no voice in the government. Democracy sucks.
 		else if (pickedvote != -1 && votes[i] == -1)
-			votes[i] = 3; // Slow people get random
+			votes[i] = (votemax*3)+((votemax > 1) ? (votemax - 1) : 0); // Slow people get random
 	}
 
 	if (server && pickedvote != -1 && votes[pickedvote] == -1) // Uh oh! The person who got picked left! Recalculate, quick!
@@ -1389,6 +1640,12 @@ void Y_VoteTicker(void)
 		{
 			UINT8 p;
 			boolean pressed = false;
+			UINT32 votewrap = 0;
+
+			if (votemax == 2)
+				votewrap = 3;
+			else if (votemax == 3)
+				votewrap = 7;
 
 			switch (i)
 			{
@@ -1424,10 +1681,34 @@ void Y_VoteTicker(void)
 					voteclient.playerinfo[i].selection++;
 					pressed = true;
 				}
+				
+				if (votemax > 1) // only allow side-movements for multi-row selections
+				{
+					// HORRIBLE hack, my GOD
+					if ((InputDown(gc_turnright, i+1) || JoyAxis(AXISTURN, i+1) > 0) && !pressed) // move right
+					{
+						if (voteclient.playerinfo[i].selection <= votewrap)
+							voteclient.playerinfo[i].selection += 4;
+						else 
+							voteclient.playerinfo[i].selection -= ((votemax-1)*4);
+
+						pressed = true;
+					}
+
+					if ((InputDown(gc_turnleft, i+1) || JoyAxis(AXISTURN, i+1) < 0) && !pressed) // move left
+					{
+						if (voteclient.playerinfo[i].selection > 3)
+							voteclient.playerinfo[i].selection -= 4;
+						else 
+							voteclient.playerinfo[i].selection += ((votemax-1)*4);
+							
+						pressed = true;
+					}
+				}
 
 				if (voteclient.playerinfo[i].selection < 0)
-					voteclient.playerinfo[i].selection = 3;
-				if (voteclient.playerinfo[i].selection > 3)
+					voteclient.playerinfo[i].selection = ((votemax*3)+((votemax > 1) ? (votemax-1) : 0) );
+				if (voteclient.playerinfo[i].selection > ((votemax*3)+((votemax > 1) ? (votemax-1) : 0)) )
 					voteclient.playerinfo[i].selection = 0;
 
 				if ((InputDown(gc_accelerate, i+1) || JoyAxis(AXISMOVE, i+1) > 0) && !pressed)
@@ -1451,7 +1732,7 @@ void Y_VoteTicker(void)
 				for (i = 0; i < MAXPLAYERS; i++)
 				{
 					if ((playeringame[i] && !players[i].spectator) && votes[i] == -1)
-						votes[i] = 3;
+						votes[i] = (votemax*3)+((votemax > 1) ? (votemax-1) : 0);
 				}
 			}
 			else
@@ -1478,6 +1759,13 @@ void Y_VoteTicker(void)
 void Y_StartVote(void)
 {
 	INT32 i = 0;
+	INT32 rowval = (cv_votemaxrows.value*3)+((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0);
+
+	votemax = cv_votemaxrows.value; // can we please avoid SIGSEGVs
+	voterowmem = cv_votemaxrows.value; // this is just for the notif system
+
+	rowchange = false;
+
 	UINT8 prefgametype = (votelevels[0][1] & ~0x80);
 
 	votetic = -1;
@@ -1486,6 +1774,8 @@ void Y_StartVote(void)
 	if (voteendtic != -1)
 		I_Error("voteendtic is dirty");
 #endif
+
+	Y_AnimatedVoteScreenCheck();
 
 	widebgpatch = W_CachePatchName(((prefgametype == GT_MATCH) ? "BATTLSCW" : "INTERSCW"), PU_STATIC);
 	bgpatch = W_CachePatchName(((prefgametype == GT_MATCH) ? "BATTLSCR" : "INTERSCR"), PU_STATIC);
@@ -1515,7 +1805,7 @@ void Y_StartVote(void)
 	for (i = 0; i < MAXPLAYERS; i++)
 		votes[i] = -1;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < (rowval + 1); i++)
 	{
 		lumpnum_t lumpnum;
 
@@ -1605,10 +1895,17 @@ static void Y_UnloadVoteData(void)
 	UNLOAD(randomlvl);
 	UNLOAD(rubyicon);
 
-	UNLOAD(levelinfo[3].pic);
+	INT32 rowval = ((votemax*3)+((votemax > 1) ? (votemax - 1) : 0));
+	INT32 i;
+
+	for(i = (rowval + 1); i > 0; i--)
+	{
+		UNLOAD(levelinfo[i].pic);
+	}
+	/*UNLOAD(levelinfo[3].pic);
 	UNLOAD(levelinfo[2].pic);
 	UNLOAD(levelinfo[1].pic);
-	UNLOAD(levelinfo[0].pic);
+	UNLOAD(levelinfo[0].pic);*/
 }
 
 //
@@ -1637,7 +1934,7 @@ void Y_SetupVoteFinish(SINT8 pick, SINT8 level)
 		for (i = 0; i < MAXPLAYERS; i++)
 		{
 			if ((playeringame[i] && !players[i].spectator) && votes[i] == -1)
-				votes[i] = 3;
+				votes[i] = (votemax*3)+((votemax > 1) ? (votemax - 1) : 0);
 
 			if (votes[i] == -1 || endtype > 1) // Don't need to go on
 				continue;
