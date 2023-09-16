@@ -45,6 +45,7 @@ struct GLRGBAFloat
 };
 typedef struct GLRGBAFloat GLRGBAFloat;
 static const GLubyte white[4] = { 255, 255, 255, 255 };
+static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
 
 // ==========================================================================
 //                                                                  CONSTANTS
@@ -719,6 +720,18 @@ static gl_shaderprogram_t gl_shaderprograms[MAXSHADERPROGRAMS];
 	"void main(void) {\n" \
 		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * poly_color;\n" \
 	"}\0"
+	
+//
+// Sky fragment shader
+// Modulates poly_color with gl_Color
+//
+
+#define GLSL_SKY_FRAGMENT_SHADER \
+	"uniform sampler2D tex;\n" \
+	"uniform vec4 poly_color;\n" \
+	"void main(void) {\n" \
+		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * gl_Color * poly_color;\n" \
+	"}\0"
 
 static const char *fragment_shaders[] = {
 	// Default fragment shader
@@ -743,11 +756,8 @@ static const char *fragment_shaders[] = {
 	GLSL_FOG_FRAGMENT_SHADER,
 
 	// Sky fragment shader
-	"uniform sampler2D tex;\n"
-	"void main(void) {\n"
-		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st);\n"
-	"}\0",
-
+	GLSL_SKY_FRAGMENT_SHADER,
+	
 	NULL,
 };
 
@@ -1770,6 +1780,14 @@ static void load_shaders(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *
 					}
 				}
 			}
+			
+			// Color uniforms can be left NULL and will be set to white (1.0f, 1.0f, 1.0f, 1.0f)
+			if (poly == NULL)
+				poly = &shader_defaultcolor;
+			if (tint == NULL)
+				tint = &shader_defaultcolor;
+			if (fade == NULL)
+				fade = &shader_defaultcolor;
 
 			// set uniforms
 			{
