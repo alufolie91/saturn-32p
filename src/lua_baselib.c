@@ -136,36 +136,6 @@ static int lib_chatprintf(lua_State *L)
 	return 0;
 }
 
-// Takes a metatable as first and only argument
-// Only callable during script loading
-static int lib_registerMetatable(lua_State *L)
-{
-	static UINT16 nextid = 1;
-
-	if (!lua_lumploading)
-		return luaL_error(L, "This function cannot be called from within a hook or coroutine!");
-	luaL_checktype(L, 1, LUA_TTABLE);
-
-	if (nextid == 0)
-		return luaL_error(L, "Too many metatables registered?! Please consider rewriting your script once you are sober again.\n");
-
-	lua_getfield(L, LUA_REGISTRYINDEX, LREG_METATABLES); // 2
-		// registry.metatables[metatable] = nextid
-		lua_pushvalue(L, 1); // 3
-			lua_pushnumber(L, nextid); // 4
-		lua_settable(L, 2);
-
-		// registry.metatables[nextid] = metatable
-		lua_pushnumber(L, nextid); // 3
-			lua_pushvalue(L, 1); // 4
-		lua_settable(L, 2);
-	lua_pop(L, 1);
-
-	nextid++;
-
-	return 0;
-}
-
 static int lib_evalMath(lua_State *L)
 {
 	const char *word = luaL_checkstring(L, 1);
@@ -3023,7 +2993,6 @@ static luaL_Reg lib[] = {
 	{"print", lib_print},
 	{"chatprint", lib_chatprint},
 	{"chatprintf", lib_chatprintf},
-	{"registerMetatable", lib_registerMetatable},
 	{"EvalMath", lib_evalMath},
 	{"IsPlayerAdmin", lib_isPlayerAdmin},
 
