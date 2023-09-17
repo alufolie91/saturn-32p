@@ -56,12 +56,7 @@ enum hook {
 	hook_PlayerSquish,	//SRB2KART
 	hook_PlayerCmd,		//SRB2KART
 	hook_IntermissionThinker, //SRB2KART
-	hook_VoteThinker, 	//SRB2KART
-	hook_PlayerItemUse, //SRB2KART
-	hook_KartHyudoro,	//SRB2KART
-	hook_KartStealBumper, //SRB2KART
-	hook_MobjScaleChange, 	//SRB2KART
-	hook_KartSneaker,	//SRB2KART
+	hook_VoteThinker, //SRB2KART
 
 	hook_MAX // last hook
 };
@@ -118,12 +113,5 @@ boolean LUAh_PlayerCmd(player_t *player, ticcmd_t *cmd);	// Allows to write to p
 void LUAh_IntermissionThinker(void); // Hook for Y_Ticker
 void LUAh_VoteThinker(void);	// Hook for Y_VoteTicker
 #define LUAh_PlayerThink(player) LUAh_PlayerHook(player, hook_PlayerThink) // Hook for P_PlayerThink
-
-// SRB2Kart: Hook for K_MoveKartPlayer (specifically for using items and overriding default behaviour.)
-boolean LUAh_PlayerItemUse(player_t *player, kartitems_t itemType, boolean wasHoldingItem, boolean *force);
-boolean LUAh_KartHyudoro(player_t *player, INT32 *target, boolean sink); // SRB2Kart: Hook for K_DoHyudoroSteal and overriding its results.
-boolean LUAh_KartStealBumper(player_t *player, player_t *target, boolean *force); // SRB2Kart: Hook for K_StealBumper.
-boolean LUAh_MobjScaleChange(mobj_t *target, fixed_t newscale, fixed_t oldscale); // SRB2Kart: Hook for P_SetScale.
-boolean LUAh_KartSneaker(player_t *player, int type); // SRB2Kart: Hook for K_DoSneaker.
 
 #endif

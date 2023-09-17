@@ -418,7 +418,6 @@ typedef struct player_s
 	INT32 skin;
 
 	UINT32 score; // player score
-	INT32 interpoints; // SRB2kart CEP: Points the player gets before an intermission, if said score is set.
 	fixed_t dashspeed; // dashing speed
 	INT32 dashtime; // tics dashing, used for rev sound
 

@@ -38,8 +38,6 @@
 void LUA_ClearExtVars(void);
 #endif
 
-extern INT32 lua_lumploading; // is LUA_LoadLump being called?
-
 void LUA_ClearState(void);
 
 int LUA_GetErrorMessage(lua_State *L);

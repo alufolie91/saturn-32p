@@ -139,7 +139,6 @@ static void P_NetArchivePlayers(void)
 			WRITEINT32(save_p, players[i].kartstuff[j]);
 
 		WRITEANGLE(save_p, players[i].frameangle);
-		WRITEINT32(save_p, players[i].interpoints);
 
 		WRITEUINT8(save_p, players[i].playerstate);
 		WRITEUINT32(save_p, players[i].pflags);
@@ -321,7 +320,6 @@ static void P_NetUnArchivePlayers(void)
 			players[i].kartstuff[j] = READINT32(save_p);
 
 		players[i].frameangle = READANGLE(save_p);
-		players[i].interpoints = READINT32(save_p);
 
 		players[i].playerstate = READUINT8(save_p);
 		players[i].pflags = READUINT32(save_p);

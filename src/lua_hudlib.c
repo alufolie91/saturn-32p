@@ -56,12 +56,6 @@ static const char *const hud_disable_options[] = {
 	"speedometer",
 	"freeplay",
 	"rankings",
-	"interlisting", // Intermission hooks start here; listing of player names and scores
-	"interplayers", // Player icons and finishing positions
-	"interborders", // White border lines during an intermission
-	"interscores", // Player scores
-	"interscoretitle", // "RANK", "TIME", etc. Good for custom rank names
-	"intertitle", // Level title and "TOTAL RANKINGS" text
 	NULL};
 
 enum hudinfo {
