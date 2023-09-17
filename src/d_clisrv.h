@@ -209,6 +209,7 @@ typedef struct
 
 	INT32 kartstuff[NUMKARTSTUFF]; // SRB2kart
 	angle_t frameangle; // SRB2kart
+	INT32 interpoints; // SRB2kart CEP
 
 	// Score is resynched in the confirm resync packet
 	INT32 health;

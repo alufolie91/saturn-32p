@@ -200,6 +200,10 @@ void LUA_ClearState(void)
 	// make LREG_VALID table for all pushed userdata cache.
 	lua_newtable(L);
 	lua_setfield(L, LUA_REGISTRYINDEX, LREG_VALID);
+	
+	// make LREG_METATABLES table for all registered metatables
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, LREG_METATABLES);
 
 	// open srb2 libraries
 	for(i = 0; liblist[i]; i++) {
@@ -229,6 +233,11 @@ void LUA_ClearExtVars(void)
 }
 #endif
 
+// Use this variable to prevent certain functions from running
+// if they were not called on lump load
+// (i.e. they were called in hooks or coroutines etc)
+INT32 lua_lumploading = 0;
+
 // Load a script from a MYFILE
 static inline void LUA_LoadFile(MYFILE *f, char *name)
 {
@@ -239,6 +248,8 @@ static inline void LUA_LoadFile(MYFILE *f, char *name)
 		LUA_ClearState();
 	lua_pushinteger(gL, f->wad);
 	lua_setfield(gL, LUA_REGISTRYINDEX, "WAD");
+	
+	lua_lumploading++; // turn on loading flag
 
 	lua_pushcfunction(gL, LUA_GetErrorMessage);
 	if (luaL_loadbuffer(gL, f->data, f->size, va("@%s",name)) || lua_pcall(gL, 0, 0, lua_gettop(gL) - 1)) {
@@ -246,6 +257,8 @@ static inline void LUA_LoadFile(MYFILE *f, char *name)
 		lua_pop(gL,1);
 	}
 	lua_gc(gL, LUA_GCCOLLECT, 0);
+	
+	lua_lumploading--; // turn off again
 	lua_pop(gL, 1); // Pop error handler
 }
 
@@ -1194,26 +1207,32 @@ static void ArchiveTables(void)
 			// Write key
 			e = ArchiveValue(TABLESINDEX, -2); // key should be either a number or a string, ArchiveValue can handle this.
 			if (e == 2) // invalid key type (function, thread, lightuserdata, or anything we don't recognise)
-			{
-				lua_pushvalue(gL, -2);
-				CONS_Alert(CONS_ERROR, "Index '%s' (%s) of table %d could not be archived!\n", lua_tostring(gL, -1), luaL_typename(gL, -1), i);
-				lua_pop(gL, 1);
-			}
+			CONS_Alert(CONS_ERROR, "Index '%s' (%s) of table %d could not be archived!\n", lua_tostring(gL, -2), luaL_typename(gL, -2), i);
 			// Write value
 			e = ArchiveValue(TABLESINDEX, -1);
 			if (e == 1)
 				n++; // the table contained a new table we'll have to archive. :(
 			else if (e == 2) // invalid value type
-			{
-				lua_pushvalue(gL, -2);
-				CONS_Alert(CONS_ERROR, "Type of value for table %d entry '%s' (%s) could not be archived!\n", i, lua_tostring(gL, -1), luaL_typename(gL, -1));
-				lua_pop(gL, 1);
-			}
+			CONS_Alert(CONS_ERROR, "Type of value for table %d entry '%s' (%s) could not be archived!\n", i, lua_tostring(gL, -2), luaL_typename(gL, -1));
 
-			lua_pop(gL, 1);
 		}
 		lua_pop(gL, 1);
 		WRITEUINT8(save_p, ARCH_TEND);
+		
+		// Write metatable ID
+		if (lua_getmetatable(gL, -1))
+		{
+			// registry.metatables[metatable]
+			lua_getfield(gL, LUA_REGISTRYINDEX, LREG_METATABLES);
+			lua_pushvalue(gL, -2);
+			lua_gettable(gL, -2);
+			WRITEUINT16(save_p, lua_isnil(gL, -1) ? 0 : lua_tointeger(gL, -1));
+			lua_pop(gL, 3);
+		}
+		else
+			WRITEUINT16(save_p, 0);
+
+		lua_pop(gL, 1);
 	}
 }
 
@@ -1550,6 +1569,7 @@ static void UnArchiveTables(void)
 {
 	int TABLESINDEX;
 	UINT16 i, n;
+	UINT16 metatableid;
 
 	if (!gL)
 		return;
@@ -1574,6 +1594,19 @@ static void UnArchiveTables(void)
 			else
 				lua_rawset(gL, -3);
 		}
+		
+		metatableid = READUINT16(save_p);
+		if (metatableid)
+		{
+			// setmetatable(table, registry.metatables[metatableid])
+			lua_getfield(gL, LUA_REGISTRYINDEX, LREG_METATABLES);
+				lua_rawgeti(gL, -1, metatableid);
+				if (lua_isnil(gL, -1))
+					I_Error("Unknown metatable ID %d\n", metatableid);
+				lua_setmetatable(gL, -3);
+			lua_pop(gL, 1);
+		}
+
 		lua_pop(gL, 1);
 	}
 }

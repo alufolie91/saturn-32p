@@ -33,6 +33,13 @@ enum hud {
 	hud_speedometer,
 	hud_freeplay,
 	hud_rankings,		// Tab rankings
+	
+	hud_interlisting,
+	hud_interplayers,
+	hud_interborders,
+	hud_interscores,
+	hud_interscoretitle,
+	hud_intertitle,
 
 	hud_MAX
 };

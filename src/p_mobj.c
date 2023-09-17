@@ -5686,6 +5686,11 @@ void P_SetScale(mobj_t *mobj, fixed_t newscale)
 		return;
 
 	oldscale = mobj->scale; //keep for adjusting stuff below
+	
+#ifdef HAVE_BLUA
+	if (LUAh_MobjScaleChange(mobj, newscale, oldscale) || P_MobjWasRemoved(mobj))
+		return;
+#endif // HAVE_BLUA
 
 	mobj->scale = newscale;
 
