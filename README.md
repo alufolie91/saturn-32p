@@ -1,6 +1,9 @@
-# SRB2Kart: Saturn
+# SRB2Kart: Saturn - Uranus fork
 
 [SRB2Kart](https://srb2.org/mods/) is a kart racing mod based on the 3D Sonic the Hedgehog fangame [Sonic Robo Blast 2](https://srb2.org/), based on a modified version of [Doom Legacy](http://doomlegacy.sourceforge.net/).
+
+## Uranus Fork
+-This fork focuses on things that are not compatible with Vanilla Clients, things like netcode fixes, more players etc.
 
 ## Saturn Features (Take a look at the "Saturn Options" menu c;)
 
