@@ -5,70 +5,25 @@
 ## Uranus Fork
 -This fork focuses on things that are not compatible with Vanilla Clients, things like netcode fixes, more players etc.
 
-## Saturn Features (Take a look at the "Saturn Options" menu c;)
+## Features (Normal Branch)
+- Support for up to 32 Players
+- Extra Skin colors
+- Double the mobjfreeslots (2048 compared to 1024 in vanilla)
+- Up to 3 Rows for Map voting
+- Everything Saturn client also has See: https://github.com/Indev450/SRB2Kart-Saturn
 
-- Sprites player rotation on slopes; going on hills, levitate, going down, and so on alters your sprites (configurable)
-- You can alter all the base kart HUD element offsets on the fly in the Saturn Options settings menu
-- `addfilelocal` Command, for those who want to use things like their custom hud in netgames (Same as addfile but completely client sided)
-- OpenMPT for Tracker module playback instead of GME
-  - Fixes looping and sounds better
-  - Allows filter configuration
-- The minimal brightness with Shaders can be configured, now you can seeeee in dark areas (0-255 , uses Sector brightness values)
-- Lua HUD hooks for Intermission (ex: You can make hostmod votes still visible during intermission!)
-- Lua HUD hooks for Vote Screen (ex: You can make hostmod votes still visible during map vote screen!)
-- Saltyhop! do a funny hop
-- Smaller Speedometer (optional / requieres extra.kart file)
-- Record Attack input display can now be used everywhere
-- Smaller minimap icons and also show player names on the minimap (toggable)
-- `showmusiccredit` command, shows you the current music track again
-- `listskins` show a list of all skins currently loaded
-- Visual Portals from Haya's HEP Client
-- Toggable lowercase menu's also from Haya's HEP client
-- Everything that Galaxy has
-
-## Improvements / Bug fixes
-
-- Replay size has been increased to 10MiB minimum, to make replay overflows very unlikely to happen
-  - can be set to 100MiB max with `maxdemosize` command in console
-- Music changes now properly show the music credits (ex: Kart maps with easter eggs that alter the music)
- - The mapper still has to provide a MusicDEF for this to work.
-- Configurable chatlog length (yay can read those messages from 30 mins ago without opening log.txt)
-- Configurable timeout for waiting to join a full server (in vanilla this is capped to 5 minutes before it boots you out)
-- Characters now spin in skin selection menu (configurable)
-- HTTP Addon download speed has been raised dramatically
-  - configurable with `downloadspeed` command
-- HWR Drawnodes have been refactored, this should fix a few rare crashes esp in regards to OpenGL Visportals
-- The Position Number in the corner is alot smaller now (half the size!)
-- Toggable Lap animation
-- Main menu shows the current renderer being used
-- MSAA and A2C Antialiasing support (Configurable in renderer.txt file)
-
-## Performance / Debugging
-
-- Access for `mobj_t` and `player_t` fields from Lua has been completely rewritten, for much better performance with many Lua scripts
-- Lua shows Tracebacks whenever an error occurs
-- The Lua Perfstats page now has multiple pages and is more organized (ps_thinkframe_page X in console)
-- People with lower end hardware can disable "screen textures" with "gr_screentextures" command, huge performance gain with minimal visual loss
-  - Intermission backgrounds, heat wave effects and etc are broken with this
-- `ffloorclip`, exclusive to Software, which boosts performance on maps with many Floor over Floor sectors
-
-## Technical fixes
-
-- ZFigthing Textures in Opengl mode have been fixed in engine (well almost all of it)
-- FOFs intersecting with slopes have less issues and now render correctly in Opengl
-- Midtextures on slopes in Opengl are fixed, many weird guardrails and fences, aswell as some of those sticking out textures from the ground on some maps should be gone
-- The annoying depraction messages for `P_TeleportMove` and `P_AproxDistance` have been silenced
-- Silenced the annoying "cant find next map..." messages as theyre super useless and annoying anyways
-- Added a small cooldown on `map` command due to spamming causing a SIGSEGV
-
-## MISC
-- Bird's Camara Tilting feature is no longer turned on by default
-- Bird's warning on the title screen has been removed
-
-## Bugs
-- On maps which change the song multiple times on map start (exp: Wandering Falls) may show multiple music credits appearing
-- A2C antialiasing makes transparent surfaces even more transparent
-- You tell us! c:
+- ## Features (Experimental Branch)
+- Everything from above
+- The Player collision system has been redone to be Cylindrical instead of being a Box. This will most likely fix magnet walls, and alot of other issues, esp on maps with complicated geometry
+- Interpoints, means Points can be saved between Sessions, also your points can go negative aswell
+- More Blua Hooks, For Stealing Bumpers in Battle mode, Hyudoro, Sneakers and Mobj Scales
+- Aswell as more Lua things for Intermission
+- Double the skin limit (512 instead of 255)
+- General Fixes in the netcode. This makes players with high ping less likely to lag out the whole server.
+- Synchfixes, maps which do alot of things at Level Load or maps with Wavy floors are less likely to desynch Players
+- Also resynching has a higher chance to be succesful in doing so
+- Optimized netarchiving for Lua things
+- Optimized Polygon sorting with OpenGl batching 
 
 ## Dependencies
 - NASM (x86 builds only)
