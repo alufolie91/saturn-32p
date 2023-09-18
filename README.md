@@ -10,6 +10,7 @@
 - Extra Skin colors
 - Double the mobjfreeslots (2048 compared to 1024 in vanilla)
 - Up to 3 Rows for Map voting
+- Adds a 12 player cap to the distance calculation, to make item rng in big lobbies with more than 16 to be less bad (With this change, the distance multiplier is capped at 0.857 instead of 0.714 )
 - Everything Saturn client also has See: https://github.com/Indev450/SRB2Kart-Saturn
 
 - ## Features (Experimental Branch)
