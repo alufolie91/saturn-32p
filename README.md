@@ -16,7 +16,7 @@
 - ## Features (Experimental Branch)
 - Everything from above
 - The Player collision system has been redone to be Cylindrical instead of being a Box. This will most likely fix magnet walls, and alot of other issues, esp on maps with complicated geometry
-- Interpoints, means Points can be saved between Sessions, also your points can go negative aswell
+- Interpoints, pretty much a hook to replace Scores on the scoreboard
 - More Blua Hooks, For Stealing Bumpers in Battle mode, Hyudoro, Sneakers and Mobj Scales
 - Aswell as more Lua things for Intermission
 - Double the skin limit (512 instead of 255)
