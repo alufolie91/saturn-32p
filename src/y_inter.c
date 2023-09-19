@@ -1375,8 +1375,6 @@ void Y_VoteDrawer(void)
 	
 	height /= votemax;
 
-	height /= votemax;
-
 	y = (200-height)/2;
 	picdiff = 80*( max(0, (votemax-1) ) ); // let's draw these in reverse order
 	lvls = -1; // shitty cheat
