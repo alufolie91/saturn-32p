@@ -511,19 +511,19 @@ void LUAh_PostThinkFrame(void)
 	lua_pushcfunction(gL, LUA_GetErrorMessage);
 
 	for (hookp = roothook; hookp; hookp = hookp->next)
-		if (hookp->type != hook_PostThinkFrame)
 	{
+		if (hookp->type != hook_PostThinkFrame)
 			continue;
 
 		lua_pushfstring(gL, FMT_HOOKID, hookp->id);
 		lua_gettable(gL, LUA_REGISTRYINDEX);
-			if (!hookp->error || cv_debug & DBG_LUA)
 		if (lua_pcall(gL, 0, 0, 1)) {
+			if (!hookp->error || cv_debug & DBG_LUA)
 				CONS_Alert(CONS_WARNING,"%s\n",lua_tostring(gL, -1));
 			lua_pop(gL, 1);
 			hookp->error = true;
-	}
 		}
+	}
 	
 	lua_pop(gL, 1); // Pop error handler
 }
