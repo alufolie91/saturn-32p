@@ -92,7 +92,7 @@ typedef union
 		INT32 numplayers; // Number of players being displayed
 		char levelstring[64]; // holds levelnames up to 64 characters
 		// SRB2kart
-		UINT8 increase[MAXPLAYERS]; // how much did the score increase by?
+		UINT32 increase[MAXPLAYERS]; // how much did the score increase by? CEP: making this an INT32 because of interpoints
 		UINT8 jitter[MAXPLAYERS]; // wiggle
 		UINT8 negaflag[MAXPLAYERS]; // positive/negative addflags
 		UINT32 val[MAXPLAYERS]; // Gametype-specific value
@@ -343,10 +343,10 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 				if (!(players[i].pflags & PF_TIMEOVER)) // bruh
 					data.match.increase[i] = nump - data.match.pos[data.match.numplayers];
 			}
-			
+
 			if (players[i].interpoints)
 			{
-				
+
 				if ((players[i].score + players[i].interpoints) > 0) // not sure what negatives will cause so let's program a zero-cap
 				{
 					players[i].score += players[i].interpoints;
