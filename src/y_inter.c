@@ -88,11 +88,13 @@ typedef union
 		INT32 *character[MAXPLAYERS]; // Winner's character #
 		INT32 num[MAXPLAYERS]; // Winner's player #
 		char *name[MAXPLAYERS]; // Winner's name
+		char truncnames[MAXPLAYERS][10]; // truncated name
 		INT32 numplayers; // Number of players being displayed
 		char levelstring[64]; // holds levelnames up to 64 characters
 		// SRB2kart
 		UINT8 increase[MAXPLAYERS]; // how much did the score increase by?
 		UINT8 jitter[MAXPLAYERS]; // wiggle
+		UINT8 negaflag[MAXPLAYERS]; // positive/negative addflags
 		UINT32 val[MAXPLAYERS]; // Gametype-specific value
 		UINT8 pos[MAXPLAYERS]; // player positions. used for ties
 		boolean rankingsmode; // rankings mode
@@ -217,11 +219,11 @@ static void Y_CompareBattle(INT32 i)
 
 static void Y_CompareRank(INT32 i)
 {
-	UINT8 increase = ((data.match.increase[i] == UINT8_MAX) ? 0 : data.match.increase[i]);
+	UINT32 increase = ((data.match.increase[i] == UINT32_MAX) ? 0 : data.match.increase[i]);
 	if (!(data.match.val[data.match.numplayers] == UINT32_MAX || (players[i].score - increase) > data.match.val[data.match.numplayers]))
 		return;
 
-	data.match.val[data.match.numplayers] = (players[i].score - increase);
+	data.match.val[data.match.numplayers] = (data.match.negaflag[i] ? (players[i].score + increase) : (players[i].score - increase));
 	data.match.num[data.match.numplayers] = i;
 }
 
@@ -280,15 +282,17 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
 		data.match.val[i] = UINT32_MAX;
+		
+		data.match.negaflag[i] = 0;
 
 		if (!playeringame[i] || players[i].spectator)
 		{
-			data.match.increase[i] = UINT8_MAX;
+			data.match.increase[i] = UINT32_MAX;
 			continue;
 		}
 
 		if (!rankingsmode)
-			data.match.increase[i] = UINT8_MAX;
+			data.match.increase[i] = UINT32_MAX;
 
 		numplayersingame++;
 	}
@@ -306,6 +310,15 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 		{
 			if (!playeringame[i] || players[i].spectator || completed[i])
 				continue;
+			
+			// negative flag
+			data.match.negaflag[i] = 0;
+
+			if (players[i].interpoints)
+			{
+				if (players[i].interpoints < 0)
+					data.match.negaflag[i] = 1;
+			}
 
 			comparison(i);
 		}
@@ -323,10 +336,35 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 		else
 			data.match.pos[data.match.numplayers] = data.match.numplayers+1;
 
-		if (!rankingsmode && !(players[i].pflags & PF_TIMEOVER) && (data.match.pos[data.match.numplayers] < nump))
+		if (!rankingsmode)
 		{
-			data.match.increase[i] = nump - data.match.pos[data.match.numplayers];
-			players[i].score += data.match.increase[i];
+			if ((data.match.pos[data.match.numplayers] < nump))
+			{
+				if (!(players[i].pflags & PF_TIMEOVER)) // bruh
+					data.match.increase[i] = nump - data.match.pos[data.match.numplayers];
+			}
+			
+			if (players[i].interpoints)
+			{
+				
+				if ((players[i].score + players[i].interpoints) > 0) // not sure what negatives will cause so let's program a zero-cap
+				{
+					players[i].score += players[i].interpoints;
+					data.match.increase[i] = abs(players[i].interpoints); // overwrite the increase score if interpoints exists, always an absolute value
+					//CONS_Printf(M_GetText("performed interpoints operation of %d.\n"), players[i].interpoints);
+				}
+				else
+				{
+					players[i].score = 0;
+					//CONS_Printf(M_GetText("Player score is at its minimum.\n"));
+				}
+
+			}
+			else
+			{
+				if (data.match.increase[i] != UINT32_MAX) // only do this if you AREN'T NO CONTESTED FUCK
+					players[i].score += data.match.increase[i];
+			}
 		}
 
 		if (demo.recording && !rankingsmode)
@@ -573,7 +611,22 @@ void Y_IntermissionDrawer(void)
 					V_DrawScaledPatch(x+16, y-4, 0, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_CACHE));
 				}
 
-				STRBUFCPY(strtime, data.match.name[i]);
+				data.match.truncnames[i][sizeof data.match.truncnames[i] - 1] = '\0';
+				
+				snprintf(data.match.truncnames[i],
+					sizeof data.match.truncnames[i],
+					"%s",
+							data.match.name[i]);
+
+				if (data.match.numplayers > NUMFORNEWCOLUMN)
+				{
+					if (data.match.rankingsmode && (data.match.increase[data.match.num[i]] > 99) && (data.match.increase[data.match.num[i]] != UINT32_MAX))
+						STRBUFCPY(strtime, data.match.truncnames[i]);
+					else
+						STRBUFCPY(strtime, data.match.name[i]);
+				}
+				else
+					STRBUFCPY(strtime, data.match.name[i]);
 
 				if (data.match.numplayers > NUMFORNEWCOLUMN)
 					V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
@@ -582,12 +635,12 @@ void Y_IntermissionDrawer(void)
 
 				if (data.match.rankingsmode)
 				{
-					if (data.match.increase[data.match.num[i]] != UINT8_MAX)
+					if (data.match.increase[data.match.num[i]] != UINT32_MAX)
 					{
 						if (data.match.increase[data.match.num[i]] > 9)
-							snprintf(strtime, sizeof strtime, "(+%02d)", data.match.increase[data.match.num[i]]);
+							snprintf(strtime, sizeof strtime, "(%s%02d)", ((data.match.negaflag[i]) ? "-" : "+"), data.match.increase[data.match.num[i]]);
 						else
-							snprintf(strtime, sizeof strtime, "(+  %d)", data.match.increase[data.match.num[i]]);
+							snprintf(strtime, sizeof strtime, "(%s  %d)", ((data.match.negaflag[i]) ? "-" : "+"), data.match.increase[data.match.num[i]]);
 
 						if (data.match.numplayers > NUMFORNEWCOLUMN)
 							V_DrawRightAlignedThinString(x+83+gutter, y, V_6WIDTHSPACE, strtime);
@@ -770,18 +823,29 @@ void Y_Ticker(void)
 				if (data.match.rankingsmode && intertic > sorttic+16+(2*TICRATE))
 				{
 					INT32 q=0,r=0;
+					INT32 subval = 1;
 					boolean kaching = true;
 
 					for (q = 0; q < data.match.numplayers; q++)
 					{
 						if (data.match.num[q] == MAXPLAYERS
 						|| !data.match.increase[data.match.num[q]]
-						|| data.match.increase[data.match.num[q]] == UINT8_MAX)
+						|| data.match.increase[data.match.num[q]] == UINT32_MAX)
 							continue;
 
 						r++;
 						data.match.jitter[data.match.num[q]] = 1;
-						if (--data.match.increase[data.match.num[q]])
+						
+						if (data.match.increase[data.match.num[q]] > 25)
+						{
+							if (subval == 1)
+								subval = max(1, (data.match.increase[data.match.num[q]] / 10)); // tally faster if the value is too big
+
+						}
+						else
+							subval = 1;
+
+						if (data.match.increase[data.match.num[q]] -= subval)
 							kaching = false;
 					}
 
