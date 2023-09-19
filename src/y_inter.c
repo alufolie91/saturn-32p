@@ -287,8 +287,6 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 		
 		data.match.negaflag[i] = 0;
 
-		data.match.negaflag[i] = 0;
-
 		if (!playeringame[i] || players[i].spectator)
 		{
 			data.match.increase[i] = UINT32_MAX;
