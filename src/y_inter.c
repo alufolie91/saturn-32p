@@ -333,6 +333,7 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 
 		data.match.color[data.match.numplayers] = &players[i].skincolor;
 		data.match.character[data.match.numplayers] = &players[i].skin;
+
 		data.match.name[data.match.numplayers] = player_names[i];
 
 		if (data.match.numplayers && (data.match.val[data.match.numplayers] == data.match.val[data.match.numplayers-1]))
@@ -344,7 +345,7 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 		{
 			if ((data.match.pos[data.match.numplayers] < nump))
 			{
-				if (!(players[i].pflags & PF_TIMEOVER)) // bruh
+				if (!(players[i].pflags & PF_TIMEOVER))
 					data.match.increase[i] = nump - data.match.pos[data.match.numplayers];
 			}
 
@@ -369,6 +370,8 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 				if (data.match.increase[i] != UINT32_MAX) // only do this if you AREN'T NO CONTESTED FUCK
 					players[i].score += data.match.increase[i];
 			}
+
+			//CONS_Printf(M_GetText("increase: %d.\n"), data.match.increase[i]);
 		}
 
 
@@ -669,13 +672,22 @@ void Y_IntermissionDrawer(void)
 #ifdef HAVE_BLUA
 				}
 #endif
-
 				data.match.truncnames[i][sizeof data.match.truncnames[i] - 1] = '\0';
-				
+
 				snprintf(data.match.truncnames[i],
 					sizeof data.match.truncnames[i],
 					"%s",
 							data.match.name[i]);
+
+				if (data.match.numplayers > NUMFORNEWCOLUMN)
+				{
+					if (data.match.rankingsmode && (data.match.increase[data.match.num[i]] > 99) && (data.match.increase[data.match.num[i]] != UINT32_MAX))
+						STRBUFCPY(strtime, data.match.truncnames[i]);
+					else
+						STRBUFCPY(strtime, data.match.name[i]);
+				}
+				else
+					STRBUFCPY(strtime, data.match.name[i]);
 
 #ifdef HAVE_BLUA
 				if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interplayers))
@@ -935,7 +947,7 @@ void Y_Ticker(void)
 
 						r++;
 						data.match.jitter[data.match.num[q]] = 1;
-						
+
 						if (data.match.increase[data.match.num[q]] > 25)
 						{
 							if (subval == 1)
