@@ -20,7 +20,7 @@
 - Aswell as more Lua things for Intermission
 - Double the skin limit (512 instead of 255)
 - General Fixes in the netcode. This makes players with high ping less likely to lag out the whole server.
-- Synchfixes, maps which do alot of things at Level Load or maps with Wavy floors are less likely to desynch Players
+- Synchfixes, maps with Wavy floors are less likely to desynch Players
 - Also resynching has a higher chance to be succesful in doing so
 - Optimized netarchiving for Lua things
 - Optimized Polygon sorting with OpenGl batching 
