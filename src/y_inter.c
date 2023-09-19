@@ -696,10 +696,12 @@ void Y_IntermissionDrawer(void)
 					if (data.match.numplayers > NUMFORNEWCOLUMN)
 						V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 					else
+
 						V_DrawString(x+36, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
+#ifdef HAVE_BLUA
 				}
 #endif
-#ifdef HAVE_BLUA
+
 
 				if (data.match.rankingsmode)
 				{
@@ -837,11 +839,6 @@ dotimer:
 		default: // Don't render any text here
 			break;
 		}
-
-	// BLUA hook
-#ifdef HAVE_BLUA
-	LUAh_IntermissionHUD();
-#endif
 
 	// Make it obvious that scrambling is happening next round.
 	if (cv_scrambleonchange.value && cv_teamscramble.value && (intertic/TICRATE % 2 == 0))
