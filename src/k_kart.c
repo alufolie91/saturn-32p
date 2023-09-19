@@ -2839,6 +2839,11 @@ void K_StealBumper(player_t *player, player_t *victim, boolean force)
 
 	if (player->health <= 0 || victim->health <= 0)
 		return;
+	
+#ifdef HAVE_BLUA
+	if (LUAh_KartStealBumper(player, victim, &force))
+		return;
+#endif // HAVE_BLUA
 
 	if (!force)
 	{
@@ -4126,7 +4131,27 @@ static void K_DoHyudoroSteal(player_t *player)
 	prandom = P_RandomFixed();
 	S_StartSound(player->mo, sfx_s3k92);
 
-	if (sink && numplayers > 0 && cv_kitchensink.value) // BEHOLD THE KITCHEN SINK
+if (numplayers == 1) // With just 2 players, we just need to set the other player to be the one to steal from
+	{
+		stealplayer = playerswappable[numplayers-1];
+	}
+	else if (numplayers > 1) // We need to choose between the available candidates for the 2nd player
+	{
+		stealplayer = playerswappable[prandom%(numplayers-1)];
+	}
+
+#ifdef HAVE_BLUA
+	// Lua scripters can modify stealplayer.
+	// Return value returns if sink should be forced.
+	boolean forceSink = LUAh_KartHyudoro(player, &stealplayer, sink);
+#endif // HAVE_BLUA
+
+	if (
+		#ifdef HAVE_BLUA
+		forceSink ||
+		#endif
+		(sink && numplayers > 0 && cv_kitchensink.value) // BEHOLD THE KITCHEN SINK
+		)
 	{
 		player->kartstuff[k_hyudorotimer] = hyudorotime;
 		player->kartstuff[k_stealingtimer] = stealtime;
@@ -4141,14 +4166,6 @@ static void K_DoHyudoroSteal(player_t *player)
 		player->kartstuff[k_hyudorotimer] = hyudorotime;
 		player->kartstuff[k_stealingtimer] = stealtime;
 		return;
-	}
-	else if (numplayers == 1) // With just 2 players, we just need to set the other player to be the one to steal from
-	{
-		stealplayer = playerswappable[numplayers-1];
-	}
-	else if (numplayers > 1) // We need to choose between the available candidates for the 2nd player
-	{
-		stealplayer = playerswappable[prandom%(numplayers-1)];
 	}
 
 	if (stealplayer > -1) // Now here's where we do the stealing, has to be done here because we still know the player we're stealing from
@@ -4186,6 +4203,11 @@ void K_DoSneaker(player_t *player, INT32 type)
 			intendedboost = 32768;
 			break;
 	}
+	
+#ifdef HAVE_BLUA
+	if (LUAh_KartSneaker(player, type))
+		return;
+#endif // HAS_BLUA
 
 	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
 	{
