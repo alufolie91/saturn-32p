@@ -8290,7 +8290,7 @@ void G_AddGhost(char *defdemoname)
 	count = READUINT16(p);
 	while (count--)
 	{
-		p += 2;
+		SKIPSTRING(p);
 		SKIPSTRING(p);
 		p++;
 	}
