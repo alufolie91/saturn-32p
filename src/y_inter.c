@@ -655,6 +655,21 @@ void Y_IntermissionDrawer(void)
 						else
 							V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
 					}
+					
+					/*if (data.match.color[i]) //need to add support sometime, for now the intermission screen just shows your "actual" skin, but since most server use lua intermission screen anyways, it doesent matter that much
+					{
+						UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
+						// i fucking hate this i fucking hate this i hate this so much
+						if (!players[data.match.num[i]].skinlocal) {
+							if (!players[data.match.num[i]].localskin)
+								V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
+							else
+								V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+						} else {
+							V_DrawMappedPatch(x+16, y-4, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+						}
+					}*/
+
 
 					if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN)
 					{
