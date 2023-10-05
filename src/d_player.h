@@ -416,6 +416,8 @@ typedef struct player_s
 	UINT8 skincolor;
 
 	INT32 skin;
+	INT32 localskin;
+	boolean skinlocal;
 
 	UINT32 score; // player score
 	INT32 interpoints; // SRB2kart CEP: Points the player gets before an intermission, if said score is set.

@@ -866,6 +866,16 @@ void G_SetGameModified(boolean silent, boolean major)
 		M_EndModeAttackRun();
 }
 
+void G_SetWadModified(boolean silent, boolean major, UINT16 wadnum)
+{
+	// now that we have a wad that is actually well, a gameplay changing mod
+	// (for later)
+	wadfiles[wadnum]->majormod = true;
+
+	// set our game to be marked as modified.
+	G_SetGameModified(silent, major);
+}
+
 /** Builds an original game map name from a map number.
   * The complexity is due to MAPA0-MAPZZ.
   *
@@ -2722,6 +2732,8 @@ void G_PlayerReborn(INT32 player)
 	UINT8 mare;
 	UINT8 skincolor;
 	INT32 skin;
+	int localskin;
+	boolean skinlocal;
 	tic_t jointime;
 	UINT8 splitscreenindex;
 	boolean spectator;
@@ -2768,6 +2780,8 @@ void G_PlayerReborn(INT32 player)
 
 	skincolor = players[player].skincolor;
 	skin = players[player].skin;
+	localskin = players[player].localskin;
+	skinlocal = players[player].skinlocal;
 	// SRB2kart
 	kartspeed = players[player].kartspeed;
 	kartweight = players[player].kartweight;
@@ -2857,6 +2871,8 @@ void G_PlayerReborn(INT32 player)
 	// save player config truth reborn
 	p->skincolor = skincolor;
 	p->skin = skin;
+	p->localskin = localskin;
+	p->skinlocal = skinlocal;
 	// SRB2kart
 	p->kartspeed = kartspeed;
 	p->kartweight = kartweight;
