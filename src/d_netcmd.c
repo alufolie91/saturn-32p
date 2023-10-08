@@ -1474,8 +1474,13 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_resume);
 	CV_RegisterVar(&cv_fading);
 	
+
 	//Value used to store last server player has joined
 	CV_RegisterVar(&cv_lastserver);
+	
+	//Showallmaps in map selector including hell
+	CV_RegisterVar(&cv_showallmaps);
+
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
