@@ -113,6 +113,8 @@ extern consvar_t cv_tripleorbinaut, cv_quadorbinaut, cv_dualjawz;
 
 //Sneakerextender
 extern consvar_t cv_sneakerextend;
+//additivemt
+extern consvar_t cv_additivemt;
 
 extern consvar_t cv_kartminimap;
 extern consvar_t cv_kartcheck;
