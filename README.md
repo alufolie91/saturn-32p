@@ -8,7 +8,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 ## Features (Nepanus)
 - Sneaker Extension with mini-turbos
 - Additive Mini-turbos
-- Customizable mini-turbo gains
+- Customizable mini-turbo boost time
 - More to come!
 - All added features are toggable via convars
 
