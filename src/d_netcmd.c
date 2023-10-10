@@ -381,6 +381,18 @@ consvar_t cv_sneakerextend = 				{"sneakerextend", 			"On", CV_NETVAR|CV_CHEAT, 
 //additiveminiturbos
 consvar_t cv_additivemt  = 				{"additivemt", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+//mini-turbo adjustment cvars
+static CV_PossibleValue_t bluesparktics_cons_t[] = {{1, "MIN"}, {9999, "MAX"}, {0, NULL}};
+consvar_t cv_bluesparktics = {"bluesparktics", "20", CV_NETVAR, bluesparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t redsparktics_cons_t[] = {{1, "MIN"}, {9999, "MAX"}, {0, NULL}};
+consvar_t cv_redsparktics = {"redsparktics", "50", CV_NETVAR, redsparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t rainbowsparktics_cons_t[] = {{1, "MIN"}, {9999, "MAX"}, {0, NULL}};
+consvar_t cv_rainbowsparktics = {"rainbowsparktics", "125", CV_NETVAR, rainbowsparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+
+
 static CV_PossibleValue_t kartminimap_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_kartminimap = {"kartminimap", "4", CV_SAVE, kartminimap_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_kartcheck = {"kartcheck", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};

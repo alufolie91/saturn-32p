@@ -116,6 +116,11 @@ extern consvar_t cv_sneakerextend;
 //additivemt
 extern consvar_t cv_additivemt;
 
+//mini-turbo adjustment cvars
+extern consvar_t cv_bluesparktics;
+extern consvar_t cv_redsparktics;
+extern consvar_t cv_rainbowsparktics;
+
 extern consvar_t cv_kartminimap;
 extern consvar_t cv_kartcheck;
 extern consvar_t cv_kartinvinsfx;

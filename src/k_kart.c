@@ -919,8 +919,14 @@ void K_RegisterKartStuff(void)
 	//Sneakerextend
 	CV_RegisterVar(&cv_sneakerextend);
 	
-	//
+	//additivemt
 	CV_RegisterVar(&cv_additivemt);
+	
+	//mini-turbo adjustments cvars
+	CV_RegisterVar(&cv_bluesparktics);
+	CV_RegisterVar(&cv_redsparktics);
+	CV_RegisterVar(&cv_rainbowsparktics);
+	
 	
 	CV_RegisterVar(&cv_kartminimap);
 	CV_RegisterVar(&cv_kartcheck);
@@ -5809,12 +5815,12 @@ static void K_KartDrift(player_t *player, boolean onground)
 		
 		if (cv_additivemt.value)
 		{	
-				player->kartstuff[k_driftboost] = player->kartstuff[k_driftboost] + 20;
+				player->kartstuff[k_driftboost] = player->kartstuff[k_driftboost] + cv_bluesparktics.value;
 		}
 		else
 		{
-			if (player->kartstuff[k_driftboost] < 20)
-				player->kartstuff[k_driftboost] = 20;
+			if (player->kartstuff[k_driftboost] < cv_bluesparktics.value)
+				player->kartstuff[k_driftboost] = cv_bluesparktics.value;
 		}
 			
 			
@@ -5829,12 +5835,12 @@ static void K_KartDrift(player_t *player, boolean onground)
 	{
 		if (cv_additivemt.value)
 		{	
-				player->kartstuff[k_driftboost] = player->kartstuff[k_driftboost] + 50;
+				player->kartstuff[k_driftboost] = player->kartstuff[k_driftboost] + cv_redsparktics.value;
 		}
 		else
 		{
-			if (player->kartstuff[k_driftboost] < 50)
-				player->kartstuff[k_driftboost] = 50;
+			if (player->kartstuff[k_driftboost] < cv_redsparktics.value)
+				player->kartstuff[k_driftboost] = cv_redsparktics.value;
 		}
 			
 		S_StartSound(player->mo, sfx_s23c);
@@ -5848,12 +5854,12 @@ static void K_KartDrift(player_t *player, boolean onground)
 	{
 		if (cv_additivemt.value)
 		{	
-				player->kartstuff[k_driftboost] = player->kartstuff[k_driftboost] + 125;
+				player->kartstuff[k_driftboost] = player->kartstuff[k_driftboost] + cv_rainbowsparktics.value;
 		}
 		else
 		{
-			if (player->kartstuff[k_driftboost] < 125)
-				player->kartstuff[k_driftboost] = 125;
+			if (player->kartstuff[k_driftboost] < cv_rainbowsparktics.value)
+				player->kartstuff[k_driftboost] = cv_rainbowsparktics.value;
 		}
 		
 		S_StartSound(player->mo, sfx_s23c);
