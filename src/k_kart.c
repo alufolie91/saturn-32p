@@ -61,6 +61,10 @@ consvar_t cv_saltyhop = {"hardcodehop", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL,
 consvar_t cv_saltyhopsfx = {"hardcodehopsfx", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_saltysquish = {"hardcodehopsquish", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+//Colorized HUD
+consvar_t cv_colorizedhud = {"colorizedhud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
 // gamespeed is cc (0 for easy, 1 for normal, 2 for hard)
 // franticitems is Frantic Mode items, bool
@@ -979,6 +983,9 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_saltyhop);
 	CV_RegisterVar(&cv_saltyhopsfx);
 	CV_RegisterVar(&cv_saltysquish);
+	
+	//Colorized HUD
+	CV_RegisterVar(&cv_colorizedhud);
 	
 	CV_RegisterVar(&cv_slamsound);
 	
@@ -7281,6 +7288,19 @@ static patch_t *kp_karmasticker;
 static patch_t *kp_splitkarmabomb;
 static patch_t *kp_timeoutsticker;
 
+//Colorized HUD
+static patch_t *kp_timestickerclr;
+static patch_t *kp_timestickerwideclr;
+static patch_t *kp_lapstickerclr;
+static patch_t *kp_lapstickerwideclr;
+static patch_t *kp_lapstickernarrowclr;
+static patch_t *kp_bumperstickerclr;
+static patch_t *kp_bumperstickerwideclr;
+static patch_t *kp_karmastickerclr;
+static patch_t *kp_timeoutstickerclr;
+static patch_t *skp_smallstickerclr;
+static patch_t *kp_itemmulstickerclr[2];
+
 static patch_t *kp_startcountdown[16];
 static patch_t *kp_racefinish[6];
 
@@ -7366,6 +7386,25 @@ void K_LoadKartHUDGraphics(void)
 	kp_karmasticker = 			W_CachePatchName("K_STKARM", PU_HUDGFX);
 	kp_splitkarmabomb = 		W_CachePatchName("K_SPTKRM", PU_HUDGFX);
 	kp_timeoutsticker = 		W_CachePatchName("K_STTOUT", PU_HUDGFX);
+	
+	//Colorized HUD
+	if (found_extra2_kart)
+	{
+		kp_timestickerclr = 			W_CachePatchName("K_SCTIME", PU_HUDGFX);
+		kp_timestickerwideclr = 		W_CachePatchName("K_SCTIMW", PU_HUDGFX);
+		kp_lapstickerclr = 			W_CachePatchName("K_SCLAPS", PU_HUDGFX);
+		kp_lapstickerwideclr = 		W_CachePatchName("K_SCLAPW", PU_HUDGFX);
+		kp_bumperstickerclr = 			W_CachePatchName("K_SCBALN", PU_HUDGFX);
+		kp_bumperstickerwideclr = 		W_CachePatchName("K_SCBALW", PU_HUDGFX);
+		kp_karmastickerclr = 			W_CachePatchName("K_SCKARM", PU_HUDGFX);
+		kp_timeoutstickerclr = 		W_CachePatchName("K_SCTOUT", PU_HUDGFX);	
+		kp_itemmulstickerclr[1] = 		W_CachePatchName("K_ISMULC", PU_HUDGFX);
+		kp_itemmulstickerclr[0] = 		W_CachePatchName("K_ITMULC", PU_HUDGFX);
+		if (found_extra_kart)
+		{
+		skp_smallstickerclr = 	  W_CachePatchName("SC_SMSTC", PU_HUDGFX);
+		}
+	}
 
 	// Starting countdown
 	kp_startcountdown[0] = 		W_CachePatchName("K_CNT3A", PU_HUDGFX);
@@ -7856,6 +7895,8 @@ static void K_drawKartItem(void)
 	UINT8 localcolor = SKINCOLOR_NONE;
 	SINT8 colormode = TC_RAINBOW;
 	UINT8 *colmap = NULL;
+	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+	
 	boolean flipamount = false;	// Used for 3P/4P splitscreen to flip item amount stuff
 
 	if (stplyr->kartstuff[k_itemroulette])
@@ -8108,7 +8149,16 @@ static void K_drawKartItem(void)
 	// Then, the numbers:
 	if (stplyr->kartstuff[k_itemamount] >= numberdisplaymin && !stplyr->kartstuff[k_itemroulette])
 	{
+		//Colorized hud	
+		if (cv_colorizedhud.value && found_extra2_kart)
+		{
+		V_DrawMappedPatch(fx + (flipamount ? 48 : 0), fy, V_HUDTRANS|fflags|(flipamount ? V_FLIP : 0), kp_itemmulstickerclr[offset],colormap); // flip this graphic for p2 and p4 in split and shift it.	
+		}
+		else
+		{	
 		V_DrawScaledPatch(fx + (flipamount ? 48 : 0), fy, V_HUDTRANS|fflags|(flipamount ? V_FLIP : 0), kp_itemmulsticker[offset]); // flip this graphic for p2 and p4 in split and shift it.
+		}
+		
 		V_DrawFixedPatch(fx<<FRACBITS, fy<<FRACBITS, FRACUNIT, V_HUDTRANS|fflags, localpatch, colmap);
 		if (offset)
 			if (flipamount) // reminder that this is for 3/4p's right end of the screen.
@@ -8155,7 +8205,9 @@ void K_drawKartTimestamp(tic_t drawtime, INT32 TX, INT32 TY, INT16 emblemmap, UI
 {
 	// TIME_X = BASEVIDWIDTH-124;	// 196
 	// TIME_Y = 6;					//   6
-
+	
+	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+	
 	tic_t worktime;
 
 	INT32 splitflags = 0;
@@ -8171,8 +8223,17 @@ void K_drawKartTimestamp(tic_t drawtime, INT32 TX, INT32 TY, INT16 emblemmap, UI
 		}
 	}
 
-	V_DrawScaledPatch(TX, TY, splitflags, ((mode == 2) ? kp_lapstickerwide : kp_timestickerwide));
-
+	//Colorized hud	
+	if (cv_colorizedhud.value && found_extra2_kart)
+	{
+		V_DrawMappedPatch(TX, TY, splitflags, ((mode == 2) ? kp_lapstickerwideclr : kp_timestickerwideclr), colormap);
+	}
+	else
+	{
+		V_DrawScaledPatch(TX, TY, splitflags, ((mode == 2) ? kp_lapstickerwide : kp_timestickerwide));
+	}
+		
+	
 	TX += 33;
 
 	worktime = drawtime/(60*TICRATE);
@@ -8712,6 +8773,8 @@ static void K_drawKartLaps(void)
 	boolean flipstring = false;	// used for 3p or 4p
 	INT32 stringw = 0;	// used with the above
 
+	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+	
 	if (splitscreen > 1)
 	{
 
@@ -8762,8 +8825,17 @@ static void K_drawKartLaps(void)
 	}
 	else
 	{
-		V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapsticker);
-
+		
+		//Colorized hud	
+		if (cv_colorizedhud.value && found_extra2_kart)
+		{
+			V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
+		}
+		else
+		{	
+			V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapsticker);
+		}
+			
 		if (stplyr->exiting)
 			V_DrawKartString(LAPS_X+33, LAPS_Y+3, V_HUDTRANS|splitflags, "FIN");
 		else
@@ -8780,6 +8852,8 @@ static void K_drawKartSpeedometer(void)
 	fixed_t convSpeed = 0;
 	INT32 speedtype = 0;
 	INT32 splitflags = K_calcSplitFlags(V_SNAPTOBOTTOM|V_SNAPTOLEFT);
+	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+	
 
 	switch (cv_kartspeedometer.value)
 	{
@@ -8825,9 +8899,22 @@ static void K_drawKartSpeedometer(void)
 		}
 	}
 	else if (cv_newspeedometer.value && found_extra_kart) { // why bother if we dont?
-		V_DrawScaledPatch(SPDM_X + 1, SPDM_Y + 4, V_HUDTRANS|splitflags, skp_smallsticker);
+		//Colorized hud	
+		if (cv_colorizedhud.value && found_extra2_kart)
+		{
+			V_DrawMappedPatch(SPDM_X + 1, SPDM_Y + 4, (V_HUDTRANS|splitflags), (skp_smallstickerclr), colormap);
+		}
+		else
+		{
+			V_DrawScaledPatch(SPDM_X + 1, SPDM_Y + 4, (V_HUDTRANS|splitflags), (skp_smallsticker)); 
+		}
+		
 		V_DrawRankNum(SPDM_X + 26, SPDM_Y + 4, V_HUDTRANS|splitflags, convSpeed, 3, NULL);
+		
+		
+		
 		V_DrawScaledPatch(SPDM_X + 31, SPDM_Y + 4, V_HUDTRANS|splitflags, skp_speedpatches[cv_kartspeedometer.value]);
+		
 	}
 }
 
@@ -8873,7 +8960,7 @@ static void K_drawKartBumpersOrKarma(void)
 				V_DrawRightAlignedString(BASEVIDWIDTH-3, fy+1, V_HUDTRANS|fflags, va("%d/%d", stplyr->kartstuff[k_bumper], cv_kartbumpers.value));
 			}
 			else	// draw bumpers normally.
-			{
+			{	
 				V_DrawMappedPatch(fx, fy-1, V_HUDTRANS|fflags, kp_rankbumper, colormap);
 				V_DrawString(fx+13, fy+1, V_HUDTRANS|fflags, va("%d/%d", stplyr->kartstuff[k_bumper], cv_kartbumpers.value));
 			}
@@ -8883,15 +8970,42 @@ static void K_drawKartBumpersOrKarma(void)
 	{
 		if (stplyr->kartstuff[k_bumper] <= 0)
 		{
-			V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_karmasticker, colormap);
+			//Colorized hud	
+			if (cv_colorizedhud.value && found_extra2_kart)
+			{
+				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_karmastickerclr, colormap);
+			}	
+			else
+			{
+				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_karmasticker, colormap);
+			}
 			V_DrawKartString(LAPS_X+47, LAPS_Y+3, V_HUDTRANS|splitflags, va("%d/2", stplyr->kartstuff[k_comebackpoints]));
 		}
 		else
 		{
 			if (stplyr->kartstuff[k_bumper] > 9 && cv_kartbumpers.value > 9)
-				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_bumperstickerwide, colormap);
+				
+				//Colorized hud	
+				if (cv_colorizedhud.value && found_extra2_kart)
+				{
+					V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_bumperstickerwideclr, colormap);
+				}
+				else
+				{
+					V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_bumperstickerwide, colormap);
+				}
+				
 			else
-				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_bumpersticker, colormap);
+				//Colorized hud	
+				if (cv_colorizedhud.value && found_extra2_kart)
+				{
+					V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_bumperstickerclr, colormap);
+				}
+				else
+				{
+					V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_bumpersticker, colormap);
+				}
+				
 			V_DrawKartString(LAPS_X+47, LAPS_Y+3, V_HUDTRANS|splitflags, va("%d/%d", stplyr->kartstuff[k_bumper], cv_kartbumpers.value));
 		}
 	}
@@ -9341,6 +9455,7 @@ static void K_drawBattleFullscreen(void)
 	INT32 splitflags = V_SNAPTOTOP; // I don't feel like properly supporting non-green resolutions, so you can have a misuse of SNAPTO instead
 	fixed_t scale = FRACUNIT;
 	boolean drawcomebacktimer = true;	// lazy hack because it's cleaner in the long run.
+	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
 #ifdef HAVE_BLUA
 	if (!LUA_HudEnabled(hud_battlecomebacktimer))
 		drawcomebacktimer = false;
@@ -9431,7 +9546,16 @@ static void K_drawBattleFullscreen(void)
 			V_DrawString(x-txoff, ty, 0, va("%d", stplyr->kartstuff[k_comebacktimer]/TICRATE));
 		else
 		{
-			V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutsticker, NULL);
+			//Colorized hud	
+			if (cv_colorizedhud.value && found_extra2_kart)
+			{
+				V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, colormap);
+			}
+			else
+			{
+				V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, NULL);
+			}
+			
 			V_DrawKartString(x-txoff, ty, 0, va("%d", stplyr->kartstuff[k_comebacktimer]/TICRATE));
 		}
 	}

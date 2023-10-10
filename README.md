@@ -9,6 +9,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - Sneaker Extension with mini-turbos
 - Additive Mini-turbos
 - Customizable mini-turbo boost time
+- Colorized HUD
 - More to come!
 - All added features are toggable via convars
 
@@ -18,8 +19,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - bluesparktics Default value: 20
 - redsparktics Default value: 50
 - rainbowsparktics Default value: 125
-
-
+- colorizedhud Default value: On
 
 ## Dependencies
 - SDL2 (Linux/OS X only)
