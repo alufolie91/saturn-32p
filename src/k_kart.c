@@ -915,6 +915,9 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_tripleorbinaut);
 	CV_RegisterVar(&cv_quadorbinaut);
 	CV_RegisterVar(&cv_dualjawz);
+	
+	//Sneakerextend
+	CV_RegisterVar(&cv_sneakerextend);
 
 	CV_RegisterVar(&cv_kartminimap);
 	CV_RegisterVar(&cv_kartcheck);
@@ -3470,6 +3473,8 @@ static void K_QuiteSaltyHop(player_t *p)
 	}
 }
 
+
+
 static INT32 K_FindPlayerNum(player_t *plyr)
 {
 	INT32 i;
@@ -4281,9 +4286,8 @@ void K_DoSneaker(player_t *player, INT32 type)
 			K_FlipFromObject(overlay, player->mo);
 		}
 	}
-
-	player->kartstuff[k_sneakertimer] = sneakertime;
-
+		player->kartstuff[k_sneakertimer] = sneakertime;
+		
 	// set angle for spun out players:
 	player->kartstuff[k_boostangle] = (INT32)player->mo->angle;
 
@@ -5458,7 +5462,25 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 
 	if (player->kartstuff[k_sneakertimer])
 	{
-		player->kartstuff[k_sneakertimer]--;
+		//sneakerextender
+		if (cv_sneakerextend.value)
+		{
+			if (player->kartstuff[k_driftboost])
+			{
+				player->kartstuff[k_sneakertimer] = max(player->kartstuff[k_sneakertimer]--,1);
+			}
+			else
+			{
+				player->kartstuff[k_sneakertimer]--;
+			}	
+				
+		}		
+		
+		else 
+		{
+			player->kartstuff[k_sneakertimer]--;
+		}
+		
 		if (player->kartstuff[k_wipeoutslow] > 0 && player->kartstuff[k_wipeoutslow] < wipeoutslowtime+1)
 			player->kartstuff[k_wipeoutslow] = wipeoutslowtime+1;
 	}
