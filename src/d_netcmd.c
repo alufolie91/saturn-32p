@@ -404,7 +404,7 @@ consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, s
 
 
 static CV_PossibleValue_t stackingbrakemod_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
-consvar_t cv_stackingbrakemod = {"stackingdimval", "0.05", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingbrakemod_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingbrakemod = {"stackingbrakemod", "0.05", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingbrakemod_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
 //Speed of boosts

@@ -22,6 +22,11 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - redsparktics Default value: 50
 - rainbowsparktics Default value: 125
 - colorizedhud Default value: On
+- stacking Default value:	On
+- stackingdim Default value: On
+- stackingdimval Default value: 1.20
+- stackingbrakemod Default value: 0.05
+- stacking_sneakerstack Default value: 5
 - stacking_sneakerspeedeasy Default value: 0.8317
 - stacking_sneakerspeednormal Default value: 0.5
 - stacking_sneakerspeedhard Default value: 0.2756
