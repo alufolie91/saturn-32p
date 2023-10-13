@@ -54,8 +54,8 @@ consvar_t cv_mini_yoffset = {"hud_minimap_yoffset", "0", CV_SAVE, NULL, NULL, 0,
 consvar_t cv_want_xoffset = {"hud_wanted_xoffset", "0", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_want_yoffset = {"hud_wanted_yoffset", "0", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_showinput = {"showinput", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_newspeedometer = {"newspeedometer", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_showinput = {"showinput", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_newspeedometer = {"newspeedometer", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_saltyhop = {"hardcodehop", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_saltyhopsfx = {"hardcodehopsfx", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -922,6 +922,7 @@ void K_RegisterKartStuff(void)
 	
 	//Sneakerextend
 	CV_RegisterVar(&cv_sneakerextend);
+	CV_RegisterVar(&cv_sneakerextendtype);
 	
 	//additivemt
 	CV_RegisterVar(&cv_additivemt);
@@ -930,6 +931,38 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_bluesparktics);
 	CV_RegisterVar(&cv_redsparktics);
 	CV_RegisterVar(&cv_rainbowsparktics);
+	
+	//Stacking
+	CV_RegisterVar(&cv_stacking);
+	CV_RegisterVar(&cv_stackingdim);
+	CV_RegisterVar(&cv_stackingdimval);
+	CV_RegisterVar(&cv_stackingbrakemod);
+	//Boosts
+	CV_RegisterVar(&cv_sneakerstack);
+	CV_RegisterVar(&cv_sneakerspeedeasy);
+	CV_RegisterVar(&cv_sneakerspeednormal);
+	CV_RegisterVar(&cv_sneakerspeedhard);
+	CV_RegisterVar(&cv_sneakeraccel);
+	
+	CV_RegisterVar(&cv_invincibilityspeed);
+	CV_RegisterVar(&cv_invincibilityaccel);
+				   
+	CV_RegisterVar(&cv_growspeed);
+	CV_RegisterVar(&cv_growaccel);			   
+	CV_RegisterVar(&cv_growmult);
+				   
+	CV_RegisterVar(&cv_driftspeed);
+	CV_RegisterVar(&cv_driftaccel);
+	
+	CV_RegisterVar(&cv_startspeed);
+	CV_RegisterVar(&cv_startaccel);
+	
+	CV_RegisterVar(&cv_hyuudorospeed);
+	CV_RegisterVar(&cv_hyuudoroaccel);
+	
+	CV_RegisterVar(&cv_speedcap);
+	CV_RegisterVar(&cv_speedcapval);
+				   
 	
 	
 	CV_RegisterVar(&cv_kartminimap);
@@ -2228,11 +2261,64 @@ void K_MomentumToFacing(player_t *player)
 	player->mo->momy = FixedMul(player->mo->momy - player->cmomy, player->mo->friction) + player->cmomy;
 }
 
+
+//Rescale oh boy
+static fixed_t K_BoostRescale(fixed_t value,fixed_t oldmin,fixed_t oldmax,fixed_t newmin,fixed_t newmax)
+{
+		return newmin +  FixedMul(FixedDiv( value-oldmin , oldmax-oldmin), newmax-newmin);
+}
+
+
+
+
 // sets k_boostpower, k_speedboost, and k_accelboost to whatever we need it to be
 static void K_GetKartBoostPower(player_t *player)
 {
 	fixed_t boostpower = FRACUNIT;
 	fixed_t speedboost = 0, accelboost = 0;
+	
+	fixed_t sneakeraccelboost = 0;
+	fixed_t sneakerspeedboost = 0;
+	fixed_t finalspeedboost = 0;
+		
+	fixed_t invincibilityaccelboost = 0;
+	fixed_t invincibilityspeedboost = 0;
+			
+	fixed_t growspeedboost = 0;
+	fixed_t growaccelboost = 0;
+	fixed_t growboostmult = 0;
+			
+	fixed_t driftaccelboost = 0;
+	fixed_t driftspeedboost = 0;
+			
+	fixed_t startaccelboost = 0;
+	fixed_t startspeedboost = 0;
+	
+	fixed_t hyudoroaccelboost = 0;
+	fixed_t hyudorospeedboost = 0;
+		
+	fixed_t boostmult =  FRACUNIT;
+	fixed_t boostincrease = 0;
+	
+	fixed_t intermediate = 0;
+	
+	fixed_t harddiminish = 0;
+	
+	INT32 hyuextend = 0;
+	
+		
+	int s;
+	fixed_t speedtablesum;
+	int a;
+	fixed_t acceltablesum;
+	
+	fixed_t cmpfunc (const void * a, const void * b) {
+   		return ( *(fixed_t*)a - *(fixed_t*)b );
+	}
+	
+	
+	
+	
 
 	if (player->kartstuff[k_spinouttimer] && player->kartstuff[k_wipeoutslow] == 1) // Slow down after you've been bumped
 	{
@@ -2259,58 +2345,236 @@ static void K_GetKartBoostPower(player_t *player)
 			S_StartSound(player->mo, sfx_cdfm70);
 	}
 
-	if (player->kartstuff[k_sneakertimer]) // Sneaker
+	
+	//Booststacking
+	if (cv_stacking.value)	
 	{
-		switch (gamespeed)
+		if (player->kartstuff[k_sneakertimer]) // Sneaker
 		{
-			case 0:
-				speedboost = max(speedboost, 53740+768);
-				break;
-			case 2:
-				speedboost = max(speedboost, 17294+768);
-				break;
-			default:
-				speedboost = max(speedboost, 32768);
-				break;
+			switch (gamespeed)
+			{
+				case 0:
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedeasy.value)* player->kartstuff[k_sneakerstack];
+					break;
+				case 2:
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedhard.value)* player->kartstuff[k_sneakerstack]; 
+					break;
+				default:
+					sneakerspeedboost = max(speedboost, cv_sneakerspeednormal.value) * player->kartstuff[k_sneakerstack];
+					break;
+			}
+				sneakeraccelboost = accelboost + max(accelboost, cv_sneakeraccel.value); // + 800%  524288
+				
+			
 		}
-		accelboost = max(accelboost, 8*FRACUNIT); // + 800%
-	}
+			if (player->kartstuff[k_invincibilitytimer]) // Invincibility
+			{
+				invincibilityspeedboost = max(speedboost, cv_invincibilityspeed.value); // + 37.5% 24576
+				invincibilityaccelboost = max(accelboost, cv_invincibilityaccel.value); // + 300% 196608 
+				player->kartstuff[k_invincibilitystack] = 1;
+			}
+			else
+			{
+				player->kartstuff[k_invincibilitystack] = 0;
+			}
 
-	if (player->kartstuff[k_invincibilitytimer]) // Invincibility
-	{
-		speedboost = max(speedboost, 3*FRACUNIT/8); // + 37.5%
-		accelboost = max(accelboost, 3*FRACUNIT); // + 300%
-	}
+			if (player->kartstuff[k_growshrinktimer] > 0) // Grow plus blib buffs
+			{
+				growspeedboost = max(speedboost, cv_growspeed.value);
+				growaccelboost = max(accelboost, cv_growaccel.value);
+				growboostmult = max(boostmult, cv_growmult.value);
+				boostmult = growboostmult;
+			}
 
-	if (player->kartstuff[k_growshrinktimer] > 0) // Grow
-	{
-		speedboost = max(speedboost, FRACUNIT/5); // + 20%
-	}
+			if (player->kartstuff[k_driftboost]) // Drift Boost
+			{
 
-	if (player->kartstuff[k_driftboost]) // Drift Boost
-	{
-		speedboost = max(speedboost, FRACUNIT/4); // + 25%
-		accelboost = max(accelboost, 4*FRACUNIT); // + 400%
-	}
+				driftspeedboost = max(speedboost, cv_driftspeed.value); // + 25% 16384
+				driftaccelboost = max(accelboost, cv_driftaccel.value); // + 400% 262144
+				player->kartstuff[k_driftstack] = 1;
+			}										
+			else
+			{
+				player->kartstuff[k_driftstack] = 0;
+			}
 
-	if (player->kartstuff[k_startboost]) // Startup Boost
+			if (player->kartstuff[k_startboost]) // Startup Boost
+			{
+				startspeedboost = max(speedboost, cv_startspeed.value); // + 25% 16384
+				startaccelboost = max(accelboost, cv_startaccel.value); // + 300% 393216 
+				player->kartstuff[k_startstack] = 1;
+			}
+			else
+			{
+				player->kartstuff[k_startstack] = 0;
+			}
+			
+			if (player->kartstuff[k_hyudorotimer])
+			{
+				hyudorospeedboost = max(speedboost, cv_hyuudorospeed.value);
+				hyudoroaccelboost = max(accelboost, cv_hyuudoroaccel.value);
+			}
+			
+			if (player->kartstuff[k_ssspeedboost] || player->kartstuff[k_ssaccelboost])
+			{
+				player->kartstuff[k_ssstack] = 1;
+			}
+			else
+			{
+				player->kartstuff[k_ssstack] = 0;
+			}			
+		
+		
+				fixed_t speedtable[] = { hyudorospeedboost, player->kartstuff[k_slopespeedboost] ,player->kartstuff[k_ssspeedboost],startspeedboost, driftspeedboost, growspeedboost, sneakerspeedboost, invincibilityspeedboost };
+				fixed_t acceltable[] = { hyudoroaccelboost, player->kartstuff[k_slopeaccelboost] ,player->kartstuff[k_ssaccelboost],growaccelboost, startaccelboost, invincibilityaccelboost, driftaccelboost, sneakeraccelboost };
+				fixed_t speedsize = sizeof(speedtable) / sizeof(speedtable[0]);
+				fixed_t accelsize = sizeof(speedtable) / sizeof(speedtable[0]);
+					
+				qsort(speedtable, speedsize, sizeof(fixed_t), cmpfunc);
+				qsort(acceltable, accelsize, sizeof(fixed_t), cmpfunc);
+				
+				for( s = 0 ; s <  speedsize; s++ )
+				{
+					speedtablesum += speedtable[s];
+				}
+		
+		
+				for( a = 0 ; a <  accelsize; a++ )
+				{
+					acceltablesum += acceltable[a];
+				}
+				
+				speedboost = speedtablesum;
+				accelboost = acceltablesum;
+				player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack];
+				
+				//speedboost = startspeedboost + driftspeedboost + growspeedboost + sneakerspeedboost + invincibilityspeedboost;
+				//accelboost = growaccelboost + startaccelboost + invincibilityaccelboost + driftaccelboost + sneakeraccelboost;
+				
+				//boostmult = max(boostmult, growboostmult)
+				
+				
+			
+		}
+		
+	//Vanilla speed stuff	
+	else
 	{
-		speedboost = max(speedboost, FRACUNIT/4); // + 25%
-		accelboost = max(accelboost, 6*FRACUNIT); // + 300%
+		
+		if (player->kartstuff[k_sneakertimer]) // Sneaker
+		{
+			switch (gamespeed)
+			{
+				case 0:
+					speedboost = max(speedboost, 53740+768);
+					break;
+				case 2:
+					speedboost = max(speedboost, 17294+768);
+					break;
+				default:
+					speedboost = max(speedboost, 32768);
+					break;
+			}
+			accelboost = max(accelboost, 8*FRACUNIT); // + 800%
+		}
+
+		if (player->kartstuff[k_invincibilitytimer]) // Invincibility
+		{
+			speedboost = max(speedboost, 3*FRACUNIT/8); // + 37.5%
+			accelboost = max(accelboost, 3*FRACUNIT); // + 300%
+		}
+
+		if (player->kartstuff[k_growshrinktimer] > 0) // Grow
+		{
+			speedboost = max(speedboost, FRACUNIT/5); // + 20%	
+		}
+
+		if (player->kartstuff[k_driftboost]) // Drift Boost
+		{
+			speedboost = max(speedboost, FRACUNIT/4); // + 25%
+			accelboost = max(accelboost, 4*FRACUNIT); // + 400%
+		}
+
+		if (player->kartstuff[k_startboost]) // Startup Boost
+		{
+			speedboost = max(speedboost, FRACUNIT/4); // + 25%
+			accelboost = max(accelboost, 6*FRACUNIT); // + 300%
+		}
+		
+		
 	}
 
 	// don't average them anymore, this would make a small boost and a high boost less useful
 	// just take the highest we want instead
 
-	player->kartstuff[k_boostpower] = boostpower;
+	
+		player->kartstuff[k_boostpower] = boostpower;
+	if (cv_stacking.value)
+	{
+		
+		//This here is the boostmult, its implemented as an adjustment to boostpower
+		player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost]);
+		//player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost])
+		
+		if (speedboost > 0 && player->kartspeed < 6) {
+			//Apply a bonus top speed to lower speeds only while boosting
+			if (player->kartstuff[k_offroad] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_invincibilitytimer] && !player->kartstuff[k_sneakertimer])
+			{	
+				//No getting free offroad with drift boosts alone
+			}
+			else
+			{
+				boostincrease = 7 - player->kartspeed	;
+				player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + ((FRACUNIT*boostincrease)/100);
+			}
 
-	// value smoothing
-	if (speedboost > player->kartstuff[k_speedboost])
-		player->kartstuff[k_speedboost] = speedboost;
-	else
-		player->kartstuff[k_speedboost] += (speedboost - player->kartstuff[k_speedboost])/(TICRATE/2);
+		}
+		
+		
+		
+		
+		
+	}
 
-	player->kartstuff[k_accelboost] = accelboost;
+	
+
+	
+	if (cv_stacking.value && cv_stackingdim.value)
+	{	
+		if (gamespeed <= 1 && speedboost > FRACUNIT/2)
+		{	
+			intermediate = FixedDiv(FixedMul(cv_stackingdimval.value,FRACUNIT*-1/2) - FRACUNIT/4,-cv_stackingdimval.value+FRACUNIT/2);
+			speedboost = FixedMul(cv_stackingdimval.value,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
+		}
+		else if (gamespeed == 2 && speedboost > FRACUNIT*375/1000)
+		{
+			harddiminish = K_BoostRescale(cv_stackingdimval.value, FRACUNIT, 2*FRACUNIT, FRACUNIT*95/100, FRACUNIT*180/100);
+			intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
+			speedboost = FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
+		}
+	}
+
+		// value smoothing
+		if (speedboost > player->kartstuff[k_speedboost])
+			player->kartstuff[k_speedboost] = speedboost;
+	
+		//brakemod. slowdown on braking or sliptide
+		else if (cv_stacking.value && cv_stackingbrakemod.value && ((player->kartstuff[k_aizdriftstrat] && abs(player->kartstuff[k_drift]) < 5) || (player->cmd.buttons & BT_BRAKE)))
+        	player->kartstuff[k_speedboost] = max(speedboost - cv_stackingbrakemod.value, min(player->kartstuff[k_speedboost], 3*FRACUNIT/8));
+		else
+			player->kartstuff[k_speedboost] += (speedboost - player->kartstuff[k_speedboost])/(TICRATE/2);
+	
+	
+	 
+		if(cv_speedcap.value)
+		{
+		   player->speed = min(player->speed, FixedMul(cv_speedcapval.value, mapobjectscale));
+		}
+	
+	
+		player->kartstuff[k_accelboost] = accelboost;
+	
+	
 }
 
 fixed_t K_GetKartSpeed(player_t *player, boolean doboostpower)
@@ -2320,9 +2584,21 @@ fixed_t K_GetKartSpeed(player_t *player, boolean doboostpower)
 	fixed_t xspd = 3072;		// 4.6875 aka 3/64
 	UINT8 kartspeed = player->kartspeed;
 	fixed_t finalspeed;
+	fixed_t airspeed;
 
 	if (doboostpower && !player->kartstuff[k_pogospring] && !P_IsObjectOnGround(player->mo))
-		return (75*mapobjectscale); // air speed cap
+	{
+		if (cv_stacking.value)
+		{
+			airspeed = player->speed;
+			return min(max(airspeed - (airspeed - FixedMul(FRACUNIT*50, mapobjectscale))/70, FixedMul(FRACUNIT*50, mapobjectscale)), airspeed);
+	
+		}
+		else
+		{
+			return (75*mapobjectscale); // air speed cap
+		}
+	}
 
 	switch (gamespeed)
 	{
@@ -4164,6 +4440,10 @@ static void K_DoHyudoroSteal(player_t *player)
 	INT32 prandom = 0;
 	boolean sink = P_RandomChance(FRACUNIT/64);
 
+	
+	
+
+
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
 		if (playeringame[i] && players[i].mo && players[i].mo->health > 0 && players[i].playerstate == PST_LIVE
@@ -4303,6 +4583,13 @@ void K_DoSneaker(player_t *player, INT32 type)
 		}
 	}
 		player->kartstuff[k_sneakertimer] = sneakertime;
+		
+		//Stacks
+		if (cv_stacking.value && player->kartstuff[k_sneakertimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
+		{	
+			player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack]++,cv_sneakerstack.value);
+		}
+	
 		
 	// set angle for spun out players:
 	player->kartstuff[k_boostangle] = (INT32)player->mo->angle;
@@ -5481,16 +5768,44 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		//sneakerextender
 		if (cv_sneakerextend.value)
 		{
-			if (player->kartstuff[k_driftboost])
-			{
-				player->kartstuff[k_sneakertimer] = max(player->kartstuff[k_sneakertimer]--,1);
+			
+			
+			
+			if (cv_sneakerextendtype.value == 1)
+			{	
+				if (player->kartstuff[k_driftboost])
+				{
+					player->kartstuff[k_sneakertimer] = max(player->kartstuff[k_sneakertimer]--,1);
+				}
+				else
+				{
+					player->kartstuff[k_sneakertimer]--;
+				}	
 			}
-			else
+			else if (cv_sneakerextendtype.value == 2)	
 			{
-				player->kartstuff[k_sneakertimer]--;
-			}	
+				if (player->kartstuff[k_sneakertimer])
+				{	
+					player->kartstuff[k_sneakertimer] = max(player->kartstuff[k_sneakertimer], player->kartstuff[k_driftboost]);
+					player->kartstuff[k_sneakertimer]--;
+				}
 				
+			}
+			
 		}		
+		else
+		{
+			player->kartstuff[k_sneakertimer]--;
+		}	
+		
+		//Stacking
+		if (cv_stacking.value)
+		{
+			if (!player->kartstuff[k_sneakertimer])
+			{
+				player->kartstuff[k_sneakerstack] = 0;
+			}
+		}
 		
 		else 
 		{
@@ -5503,9 +5818,26 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 
 	if (player->kartstuff[k_floorboost])
 		player->kartstuff[k_floorboost]--;
-
+	
+	
+	
+	if (cv_sneakerextend.value && cv_sneakerextendtype.value == 2)
+	{				
+		if (player->kartstuff[k_driftboost] && player->kartstuff[k_sneakertimer])
+		{	
+			player->kartstuff[k_driftboost] = player->kartstuff[k_sneakertimer];
+		}
+		else if (player->kartstuff[k_driftboost] && !player->kartstuff[k_sneakertimer])
+		{
+			player->kartstuff[k_driftboost]--;
+		}	
+		
+	}
+	else
+	{
 	if (player->kartstuff[k_driftboost])
 		player->kartstuff[k_driftboost]--;
+	}
 
 	if (player->kartstuff[k_startboost])
 		player->kartstuff[k_startboost]--;
@@ -6125,7 +6457,7 @@ void K_KartUpdatePosition(player_t *player)
 		}
 		else if (G_BattleGametype())
 		{
-			if (player->exiting) // End of match standings
+			if (player->exiting) // Ends of match standings
 			{
 				if (players[i].marescore > player->marescore) // Only score matters
 					position++;
@@ -8161,7 +8493,7 @@ static void K_drawKartItem(void)
 		
 		V_DrawFixedPatch(fx<<FRACBITS, fy<<FRACBITS, FRACUNIT, V_HUDTRANS|fflags, localpatch, colmap);
 		if (offset)
-			if (flipamount) // reminder that this is for 3/4p's right end of the screen.
+			if (flipamount) // reminder that this is for 3/4p's right ends of the screen.
 				V_DrawString(fx+2, fy+31, V_ALLOWLOWERCASE|V_HUDTRANS|fflags, va("x%d", stplyr->kartstuff[k_itemamount]));
 			else
 				V_DrawString(fx+24, fy+31, V_ALLOWLOWERCASE|V_HUDTRANS|fflags, va("x%d", stplyr->kartstuff[k_itemamount]));
@@ -8206,7 +8538,6 @@ void K_drawKartTimestamp(tic_t drawtime, INT32 TX, INT32 TY, INT16 emblemmap, UI
 	// TIME_X = BASEVIDWIDTH-124;	// 196
 	// TIME_Y = 6;					//   6
 	
-	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
 	
 	tic_t worktime;
 
@@ -8224,14 +8555,22 @@ void K_drawKartTimestamp(tic_t drawtime, INT32 TX, INT32 TY, INT16 emblemmap, UI
 	}
 
 	//Colorized hud	
-	if (cv_colorizedhud.value && found_extra2_kart)
-	{
-		V_DrawMappedPatch(TX, TY, splitflags, ((mode == 2) ? kp_lapstickerwideclr : kp_timestickerwideclr), colormap);
-	}
-	else
-	{
+	if (!stplyr)
 		V_DrawScaledPatch(TX, TY, splitflags, ((mode == 2) ? kp_lapstickerwide : kp_timestickerwide));
-	}
+	else if (stplyr)
+	{
+		UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+
+		//Colourized hud	
+		if (cv_colorizedhud.value && found_extra2_kart)
+		{
+			V_DrawMappedPatch(TX, TY, splitflags, ((mode == 2) ? kp_lapstickerwideclr : kp_timestickerwideclr), colormap);
+		}
+		else
+		{
+			V_DrawScaledPatch(TX, TY, splitflags, ((mode == 2) ? kp_lapstickerwide : kp_timestickerwide));
+		}
+	}	
 		
 	
 	TX += 33;
@@ -8773,7 +9112,6 @@ static void K_drawKartLaps(void)
 	boolean flipstring = false;	// used for 3p or 4p
 	INT32 stringw = 0;	// used with the above
 
-	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
 	
 	if (splitscreen > 1)
 	{
@@ -8827,14 +9165,22 @@ static void K_drawKartLaps(void)
 	{
 		
 		//Colorized hud	
-		if (cv_colorizedhud.value && found_extra2_kart)
-		{
-			V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
-		}
-		else
-		{	
+		if (!stplyr)
 			V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapsticker);
-		}
+		else if (stplyr)
+		{
+			UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+
+			//Colourized hud	
+			if (cv_colorizedhud.value && found_extra2_kart)
+			{
+				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
+			}
+			else
+			{
+				V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapsticker);
+			}
+		}	
 			
 		if (stplyr->exiting)
 			V_DrawKartString(LAPS_X+33, LAPS_Y+3, V_HUDTRANS|splitflags, "FIN");
@@ -8852,7 +9198,6 @@ static void K_drawKartSpeedometer(void)
 	fixed_t convSpeed = 0;
 	INT32 speedtype = 0;
 	INT32 splitflags = K_calcSplitFlags(V_SNAPTOBOTTOM|V_SNAPTOLEFT);
-	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
 	
 
 	switch (cv_kartspeedometer.value)
@@ -8898,21 +9243,26 @@ static void K_drawKartSpeedometer(void)
 					V_DrawKartString(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, va("%4d %%", convSpeed));
 		}
 	}
-	else if (cv_newspeedometer.value && found_extra_kart) { // why bother if we dont?
-		//Colorized hud	
-		if (cv_colorizedhud.value && found_extra2_kart)
-		{
-			V_DrawMappedPatch(SPDM_X + 1, SPDM_Y + 4, (V_HUDTRANS|splitflags), (skp_smallstickerclr), colormap);
-		}
-		else
-		{
+	else if (cv_newspeedometer.value && found_extra_kart) { // why bother if we dont?			
+		if (!stplyr)
 			V_DrawScaledPatch(SPDM_X + 1, SPDM_Y + 4, (V_HUDTRANS|splitflags), (skp_smallsticker)); 
+		else if (stplyr)
+		{
+			UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+
+			//Colourized hud	
+			if (cv_colorizedhud.value && found_extra2_kart)
+			{
+				V_DrawMappedPatch(SPDM_X + 1, SPDM_Y + 4, (V_HUDTRANS|splitflags), (skp_smallstickerclr), colormap);
+			}
+			else
+			{
+				V_DrawScaledPatch(SPDM_X + 1, SPDM_Y + 4, (V_HUDTRANS|splitflags), (skp_smallsticker)); 
+			}
 		}
-		
+
 		V_DrawRankNum(SPDM_X + 26, SPDM_Y + 4, V_HUDTRANS|splitflags, convSpeed, 3, NULL);
-		
-		
-		
+	
 		V_DrawScaledPatch(SPDM_X + 31, SPDM_Y + 4, V_HUDTRANS|splitflags, skp_speedpatches[cv_kartspeedometer.value]);
 		
 	}
@@ -9455,7 +9805,6 @@ static void K_drawBattleFullscreen(void)
 	INT32 splitflags = V_SNAPTOTOP; // I don't feel like properly supporting non-green resolutions, so you can have a misuse of SNAPTO instead
 	fixed_t scale = FRACUNIT;
 	boolean drawcomebacktimer = true;	// lazy hack because it's cleaner in the long run.
-	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
 #ifdef HAVE_BLUA
 	if (!LUA_HudEnabled(hud_battlecomebacktimer))
 		drawcomebacktimer = false;
@@ -9545,17 +9894,23 @@ static void K_drawBattleFullscreen(void)
 		if (splitscreen > 1)
 			V_DrawString(x-txoff, ty, 0, va("%d", stplyr->kartstuff[k_comebacktimer]/TICRATE));
 		else
-		{
-			//Colorized hud	
-			if (cv_colorizedhud.value && found_extra2_kart)
+		{			
+			if (!stplyr)
+					V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, NULL);
+			else if (stplyr)
 			{
-				V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, colormap);
-			}
-			else
-			{
-				V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, NULL);
-			}
-			
+				UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+
+				//Colourized hud	
+				if (cv_colorizedhud.value && found_extra2_kart)
+				{
+					V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, colormap);
+				}
+				else
+				{
+					V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, NULL);
+				}
+			}		
 			V_DrawKartString(x-txoff, ty, 0, va("%d", stplyr->kartstuff[k_comebacktimer]/TICRATE));
 		}
 	}

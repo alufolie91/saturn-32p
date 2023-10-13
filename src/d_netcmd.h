@@ -113,6 +113,7 @@ extern consvar_t cv_tripleorbinaut, cv_quadorbinaut, cv_dualjawz;
 
 //Sneakerextender
 extern consvar_t cv_sneakerextend;
+extern consvar_t cv_sneakerextendtype;
 //additivemt
 extern consvar_t cv_additivemt;
 
@@ -120,6 +121,37 @@ extern consvar_t cv_additivemt;
 extern consvar_t cv_bluesparktics;
 extern consvar_t cv_redsparktics;
 extern consvar_t cv_rainbowsparktics;
+
+//stacking
+extern consvar_t cv_stacking;
+extern consvar_t cv_stackingdim;
+extern consvar_t cv_stackingdimval;
+extern consvar_t cv_stackingbrakemod;
+//boosts
+extern consvar_t cv_sneakerstack;
+extern consvar_t cv_sneakerspeedeasy;
+extern consvar_t cv_sneakerspeednormal;
+extern consvar_t cv_sneakerspeedhard;
+extern consvar_t cv_sneakeraccel;
+
+extern consvar_t cv_invincibilityspeed;
+extern consvar_t cv_invincibilityaccel;
+
+extern consvar_t cv_growspeed;
+extern consvar_t cv_growaccel;
+extern consvar_t cv_growmult;
+
+extern consvar_t cv_driftspeed;
+extern consvar_t cv_driftaccel;
+
+extern consvar_t cv_startspeed;
+extern consvar_t cv_startaccel;
+
+extern consvar_t cv_hyuudorospeed;
+extern consvar_t cv_hyuudoroaccel;
+
+extern consvar_t cv_speedcap;
+extern consvar_t cv_speedcapval;
 
 extern consvar_t cv_kartminimap;
 extern consvar_t cv_kartcheck;
