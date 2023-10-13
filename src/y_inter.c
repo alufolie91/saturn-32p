@@ -47,12 +47,6 @@
 #include "hardware/hw_main.h"
 #endif
 
-#ifdef PC_DOS
-#include <stdio.h> // for snprintf
-int	snprintf(char *str, size_t n, const char *fmt, ...);
-//int	vsnprintf(char *str, size_t n, const char *fmt, va_list ap);
-#endif
-
 typedef struct
 {
 	char patch[9];
@@ -422,11 +416,11 @@ void Y_IntermissionDrawer(void)
 		{
 			if (widebgpatch && rendermode == render_soft && vid.width / vid.dupx == 400)
 				V_DrawScaledPatch(0, 0, V_SNAPTOLEFT, widebgpatch);
-			else
+			else if (bgpatch)
 				V_DrawScaledPatch(0, 0, 0, bgpatch);
 		}
 	}
-	else
+	else if (bgtile)
 		V_DrawPatchFill(bgtile);
 
 	if (usebuffer) // Fade everything out
@@ -1449,7 +1443,7 @@ void Y_VoteDrawer(void)
 			if (players[i].skincolor)
 			{
 				UINT8 *colormap = R_GetTranslationColormap(players[i].skin, players[i].skincolor, GTC_CACHE);
-				V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].skin], colormap);
+				V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, (players[i].skinlocal ? localfacerankprefix : facerankprefix)[((players[i].localskin) ? players[i].localskin-1 : players[i].skin)], colormap);
 			}
 
 			if (!splitscreen && i == consoleplayer)

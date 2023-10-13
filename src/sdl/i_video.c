@@ -653,7 +653,7 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 		S_InitMusicVolume();
 
 		if (cv_gamesounds.value)
-			S_EnableSound();
+			S_ResumeAudio(); //resume it
 
 		if (!firsttimeonmouse)
 		{
@@ -665,10 +665,10 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 	{
 		// Tell game we lost focus, pause music
 		window_notinfocus = true;
-		if (!cv_playmusicifunfocused.value)
+		if (! cv_playmusicifunfocused.value)
 			I_SetMusicVolume(0);
-		if (!cv_playsoundifunfocused.value)
-			S_DisableSound();
+		if (! cv_playsoundifunfocused.value)
+			S_StopSounds();
 
 		if (!disable_mouse)
 		{
@@ -1297,7 +1297,7 @@ void I_GetEvent(void)
 				break;
 			case SDL_DROPFILE:
 				dropped_filedir = evt.drop.file;
-				P_AddWadFile(dropped_filedir);
+				P_AddWadFile(dropped_filedir, false);
 				SDL_free(dropped_filedir);    // Free dropped_filedir memory
 				break;
 			case SDL_QUIT:
@@ -1849,7 +1849,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 		// "direct3d" driver (D3D9) causes Drmingw exchndl
 		// to not write RPT files. Every other driver
 		// seems fine.
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
 
 		renderer = SDL_CreateRenderer(window, -1, flags);
 		if (renderer == NULL)

@@ -160,8 +160,8 @@ static CV_PossibleValue_t drawdist_cons_t[] = {
 static CV_PossibleValue_t drawdist_precip_cons_t[] = {
 	{256, "256"},	{512, "512"},	{768, "768"},
 	{1024, "1024"},	{1536, "1536"},	{2048, "2048"},
-	{3072, "3072"},	{4096, "4096"},
-	{0, "None"},	{0, NULL}};
+	{3072, "3072"}, {0, "None"},	{0, NULL}};
+	
 
 static CV_PossibleValue_t fov_cons_t[] = {{5*FRACUNIT, "MIN"}, {178*FRACUNIT, "MAX"}, {0, NULL}};
 
@@ -441,28 +441,18 @@ fixed_t R_PointToDist2(fixed_t px2, fixed_t py2, fixed_t px1, fixed_t py1)
 
 angle_t R_PlayerSliptideAngle(player_t *player)
 {
-	mobj_t *mo = player->mo;
+	mobj_t *mo;
+    spritedef_t *sprdef;
+    spriteframe_t *sprframe;
+    angle_t ang = 0;
 
-	if (!cv_sliptideroll.value || !mo || P_MobjWasRemoved(mo)) return 0;
+    if (!cv_sliptideroll.value || !player || P_MobjWasRemoved(player->mo))
+        return 0;
 
-	size_t rot = mo->frame&FF_FRAMEMASK;
-	boolean papersprite = (mo->frame & FF_PAPERSPRITE);
+    mo = player->mo;
 
-	spritedef_t *sprdef;
-	spriteframe_t *sprframe;
-	angle_t ang = 0;
-
-	interpmobjstate_t interp = {0};
-
-	// Yes.
-	if (R_UsingFrameInterpolation() && !paused)
-	{
-		R_InterpolateMobjState(mo, rendertimefrac, &interp);
-	}
-	else
-	{
-		R_InterpolateMobjState(mo, FRACUNIT, &interp);
-	}
+    size_t rot = mo->frame & FF_FRAMEMASK;
+    boolean papersprite = (mo->frame & FF_PAPERSPRITE);
 
 	if (mo->skin && mo->sprite == SPR_PLAY)
 	{
@@ -488,7 +478,7 @@ angle_t R_PlayerSliptideAngle(player_t *player)
 	if (!sprframe) return 0;
 
 	if (sprframe->rotate != SRF_SINGLE || papersprite)
-		ang = R_PointToAngle(interp.x, interp.y) - interp.angle;
+		ang = R_PointToAngle(mo->x, mo->y) - mo->angle;
 
 	return FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), mo->player->sliproll*(mo->player->sliptidemem));
 }
@@ -1975,12 +1965,6 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_sliptideroll);
 	CV_RegisterVar(&cv_sloperolldist);
 
-	CV_RegisterVar(&cv_tilting);
-	CV_RegisterVar(&cv_quaketilt);
-	CV_RegisterVar(&cv_tiltsmoothing);
-	CV_RegisterVar(&cv_actionmovie);
-	CV_RegisterVar(&cv_windowquake);
-
 	CV_RegisterVar(&cv_showhud);
 	CV_RegisterVar(&cv_translucenthud);
 
@@ -1990,34 +1974,7 @@ void R_RegisterEngineStuff(void)
 	// initialized to standard viewheight
 	//CV_RegisterVar(&cv_viewheight);
 
-#ifdef HWRENDER
-	// GL-specific Commands
-	CV_RegisterVar(&cv_grgammablue);
-	CV_RegisterVar(&cv_grgammagreen);
-	CV_RegisterVar(&cv_grgammared);
-	CV_RegisterVar(&cv_grfovchange);
-#ifdef ALAM_LIGHTING
-	CV_RegisterVar(&cv_grstaticlighting);
-	CV_RegisterVar(&cv_grdynamiclighting);
-	CV_RegisterVar(&cv_grcoronas);
-	CV_RegisterVar(&cv_grcoronasize);
-#endif
-	CV_RegisterVar(&cv_grmdls);
-	CV_RegisterVar(&cv_grfallbackplayermodel);
-	CV_RegisterVar(&cv_grspritebillboarding);
-	CV_RegisterVar(&cv_grfakecontrast);
-	CV_RegisterVar(&cv_grshearing);
-	CV_RegisterVar(&cv_grshaders);
-	CV_RegisterVar(&cv_grusecustomshaders);
-	CV_RegisterVar(&cv_grpaletteshader);
-	CV_RegisterVar(&cv_grflashpal);
-#endif
-
-#ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none)
-		HWR_AddCommands();
-#endif
-
 	// Frame interpolation/uncapped
 	CV_RegisterVar(&cv_fpscap);
+	CV_RegisterVar(&cv_precipinterp);
 }

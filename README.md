@@ -40,7 +40,6 @@ Optimized netarchiving for Lua values
 Optimized Polygon sorting with OpenGl batching
 
 ## Dependencies
-- NASM (x86 builds only)
 - SDL2 (Linux/OS X only)
 - SDL2-Mixer (Linux/OS X only)
 - libupnp (Linux/OS X only)
