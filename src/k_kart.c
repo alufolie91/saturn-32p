@@ -8634,12 +8634,7 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 				V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[players[tab[i].num].skin], colormap);
 			else
 				V_DrawMappedPatch(x, y-4, 0, facerankprefix[players[tab[i].num].skin], colormap);
-
-			{
-				player_t *p;
-				p = &players[tab[i].num];
-				V_DrawMappedPatch(x, y-4, 0, ( (p->skinlocal) ? localfacerankprefix : facerankprefix )[( (p->localskin) ? p->localskin-1 : p->skin )], colormap);
-			}
+			
 			/*if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] > 0) -- not enough space for this
 			{
 				INT32 bumperx = x+19;
