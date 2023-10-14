@@ -7859,7 +7859,8 @@ void P_MobjThinker(mobj_t *mobj)
 
 			if (gamespeed == 0)
 				distbarrier = FixedMul(distbarrier, FRACUNIT-FRACUNIT/4);
-			else if (gamespeed == 2)
+			//expert speed
+			else if (gamespeed == 2 || gamespeed == 3)
 				distbarrier = FixedMul(distbarrier, FRACUNIT+FRACUNIT/4);
 
 			if (G_RaceGametype() && mobj->tracer)

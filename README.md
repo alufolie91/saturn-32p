@@ -11,6 +11,8 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - Customizable mini-turbo boost time
 - Colorized HUD
 - BoostStacking(This is a big one!)
+- Being able to change what speed battle is in
+- Expert Speed
 - More to come!
 - All added features are toggable via convars
 
@@ -30,6 +32,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - stacking_sneakerspeedeasy Default value: 0.8317
 - stacking_sneakerspeednormal Default value: 0.5
 - stacking_sneakerspeedhard Default value: 0.2756
+- stacking_sneakerspeedexpert Default value: 0.2243
 - stacking_sneakeraccel Default value: 8.0
 - stacking_invincibilitypeed Default value: 0.375
 - stacking_invincibilityaccel Default value: 3.0
@@ -44,6 +47,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - stacking_hyuudoroaccel Default value: 0.5
 - stacking_speedcap Default value: On
 - stacking_speedcapval Default value: 128.0
+- kartbattlespeed Default value: Normal
 
 ## New kartstuff data
 - k_sneakerstack Current number of active sneaker stacks. Modfifying this will effect stack value

@@ -121,6 +121,7 @@ static void SoundTest_OnChange(void);
 static void BaseNumLaps_OnChange(void);
 static void KartFrantic_OnChange(void);
 static void KartSpeed_OnChange(void);
+static void KartBattleSpeed_OnChange(void);
 static void KartEncore_OnChange(void);
 static void KartComeback_OnChange(void);
 static void KartEliminateLast_OnChange(void);
@@ -414,6 +415,7 @@ static CV_PossibleValue_t mult_cons_t[] = {{INT32_MIN, "MIN"}, {INT32_MAX, "MAX"
 consvar_t cv_sneakerspeedeasy = {"stacking_sneakerspeedeasy", "0.8317", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sneakerspeednormal = {"stacking_sneakerspeednormal", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sneakerspeedhard = {"stacking_sneakerspeedhard", "0.2756", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerspeedexpert = {"stacking_sneakerspeedexpert", "0.2243", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sneakeraccel = {"stacking_sneakeraccel", "8.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_invincibilityspeed = {"stacking_invincibilitypeed", "0.375", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -443,6 +445,8 @@ consvar_t cv_kartcheck = {"kartcheck", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, 
 static CV_PossibleValue_t kartinvinsfx_cons_t[] = {{0, "Music"}, {1, "SFX"}, {0, NULL}};
 consvar_t cv_kartinvinsfx = {"kartinvinsfx", "SFX", CV_SAVE, kartinvinsfx_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_kartspeed = {"kartspeed", "Normal", CV_NETVAR|CV_CALL|CV_NOINIT, kartspeed_cons_t, KartSpeed_OnChange, 0, NULL, NULL, 0, 0, NULL};
+//BattleSpeed
+consvar_t cv_kartbattlespeed = {"kartbattlespeed", "Normal", CV_NETVAR|CV_CALL|CV_NOINIT, kartspeed_cons_t, KartBattleSpeed_OnChange, 0, NULL, NULL, 0, 0, NULL};
 static CV_PossibleValue_t kartbumpers_cons_t[] = {{1, "MIN"}, {12, "MAX"}, {0, NULL}};
 consvar_t cv_kartbumpers = {"kartbumpers", "3", CV_NETVAR|CV_CHEAT, kartbumpers_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_kartfrantic = {"kartfrantic", "Off", CV_NETVAR|CV_CHEAT|CV_CALL|CV_NOINIT, CV_OnOff, KartFrantic_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -6331,6 +6335,25 @@ static void KartSpeed_OnChange(void)
 		}
 	}
 }
+
+//Battle Speed
+static void KartBattleSpeed_OnChange(void)
+{
+	if (G_BattleGametype())
+	{
+		if ((UINT8)cv_kartbattlespeed.value != gamespeed && gamestate == GS_LEVEL && leveltime > starttime)
+			CONS_Printf(M_GetText("Game speed will be changed to \"%s\" next Battle.\n"), cv_kartbattlespeed.string);
+		else
+		{
+			CONS_Printf(M_GetText("Game speed has been changed to \"%s\".\n"),cv_kartbattlespeed.string);
+			gamespeed = (UINT8)cv_kartbattlespeed.value;
+		}
+	}
+}
+
+
+
+
 
 static void KartEncore_OnChange(void)
 {

@@ -66,7 +66,7 @@ consvar_t cv_colorizedhud = {"colorizedhud", "On", CV_SAVE, CV_OnOff, NULL, 0, N
 
 
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
-// gamespeed is cc (0 for easy, 1 for normal, 2 for hard)
+// gamespeed is cc (0 for easy, 1 for normal, 2 for hard, 3 for expert)
 // franticitems is Frantic Mode items, bool
 // encoremode is Encore Mode (duh), bool
 // comeback is Battle Mode's karma comeback, also bool
@@ -942,6 +942,7 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_sneakerspeedeasy);
 	CV_RegisterVar(&cv_sneakerspeednormal);
 	CV_RegisterVar(&cv_sneakerspeedhard);
+	CV_RegisterVar(&cv_sneakerspeedexpert);
 	CV_RegisterVar(&cv_sneakeraccel);
 	
 	CV_RegisterVar(&cv_invincibilityspeed);
@@ -969,6 +970,7 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_kartcheck);
 	CV_RegisterVar(&cv_kartinvinsfx);
 	CV_RegisterVar(&cv_kartspeed);
+	CV_RegisterVar(&cv_kartbattlespeed);
 	CV_RegisterVar(&cv_kartbumpers);
 	CV_RegisterVar(&cv_kartfrantic);
 	CV_RegisterVar(&cv_kartcomeback);
@@ -2359,6 +2361,9 @@ static void K_GetKartBoostPower(player_t *player)
 				case 2:
 					sneakerspeedboost = max(speedboost, cv_sneakerspeedhard.value)* player->kartstuff[k_sneakerstack]; 
 					break;
+				case 3:
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedexpert.value)* player->kartstuff[k_sneakerstack]; 
+					break;
 				default:
 					sneakerspeedboost = max(speedboost, cv_sneakerspeednormal.value) * player->kartstuff[k_sneakerstack];
 					break;
@@ -2471,6 +2476,10 @@ static void K_GetKartBoostPower(player_t *player)
 				case 2:
 					speedboost = max(speedboost, 17294+768);
 					break;
+				//Expert
+				case 3:
+					speedboost = max(speedboost, 14706);
+					break;
 				default:
 					speedboost = max(speedboost, 32768);
 					break;
@@ -2552,6 +2561,12 @@ static void K_GetKartBoostPower(player_t *player)
 			intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
 			speedboost = FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
 		}
+		else if (gamespeed == 3 && speedboost > FRACUNIT*375/1000)
+		{
+			harddiminish = K_BoostRescale(cv_stackingdimval.value, FRACUNIT, 2*FRACUNIT, FRACUNIT*95/100, FRACUNIT*180/100);
+			intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
+			speedboost = FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
+		}
 	}
 
 		// value smoothing
@@ -2607,6 +2622,10 @@ fixed_t K_GetKartSpeed(player_t *player, boolean doboostpower)
 			break;
 		case 2:
 			g_cc = 77824 + xspd; // 150cc = 118.75 + 4.69 = 123.44%
+			break;
+		//expert speed
+		case 3:
+			g_cc = 90112 + xspd; // 150cc = 118.75 + 4.69 = 123.44%
 			break;
 		default:
 			g_cc = 65536 + xspd; // 100cc = 100.00 + 4.69 = 104.69%
@@ -4106,7 +4125,8 @@ static mobj_t *K_ThrowKartItem(player_t *player, boolean missile, mobjtype_t map
 		PROJSPEED = mobjinfo[mapthing].speed;
 		if (gamespeed == 0)
 			PROJSPEED = FixedMul(PROJSPEED, FRACUNIT-FRACUNIT/4);
-		else if (gamespeed == 2)
+		//expert
+		else if (gamespeed == 2 || gamespeed == 3 )
 			PROJSPEED = FixedMul(PROJSPEED, FRACUNIT+FRACUNIT/4);
 		PROJSPEED = FixedMul(PROJSPEED, mapobjectscale);
 	}
@@ -4119,6 +4139,10 @@ static mobj_t *K_ThrowKartItem(player_t *player, boolean missile, mobjtype_t map
 				break;
 			case 2:
 				PROJSPEED = 96*mapobjectscale; // Avg Speed is 48
+				break;
+			//expert speed
+			case 3:
+				PROJSPEED = 110*mapobjectscale; // Avg Speed is 48
 				break;
 			default:
 				PROJSPEED = 82*mapobjectscale; // Avg Speed is 41
@@ -4359,6 +4383,9 @@ void K_PuntMine(mobj_t *thismine, mobj_t *punter)
 		case 2:
 			spd = 96*mapobjectscale; // Avg Speed is 48
 			break;
+		case 3:
+			spd = 110*mapobjectscale; // Avg Speed is 48
+			break;
 		default:
 			spd = 82*mapobjectscale; // Avg Speed is 41
 			break;
@@ -4535,6 +4562,11 @@ void K_DoSneaker(player_t *player, INT32 type)
 		case 2:
 			intendedboost = 17294+768;
 			break;
+		//expert
+		case 3:
+			intendedboost = 14706;
+			break;
+			
 		default:
 			intendedboost = 32768;
 			break;
@@ -5805,11 +5837,6 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 			{
 				player->kartstuff[k_sneakerstack] = 0;
 			}
-		}
-		
-		else 
-		{
-			player->kartstuff[k_sneakertimer]--;
 		}
 		
 		if (player->kartstuff[k_wipeoutslow] > 0 && player->kartstuff[k_wipeoutslow] < wipeoutslowtime+1)

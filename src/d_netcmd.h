@@ -132,6 +132,7 @@ extern consvar_t cv_sneakerstack;
 extern consvar_t cv_sneakerspeedeasy;
 extern consvar_t cv_sneakerspeednormal;
 extern consvar_t cv_sneakerspeedhard;
+extern consvar_t cv_sneakerspeedexpert;
 extern consvar_t cv_sneakeraccel;
 
 extern consvar_t cv_invincibilityspeed;
@@ -157,6 +158,8 @@ extern consvar_t cv_kartminimap;
 extern consvar_t cv_kartcheck;
 extern consvar_t cv_kartinvinsfx;
 extern consvar_t cv_kartspeed;
+//Battle speed
+extern consvar_t cv_kartbattlespeed;
 extern consvar_t cv_kartbumpers;
 extern consvar_t cv_kartfrantic;
 extern consvar_t cv_kartcomeback;

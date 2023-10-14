@@ -69,8 +69,9 @@ CV_PossibleValue_t CV_Unsigned[] = {{0, "MIN"}, {999999999, "MAX"}, {0, NULL}};
 CV_PossibleValue_t CV_Natural[] = {{1, "MIN"}, {999999999, "MAX"}, {0, NULL}};
 
 //SRB2kart
+//Expert Speed
 CV_PossibleValue_t kartspeed_cons_t[] = {
-	{0, "Easy"}, {1, "Normal"}, {2, "Hard"},
+	{0, "Easy"}, {1, "Normal"}, {2, "Hard"}, {3, "Expert"},
 	{0, NULL}};
 
 // Filter consvars by EXECVERSION
@@ -1859,7 +1860,8 @@ void CV_AddValue(consvar_t *var, INT32 increment)
 			}
 			else if (var == &cv_kartspeed)
 			{
-				max = (M_SecretUnlocked(SECRET_HARDSPEED) ? 3 : 2);
+				//expert toggle is shared with hard unlock
+				max = (M_SecretUnlocked(SECRET_HARDSPEED) ? 4 : 2);
 			}
 #ifdef PARANOIA
 			if (currentindice == -1)

@@ -2425,7 +2425,8 @@ static void P_LevelInitStuff(void)
 	else
 	{
 		if (G_BattleGametype())
-			gamespeed = 0;
+			//battlespeed
+			gamespeed = (UINT8)cv_kartbattlespeed.value;
 		else
 			gamespeed = (UINT8)cv_kartspeed.value;
 		franticitems = (boolean)cv_kartfrantic.value;
