@@ -348,6 +348,9 @@ menu_t OP_HudOffsetDef;
 menu_t OP_PlayerDistortDef;
 menu_t OP_SaturnCreditsDef;
 
+//Planeptune
+menu_t OP_PlaneptuneDef;
+
 // Bird
 menu_t OP_BirdDef;
 // Stuff, yknow.
@@ -1587,17 +1590,19 @@ static menuitem_t OP_ChatOptionsMenu[] =
 static menuitem_t OP_GameOptionsMenu[] =
 {
 	{IT_STRING | IT_SUBMENU, NULL, "Random Item Toggles...",	&OP_MonitorToggleDef,	 10},
+	{IT_SUBMENU|IT_STRING,		NULL, "Planeptune Options...",	&OP_PlaneptuneDef,		 20},
+	{IT_STRING | IT_CVAR, NULL, "Race Speed",					&cv_kartspeed,			 30},
+	{IT_STRING | IT_CVAR, NULL, "Battle Speed",					&cv_kartbattlespeed,	 40},
+	{IT_STRING | IT_CVAR, NULL, "Frantic Items",				&cv_kartfrantic,		 50},
+	{IT_SECRET,           NULL, "Encore Mode",					&cv_kartencore,			 60},
+	
 
-	{IT_STRING | IT_CVAR, NULL, "Game Speed",					&cv_kartspeed,			 30},
-	{IT_STRING | IT_CVAR, NULL, "Frantic Items",				&cv_kartfrantic,		 40},
-	{IT_SECRET,           NULL, "Encore Mode",					&cv_kartencore,			 50},
+	{IT_STRING | IT_CVAR, NULL, "Number of Laps",				&cv_basenumlaps,		 80},
+	{IT_STRING | IT_CVAR, NULL, "Exit Countdown Timer",			&cv_countdowntime,		 90},
 
-	{IT_STRING | IT_CVAR, NULL, "Number of Laps",				&cv_basenumlaps,		 70},
-	{IT_STRING | IT_CVAR, NULL, "Exit Countdown Timer",			&cv_countdowntime,		 80},
-
-	{IT_STRING | IT_CVAR, NULL, "Time Limit",					&cv_timelimit,			100},
-	{IT_STRING | IT_CVAR, NULL, "Starting Bumpers",				&cv_kartbumpers,		110},
-	{IT_STRING | IT_CVAR, NULL, "Karma Comeback",				&cv_kartcomeback,		120},
+	{IT_STRING | IT_CVAR, NULL, "Time Limit",					&cv_timelimit,			110},
+	{IT_STRING | IT_CVAR, NULL, "Starting Bumpers",				&cv_kartbumpers,		120},
+	{IT_STRING | IT_CVAR, NULL, "Karma Comeback",				&cv_kartcomeback,		130},
 
 	{IT_STRING | IT_CVAR, NULL, "Force Character",				&cv_forceskin,          140},
 	{IT_STRING | IT_CVAR, NULL, "Restrict Character Changes",	&cv_restrictskinchange, 150},
@@ -1752,6 +1757,45 @@ enum
 	sm_hudoffsets,
 	sm_credits,
 };
+
+static menuitem_t OP_PlaneptuneMenu[] =
+{
+	{IT_HEADER, NULL, "Planeptune Options", NULL, 0},
+	
+	{IT_HEADER, NULL, "Sneaker", NULL, 15},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension", 			&cv_sneakerextend, 	 	25},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension Type", 		&cv_sneakerextendtype, 	35},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Stack", 				&cv_sneakerstack,		45},
+	
+	{IT_HEADER, NULL, "Mini-Turbo", NULL, 65},
+	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	75},
+	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	85},
+	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	95},
+	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	105},
+	
+	{IT_HEADER, NULL, "Stacking", NULL, 125},
+	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	135},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 		&cv_stackingdim, 		145},
+	
+	
+	
+	
+
+};
+
+enum
+{
+	pm_header,
+	pm_sneakere,
+	pm_sneakeret,
+	pm_additivemt,
+	pm_bst,
+	pm_rst,
+	pm_rbowst,
+	pm_stcks,
+	pm_stcksdim,
+};
+
 
 static menuitem_t OP_PlayerDistortMenu[] =
 {
@@ -2414,6 +2458,8 @@ menu_t OP_DiscordOptionsDef = DEFAULTMENUSTYLE(NULL, OP_DiscordOptionsMenu, &OP_
 menu_t OP_EraseDataDef = DEFAULTMENUSTYLE("M_DATA", OP_EraseDataMenu, &OP_DataOptionsDef, 30, 30);
 
 menu_t OP_SaturnDef = DEFAULTMENUSTYLE(NULL, OP_SaturnMenu, &OP_MainDef, 30, 15);
+//Planeptune
+menu_t OP_PlaneptuneDef = DEFAULTMENUSTYLE(NULL, OP_PlaneptuneMenu, &OP_GameOptionsDef, 30, 15);
 menu_t OP_PlayerDistortDef = DEFAULTMENUSTYLE("M_VIDEO", OP_PlayerDistortMenu, &OP_SaturnDef, 30, 30);
 menu_t OP_HudOffsetDef = DEFAULTMENUSTYLE(NULL, OP_HudOffsetMenu, &OP_SaturnDef, 30, 20);
 menu_t OP_SaturnCreditsDef = DEFAULTMENUSTYLE(NULL, OP_SaturnCreditsMenu, &OP_SaturnDef, 30, 10);
@@ -6768,7 +6814,7 @@ static void M_Options(INT32 choice)
 	OP_DataOptionsMenu[3].status = (Playing()) ? (IT_GRAYEDOUT) : (IT_STRING|IT_SUBMENU); // Erase data
 #endif
 
-	OP_GameOptionsMenu[3].status =
+	OP_GameOptionsMenu[5].status =
 		(M_SecretUnlocked(SECRET_ENCORE)) ? (IT_CVAR|IT_STRING) : IT_SECRET; // cv_kartencore
 
 	OP_MainDef.prevMenu = currentMenu;
