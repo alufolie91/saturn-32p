@@ -66,6 +66,8 @@ consvar_t cv_colorizedhud = {"colorizedhud", "On", CV_SAVE, CV_OnOff, NULL, 0, N
 static CV_PossibleValue_t HudColor_cons_t[MAXSKINCOLORS+1];
 consvar_t cv_colorizedhudcolor = {"colorizedhudcolor", "Skin Color", CV_SAVE, HudColor_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_biglaps = {"biglaphud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; // here for ppl who dont want to make 2 more patches for their custom hud
+
 
 
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
@@ -1324,6 +1326,8 @@ CV_RegisterVar(&cv_DJAITBL10);
 	//Colorized HUD
 	CV_RegisterVar(&cv_colorizedhud);
 	CV_RegisterVar(&cv_colorizedhudcolor);
+	
+	CV_RegisterVar(&cv_biglaps);
 	
 	CV_RegisterVar(&cv_slamsound);
 	
@@ -8734,6 +8738,8 @@ static patch_t *kp_nodraw;
 static patch_t *kp_timesticker;
 static patch_t *kp_timestickerwide;
 static patch_t *kp_lapsticker;
+static patch_t *kp_lapstickerbig;
+static patch_t *kp_lapstickerbig2;
 static patch_t *kp_lapstickerwide;
 static patch_t *kp_lapstickernarrow;
 static patch_t *kp_splitlapflag;
@@ -8747,6 +8753,8 @@ static patch_t *kp_timeoutsticker;
 static patch_t *kp_timestickerclr;
 static patch_t *kp_timestickerwideclr;
 static patch_t *kp_lapstickerclr;
+static patch_t *kp_lapstickerbigclr;
+static patch_t *kp_lapstickerbig2clr;
 static patch_t *kp_lapstickerwideclr;
 static patch_t *kp_lapstickernarrowclr;
 static patch_t *kp_bumperstickerclr;
@@ -8842,22 +8850,32 @@ void K_LoadKartHUDGraphics(void)
 	kp_splitkarmabomb = 		W_CachePatchName("K_SPTKRM", PU_HUDGFX);
 	kp_timeoutsticker = 		W_CachePatchName("K_STTOUT", PU_HUDGFX);
 	
-	//Colorized HUD
-	if (found_extra2_kart)
+	if (big_lap){		
+			kp_lapstickerbig = 		W_CachePatchName("K_STLAPB", PU_HUDGFX);
+			kp_lapstickerbig2 = 		W_CachePatchName("K_STLA2B", PU_HUDGFX);
+		}
+	
+	//Colourized hud
+	if (clr_hud)
+
 	{
 		kp_timestickerclr = 			W_CachePatchName("K_SCTIME", PU_HUDGFX);
 		kp_timestickerwideclr = 		W_CachePatchName("K_SCTIMW", PU_HUDGFX);
-		kp_lapstickerclr = 			W_CachePatchName("K_SCLAPS", PU_HUDGFX);
-		kp_lapstickerwideclr = 		W_CachePatchName("K_SCLAPW", PU_HUDGFX);
+		kp_lapstickerclr = 				W_CachePatchName("K_SCLAPS", PU_HUDGFX);
+		kp_lapstickerwideclr = 			W_CachePatchName("K_SCLAPW", PU_HUDGFX);
 		kp_bumperstickerclr = 			W_CachePatchName("K_SCBALN", PU_HUDGFX);
 		kp_bumperstickerwideclr = 		W_CachePatchName("K_SCBALW", PU_HUDGFX);
 		kp_karmastickerclr = 			W_CachePatchName("K_SCKARM", PU_HUDGFX);
-		kp_timeoutstickerclr = 		W_CachePatchName("K_SCTOUT", PU_HUDGFX);	
+		kp_timeoutstickerclr = 			W_CachePatchName("K_SCTOUT", PU_HUDGFX);	
 		kp_itemmulstickerclr[1] = 		W_CachePatchName("K_ISMULC", PU_HUDGFX);
 		kp_itemmulstickerclr[0] = 		W_CachePatchName("K_ITMULC", PU_HUDGFX);
-		if (found_extra_kart)
-		{
-		skp_smallstickerclr = 	  W_CachePatchName("SC_SMSTC", PU_HUDGFX);
+		if (big_lap_color){		
+			kp_lapstickerbigclr = 		W_CachePatchName("K_SCLAPB", PU_HUDGFX);
+			kp_lapstickerbig2clr = 		W_CachePatchName("K_SCLA2B", PU_HUDGFX);
+		}
+		
+		if (snw_speedo){	
+			skp_smallstickerclr = 	  	W_CachePatchName("SC_SMSTC", PU_HUDGFX);
 		}
 	}
 
@@ -9087,7 +9105,7 @@ void K_LoadKartHUDGraphics(void)
 
 	kp_yougotem = (patch_t *) W_CachePatchName("YOUGOTEM", PU_HUDGFX);
 
-	if (found_extra_kart) // snowy speedometer
+	if (snw_speedo) // snowy speedometer
 	{
 		skp_smallsticker = 	  W_CachePatchName("SP_SMSTC", PU_HUDGFX);
 		skp_speedpatches[0] = W_CachePatchName("K_TRNULL", PU_HUDGFX); // lolxd
@@ -9604,8 +9622,9 @@ static void K_drawKartItem(void)
 	// Then, the numbers:
 	if (stplyr->kartstuff[k_itemamount] >= numberdisplaymin && !stplyr->kartstuff[k_itemroulette])
 	{
-		//Colorized hud	
-		if (cv_colorizedhud.value && found_extra2_kart)
+
+		//Colourized hud	
+		if (cv_colorizedhud.value && clr_hud)
 		{
 		V_DrawMappedPatch(fx + (flipamount ? 48 : 0), fy, V_HUDTRANS|fflags|(flipamount ? V_FLIP : 0), kp_itemmulstickerclr[offset],colormap); // flip this graphic for p2 and p4 in split and shift it.	
 		}
@@ -9677,8 +9696,9 @@ void K_drawKartTimestamp(tic_t drawtime, INT32 TX, INT32 TY, INT16 emblemmap, UI
 		}
 	}
 
-	//Colorized hud	
-	if (!cv_colorizedhud.value || !found_extra2_kart)
+
+
+	if (!cv_colorizedhud.value || !clr_hud)
 		V_DrawScaledPatch(TX, TY, splitflags, ((mode == 2) ? kp_lapstickerwide : kp_timestickerwide));
 	else
 	{
@@ -10287,16 +10307,29 @@ static void K_drawKartLaps(void)
 	}
 	else
 	{
-		
-		//Colorized hud	
-		if (!cv_colorizedhud.value || !found_extra2_kart)
-			V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapsticker);
+
+		if (!cv_colorizedhud.value || !clr_hud){
+			if ((cv_numlaps.value > 9) && (big_lap) && (cv_biglaps.value)){
+				if (stplyr->laps+1 > 9)
+					V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerbig2);
+				else
+					V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerbig);
+				}
+			else
+				V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapsticker);
+		}
 		else
 		{
 					//Colourized hud
 			UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
-
-			V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
+			if ((cv_numlaps.value > 9) && (big_lap_color) && (cv_biglaps.value)){
+				if (stplyr->laps+1 > 9)
+					V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerbig2clr, colormap);
+				else
+					V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerbigclr, colormap);
+				}
+			else
+				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
 		}
 
 
@@ -10343,7 +10376,7 @@ static void K_drawKartSpeedometer(void)
 	}
 
 	// man.
-	if ((!cv_newspeedometer.value) || (cv_newspeedometer.value && !found_extra_kart)) 
+	if ((!cv_newspeedometer.value) || (cv_newspeedometer.value && !snw_speedo)) 
 	{
 		switch (speedtype) {
 			case 1:
@@ -10356,14 +10389,14 @@ static void K_drawKartSpeedometer(void)
 				V_DrawKartString(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, va("%3d fu/t", convSpeed));
 				break;
 			case 4: // if extra.kart is found, use its included % symbol
-				if (!found_extra_kart)
+				if (!snw_speedo)
 					V_DrawKartString(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, va("%4d P", convSpeed));
 				else
 					V_DrawKartString(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, va("%4d %%", convSpeed));
 		}
 	}
-	else if (cv_newspeedometer.value && found_extra_kart) { // why bother if we dont?
-		if (!cv_colorizedhud.value || !found_extra2_kart)
+	else if (cv_newspeedometer.value && snw_speedo) { // why bother if we dont?
+		if (!cv_colorizedhud.value || !clr_hud)
 			V_DrawScaledPatch(SPDM_X + 1, SPDM_Y + 4, (V_HUDTRANS|splitflags), (skp_smallsticker));
 		else
 		{
@@ -10432,8 +10465,9 @@ static void K_drawKartBumpersOrKarma(void)
 	{
 		if (stplyr->kartstuff[k_bumper] <= 0)
 		{
-			//Colorized hud	
-			if (cv_colorizedhud.value && found_extra2_kart)
+
+			//Colourized hud
+			if (cv_colorizedhud.value && clr_hud)
 			{
 				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_karmastickerclr, colormap);
 			}	
@@ -10446,9 +10480,9 @@ static void K_drawKartBumpersOrKarma(void)
 		else
 		{
 			if (stplyr->kartstuff[k_bumper] > 9 && cv_kartbumpers.value > 9)
-				
-				//Colorized hud	
-				if (cv_colorizedhud.value && found_extra2_kart)
+
+				//Colourized hud
+				if (cv_colorizedhud.value && clr_hud)
 				{
 					V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_bumperstickerwideclr, colormap);
 				}
@@ -10458,8 +10492,9 @@ static void K_drawKartBumpersOrKarma(void)
 				}
 				
 			else
-				//Colorized hud	
-				if (cv_colorizedhud.value && found_extra2_kart)
+
+				//Colourized hud
+				if (cv_colorizedhud.value && clr_hud)
 				{
 					V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_bumperstickerclr, colormap);
 				}
@@ -11006,9 +11041,9 @@ static void K_drawBattleFullscreen(void)
 		if (splitscreen > 1)
 			V_DrawString(x-txoff, ty, 0, va("%d", stplyr->kartstuff[k_comebacktimer]/TICRATE));
 		else
-		{			
-			if (!cv_colorizedhud.value || !found_extra2_kart)
-					V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, NULL);
+		{
+			if (!cv_colorizedhud.value || !clr_hud)
+				V_DrawFixedPatch(x<<FRACBITS, ty<<FRACBITS, scale, 0, kp_timeoutstickerclr, NULL);
 			else
 			{
 			//Colourized hud
