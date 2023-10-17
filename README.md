@@ -9,13 +9,14 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - Sneaker Extension with mini-turbos (Choose between two types bs and zbl)
 - Additive Mini-turbos
 - Customizable mini-turbo boost time
-- Colorized HUD
+- Colorized HUD(With the ability to choose its oolor or to use your own skin color)
 - BoostStacking(This is a big one!)
 - Being able to change what speed battle is in
 - Expert Speed
 - CEP Item Odd system(based on conga calc)
 - Customizable itemtable
 - Fixed NetID conflicts
+- 16-angle support for sprites
 - More to come!
 - All added features are toggable via convars
 
