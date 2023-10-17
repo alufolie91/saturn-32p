@@ -13,6 +13,8 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - BoostStacking(This is a big one!)
 - Being able to change what speed battle is in
 - Expert Speed
+- CEP Item Odd system(based on conga calc)
+- Customizable itemtable
 - More to come!
 - All added features are toggable via convars
 
@@ -48,6 +50,13 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - stacking_speedcap Default value: On
 - stacking_speedcapval Default value: 128.0
 - kartbattlespeed Default value: Normal
+- customodds Default value: on
+- itemoddsystem Default value: CEP
+
+## Item odds customization
+Please use the cfg script located at ServerScripts/itemodds.cfg if you are going to host a server that will use custom odds.
+
+This makes this dramitcally easier then doing it all by hand.
 
 ## New kartstuff data
 - k_sneakerstack Current number of active sneaker stacks. Modfifying this will effect stack value

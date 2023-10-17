@@ -965,6 +965,283 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_speedcapval);
 				   
 	
+	//Itemodds
+	CV_RegisterVar(&cv_itemodds);
+	
+	//Itemtables
+	CV_RegisterVar(&cv_customodds);
+	
+	//CEP CALC numbers
+	CV_RegisterVar(&cv_cepdistvar);
+	CV_RegisterVar(&cv_cepdisthalf);
+	CV_RegisterVar(&cv_cepspbdistvar);
+	
+	//Uranus Calc numbers
+	CV_RegisterVar(&cv_uranusdistvar);
+	//Sneaker
+CV_RegisterVar(&cv_SITBL1);
+CV_RegisterVar(&cv_SITBL2);
+CV_RegisterVar(&cv_SITBL3);
+CV_RegisterVar(&cv_SITBL4);
+CV_RegisterVar(&cv_SITBL5);
+CV_RegisterVar(&cv_SITBL6);
+CV_RegisterVar(&cv_SITBL7);
+CV_RegisterVar(&cv_SITBL8);
+CV_RegisterVar(&cv_SITBL9);
+CV_RegisterVar(&cv_SITBL10);
+
+//Rocket Sneaker
+CV_RegisterVar(&cv_RSITBL1);
+CV_RegisterVar(&cv_RSITBL2);
+CV_RegisterVar(&cv_RSITBL3);
+CV_RegisterVar(&cv_RSITBL4);
+CV_RegisterVar(&cv_RSITBL5);
+CV_RegisterVar(&cv_RSITBL6);
+CV_RegisterVar(&cv_RSITBL7);
+CV_RegisterVar(&cv_RSITBL8);
+CV_RegisterVar(&cv_RSITBL9);
+CV_RegisterVar(&cv_RSITBL10);
+
+//Invincivility
+CV_RegisterVar(&cv_INITBL1);
+CV_RegisterVar(&cv_INITBL2);
+CV_RegisterVar(&cv_INITBL3);
+CV_RegisterVar(&cv_INITBL4);
+CV_RegisterVar(&cv_INITBL5);
+CV_RegisterVar(&cv_INITBL6);
+CV_RegisterVar(&cv_INITBL7);
+CV_RegisterVar(&cv_INITBL8);
+CV_RegisterVar(&cv_INITBL9);
+CV_RegisterVar(&cv_INITBL10);
+
+//Banana
+CV_RegisterVar(&cv_BANITBL1);
+CV_RegisterVar(&cv_BANITBL2);
+CV_RegisterVar(&cv_BANITBL3);
+CV_RegisterVar(&cv_BANITBL4);
+CV_RegisterVar(&cv_BANITBL5);
+CV_RegisterVar(&cv_BANITBL6);
+CV_RegisterVar(&cv_BANITBL7);
+CV_RegisterVar(&cv_BANITBL8);
+CV_RegisterVar(&cv_BANITBL9);
+CV_RegisterVar(&cv_BANITBL10);
+
+//Eggmanbomb
+CV_RegisterVar(&cv_EGGITBL1);
+CV_RegisterVar(&cv_EGGITBL2);
+CV_RegisterVar(&cv_EGGITBL3);
+CV_RegisterVar(&cv_EGGITBL4);
+CV_RegisterVar(&cv_EGGITBL5);
+CV_RegisterVar(&cv_EGGITBL6);
+CV_RegisterVar(&cv_EGGITBL7);
+CV_RegisterVar(&cv_EGGITBL8);
+CV_RegisterVar(&cv_EGGITBL9);
+CV_RegisterVar(&cv_EGGITBL10);
+
+//Orbinaut
+CV_RegisterVar(&cv_ORBITBL1);
+CV_RegisterVar(&cv_ORBITBL2);
+CV_RegisterVar(&cv_ORBITBL3);
+CV_RegisterVar(&cv_ORBITBL4);
+CV_RegisterVar(&cv_ORBITBL5);
+CV_RegisterVar(&cv_ORBITBL6);
+CV_RegisterVar(&cv_ORBITBL7);
+CV_RegisterVar(&cv_ORBITBL8);
+CV_RegisterVar(&cv_ORBITBL9);
+CV_RegisterVar(&cv_ORBITBL10);
+
+//Jawz
+CV_RegisterVar(&cv_JAWITBL1);
+CV_RegisterVar(&cv_JAWITBL2);
+CV_RegisterVar(&cv_JAWITBL3);
+CV_RegisterVar(&cv_JAWITBL4);
+CV_RegisterVar(&cv_JAWITBL5);
+CV_RegisterVar(&cv_JAWITBL6);
+CV_RegisterVar(&cv_JAWITBL7);
+CV_RegisterVar(&cv_JAWITBL8);
+CV_RegisterVar(&cv_JAWITBL9);
+CV_RegisterVar(&cv_JAWITBL10);
+
+//MINE
+CV_RegisterVar(&cv_MINITBL1);
+CV_RegisterVar(&cv_MINITBL2);
+CV_RegisterVar(&cv_MINITBL3);
+CV_RegisterVar(&cv_MINITBL4);
+CV_RegisterVar(&cv_MINITBL5);
+CV_RegisterVar(&cv_MINITBL6);
+CV_RegisterVar(&cv_MINITBL7);
+CV_RegisterVar(&cv_MINITBL8);
+CV_RegisterVar(&cv_MINITBL9);
+CV_RegisterVar(&cv_MINITBL10);
+
+//Ball Hog
+CV_RegisterVar(&cv_BALITBL1);
+CV_RegisterVar(&cv_BALITBL2);
+CV_RegisterVar(&cv_BALITBL3);
+CV_RegisterVar(&cv_BALITBL4);
+CV_RegisterVar(&cv_BALITBL5);
+CV_RegisterVar(&cv_BALITBL6);
+CV_RegisterVar(&cv_BALITBL7);
+CV_RegisterVar(&cv_BALITBL8);
+CV_RegisterVar(&cv_BALITBL9);
+CV_RegisterVar(&cv_BALITBL10);
+
+//SPB
+CV_RegisterVar(&cv_SPBITBL1);
+CV_RegisterVar(&cv_SPBITBL2);
+CV_RegisterVar(&cv_SPBITBL3);
+CV_RegisterVar(&cv_SPBITBL4);
+CV_RegisterVar(&cv_SPBITBL5);
+CV_RegisterVar(&cv_SPBITBL6);
+CV_RegisterVar(&cv_SPBITBL7);
+CV_RegisterVar(&cv_SPBITBL8);
+CV_RegisterVar(&cv_SPBITBL9);
+CV_RegisterVar(&cv_SPBITBL10);
+
+//Grow
+CV_RegisterVar(&cv_GROITBL1);
+CV_RegisterVar(&cv_GROITBL2);
+CV_RegisterVar(&cv_GROITBL3);
+CV_RegisterVar(&cv_GROITBL4);
+CV_RegisterVar(&cv_GROITBL5);
+CV_RegisterVar(&cv_GROITBL6);
+CV_RegisterVar(&cv_GROITBL7);
+CV_RegisterVar(&cv_GROITBL8);
+CV_RegisterVar(&cv_GROITBL9);
+CV_RegisterVar(&cv_GROITBL10);
+
+//Shrink
+CV_RegisterVar(&cv_SHRITBL1);
+CV_RegisterVar(&cv_SHRITBL2);
+CV_RegisterVar(&cv_SHRITBL3);
+CV_RegisterVar(&cv_SHRITBL4);
+CV_RegisterVar(&cv_SHRITBL5);
+CV_RegisterVar(&cv_SHRITBL6);
+CV_RegisterVar(&cv_SHRITBL7);
+CV_RegisterVar(&cv_SHRITBL8);
+CV_RegisterVar(&cv_SHRITBL9);
+CV_RegisterVar(&cv_SHRITBL10);
+
+//Thundershield
+CV_RegisterVar(&cv_THUITBL1);
+CV_RegisterVar(&cv_THUITBL2);
+CV_RegisterVar(&cv_THUITBL3);
+CV_RegisterVar(&cv_THUITBL4);
+CV_RegisterVar(&cv_THUITBL5);
+CV_RegisterVar(&cv_THUITBL6);
+CV_RegisterVar(&cv_THUITBL7);
+CV_RegisterVar(&cv_THUITBL8);
+CV_RegisterVar(&cv_THUITBL9);
+CV_RegisterVar(&cv_THUITBL10);
+
+//Hyuu
+CV_RegisterVar(&cv_HYUITBL1);
+CV_RegisterVar(&cv_HYUITBL2);
+CV_RegisterVar(&cv_HYUITBL3);
+CV_RegisterVar(&cv_HYUITBL4);
+CV_RegisterVar(&cv_HYUITBL5);
+CV_RegisterVar(&cv_HYUITBL6);
+CV_RegisterVar(&cv_HYUITBL7);
+CV_RegisterVar(&cv_HYUITBL8);
+CV_RegisterVar(&cv_HYUITBL9);
+CV_RegisterVar(&cv_HYUITBL10);
+
+// Pogo spring
+CV_RegisterVar(&cv_POGITBL1);
+CV_RegisterVar(&cv_POGITBL2);
+CV_RegisterVar(&cv_POGITBL3);
+CV_RegisterVar(&cv_POGITBL4);
+CV_RegisterVar(&cv_POGITBL5);
+CV_RegisterVar(&cv_POGITBL6);
+CV_RegisterVar(&cv_POGITBL7);
+CV_RegisterVar(&cv_POGITBL8);
+CV_RegisterVar(&cv_POGITBL9);
+CV_RegisterVar(&cv_POGITBL10);
+
+//Kitchen Sink
+CV_RegisterVar(&cv_KITITBL1);
+CV_RegisterVar(&cv_KITITBL2);
+CV_RegisterVar(&cv_KITITBL3);
+CV_RegisterVar(&cv_KITITBL4);
+CV_RegisterVar(&cv_KITITBL5);
+CV_RegisterVar(&cv_KITITBL6);
+CV_RegisterVar(&cv_KITITBL7);
+CV_RegisterVar(&cv_KITITBL8);
+CV_RegisterVar(&cv_KITITBL9);
+CV_RegisterVar(&cv_KITITBL10);
+
+//Triple Sneaker
+CV_RegisterVar(&cv_TSITBL1);
+CV_RegisterVar(&cv_TSITBL2);
+CV_RegisterVar(&cv_TSITBL3);
+CV_RegisterVar(&cv_TSITBL4);
+CV_RegisterVar(&cv_TSITBL5);
+CV_RegisterVar(&cv_TSITBL6);
+CV_RegisterVar(&cv_TSITBL7);
+CV_RegisterVar(&cv_TSITBL8);
+CV_RegisterVar(&cv_TSITBL9);
+CV_RegisterVar(&cv_TSITBL10);
+
+//Triplebanana
+CV_RegisterVar(&cv_TBAITBL1);
+CV_RegisterVar(&cv_TBAITBL2);
+CV_RegisterVar(&cv_TBAITBL3);
+CV_RegisterVar(&cv_TBAITBL4);
+CV_RegisterVar(&cv_TBAITBL5);
+CV_RegisterVar(&cv_TBAITBL6);
+CV_RegisterVar(&cv_TBAITBL7);
+CV_RegisterVar(&cv_TBAITBL8);
+CV_RegisterVar(&cv_TBAITBL9);
+CV_RegisterVar(&cv_TBAITBL10);
+
+//DecaBanana
+CV_RegisterVar(&cv_TENITBL1);
+CV_RegisterVar(&cv_TENITBL2);
+CV_RegisterVar(&cv_TENITBL3);
+CV_RegisterVar(&cv_TENITBL4);
+CV_RegisterVar(&cv_TENITBL5);
+CV_RegisterVar(&cv_TENITBL6);
+CV_RegisterVar(&cv_TENITBL7);
+CV_RegisterVar(&cv_TENITBL8);
+CV_RegisterVar(&cv_TENITBL9);
+CV_RegisterVar(&cv_TENITBL10);
+
+//Triple Orbi
+CV_RegisterVar(&cv_TORITBL1);
+CV_RegisterVar(&cv_TORITBL2);
+CV_RegisterVar(&cv_TORITBL3);
+CV_RegisterVar(&cv_TORITBL4);
+CV_RegisterVar(&cv_TORITBL5);
+CV_RegisterVar(&cv_TORITBL6);
+CV_RegisterVar(&cv_TORITBL7);
+CV_RegisterVar(&cv_TORITBL8);
+CV_RegisterVar(&cv_TORITBL9);
+CV_RegisterVar(&cv_TORITBL10);
+
+//Quad orbi
+CV_RegisterVar(&cv_QUOITBL1);
+CV_RegisterVar(&cv_QUOITBL2);
+CV_RegisterVar(&cv_QUOITBL3);
+CV_RegisterVar(&cv_QUOITBL4);
+CV_RegisterVar(&cv_QUOITBL5);
+CV_RegisterVar(&cv_QUOITBL6);
+CV_RegisterVar(&cv_QUOITBL7);
+CV_RegisterVar(&cv_QUOITBL8);
+CV_RegisterVar(&cv_QUOITBL9);
+CV_RegisterVar(&cv_QUOITBL10);
+
+//Dual Jawz
+CV_RegisterVar(&cv_DJAITBL1);
+CV_RegisterVar(&cv_DJAITBL2);
+CV_RegisterVar(&cv_DJAITBL3);
+CV_RegisterVar(&cv_DJAITBL4);
+CV_RegisterVar(&cv_DJAITBL5);
+CV_RegisterVar(&cv_DJAITBL6);
+CV_RegisterVar(&cv_DJAITBL7);
+CV_RegisterVar(&cv_DJAITBL8);
+CV_RegisterVar(&cv_DJAITBL9);
+CV_RegisterVar(&cv_DJAITBL10);
+	
 	
 	CV_RegisterVar(&cv_kartminimap);
 	CV_RegisterVar(&cv_kartcheck);
@@ -1108,6 +1385,7 @@ static INT32 K_KartItemOddsRace[NUMKARTRESULTS][10] =
 			   /*Jawz x2*/ { 0, 0, 0, 1, 2, 0, 0, 0, 0, 0 }  // Jawz x2
 };
 
+
 static INT32 K_KartItemOddsBattle[NUMKARTRESULTS][2] =
 {
 				//P-Odds	 0  1
@@ -1147,7 +1425,12 @@ static void K_KartGetItemResult(player_t *player, SINT8 getitem)
 	if (getitem == KITEM_SPB || getitem == KITEM_SHRINK) // Indirect items
 		indirectitemcooldown = 20*TICRATE;
 	if (getitem == KITEM_HYUDORO) // Hyudoro cooldown
-		hyubgone = 5*TICRATE;
+		if (cv_itemodds.value == 2)
+			hyubgone = 20*TICRATE;
+		else
+			hyubgone = 5*TICRATE;
+		
+		
 
 	switch (getitem)
 	{
@@ -1199,7 +1482,7 @@ static void K_KartGetItemResult(player_t *player, SINT8 getitem)
 
 static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean spbrush)
 {
-	const INT32 distvar = (64*14);
+	INT32 distvar;
 	INT32 newodds;
 	INT32 i;
 	UINT8 pingame = 0, pexiting = 0;
@@ -1231,6 +1514,39 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 		cv_dualjawz.value
 	};
 
+	
+	
+	distvar = cv_uranusdistvar.value;
+	
+	//Custom odds
+	INT32 K_KartCustomOddsRace[NUMKARTRESULTS][10] =
+	{
+				//P-Odds	 0				  1				  2				  3				 	 4  			5 				 6				  7					  8				  9
+			   /*Sneaker*/ {cv_SITBL1.value, cv_SITBL2.value, cv_SITBL3.value, cv_SITBL4.value, cv_SITBL5.value, cv_SITBL6.value, cv_SITBL7.value, cv_SITBL8.value, cv_SITBL9.value, cv_SITBL10.value }, // Sneaker
+		/*Rocket Sneaker*/ {cv_RSITBL1.value, cv_RSITBL2.value, cv_RSITBL3.value, cv_RSITBL4.value, cv_RSITBL5.value, cv_RSITBL6.value, cv_RSITBL7.value, cv_RSITBL8.value, cv_RSITBL9.value, cv_RSITBL10.value }, // Rocket Sneaker
+		 /*Invincibility*/ {cv_INITBL1.value, cv_INITBL2.value, cv_INITBL3.value, cv_INITBL4.value, cv_INITBL5.value, cv_INITBL6.value, cv_INITBL7.value, cv_INITBL8.value, cv_INITBL9.value, cv_INITBL10.value }, // Invincibility
+				/*Banana*/ {cv_BANITBL1.value, cv_BANITBL2.value, cv_BANITBL3.value, cv_BANITBL4.value, cv_BANITBL5.value, cv_BANITBL6.value, cv_BANITBL7.value, cv_BANITBL8.value, cv_BANITBL9.value, cv_BANITBL10.value }, // Banana
+		/*Eggman Monitor*/ {cv_EGGITBL1.value, cv_EGGITBL2.value, cv_EGGITBL3.value, cv_EGGITBL4.value, cv_EGGITBL5.value, cv_EGGITBL6.value, cv_EGGITBL7.value, cv_EGGITBL8.value, cv_EGGITBL9.value, cv_EGGITBL10.value }, // Eggman Monitor
+			  /*Orbinaut*/ {cv_ORBITBL1.value, cv_ORBITBL2.value, cv_ORBITBL3.value, cv_ORBITBL4.value, cv_ORBITBL5.value, cv_ORBITBL6.value, cv_ORBITBL7.value, cv_ORBITBL8.value, cv_ORBITBL9.value, cv_ORBITBL10.value }, // Orbinaut
+				  /*Jawz*/ {cv_JAWITBL1.value, cv_JAWITBL2.value, cv_JAWITBL3.value, cv_JAWITBL4.value, cv_JAWITBL5.value, cv_JAWITBL6.value, cv_JAWITBL7.value, cv_JAWITBL8.value, cv_JAWITBL9.value, cv_JAWITBL10.value }, // Jawz
+				  /*Mine*/ {cv_MINITBL1.value, cv_MINITBL2.value, cv_MINITBL3.value, cv_MINITBL4.value, cv_MINITBL5.value, cv_MINITBL6.value, cv_MINITBL7.value, cv_MINITBL8.value, cv_MINITBL9.value, cv_MINITBL10.value }, // Mine
+			   /*Ballhog*/ {cv_BALITBL1.value, cv_BALITBL2.value, cv_BALITBL3.value, cv_BALITBL4.value, cv_BALITBL5.value, cv_BALITBL6.value, cv_BALITBL7.value, cv_BALITBL8.value, cv_BALITBL9.value, cv_BALITBL10.value }, // Ballhog
+   /*Self-Propelled Bomb*/ {cv_SPBITBL1.value, cv_SPBITBL2.value, cv_SPBITBL3.value, cv_SPBITBL4.value, cv_SPBITBL5.value, cv_SPBITBL6.value, cv_SPBITBL7.value, cv_SPBITBL8.value, cv_SPBITBL9.value, cv_SPBITBL10.value }, // Self-Propelled Bomb
+				  /*Grow*/ {cv_GROITBL1.value, cv_GROITBL2.value, cv_GROITBL3.value, cv_GROITBL4.value, cv_GROITBL5.value, cv_GROITBL6.value, cv_GROITBL7.value, cv_GROITBL8.value, cv_GROITBL9.value, cv_GROITBL10.value }, // Grow
+				/*Shrink*/ {cv_SHRITBL1.value, cv_SHRITBL2.value, cv_SHRITBL3.value, cv_SHRITBL4.value, cv_SHRITBL5.value, cv_SHRITBL6.value, cv_SHRITBL7.value, cv_SHRITBL8.value, cv_SHRITBL9.value, cv_SHRITBL10.value }, // Shrink
+		/*Thunder Shield*/ {cv_THUITBL1.value, cv_THUITBL2.value, cv_THUITBL3.value, cv_THUITBL4.value, cv_THUITBL5.value, cv_THUITBL6.value, cv_THUITBL7.value, cv_THUITBL8.value, cv_THUITBL9.value, cv_THUITBL10.value }, // Thunder Shield
+			   /*Hyudoro*/ {cv_HYUITBL1.value, cv_HYUITBL2.value, cv_HYUITBL3.value, cv_HYUITBL4.value, cv_HYUITBL5.value, cv_HYUITBL6.value, cv_HYUITBL7.value, cv_HYUITBL8.value, cv_HYUITBL9.value, cv_HYUITBL10.value }, // Hyudoro
+		   /*Pogo Spring*/ {cv_POGITBL1.value, cv_POGITBL2.value, cv_POGITBL3.value, cv_POGITBL4.value, cv_POGITBL5.value, cv_POGITBL6.value, cv_POGITBL7.value, cv_POGITBL8.value, cv_POGITBL9.value, cv_POGITBL10.value }, // Pogo Spring
+		  /*Kitchen Sink*/ {cv_KITITBL1.value, cv_KITITBL2.value, cv_KITITBL3.value, cv_KITITBL4.value, cv_KITITBL5.value, cv_KITITBL6.value, cv_KITITBL7.value, cv_KITITBL8.value, cv_KITITBL9.value, cv_KITITBL10.value }, // Kitchen Sink
+			/*Sneaker x3*/ {cv_TSITBL1.value, cv_TSITBL2.value, cv_TSITBL3.value, cv_TSITBL4.value, cv_TSITBL5.value, cv_TSITBL6.value, cv_TSITBL7.value, cv_TSITBL8.value, cv_TSITBL9.value, cv_TSITBL10.value }, // Sneaker x3
+			 /*Banana x3*/ {cv_TBAITBL1.value, cv_TBAITBL2.value, cv_TBAITBL3.value, cv_TBAITBL4.value, cv_TBAITBL5.value, cv_TBAITBL6.value, cv_TBAITBL7.value, cv_TBAITBL8.value, cv_TBAITBL9.value, cv_TBAITBL10.value }, // Banana x3
+			/*Banana x10*/ {cv_TENITBL1.value, cv_TENITBL2.value, cv_TENITBL3.value, cv_TENITBL4.value, cv_TENITBL5.value, cv_TENITBL6.value, cv_TENITBL7.value, cv_TENITBL8.value, cv_TENITBL9.value, cv_TENITBL10.value }, // Banana x10
+		   /*Orbinaut x3*/ {cv_TORITBL1.value, cv_TORITBL2.value, cv_TORITBL3.value, cv_TORITBL4.value, cv_TORITBL5.value, cv_TORITBL6.value, cv_TORITBL7.value, cv_TORITBL8.value, cv_TORITBL9.value, cv_TORITBL10.value }, // Orbinaut x3
+		   /*Orbinaut x4*/ {cv_QUOITBL1.value, cv_QUOITBL2.value, cv_QUOITBL3.value, cv_QUOITBL4.value, cv_QUOITBL5.value, cv_QUOITBL6.value, cv_QUOITBL7.value, cv_QUOITBL8.value, cv_QUOITBL9.value, cv_QUOITBL10.value }, // Orbinaut x4
+			   /*Jawz x2*/ {cv_DJAITBL1.value, cv_DJAITBL2.value, cv_DJAITBL3.value, cv_DJAITBL4.value, cv_DJAITBL5.value, cv_DJAITBL6.value, cv_DJAITBL7.value, cv_DJAITBL8.value, cv_DJAITBL9.value, cv_DJAITBL10.value }  // Jawz x2
+	};
+	
+	
 	I_Assert(item > KITEM_NONE); // too many off by one scenarioes.
 
 	if (!itemenabled[item-1] && !modeattacking)
@@ -1239,7 +1555,10 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 	if (G_BattleGametype())
 		newodds = K_KartItemOddsBattle[item-1][pos];
 	else
-		newodds = K_KartItemOddsRace[item-1][pos];
+		if (cv_customodds.value)
+			newodds = K_KartCustomOddsRace[item-1][pos];
+		else
+			newodds = K_KartItemOddsRace[item-1][pos];
 
 	// Base multiplication to ALL item odds to simulate fractional precision
 	newodds *= 4;
@@ -1361,13 +1680,15 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 
 static INT32 K_FindUseodds(player_t *player, fixed_t mashed, INT32 pingame, INT32 bestbumper, boolean spbrush, boolean dontforcespb)
 {
-	const INT32 distvar = (64*14);
+	INT32 distvar;
 	INT32 i;
 	INT32 pdis = 0, useodds = 0;
 	UINT8 disttable[14];
 	UINT8 distlen = 0;
 	boolean oddsvalid[10];
-
+	
+	
+	distvar = cv_uranusdistvar.value;
 	// Unused now, oops :V
 	(void)bestbumper;
 
@@ -1489,6 +1810,7 @@ static void K_KartItemRoulette(player_t *player, ticcmd_t *cmd)
 	boolean dontforcespb = false;
 	boolean spbrush = false;
 
+
 	// This makes the roulette cycle through items - if this is 0, you shouldn't be here.
 	if (player->kartstuff[k_itemroulette])
 		player->kartstuff[k_itemroulette]++;
@@ -1600,6 +1922,772 @@ static void K_KartItemRoulette(player_t *player, ticcmd_t *cmd)
 	player->kartstuff[k_itemroulette] = 0; // Since we're done, clear the roulette number
 	player->kartstuff[k_roulettetype] = 0; // This too
 }
+
+
+
+//Fuckal odds start here
+
+
+
+// here comes the ring ravagers rewrite
+static fixed_t K_FuckalItemOddsScale(UINT8 numPlayers, boolean spbrush)
+{
+	// CEP: due to how baseplayer works, 17P+ lobbies will STILL have the disastrous odds of 0.22 prior, if not WORSE
+	// let's try adding another condition
+	
+	const UINT8 basePlayer = 8; // The player count we design most of the game around.
+	const UINT8 vanillaMax = 17; // CEP: Maximum players in "vanilla" (non-30P) clients.
+	const UINT8 extPlayer = 24; // CEP: Cap for 17P+ so that odds don't get too muddled.
+
+	UINT8 playerCount = (spbrush ? 2 : numPlayers);
+	fixed_t playerScaling = 0;
+
+	// Then, it multiplies it further if the player count isn't equal to basePlayer.
+	// This is done to make low player count races more interesting and high player count rates more fair.
+	// (If you're in SPB mode and in 2nd place, it acts like it's a 1v1, so the catch-up game is not weakened.)
+	if (playerCount < basePlayer)
+	{
+		// Less than basePlayer: increase odds significantly.
+		// 2P: x2.5
+		playerScaling = (basePlayer - playerCount) * (FRACUNIT / 4);
+	}
+	else if (playerCount > basePlayer)
+	{
+		// More than basePlayer: reduce odds slightly.
+
+		// CEP: 17P+ adjustments
+		if (playerCount < vanillaMax)
+		{
+			// Less than vanillaMax: Use standard calculations.
+			// 16P: x0.6
+			playerScaling = (basePlayer - playerCount) * (FRACUNIT / 20);
+
+		}
+		else if (playerCount > vanillaMax)
+		{
+			// More than vanillaMax: Increase odds to fit with the increased playercount
+			// 24P: x0.6
+			// 30P: x0.45
+			playerScaling = (basePlayer - min(extPlayer, playerCount)) * (FRACUNIT / 40); // adding a cap here to be sure
+		}
+	}
+
+	return playerScaling;
+}
+
+static UINT32 K_FuckalScaleItemDistance(UINT32 distance, UINT8 numPlayers, boolean spbrush)
+{
+	if (mapobjectscale != FRACUNIT)
+	{
+		// Bring back to normal scale.
+		distance = FixedDiv(distance * FRACUNIT, mapobjectscale) / FRACUNIT;
+	}
+
+	if (franticitems == true)
+	{
+		// Frantic items pretends everyone's farther apart, for crazier items.
+		distance = (15 * distance) / 14;
+	}
+
+	if (numPlayers > 0)
+	{
+		// Items get crazier with the fewer players that you have.
+		distance = FixedMul(
+			distance * FRACUNIT,
+			FRACUNIT + (K_FuckalItemOddsScale(numPlayers, spbrush) / 2) // Odds are scaled more than the distance brackets
+		) / FRACUNIT;
+	}
+
+	return distance;
+}
+
+/**	\brief	Item Roulette for Kart
+
+	\param	player	player object passed from P_KartPlayerThink
+
+	\return	void
+*/
+
+static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean spbrush)
+{
+	INT32 newodds;
+	INT32 i;
+	UINT8 pingame = 0, pexiting = 0;
+	boolean thunderisout = false;
+	SINT8 first = -1, second = -1;
+	UINT32 secondToFirst = 0;
+	INT32 DISTVAR;
+	INT32 DISTHALF;
+	INT32 SPBSTARTDIST; 
+	INT32 SPBFORCEDIST;
+	boolean itemenabled[NUMKARTRESULTS-1] = {
+		cv_sneaker.value,
+		cv_rocketsneaker.value,
+		cv_invincibility.value,
+		cv_banana.value,
+		cv_eggmanmonitor.value,
+		cv_orbinaut.value,
+		cv_jawz.value,
+		cv_mine.value,
+		cv_ballhog.value,
+		cv_selfpropelledbomb.value,
+		cv_grow.value,
+		cv_shrink.value,
+		cv_thundershield.value,
+		cv_hyudoro.value,
+		cv_pogospring.value,
+		cv_kitchensink.value,
+		cv_triplesneaker.value,
+		cv_triplebanana.value,
+		cv_decabanana.value,
+		cv_tripleorbinaut.value,
+		cv_quadorbinaut.value,
+		cv_dualjawz.value
+	};
+	
+	//Making magic numbers into convars here
+	// Magic number distance for use with item roulette tiers
+	//#define DISTVAR (1280) 
+	//#define DISTHALF (640)
+
+	
+	DISTVAR = cv_cepdistvar.value;
+	DISTHALF = cv_cepdisthalf.value;
+	
+	
+
+	// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
+	// (It's vague if SRB2Kart wanted this to be 3 or 4...)
+
+	// let's keep this at the 1.3 valu- AAAACK NO NO NO THERE'S SPBS EVERYWHERE FUCK
+
+	// kill me right now, time for 4.5
+	//#define SPBSTARTDIST ((9*DISTVAR) / 2)
+		
+
+	// Distance between 1st and 2nd, where SPB is forcefully given to 2nd place.
+	//#define SPBFORCEDIST (SPBSTARTDIST + (2*DISTVAR))
+	SPBSTARTDIST = ((9*cv_cepspbdistvar.value) / 2);
+	SPBFORCEDIST = (SPBSTARTDIST + (2*cv_cepspbdistvar.value));
+
+	// forcedist = 5760 + 2560 = 8320
+	// this will likely change often
+
+	// Distance from finish line when the game stops giving you bananas
+	// (If only waypoints were sophisticated enough to bring this one over...)
+	//#define ENDDIST (12*DISTVAR)
+	
+	
+	
+		//Custom odds
+	INT32 K_KartCustomOddsRace[NUMKARTRESULTS][10] =
+	{
+				//P-Odds	 0				  1				  2				  3				 	 4  			5 				 6				  7					  8				  9
+			   /*Sneaker*/ {cv_SITBL1.value, cv_SITBL2.value, cv_SITBL3.value, cv_SITBL4.value, cv_SITBL5.value, cv_SITBL6.value, cv_SITBL7.value, cv_SITBL8.value, cv_SITBL9.value, cv_SITBL10.value }, // Sneaker
+		/*Rocket Sneaker*/ {cv_RSITBL1.value, cv_RSITBL2.value, cv_RSITBL3.value, cv_RSITBL4.value, cv_RSITBL5.value, cv_RSITBL6.value, cv_RSITBL7.value, cv_RSITBL8.value, cv_RSITBL9.value, cv_RSITBL10.value }, // Rocket Sneaker
+		 /*Invincibility*/ {cv_INITBL1.value, cv_INITBL2.value, cv_INITBL3.value, cv_INITBL4.value, cv_INITBL5.value, cv_INITBL6.value, cv_INITBL7.value, cv_INITBL8.value, cv_INITBL9.value, cv_INITBL10.value }, // Invincibility
+				/*Banana*/ {cv_BANITBL1.value, cv_BANITBL2.value, cv_BANITBL3.value, cv_BANITBL4.value, cv_BANITBL5.value, cv_BANITBL6.value, cv_BANITBL7.value, cv_BANITBL8.value, cv_BANITBL9.value, cv_BANITBL10.value }, // Banana
+		/*Eggman Monitor*/ {cv_EGGITBL1.value, cv_EGGITBL2.value, cv_EGGITBL3.value, cv_EGGITBL4.value, cv_EGGITBL5.value, cv_EGGITBL6.value, cv_EGGITBL7.value, cv_EGGITBL8.value, cv_EGGITBL9.value, cv_EGGITBL10.value }, // Eggman Monitor
+			  /*Orbinaut*/ {cv_ORBITBL1.value, cv_ORBITBL2.value, cv_ORBITBL3.value, cv_ORBITBL4.value, cv_ORBITBL5.value, cv_ORBITBL6.value, cv_ORBITBL7.value, cv_ORBITBL8.value, cv_ORBITBL9.value, cv_ORBITBL10.value }, // Orbinaut
+				  /*Jawz*/ {cv_JAWITBL1.value, cv_JAWITBL2.value, cv_JAWITBL3.value, cv_JAWITBL4.value, cv_JAWITBL5.value, cv_JAWITBL6.value, cv_JAWITBL7.value, cv_JAWITBL8.value, cv_JAWITBL9.value, cv_JAWITBL10.value }, // Jawz
+				  /*Mine*/ {cv_MINITBL1.value, cv_MINITBL2.value, cv_MINITBL3.value, cv_MINITBL4.value, cv_MINITBL5.value, cv_MINITBL6.value, cv_MINITBL7.value, cv_MINITBL8.value, cv_MINITBL9.value, cv_MINITBL10.value }, // Mine
+			   /*Ballhog*/ {cv_BALITBL1.value, cv_BALITBL2.value, cv_BALITBL3.value, cv_BALITBL4.value, cv_BALITBL5.value, cv_BALITBL6.value, cv_BALITBL7.value, cv_BALITBL8.value, cv_BALITBL9.value, cv_BALITBL10.value }, // Ballhog
+   /*Self-Propelled Bomb*/ {cv_SPBITBL1.value, cv_SPBITBL2.value, cv_SPBITBL3.value, cv_SPBITBL4.value, cv_SPBITBL5.value, cv_SPBITBL6.value, cv_SPBITBL7.value, cv_SPBITBL8.value, cv_SPBITBL9.value, cv_SPBITBL10.value }, // Self-Propelled Bomb
+				  /*Grow*/ {cv_GROITBL1.value, cv_GROITBL2.value, cv_GROITBL3.value, cv_GROITBL4.value, cv_GROITBL5.value, cv_GROITBL6.value, cv_GROITBL7.value, cv_GROITBL8.value, cv_GROITBL9.value, cv_GROITBL10.value }, // Grow
+				/*Shrink*/ {cv_SHRITBL1.value, cv_SHRITBL2.value, cv_SHRITBL3.value, cv_SHRITBL4.value, cv_SHRITBL5.value, cv_SHRITBL6.value, cv_SHRITBL7.value, cv_SHRITBL8.value, cv_SHRITBL9.value, cv_SHRITBL10.value }, // Shrink
+		/*Thunder Shield*/ {cv_THUITBL1.value, cv_THUITBL2.value, cv_THUITBL3.value, cv_THUITBL4.value, cv_THUITBL5.value, cv_THUITBL6.value, cv_THUITBL7.value, cv_THUITBL8.value, cv_THUITBL9.value, cv_THUITBL10.value }, // Thunder Shield
+			   /*Hyudoro*/ {cv_HYUITBL1.value, cv_HYUITBL2.value, cv_HYUITBL3.value, cv_HYUITBL4.value, cv_HYUITBL5.value, cv_HYUITBL6.value, cv_HYUITBL7.value, cv_HYUITBL8.value, cv_HYUITBL9.value, cv_HYUITBL10.value }, // Hyudoro
+		   /*Pogo Spring*/ {cv_POGITBL1.value, cv_POGITBL2.value, cv_POGITBL3.value, cv_POGITBL4.value, cv_POGITBL5.value, cv_POGITBL6.value, cv_POGITBL7.value, cv_POGITBL8.value, cv_POGITBL9.value, cv_POGITBL10.value }, // Pogo Spring
+		  /*Kitchen Sink*/ {cv_KITITBL1.value, cv_KITITBL2.value, cv_KITITBL3.value, cv_KITITBL4.value, cv_KITITBL5.value, cv_KITITBL6.value, cv_KITITBL7.value, cv_KITITBL8.value, cv_KITITBL9.value, cv_KITITBL10.value }, // Kitchen Sink
+			/*Sneaker x3*/ {cv_TSITBL1.value, cv_TSITBL2.value, cv_TSITBL3.value, cv_TSITBL4.value, cv_TSITBL5.value, cv_TSITBL6.value, cv_TSITBL7.value, cv_TSITBL8.value, cv_TSITBL9.value, cv_TSITBL10.value }, // Sneaker x3
+			 /*Banana x3*/ {cv_TBAITBL1.value, cv_TBAITBL2.value, cv_TBAITBL3.value, cv_TBAITBL4.value, cv_TBAITBL5.value, cv_TBAITBL6.value, cv_TBAITBL7.value, cv_TBAITBL8.value, cv_TBAITBL9.value, cv_TBAITBL10.value }, // Banana x3
+			/*Banana x10*/ {cv_TENITBL1.value, cv_TENITBL2.value, cv_TENITBL3.value, cv_TENITBL4.value, cv_TENITBL5.value, cv_TENITBL6.value, cv_TENITBL7.value, cv_TENITBL8.value, cv_TENITBL9.value, cv_TENITBL10.value }, // Banana x10
+		   /*Orbinaut x3*/ {cv_TORITBL1.value, cv_TORITBL2.value, cv_TORITBL3.value, cv_TORITBL4.value, cv_TORITBL5.value, cv_TORITBL6.value, cv_TORITBL7.value, cv_TORITBL8.value, cv_TORITBL9.value, cv_TORITBL10.value }, // Orbinaut x3
+		   /*Orbinaut x4*/ {cv_QUOITBL1.value, cv_QUOITBL2.value, cv_QUOITBL3.value, cv_QUOITBL4.value, cv_QUOITBL5.value, cv_QUOITBL6.value, cv_QUOITBL7.value, cv_QUOITBL8.value, cv_QUOITBL9.value, cv_QUOITBL10.value }, // Orbinaut x4
+			   /*Jawz x2*/ {cv_DJAITBL1.value, cv_DJAITBL2.value, cv_DJAITBL3.value, cv_DJAITBL4.value, cv_DJAITBL5.value, cv_DJAITBL6.value, cv_DJAITBL7.value, cv_DJAITBL8.value, cv_DJAITBL9.value, cv_DJAITBL10.value }  // Jawz x2
+	};
+
+	boolean powerItem = false;
+	boolean cooldownOnStart = false;
+	boolean indirectItem = false;
+
+	I_Assert(item > KITEM_NONE); // too many off by one scenarioes.
+
+	if (!itemenabled[item-1] && !modeattacking)
+		return 0;
+
+	if (G_BattleGametype())
+		newodds = K_KartItemOddsBattle[item-1][pos];
+	else
+		if (cv_customodds.value)
+			newodds = K_KartCustomOddsRace[item-1][pos];
+		else
+			newodds = K_KartItemOddsRace[item-1][pos];
+
+	// Base multiplication to ALL item odds to simulate fractional precision
+	newodds *= 4;
+
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		if (!playeringame[i] || players[i].spectator)
+			continue;
+
+		if (!G_BattleGametype() || players[i].kartstuff[k_bumper])
+			pingame++;
+
+		if (players[i].exiting)
+			pexiting++;
+
+		if (players[i].mo)
+		{
+			if (players[i].kartstuff[k_itemtype] == KITEM_THUNDERSHIELD)
+				thunderisout = true;
+
+			if (!G_BattleGametype())
+			{
+				if (players[i].kartstuff[k_position] == 1 && first == -1)
+					first = i;
+				if (players[i].kartstuff[k_position] == 2 && second == -1)
+					second = i;
+			}
+		}
+	}
+
+	if (first != -1 && second != -1) // calculate 2nd's distance from 1st, for SPB
+	{
+		secondToFirst = P_AproxDistance(P_AproxDistance(players[first].mo->x - players[second].mo->x,
+														players[first].mo->y - players[second].mo->y),
+														players[first].mo->z - players[second].mo->z) / FRACUNIT;
+		secondToFirst = K_FuckalScaleItemDistance(secondToFirst, pingame, spbrush);
+	}
+
+	// POWERITEMODDS fell to a clumsy, painful death.
+
+	switch (item)
+	{
+		case KITEM_ROCKETSNEAKER:
+		case KITEM_JAWZ:
+		case KITEM_BALLHOG:
+		case KRITEM_TRIPLESNEAKER:
+		case KRITEM_TRIPLEBANANA:
+		case KRITEM_TENFOLDBANANA:
+		case KRITEM_TRIPLEORBINAUT:
+		case KRITEM_QUADORBINAUT:
+		case KRITEM_DUALJAWZ:
+			powerItem = true;
+			break;
+		case KITEM_INVINCIBILITY:
+		case KITEM_EGGMAN: // eggmen are on cooldown now
+		case KITEM_MINE:
+		case KITEM_GROW:
+			cooldownOnStart = true;
+			powerItem = true;
+			break;
+		case KITEM_SPB:
+			cooldownOnStart = true;
+			indirectItem = true;
+
+			if (pexiting > 0)
+			{
+				newodds = 0;
+			}
+			else if (pos != 9) // Force SPB
+			{
+				const INT32 distFromStart = max(0, (INT32)secondToFirst - SPBSTARTDIST);
+				const INT32 distRange = SPBFORCEDIST - SPBSTARTDIST;
+				const fixed_t mulMax = 3*FRACUNIT;
+
+				fixed_t multiplier = (distFromStart * mulMax) / distRange;
+
+				if (multiplier < 0)
+					multiplier = 0;
+
+				if (multiplier > mulMax)
+					multiplier = mulMax;
+
+				newodds = FixedMul(newodds * FRACUNIT, multiplier) / FRACUNIT;
+			}
+			break;
+		case KITEM_SHRINK:
+			cooldownOnStart = true;
+			powerItem = true;
+			indirectItem = true;
+
+			if (pingame-1 <= pexiting)
+				newodds = 0;
+			break;
+		case KITEM_THUNDERSHIELD:
+			cooldownOnStart = true;
+			powerItem = true;
+
+			if (thunderisout)
+				newodds = 0;
+			break;
+		case KITEM_HYUDORO:
+			cooldownOnStart = true;
+
+			if (hyubgone > 0)
+				newodds = 0;
+			break;
+		default:
+			break;
+	}
+
+	if (newodds == 0)
+	{
+		// Nothing else we want to do with odds matters at this point :p
+		return newodds;
+	}
+
+	if ((indirectItem == true) && (indirectitemcooldown > 0))
+	{
+		// Too many items that act indirectly in a match can feel kind of bad.
+		newodds = 0;
+	}
+	else if ((cooldownOnStart == true) && (leveltime < (30*TICRATE)+starttime))
+	{
+		// This item should not appear at the beginning of a race. (Usually really powerful crowd-breaking items)
+		newodds = 0;
+	}
+	else if (powerItem == true)
+	{
+		// This item is a "power item". This activates "frantic item" toggle related functionality.
+		fixed_t fracOdds = newodds * FRACUNIT;
+
+		if (franticitems == true)
+		{
+			// First, power items multiply their odds by 2 if frantic items are on; easy-peasy.
+			fracOdds *= 2;
+		}
+
+		fracOdds = FixedMul(fracOdds, FRACUNIT + K_FuckalItemOddsScale(pingame, spbrush));
+
+		if (mashed > 0)
+		{
+			// Lastly, it *divides* it based on your mashed value, so that power items are less likely when you mash.
+			fracOdds = FixedDiv(fracOdds, FRACUNIT + mashed);
+		}
+
+		newodds = fracOdds / FRACUNIT;
+	}
+
+	return newodds;
+}
+
+//{ SRB2kart Roulette Code - Distance Based, no waypoints
+
+static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame, INT32 bestbumper, boolean spbrush, boolean dontforcespb)
+{
+	SINT8 sortedPlayers[MAXPLAYERS];
+	UINT8 sortLength = 0;
+
+	UINT32 pdis = 0;
+
+	UINT8 disttable[14];
+	UINT8 distlen = 0;
+
+	boolean oddsvalid[10];
+	boolean ufo;
+	INT32 useodds = 0;
+	
+	INT32 DISTVAR;
+	INT32 DISTHALF;
+	INT32 SPBSTARTDIST; 
+	INT32 SPBFORCEDIST;
+	
+	//Making magic numbers into convars here
+	// Magic number distance for use with item roulette tiers
+	//#define DISTVAR (1280) 
+	//#define DISTHALF (640)
+
+	
+	DISTVAR = cv_cepdistvar.value;
+	DISTHALF = cv_cepdisthalf.value;
+	
+	
+
+	// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
+	// (It's vague if SRB2Kart wanted this to be 3 or 4...)
+
+	// let's keep this at the 1.3 valu- AAAACK NO NO NO THERE'S SPBS EVERYWHERE FUCK
+
+	// kill me right now, time for 4.5
+	//#define SPBSTARTDIST ((9*DISTVAR) / 2)
+		
+
+	// Distance between 1st and 2nd, where SPB is forcefully given to 2nd place.
+	//#define SPBFORCEDIST (SPBSTARTDIST + (2*DISTVAR))
+	SPBSTARTDIST = ((9*cv_cepspbdistvar.value) / 2);
+	SPBFORCEDIST = (SPBSTARTDIST + (2*cv_cepspbdistvar.value));
+
+	// forcedist = 5760 + 2560 = 8320
+	// this will likely change often
+
+	// Distance from finish line when the game stops giving you bananas
+	// (If only waypoints were sophisticated enough to bring this one over...)
+	//#define ENDDIST (12*DISTVAR)
+	
+	
+	
+
+	INT32 i;
+
+	// Unused now, oops :V
+	(void)bestbumper;
+
+	for (i = 0; i < 10; i++)
+	{
+		INT32 j;
+		boolean available = false;
+
+		if (G_BattleGametype() && i > 1)
+		{
+			oddsvalid[i] = false;
+			break;
+		}
+
+		for (j = 1; j < NUMKARTRESULTS; j++)
+		{
+			if (K_FuckalGetItemOdds(i, j, mashed, spbrush) > 0)
+			{
+				available = true;
+				break;
+			}
+		}
+
+		oddsvalid[i] = available;
+	}
+
+	memset(sortedPlayers, -1, sizeof(sortedPlayers));
+
+	ufo = false;
+
+	if (player->kartstuff[k_roulettetype] == 1)
+		ufo = true;
+
+	if (player->mo != NULL && P_MobjWasRemoved(player->mo) == false)
+	{
+		// Sort all of the players ahead of you.
+		// Then tally up their distances in a conga line.
+
+		// This will create a much more consistent item
+		// distance algorithm than the "spider web" thing
+		// that it was doing before.
+
+		// Add yourself to the list.
+		// You'll always be the end of the list,
+		// so we can also calculate the length here.
+		sortedPlayers[ player->kartstuff[k_position] - 1 ] = player - players;
+		sortLength = player->kartstuff[k_position];
+
+		// Will only need to do this if there's going to be 
+		// more than yourself in the list.
+		if (sortLength > 1)
+		{
+			SINT8 firstIndex = -1;
+			SINT8 secondIndex = -1;
+			INT32 startFrom = INT32_MAX;
+
+			// Add all of the other players.
+			for (i = 0; i < MAXPLAYERS; i++)
+			{
+				INT32 pos = INT32_MAX;
+
+				if (!playeringame[i] || players[i].spectator)
+				{
+					continue;
+				}
+
+				if (players[i].mo == NULL || P_MobjWasRemoved(players[i].mo) == true)
+				{
+					continue;
+				}
+
+				pos = players[i].kartstuff[k_position];
+
+				if (pos <= 0 || pos > MAXPLAYERS)
+				{
+					// Invalid position.
+					continue;
+				}
+
+				if (pos >= player->kartstuff[k_position])
+				{
+					// Tied / behind us.
+					// Also handles ourselves, obviously.
+					continue;
+				}
+
+				// Ties are done with port priority, if there are any.
+				if (sortedPlayers[ pos - 1 ] == -1) 
+				{
+					sortedPlayers[ pos - 1 ] = i;
+				}
+			}
+
+			// The chance of this list having gaps is improbable,
+			// but not impossible. So we need to spend some extra time
+			// to prevent the gaps from mattering.
+			for (i = 0; i < sortLength-1; i++)
+			{
+				if (sortedPlayers[i] >= 0 && sortedPlayers[i] < MAXPLAYERS)
+				{
+					// First valid index in the list found.
+					firstIndex = sortedPlayers[i];
+
+					// Start the next loop after this player.
+					startFrom = i + 1;
+					break;
+				}
+			}
+
+			if (firstIndex >= 0 && firstIndex < MAXPLAYERS
+				&& startFrom < sortLength)
+			{
+				// First index is valid, so we can
+				// start comparing the players.
+
+				player_t *firstPlayer = NULL;
+				player_t *secondPlayer = NULL;
+				fixed_t xydist = 0;
+
+				for (i = startFrom; i < sortLength; i++)
+				{
+					if (sortedPlayers[i] >= 0 && sortedPlayers[i] < MAXPLAYERS)
+					{
+						secondIndex = sortedPlayers[i];
+
+						firstPlayer = &players[firstIndex];
+						secondPlayer = &players[secondIndex];
+
+						// Add the distance to the player behind you.
+						// uses PointToDist2 now for accuracy
+						xydist = R_PointToDist2(firstPlayer->mo->x, firstPlayer->mo->y, secondPlayer->mo->x, secondPlayer->mo->y);
+						pdis += ( R_PointToDist2(0, firstPlayer->mo->z, xydist, secondPlayer->mo->z) / FRACUNIT);
+
+						// Advance to next index.
+						firstIndex = secondIndex;
+					}
+				}
+			}
+		}
+	}
+
+#define SETUPDISTTABLE(odds, num) \
+	for (i = num; i; --i) disttable[distlen++] = odds
+
+	if (G_BattleGametype()) // Battle Mode
+	{
+		if (player->kartstuff[k_roulettetype] == 1 && oddsvalid[1] == true)
+		{
+			// 1 is the extreme odds of player-controlled "Karma" items
+			useodds = 1;
+		}
+		else
+		{
+			useodds = 0;
+
+			if (oddsvalid[0] == false && oddsvalid[1] == true)
+			{
+				// try to use karma odds as a fallback
+				useodds = 1;
+			}
+		}
+	}
+	else
+	{
+		if (oddsvalid[1]) SETUPDISTTABLE(1,1);
+		if (oddsvalid[2]) SETUPDISTTABLE(2,1);
+		if (oddsvalid[3]) SETUPDISTTABLE(3,1);
+		if (oddsvalid[4]) SETUPDISTTABLE(4,2);
+		if (oddsvalid[5]) SETUPDISTTABLE(5,2);
+		if (oddsvalid[6]) SETUPDISTTABLE(6,3);
+		if (oddsvalid[7]) SETUPDISTTABLE(7,3);
+		if (oddsvalid[8]) SETUPDISTTABLE(8,1);
+
+		// rainbow roulette means stronger odds
+		// multiplying distance by 5 caused overflows, let's just use the generic frantic system
+		pdis = K_FuckalScaleItemDistance( ((ufo) ? ((15 * pdis) / 14) : pdis), pingame, spbrush);
+
+		if (pingame == 1 && oddsvalid[0])
+		{
+			// Record Attack, or just alone
+			useodds = 0;
+		}
+		else if (pdis <= 0)
+		{
+			// 1st place
+			useodds = disttable[0];
+		}
+		else if (player->kartstuff[k_position] == 2 && pdis > (SPBFORCEDIST*6)
+			&& spbplace == -1 && !indirectitemcooldown && !dontforcespb
+			&& oddsvalid[9])
+		{
+			// Force SPB in 2nd
+			useodds = 9;
+		}
+		else if (pdis > DISTVAR * ((12 * distlen) / 14))
+		{
+			// Back of the pack
+			useodds = disttable[distlen-1];
+		}
+		else
+		{
+			for (i = 1; i < 13; i++)
+			{
+				if (pdis <= (unsigned)(DISTVAR * ((i * distlen) / 14)))
+				{
+					useodds = disttable[((i * distlen) / 14)];
+					break;
+				}
+			}
+		}
+	}
+
+#undef SETUPDISTTABLE
+
+	//CONS_Printf("Got useodds %d. (position: %d, distance: %d)\n", useodds, player->kartstuff[k_position], pdis);
+
+	return useodds;
+}
+
+static void K_FuckalKartItemRoulette(player_t *player, ticcmd_t *cmd)
+{
+	INT32 i;
+	UINT8 pingame = 0;
+	UINT8 roulettestop;
+	INT32 useodds = 0;
+	INT32 spawnchance[NUMKARTRESULTS];
+	INT32 totalspawnchance = 0;
+	INT32 bestbumper = 0;
+	fixed_t mashed = 0;
+	boolean dontforcespb = false;
+	boolean spbrush = false;
+	
+
+	
+	
+	// This makes the roulette cycle through items - if this is 0, you shouldn't be here.
+	if (player->kartstuff[k_itemroulette])
+		player->kartstuff[k_itemroulette]++;
+	else
+		return;
+
+	// Gotta check how many players are active at this moment.
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		if (!playeringame[i] || players[i].spectator)
+			continue;
+		pingame++;
+		if (players[i].exiting)
+			dontforcespb = true;
+		if (players[i].kartstuff[k_bumper] > bestbumper)
+			bestbumper = players[i].kartstuff[k_bumper];
+	}
+
+	// No forced SPB in 1v1s, it has to be randomly rolled
+	if (pingame <= 2)
+		dontforcespb = true;
+
+	// This makes the roulette produce the random noises.
+	if ((player->kartstuff[k_itemroulette] % 3) == 1 && P_IsDisplayPlayer(player) && !demo.freecam)
+	{
+#define PLAYROULETTESND S_StartSound(NULL, sfx_itrol1 + ((player->kartstuff[k_itemroulette] / 3) % 8))
+		for (i = 0; i <= splitscreen; i++)
+		{
+			if (player == &players[displayplayers[i]] && players[displayplayers[i]].kartstuff[k_itemroulette])
+				PLAYROULETTESND;
+		}
+#undef PLAYROULETTESND
+	}
+
+	roulettestop = TICRATE + (3*(pingame - player->kartstuff[k_position]));
+
+	// If the roulette finishes or the player presses BT_ATTACK, stop the roulette and calculate the item.
+	// I'm returning via the exact opposite, however, to forgo having another bracket embed. Same result either way, I think.
+	// Finally, if you get past this check, now you can actually start calculating what item you get.
+	if ((cmd->buttons & BT_ATTACK) && !(player->kartstuff[k_eggmanheld] || player->kartstuff[k_itemheld]) && player->kartstuff[k_itemroulette] >= roulettestop && !modeattacking)
+	{
+		// Mashing reduces your chances for the good items
+		if (!(player->mashstop)) // CEP: mash prevention
+			mashed = FixedDiv((player->kartstuff[k_itemroulette])*FRACUNIT, ((TICRATE*3)+roulettestop)*FRACUNIT) - FRACUNIT;
+	}
+	else if (!(player->kartstuff[k_itemroulette] >= (TICRATE*3)))
+		return;
+
+	if (cmd->buttons & BT_ATTACK)
+		player->pflags |= PF_ATTACKDOWN;
+
+	if (player->kartstuff[k_roulettetype] == 2) // Fake items
+	{
+		player->kartstuff[k_eggmanexplode] = 4*TICRATE;
+		//player->kartstuff[k_itemblink] = TICRATE;
+		//player->kartstuff[k_itemblinkmode] = 1;
+		player->kartstuff[k_itemroulette] = 0;
+		player->kartstuff[k_roulettetype] = 0;
+		if (P_IsDisplayPlayer(player) && !demo.freecam)
+			S_StartSound(NULL, sfx_itrole);
+		return;
+	}
+
+	if (cv_kartdebugitem.value != 0 && !modeattacking)
+	{
+		K_KartGetItemResult(player, cv_kartdebugitem.value);
+		player->kartstuff[k_itemamount] = cv_kartdebugamount.value;
+		player->kartstuff[k_itemblink] = TICRATE;
+		player->kartstuff[k_itemblinkmode] = 2;
+		player->kartstuff[k_itemroulette] = 0;
+		player->kartstuff[k_roulettetype] = 0;
+		if (P_IsDisplayPlayer(player) && !demo.freecam)
+			S_StartSound(NULL, sfx_dbgsal);
+		return;
+	}
+
+	if (G_RaceGametype())
+		spbrush = (spbplace != -1 && player->kartstuff[k_position] == spbplace+1);
+
+	// Initializes existing spawnchance values
+	for (i = 0; i < NUMKARTRESULTS; i++)
+		spawnchance[i] = 0;
+
+	// Split into another function for a debug function below
+	useodds = K_FuckalFindUseodds(player, mashed, pingame, bestbumper, spbrush, dontforcespb);
+
+	for (i = 1; i < NUMKARTRESULTS; i++)
+		spawnchance[i] = (totalspawnchance += K_FuckalGetItemOdds(useodds, i, mashed, spbrush));
+
+	// Award the player whatever power is rolled
+	if (totalspawnchance > 0)
+	{
+		totalspawnchance = P_RandomKey(totalspawnchance);
+		for (i = 0; i < NUMKARTRESULTS && spawnchance[i] <= totalspawnchance; i++);
+
+		K_KartGetItemResult(player, i);
+	}
+	else
+	{
+		player->kartstuff[k_itemtype] = KITEM_SAD;
+		player->kartstuff[k_itemamount] = 1;
+	}
+
+	if (P_IsDisplayPlayer(player) && !demo.freecam)
+		S_StartSound(NULL, ((player->kartstuff[k_roulettetype] == 1) ? sfx_itrolk : (mashed ? sfx_itrolm : sfx_itrolf)));
+
+	player->kartstuff[k_itemblink] = TICRATE;
+	player->kartstuff[k_itemblinkmode] = ((player->kartstuff[k_roulettetype] == 1) ? 2 : (mashed ? 1 : 0));
+
+	player->kartstuff[k_itemroulette] = 0; // Since we're done, clear the roulette number
+	player->kartstuff[k_roulettetype] = 0; // This too
+}
+
+
+
+
+//Fuckal odds end here
+
+
+
+
 
 //}
 
@@ -2538,11 +3626,6 @@ static void K_GetKartBoostPower(player_t *player)
 			}
 
 		}
-		
-		
-		
-		
-		
 	}
 
 	
@@ -2605,8 +3688,9 @@ fixed_t K_GetKartSpeed(player_t *player, boolean doboostpower)
 	{
 		if (cv_stacking.value)
 		{
+			
 			airspeed = player->speed;
-			return min(max(airspeed - (airspeed - FixedMul(FRACUNIT*50, mapobjectscale))/70, FixedMul(FRACUNIT*50, mapobjectscale)), airspeed);
+			return min(max(airspeed - (airspeed - FixedMul(FRACUNIT*50, mapobjectscale))/70, FixedMul(FRACUNIT*50, mapobjectscale)), airspeed)+ FRACUNIT/2;
 	
 		}
 		else
@@ -5982,7 +7066,12 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		K_RespawnChecker(player);
 
 	// Roulette Code
-	K_KartItemRoulette(player, cmd);
+	if (cv_itemodds.value == 2)
+		K_FuckalKartItemRoulette(player, cmd);
+	else
+		K_KartItemRoulette(player, cmd);
+			
+	
 
 	// Handle invincibility sfx
 	K_UpdateInvincibilitySounds(player); // Also thanks, VAda!
@@ -10332,6 +11421,9 @@ static void K_drawDistributionDebugger(void)
 		kp_jawz[1]
 	};
 	INT32 useodds = 0;
+	INT32 itemodds = 0;
+	INT32 xydist;
+	INT32 pdis;
 	INT32 pingame = 0, bestbumper = 0;
 	INT32 i;
 	INT32 x = -9, y = -9;
@@ -10356,16 +11448,27 @@ static void K_drawDistributionDebugger(void)
 	if (G_RaceGametype())
 		spbrush = (spbplace != -1 && stplyr->kartstuff[k_position] == spbplace+1);
 
-	useodds = K_FindUseodds(stplyr, 0, pingame, bestbumper, spbrush, dontforcespb);
-
+	
+	if  (cv_itemodds.value == 2)
+			useodds = K_FuckalFindUseodds(stplyr, 0, pingame, bestbumper, spbrush, dontforcespb);
+		else
+			useodds = K_FindUseodds(stplyr, 0, pingame, bestbumper, spbrush, dontforcespb);
+	
+	
 	for (i = 1; i < NUMKARTRESULTS; i++)
 	{
-		const INT32 itemodds = K_KartGetItemOdds(useodds, i, 0, spbrush);
+		
+		if  (cv_itemodds.value == 2)
+			itemodds = K_FuckalGetItemOdds(useodds, i, 0, spbrush);
+		else
+			itemodds = K_KartGetItemOdds(useodds, i, 0, spbrush);
+		
 		if (itemodds <= 0)
 			continue;
 
 		V_DrawScaledPatch(x, y, V_HUDTRANS|V_SNAPTOTOP, items[i]);
 		V_DrawThinString(x+11, y+31, V_HUDTRANS|V_SNAPTOTOP, va("%d", itemodds));
+		
 
 		// Display amount for multi-items
 		if (i >= NUMKARTITEMS)
@@ -10398,6 +11501,21 @@ static void K_drawDistributionDebugger(void)
 	}
 
 	V_DrawString(0, 0, V_HUDTRANS|V_SNAPTOTOP, va("USEODDS %d", useodds));
+	
+	
+	
+	if (cv_itemodds.value == 2)
+	{		
+		
+		V_DrawString(100, 0, V_HUDTRANS|V_SNAPTOTOP, va("CEP"));
+	}
+	else
+	{	
+		pdis = P_AproxDistance(P_AproxDistance(players[i].mo->x - stplyr->mo->x,players[i].mo->y - stplyr->mo->y),players[i].mo->z - stplyr->mo->z) / mapobjectscale * (pingame - players[i].kartstuff[k_position])/ max(1, ((pingame - 1) * (pingame + 1) / 3));
+		V_DrawString(100, 0, V_HUDTRANS|V_SNAPTOTOP, va("URANUS"));
+	}
+	
+	//V_DrawString(75, 0, V_HUDTRANS|V_SNAPTOTOP, va("Distance %d", pdis));
 }
 
 static void K_drawCheckpointDebugger(void)

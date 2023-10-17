@@ -1775,7 +1775,12 @@ static menuitem_t OP_PlaneptuneMenu[] =
 	
 	{IT_HEADER, NULL, "Stacking", NULL, 125},
 	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	135},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 		&cv_stackingdim, 		145},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		145},
+	
+	{IT_HEADER, NULL, "Items", NULL, 165},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			175},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			185},
+	
 	
 	
 	
@@ -1794,6 +1799,8 @@ enum
 	pm_rbowst,
 	pm_stcks,
 	pm_stcksdim,
+	pm_itemodds,
+	pm_customitemtable,
 };
 
 

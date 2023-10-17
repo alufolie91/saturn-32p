@@ -210,6 +210,7 @@ typedef struct
 	INT32 kartstuff[NUMKARTSTUFF]; // SRB2kart
 	angle_t frameangle; // SRB2kart
 	INT32 interpoints;
+	UINT8 mashstop; //Mash stop
 
 	// Score is resynched in the confirm resync packet
 	INT32 health;

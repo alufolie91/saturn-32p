@@ -77,6 +77,7 @@ static const udata_field_t player_fields[] = {
     FIELD(player_t, kartspeed,        udatalib_getter_uint8,       udatalib_setter_uint8),
     FIELD(player_t, kartweight,       udatalib_getter_uint8,       udatalib_setter_uint8),
 	FIELD(player_t, interpoints,      udatalib_getter_int32,       udatalib_setter_int32),
+	FIELD(player_t, mashstop,      	  udatalib_getter_boolean,     udatalib_setter_boolean),
     FIELD(player_t, charflags,        udatalib_getter_uint32,      udatalib_setter_uint32),
     FIELD(player_t, lives,            udatalib_getter_sint8,       udatalib_setter_sint8),
     FIELD(player_t, continues,        udatalib_getter_sint8,       udatalib_setter_sint8),

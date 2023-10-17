@@ -409,6 +409,9 @@ typedef struct player_s
 	// SRB2Kart CEP: Sliptide rolling
 	INT32 sliptidemem;
 	angle_t sliproll;
+	
+	// SRB2kart CEP: Should we prevent mash registering?
+	boolean mashstop;
 
 	INT16 lturn_max[MAXPREDICTTICS]; // What's the expected turn value for full-left for a number of frames back (to account for netgame latency)?
 	INT16 rturn_max[MAXPREDICTTICS]; // Ditto but for full-right

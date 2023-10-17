@@ -140,7 +140,9 @@ static void P_NetArchivePlayers(void)
 
 		WRITEANGLE(save_p, players[i].frameangle);
 		WRITEINT32(save_p, players[i].interpoints);
-
+		//MashStop
+		WRITEUINT8(save_p, players[i].mashstop);
+		
 		WRITEUINT8(save_p, players[i].playerstate);
 		WRITEUINT32(save_p, players[i].pflags);
 		WRITEUINT8(save_p, players[i].panim);
@@ -322,6 +324,8 @@ static void P_NetUnArchivePlayers(void)
 
 		players[i].frameangle = READANGLE(save_p);
 		players[i].interpoints = READINT32(save_p);
+		//Mashstop
+		players[i].mashstop = (boolean)READUINT8(save_p);
 
 		players[i].playerstate = READUINT8(save_p);
 		players[i].pflags = READUINT32(save_p);

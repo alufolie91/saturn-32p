@@ -438,6 +438,290 @@ consvar_t cv_speedcap = 	{"stacking_speedcap", 			"On", CV_NETVAR|CV_CHEAT, CV_O
 consvar_t cv_speedcapval = {"stacking_speedcapval", "128.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
+//Fuckal Odds`
+static CV_PossibleValue_t itemoddstype_cons_t[] = {{1, "Uranus"}, {2, "CEP"}, {0, NULL}};
+consvar_t cv_itemodds = {"itemoddsystem", "CEP", CV_NETVAR|CV_CHEAT, itemoddstype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t itemtable_cons_t[] = {{0, "MIN"}, {20, "MAX"}, {0, NULL}};
+//Item table customization 220 (Yes really)
+
+consvar_t cv_customodds = 				{"customodds", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t distvar_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
+consvar_t cv_cepdistvar = {"CEPDISTVAR", "1280", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cepdisthalf = {"CEPDISTHALF", "640", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cepspbdistvar = {"CEPSPBDISTVAR", "1280", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_uranusdistvar = {"URANUSDISTVAR", "896", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+
+
+
+
+//Sneaker
+consvar_t cv_SITBL1 = {"SITBL0", "20", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL2 = {"SITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL3 = {"SITBL2", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL4 = {"SITBL3", "5", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL5 = {"SITBL4", "6", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL6 = {"SITBL5", "7", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL7 = {"SITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL8 = {"SITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL9 = {"SITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SITBL10 = {"SITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Rocket Sneaker
+consvar_t cv_RSITBL1 = {"RSITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL2 = {"RSITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL3 = {"RSITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL4 = {"RSITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL5 = {"RSITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL6 = {"RSITBL5", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL7 = {"RSITBL6", "6", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL8 = {"RSITBL7", "7", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL9 = {"RSITBL8", "3", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_RSITBL10 = {"RSITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Invincivility
+consvar_t cv_INITBL1 = {"INITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL2 = {"INITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL3 = {"INITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL4 = {"INITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL5 = {"INITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL6 = {"INITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL7 = {"INITBL6", "3", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL8 = {"INITBL7", "5", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL9 = {"INITBL8", "10", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_INITBL10 = {"INITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Banana
+consvar_t cv_BANITBL1 = {"BANITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL2 = {"BANITBL1", "9", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL3 = {"BANITBL2", "3", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL4 = {"BANITBL3", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL5 = {"BANITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL6 = {"BANITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL7 = {"BANITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL8 = {"BANITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL9 = {"BANITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BANITBL10 = {"BANITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Eggmanbomb
+consvar_t cv_EGGITBL1 = {"EGGITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL2 = {"EGGITBL1", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL3 = {"EGGITBL2", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL4 = {"EGGITBL3", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL5 = {"EGGITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL6 = {"EGGITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL7 = {"EGGITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL8 = {"EGGITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL9 = {"EGGITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_EGGITBL10 = {"EGGITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Orbinaut
+consvar_t cv_ORBITBL1 = {"ORBITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL2 = {"ORBITBL1", "7", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL3 = {"ORBITBL2", "7", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL4 = {"ORBITBL3", "4", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL5 = {"ORBITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL6 = {"ORBITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL7 = {"ORBITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL8 = {"ORBITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL9 = {"ORBITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ORBITBL10 = {"ORBITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Jawz
+consvar_t cv_JAWITBL1 = {"JAWITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL2 = {"JAWITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL3 = {"JAWITBL2", "3", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL4 = {"JAWITBL3", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL5 = {"JAWITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL6 = {"JAWITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL7 = {"JAWITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL8 = {"JAWITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL9 = {"JAWITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_JAWITBL10 = {"JAWITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//MINE
+consvar_t cv_MINITBL1 = {"MINITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL2 = {"MINITBL1", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL3 = {"MINITBL2", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL4 = {"MINITBL3", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL5 = {"MINITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL6 = {"MINITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL7 = {"MINITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL8 = {"MINITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL9 = {"MINITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL10 = {"MINITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Ball Hog
+consvar_t cv_BALITBL1 = {"BALITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL2 = {"BALITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL3 = {"BALITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL4 = {"BALITBL3", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL5 = {"BALITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL6 = {"BALITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL7 = {"BALITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL8 = {"BALITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL9 = {"BALITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_BALITBL10 = {"BALITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//SPB
+consvar_t cv_SPBITBL1 = {"SPBITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL2 = {"SPBITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL3 = {"SPBITBL2", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL4 = {"SPBITBL3", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL5 = {"SPBITBL4", "3", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL6 = {"SPBITBL5", "4", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL7 = {"SPBITBL6", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL8 = {"SPBITBL7", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL9 = {"SPBITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SPBITBL10 = {"SPBITBL9", "20", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Grow
+consvar_t cv_GROITBL1 = {"GROITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL2 = {"GROITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL3 = {"GROITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL4 = {"GROITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL5 = {"GROITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL6 = {"GROITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL7 = {"GROITBL6", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL8 = {"GROITBL7", "4", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL9 = {"GROITBL8", "7", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_GROITBL10 = {"GROITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Shrink
+consvar_t cv_SHRITBL1 = {"SHRITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL2 = {"SHRITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL3 = {"SHRITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL4 = {"SHRITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL5 = {"SHRITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL6 = {"SHRITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL7 = {"SHRITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL8 = {"SHRITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL9 = {"SHRITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_SHRITBL10 = {"SHRITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Thundershield
+consvar_t cv_THUITBL1 = {"THUITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL2 = {"THUITBL1", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL3 = {"THUITBL2", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL4 = {"THUITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL5 = {"THUITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL6 = {"THUITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL7 = {"THUITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL8 = {"THUITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL9 = {"THUITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_THUITBL10 = {"THUITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Hyuu
+consvar_t cv_HYUITBL1 = {"HYUITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL2 = {"HYUITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL3 = {"HYUITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL4 = {"HYUITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL5 = {"HYUITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL6 = {"HYUITBL5", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL7 = {"HYUITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL8 = {"HYUITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL9 = {"HYUITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_HYUITBL10 = {"HYUITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+// Pogo spring
+consvar_t cv_POGITBL1 = {"POGITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL2 = {"POGITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL3 = {"POGITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL4 = {"POGITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL5 = {"POGITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL6 = {"POGITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL7 = {"POGITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL8 = {"POGITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL9 = {"POGITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_POGITBL10 = {"POGITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Kitchen Sink
+consvar_t cv_KITITBL1 = {"KITITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL2 = {"KITITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL3 = {"KITITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL4 = {"KITITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL5 = {"KITITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL6 = {"KITITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL7 = {"KITITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL8 = {"KITITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL9 = {"KITITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_KITITBL10 = {"KITITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Triple Sneaker
+consvar_t cv_TSITBL1 = {"TSITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL2 = {"TSITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL3 = {"TSITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL4 = {"TSITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL5 = {"TSITBL4", "4", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL6 = {"TSITBL5", "9", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL7 = {"TSITBL6", "9", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL8 = {"TSITBL7", "3", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL9 = {"TSITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TSITBL10 = {"TSITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Triplebanana
+consvar_t cv_TBAITBL1 = {"TBAITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL2 = {"TBAITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL3 = {"TBAITBL2", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL4 = {"TBAITBL3", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL5 = {"TBAITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL6 = {"TBAITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL7 = {"TBAITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL8 = {"TBAITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL9 = {"TBAITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TBAITBL10 = {"TBAITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//DecaBanana
+consvar_t cv_TENITBL1 = {"TENITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL2 = {"TENITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL3 = {"TENITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL4 = {"TENITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL5 = {"TENITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL6 = {"TENITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL7 = {"TENITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL8 = {"TENITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL9 = {"TENITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TENITBL10 = {"TENITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Triple Orbi
+consvar_t cv_TORITBL1 = {"TORITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL2 = {"TORITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL3 = {"TORITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL4 = {"TORITBL3", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL5 = {"TORITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL6 = {"TORITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL7 = {"TORITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL8 = {"TORITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL9 = {"TORITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_TORITBL10 = {"TORITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Quad orbi
+consvar_t cv_QUOITBL1 = {"QUOITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL2 = {"QUOITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL3 = {"QUOITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL4 = {"QUOITBL3", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL5 = {"QUOITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL6 = {"QUOITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL7 = {"QUOITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL8 = {"QUOITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL9 = {"QUOITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_QUOITBL10 = {"QUOITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+//Dual Jawz
+consvar_t cv_DJAITBL1 = {"DJAITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL2 = {"DJAITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL3 = {"DJAITBL2", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL4 = {"DJAITBL3", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL5 = {"DJAITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL6 = {"DJAITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL7 = {"DJAITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL8 = {"DJAITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL9 = {"DJAITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_DJAITBL10 = {"DJAITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 
 static CV_PossibleValue_t kartminimap_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_kartminimap = {"kartminimap", "4", CV_SAVE, kartminimap_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
