@@ -15,6 +15,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - Expert Speed
 - CEP Item Odd system(based on conga calc)
 - Customizable itemtable
+- Fixed NetID conflicts
 - More to come!
 - All added features are toggable via convars
 
