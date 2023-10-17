@@ -2016,8 +2016,6 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 	boolean thunderisout = false;
 	SINT8 first = -1, second = -1;
 	UINT32 secondToFirst = 0;
-	INT32 DISTVAR;
-	INT32 DISTHALF;
 	INT32 SPBSTARTDIST; 
 	INT32 SPBFORCEDIST;
 	boolean itemenabled[NUMKARTRESULTS-1] = {
@@ -2045,15 +2043,7 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 		cv_dualjawz.value
 	};
 	
-	//Making magic numbers into convars here
-	// Magic number distance for use with item roulette tiers
-	//#define DISTVAR (1280) 
-	//#define DISTHALF (640)
 
-	
-	DISTVAR = cv_cepdistvar.value;
-	DISTHALF = cv_cepdisthalf.value;
-	
 	
 
 	// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
@@ -2071,13 +2061,7 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 	SPBFORCEDIST = (SPBSTARTDIST + (2*cv_cepspbdistvar.value));
 
 	// forcedist = 5760 + 2560 = 8320
-	// this will likely change often
-
-	// Distance from finish line when the game stops giving you bananas
-	// (If only waypoints were sophisticated enough to bring this one over...)
-	//#define ENDDIST (12*DISTVAR)
-	
-	
+	// this will likely change often	
 	
 		//Custom odds
 	INT32 K_KartCustomOddsRace[NUMKARTRESULTS][10] =
@@ -2291,7 +2275,7 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 	INT32 useodds = 0;
 	
 	INT32 DISTVAR;
-	INT32 DISTHALF;
+	
 	INT32 SPBSTARTDIST; 
 	INT32 SPBFORCEDIST;
 	
@@ -2302,7 +2286,6 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 
 	
 	DISTVAR = cv_cepdistvar.value;
-	DISTHALF = cv_cepdisthalf.value;
 	
 	
 
@@ -3369,7 +3352,6 @@ static void K_GetKartBoostPower(player_t *player)
 	
 	fixed_t sneakeraccelboost = 0;
 	fixed_t sneakerspeedboost = 0;
-	fixed_t finalspeedboost = 0;
 		
 	fixed_t invincibilityaccelboost = 0;
 	fixed_t invincibilityspeedboost = 0;
@@ -3394,7 +3376,6 @@ static void K_GetKartBoostPower(player_t *player)
 	
 	fixed_t harddiminish = 0;
 	
-	INT32 hyuextend = 0;
 	
 		
 	int s;
@@ -11422,8 +11403,6 @@ static void K_drawDistributionDebugger(void)
 	};
 	INT32 useodds = 0;
 	INT32 itemodds = 0;
-	INT32 xydist;
-	INT32 pdis;
 	INT32 pingame = 0, bestbumper = 0;
 	INT32 i;
 	INT32 x = -9, y = -9;
@@ -11511,11 +11490,10 @@ static void K_drawDistributionDebugger(void)
 	}
 	else
 	{	
-		pdis = P_AproxDistance(P_AproxDistance(players[i].mo->x - stplyr->mo->x,players[i].mo->y - stplyr->mo->y),players[i].mo->z - stplyr->mo->z) / mapobjectscale * (pingame - players[i].kartstuff[k_position])/ max(1, ((pingame - 1) * (pingame + 1) / 3));
 		V_DrawString(100, 0, V_HUDTRANS|V_SNAPTOTOP, va("URANUS"));
 	}
 	
-	//V_DrawString(75, 0, V_HUDTRANS|V_SNAPTOTOP, va("Distance %d", pdis));
+
 }
 
 static void K_drawCheckpointDebugger(void)
