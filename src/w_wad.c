@@ -1330,13 +1330,13 @@ UINT8 W_CheckMultipleLumps(const char* lump, ...)
 		if (!W_LumpExists(lumpname)) 
 		{
 			va_end(lumps);
-			return FALSE;
+			return 0;
 		}
 		lumpname = va_arg(lumps, const char*);
 	}
 
 	va_end(lumps);
-	return TRUE;
+	return 1;
 }
 
 size_t W_LumpLengthPwad(UINT16 wad, UINT16 lump)

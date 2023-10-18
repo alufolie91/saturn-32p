@@ -916,6 +916,7 @@ static boolean AddIWAD(void)
 
 boolean found_extra_kart;
 boolean found_extra2_kart;
+boolean found_kv_kart;
 
 boolean snw_speedo; // snowy speedometer check
 boolean clr_hud; // colour hud check
@@ -983,6 +984,12 @@ static void IdentifyVersion(void)
 	if (FIL_ReadFileOK(va(pandf,srb2waddir,"extra2.kart"))) {
 		D_AddFile(va(pandf,srb2waddir,"extra2.kart"), startupwadfiles);
 		found_extra2_kart = true;
+	}
+	
+		// completely optional 3: Its about time
+	if (FIL_ReadFileOK(va(pandf,srb2waddir,"kv.kart"))) {
+		D_AddFile(va(pandf,srb2waddir,"kv.kart"), startupwadfiles);
+		found_kv_kart = true;
 	}
 
 #if !defined (HAVE_SDL) || defined (HAVE_MIXER)
