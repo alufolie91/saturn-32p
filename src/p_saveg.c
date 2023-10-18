@@ -500,7 +500,6 @@ static void P_NetUnArchivePlayers(void)
 static void P_NetArchiveWorld(void)
 {
 	size_t i;
-	INT32 statsec = 0, statline = 0;
 	const line_t *li = lines;
 	const side_t *si;
 	UINT8 *put;
@@ -593,8 +592,6 @@ static void P_NetArchiveWorld(void)
 
 		if (diff)
 		{
-			statsec++;
-
 			WRITEUINT16(put, i);
 			WRITEUINT8(put, diff);
 			if (diff & SD_DIFF2)
@@ -711,7 +708,6 @@ static void P_NetArchiveWorld(void)
 
 		if (diff)
 		{
-			statline++;
 			WRITEINT16(put, i);
 			WRITEUINT8(put, diff);
 			if (diff & LD_DIFF2)
