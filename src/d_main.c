@@ -928,6 +928,7 @@ static void IdentifyVersion(void)
 	const char *srb2waddir = NULL;
 	found_extra_kart = false;
 	found_extra2_kart = false;
+	found_extra2_kart = false;
 
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	// change to the directory where 'srb2.srb' is found
@@ -1284,6 +1285,8 @@ void D_SRB2Main(void)
 		if (found_extra_kart) 
 			mainwads++;
 		if (found_extra2_kart)
+			mainwads++;
+		if (found_kv_kart)
 			mainwads++;
 		
 		// now check for speedometer stuff
