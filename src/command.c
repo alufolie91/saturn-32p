@@ -1134,8 +1134,6 @@ static consvar_t *CV_FindNetVar(UINT16 netid)
 		if (cvar->netid == netid)
 			return cvar;
 
-	if (netid == 44542) // ouch this hack
-		return &cv_karteliminatelast;
 
 	return NULL;
 }

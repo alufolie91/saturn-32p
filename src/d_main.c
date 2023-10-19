@@ -1194,23 +1194,7 @@ void D_SRB2Main(void)
 	if (M_CheckParm("-password") && M_IsNextParm())
 		D_SetPassword(M_GetNextParm());
 
-	// add any files specified on the command line with -file wadfile
-	// to the wad list
-	if (!(M_CheckParm("-connect") && !M_CheckParm("-server")))
-	{
-		if (M_CheckParm("-file"))
-		{
-			// the parms after p are wadfile/lump names,
-			// until end of parms or another - preceded parm
-			while (M_IsNextParm())
-			{
-				const char *s = M_GetNextParm();
 
-				if (s) // Check for NULL?
-					D_AddFile(s, startuppwads);
-			}
-		}
-	}
 
 	// get map from parms
 
@@ -1279,7 +1263,7 @@ void D_SRB2Main(void)
 
 #endif //ifndef DEVELOP
 
-	if (found_extra_kart || found_extra2_kart) // found the funny, add it in!
+	if (found_extra_kart || found_extra2_kart || found_kv_kart) // found the funny, add it in!
 	{
 		// HAYA: These are seperated for a reason lmao
 		if (found_extra_kart) 
@@ -1333,9 +1317,6 @@ void D_SRB2Main(void)
 		}
 	}
 
-	if (!W_InitMultipleFiles(startuppwads, true))
-		CONS_Error("A PWAD file was not found or not valid.\nCheck the log to see which ones.\n");
-	D_CleanFile(startuppwads);
 
 	//
 	// search for maps... again.
@@ -1407,6 +1388,29 @@ void D_SRB2Main(void)
 	S_RegisterSoundStuff();
 
 	I_RegisterSysCommands();
+	
+	
+	// add any files specified on the command line with -file wadfile
+	// to the wad list
+	if (!(M_CheckParm("-connect") && !M_CheckParm("-server")))
+	{
+		if (M_CheckParm("-file"))
+		{
+			// the parms after p are wadfile/lump names,
+			// until end of parms or another - preceded parm
+			while (M_IsNextParm())
+			{
+				const char *s = M_GetNextParm();
+
+				if (s) // Check for NULL?
+					D_AddFile(s, startuppwads);
+			}
+		}
+	}
+	
+	if (!W_InitMultipleFiles(startuppwads, true))
+		CONS_Error("A PWAD file was not found or not valid.\nCheck the log to see which ones.\n");
+	D_CleanFile(startuppwads);
 
 	//--------------------------------------------------------- CONFIG.CFG
 	M_FirstLoadConfig(); // WARNING : this do a "COM_BufExecute()"
