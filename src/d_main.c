@@ -928,7 +928,7 @@ static void IdentifyVersion(void)
 	const char *srb2waddir = NULL;
 	found_extra_kart = false;
 	found_extra2_kart = false;
-	found_extra2_kart = false;
+	found_kv_kart = false;
 
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	// change to the directory where 'srb2.srb' is found
