@@ -432,6 +432,10 @@ extern consvar_t cv_DJAITBL9;
 extern consvar_t cv_DJAITBL10;
 
 
+//Lastserver
+extern consvar_t cv_lastserver;
+
+
 extern consvar_t cv_kartminimap;
 extern consvar_t cv_kartcheck;
 extern consvar_t cv_kartinvinsfx;

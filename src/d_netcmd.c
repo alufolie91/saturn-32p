@@ -722,6 +722,10 @@ consvar_t cv_DJAITBL8 = {"DJAITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, 
 consvar_t cv_DJAITBL9 = {"DJAITBL8", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_DJAITBL10 = {"DJAITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+//Save server ip
+consvar_t cv_lastserver = {"lastserver", "", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+
 
 static CV_PossibleValue_t kartminimap_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_kartminimap = {"kartminimap", "4", CV_SAVE, kartminimap_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1458,6 +1462,9 @@ void D_RegisterClientCommands(void)
 
 	CV_RegisterVar(&cv_resume);
 	CV_RegisterVar(&cv_fading);
+	
+	//Value used to store last server player has joined
+	CV_RegisterVar(&cv_lastserver);
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
