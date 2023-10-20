@@ -127,7 +127,7 @@ extern char  logfilename[1024];
 #else
 #define VERSION    1 // Game version
 #define SUBVERSION 95 // more precise version number
-#define VERSIONSTRING "Planeptune 1.b"
+#define VERSIONSTRING "Planeptune 1.3b"
 #define VERSIONSTRINGW L"Planeptune 1.3b"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
