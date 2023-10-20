@@ -3640,7 +3640,14 @@ static void K_GetKartBoostPower(player_t *player)
 	}
 
 	
-
+			//Stacking
+		if (cv_stacking.value)
+		{
+			if (!player->kartstuff[k_sneakertimer] || player->kartstuff[k_sneakertimer] == 0)
+			{
+				player->kartstuff[k_sneakerstack] = 0;
+			}
+		}
 	
 	if (cv_stacking.value && cv_stackingdim.value)
 	{	
@@ -6925,14 +6932,7 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 			player->kartstuff[k_sneakertimer]--;
 		}	
 		
-		//Stacking
-		if (cv_stacking.value)
-		{
-			if (!player->kartstuff[k_sneakertimer])
-			{
-				player->kartstuff[k_sneakerstack] = 0;
-			}
-		}
+
 		
 		if (player->kartstuff[k_wipeoutslow] > 0 && player->kartstuff[k_wipeoutslow] < wipeoutslowtime+1)
 			player->kartstuff[k_wipeoutslow] = wipeoutslowtime+1;
