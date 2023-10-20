@@ -3643,7 +3643,7 @@ static void K_GetKartBoostPower(player_t *player)
 			//Stacking
 		if (cv_stacking.value)
 		{
-			if (!player->kartstuff[k_sneakertimer] || player->kartstuff[k_sneakertimer] == 0)
+			if (!player->kartstuff[k_sneakertimer])
 			{
 				player->kartstuff[k_sneakerstack] = 0;
 			}
