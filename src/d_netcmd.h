@@ -451,6 +451,12 @@ extern consvar_t cv_kartgametypepreference;
 extern consvar_t cv_kartspeedometer;
 extern consvar_t cv_kartvoices;
 
+//Less encore votes and less battlevotes
+extern consvar_t cv_lessbattlevotes;
+extern consvar_t cv_encorevotes;
+
+
+
 extern consvar_t cv_karteliminatelast;
 
 extern consvar_t cv_votetime;

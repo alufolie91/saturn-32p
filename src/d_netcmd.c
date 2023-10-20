@@ -857,6 +857,12 @@ consvar_t cv_mute = {"mute", "Off", CV_NETVAR|CV_CALL, CV_OnOff, Mute_OnChange, 
 
 consvar_t cv_sleep = {"cpusleep", "1", CV_SAVE, sleeping_cons_t, NULL, -1, NULL, NULL, 0, 0, NULL};
 
+//Less Battlevotes and 1 encore
+consvar_t cv_lessbattlevotes = {"lessbattlevotes", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t encorevotes_cons_t[] = {{0, "One"}, {1, "Except One"}, {0, NULL}};
+consvar_t cv_encorevotes = {"encorevotes", "One", CV_SAVE, encorevotes_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 static CV_PossibleValue_t skinselectspin_cons_t[] = {
 	{0, "Off"}, {1, "Slow"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}, {7, "7"}, {8, "8"}, {9, "9"}, {10, "Fast"}, {SKINSELECTSPIN_PAIN, "Pain"}, {0, NULL}};
 consvar_t cv_skinselectspin = {"skinselectspin", "5", CV_SAVE, skinselectspin_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1148,6 +1154,11 @@ void D_RegisterServerCommands(void)
 #endif
 
 	CV_RegisterVar(&cv_dummyconsvar);
+	//Lessbattlevotes and encorevotes
+	CV_RegisterVar(&cv_lessbattlevotes);
+	CV_RegisterVar(&cv_encorevotes);
+	
+
 
 #ifdef USE_STUN
 	CV_RegisterVar(&cv_stunserver);
@@ -2937,13 +2948,46 @@ void D_SetupVote(void)
 	UINT8 *p = buf;
 	INT32 i;
 	UINT8 gt = (cv_kartgametypepreference.value == -1) ? gametype : cv_kartgametypepreference.value;
-	UINT8 secondgt = G_SometimesGetDifferentGametype(gt);
+	//UINT8 secondgt = G_SometimesGetDifferentGametype(gt);
+	UINT8 secondgt;
 	INT16 votebuffer[4] = {-1,-1,-1,0};
 
-	if (cv_kartencore.value && gt == GT_RACE)
-		WRITEUINT8(p, (gt|0x80));
+	if (G_RaceGametype() && cv_kartencore.value)
+	{
+		if (cv_encorevotes.value == 0)
+		{
+			secondgt = 0x80;
+		}
+		else
+		{
+			gt = 0x80;
+			secondgt = G_SometimesGetDifferentGametype(gt);
+		}
+	}
+
 	else
-		WRITEUINT8(p, gt);
+		{
+		secondgt = G_SometimesGetDifferentGametype(gt);
+	}
+
+	if (G_RaceGametype())
+	{
+		if (cv_encorevotes.value == 1)
+		{
+			gt |= ( secondgt & 0x80 );
+			secondgt &= ~(0x80);
+		}
+	}
+	else
+	{
+		if (cv_lessbattlevotes.value)
+		{
+			gt = GT_RACE;
+			secondgt = GT_MATCH;
+		}
+	}
+
+	WRITEUINT8(p, gt);
 	WRITEUINT8(p, secondgt);
 	secondgt &= ~0x80;
 	
