@@ -2169,68 +2169,8 @@ static void *Shader_Load(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *
 		{
 			if (gl_shaderprogramchanged)
 			{
-<<<<<<< HEAD
-				if (!custom)
-				{
-					if (gl_shaderprogramchanged)
-					{
-						pglUseProgram(gl_shaderprograms[gl_currentshaderprogram].program);
-						gl_shaderprogramchanged = false;
-					}
-				}
-				else	// always load custom shaders
-				{
-					if (gl_shaderprogramchanged)
-					{
-						pglUseProgram(gl_shaderprograms[gl_currentshaderprogram].program);
-						gl_shaderprogramchanged = false;
-					}
-				}
-			}
-			
-			// Color uniforms can be left NULL and will be set to white (1.0f, 1.0f, 1.0f, 1.0f)
-			if (poly == NULL)
-				poly = &shader_defaultcolor;
-			if (tint == NULL)
-				tint = &shader_defaultcolor;
-			if (fade == NULL)
-				fade = &shader_defaultcolor;
-
-			// set uniforms
-			{
-				#define UNIFORM_1(uniform, a, function) \
-					if (uniform != -1) \
-						function (uniform, a);
-
-				#define UNIFORM_2(uniform, a, b, function) \
-					if (uniform != -1) \
-						function (uniform, a, b);
-
-				#define UNIFORM_3(uniform, a, b, c, function) \
-					if (uniform != -1) \
-						function (uniform, a, b, c);
-
-				#define UNIFORM_4(uniform, a, b, c, d, function) \
-					if (uniform != -1) \
-						function (uniform, a, b, c, d);
-
-				// polygon
-				UNIFORM_4(shader->uniforms[gluniform_poly_color], poly->red, poly->green, poly->blue, poly->alpha, pglUniform4f);
-				UNIFORM_4(shader->uniforms[gluniform_tint_color], tint->red, tint->green, tint->blue, tint->alpha, pglUniform4f);
-				UNIFORM_4(shader->uniforms[gluniform_fade_color], fade->red, fade->green, fade->blue, fade->alpha, pglUniform4f);
-				UNIFORM_1(shader->uniforms[gluniform_lighting], Surface->LightInfo.light_level, pglUniform1f);
-				UNIFORM_1(shader->uniforms[gluniform_fade_start], Surface->LightInfo.fade_start, pglUniform1f);
-				UNIFORM_1(shader->uniforms[gluniform_fade_end], Surface->LightInfo.fade_end, pglUniform1f);
-				UNIFORM_1(shader->uniforms[gluniform_leveltime], ((float)leveltime) / TICRATE, pglUniform1f);
-
-				#undef UNIFORM_1
-				#undef UNIFORM_2
-				#undef UNIFORM_3
-				#undef UNIFORM_4
-=======
 				pglUseProgram(gl_shaderprograms[gl_currentshaderprogram].program);
 				gl_shaderprogramchanged = false;
->>>>>>> fec433372 (clean up shader stuff a bit)
 			}
 			Shader_SetUniforms(Surface, poly, tint, fade);
 			return shader;
