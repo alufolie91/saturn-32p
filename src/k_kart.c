@@ -3700,22 +3700,10 @@ fixed_t K_GetKartSpeed(player_t *player, boolean doboostpower)
 	fixed_t xspd = 3072;		// 4.6875 aka 3/64
 	UINT8 kartspeed = player->kartspeed;
 	fixed_t finalspeed;
-	fixed_t airspeed;
 
-	if (doboostpower && !player->kartstuff[k_pogospring] && !P_IsObjectOnGround(player->mo))
-	{
-		if (cv_stacking.value)
-		{
-			
-			airspeed = player->speed;
-			return min(max(airspeed - (airspeed - FixedMul(FRACUNIT*50, mapobjectscale))/70, FixedMul(FRACUNIT*50, mapobjectscale)), airspeed)+ FRACUNIT/2;
 	
-		}
-		else
-		{
+	if (doboostpower && !player->kartstuff[k_pogospring] && !P_IsObjectOnGround(player->mo))
 			return (75*mapobjectscale); // air speed cap
-		}
-	}
 
 	switch (gamespeed)
 	{
