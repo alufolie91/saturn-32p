@@ -3399,7 +3399,9 @@ static void K_GetKartBoostPower(player_t *player)
 	fixed_t hyudoroaccelboost = 0;
 	fixed_t hyudorospeedboost = 0;
 		
-	fixed_t boostmult =  FRACUNIT;
+	fixed_t boostmultbase =  FRACUNIT;
+	fixed_t boostmult = 0;
+	fixed_t finalboostmult = 0;
 	fixed_t boostincrease = 0;
 	
 	fixed_t intermediate = 0;
@@ -3487,7 +3489,11 @@ static void K_GetKartBoostPower(player_t *player)
 				growspeedboost = max(speedboost, cv_growspeed.value);
 				growaccelboost = max(accelboost, cv_growaccel.value);
 				growboostmult = max(boostmult, cv_growmult.value);
-				boostmult = growboostmult;
+				//boostmult = growboostmult;
+			}
+			else
+			{
+				growboostmult = 0;
 			}
 
 			if (player->kartstuff[k_driftboost]) // Drift Boost
@@ -3548,8 +3554,11 @@ static void K_GetKartBoostPower(player_t *player)
 					acceltablesum += acceltable[a];
 				}
 				
+				finalboostmult = boostmultbase - growboostmult;
+				
 				speedboost = speedtablesum;
 				accelboost = acceltablesum;
+				boostmult = finalboostmult;
 				player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack];
 				
 				//speedboost = startspeedboost + driftspeedboost + growspeedboost + sneakerspeedboost + invincibilityspeedboost;
