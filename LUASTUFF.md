@@ -1,4 +1,6 @@
-# SRB2Kart Saturn: Custom lua features
+# SRB2Kart Planeptune: Custom lua features
+
+# New stuff from Saturn:
 
 ## mobj.localskin and player.localskin fields
 
@@ -37,3 +39,30 @@ if rawget(_G, "S_StopSoundByNum") ~= nil then
     ... -- Can use it
 end
 ```
+
+# Stuff from Uranus
+
+
+## PlayerItemUse
+
+Allows you to check if a player has used an item, what kind of item and whether or not its out. (Banana or Orinaut)
+
+## KartHyudoro
+Allows you to check what player is stealing, what player is being stolen from and whether or not the person was forced rolled a sink.
+
+## KartStealBumper
+Allows you to check what player is stealing, what player is being stolen from and whether or not the steal should be forced.
+
+## MobjScaleChange
+
+Changes scale of specific mobj type.
+
+## KartSneaker
+
+Lets you do a sneaker and choose what type visually.
+
+
+
+
+
+
