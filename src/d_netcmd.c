@@ -423,7 +423,7 @@ consvar_t cv_invincibilityaccel = {"stacking_invincibilityaccel", "3.0", CV_NETV
 
 consvar_t cv_growspeed = {"stacking_growspeed", "0.30", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_growaccel = {"stacking_growaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_growmult = {"stacking_growmult", "0.8", CV_NETVAR|CV_FLOAT|CV_CHEAT, mult_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_growmult = {"stacking_growmult", "0.4", CV_NETVAR|CV_FLOAT|CV_CHEAT, mult_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_driftspeed = {"stacking_drfitspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftaccel = {"stacking_drfitaccel", "4.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
