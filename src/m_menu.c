@@ -348,8 +348,8 @@ menu_t OP_HudOffsetDef;
 menu_t OP_PlayerDistortDef;
 menu_t OP_SaturnCreditsDef;
 
-//Planeptune
-menu_t OP_PlaneptuneDef;
+//Neptune
+menu_t OP_NeptuneDef;
 
 // Bird
 menu_t OP_BirdDef;
@@ -1601,7 +1601,7 @@ static menuitem_t OP_ChatOptionsMenu[] =
 static menuitem_t OP_GameOptionsMenu[] =
 {
 	{IT_STRING | IT_SUBMENU, NULL, "Random Item Toggles...",	&OP_MonitorToggleDef,	 10},
-	{IT_SUBMENU|IT_STRING,		NULL, "Planeptune Options...",	&OP_PlaneptuneDef,		 20},
+	{IT_SUBMENU|IT_STRING,		NULL, "Neptune Options...",	&OP_NeptuneDef,		 20},
 	{IT_STRING | IT_CVAR, NULL, "Race Speed",					&cv_kartspeed,			 30},
 	{IT_STRING | IT_CVAR, NULL, "Battle Speed",					&cv_kartbattlespeed,	 40},
 	{IT_STRING | IT_CVAR, NULL, "Frantic Items",				&cv_kartfrantic,		 50},
@@ -1770,9 +1770,9 @@ enum
 	sm_credits,
 };
 
-static menuitem_t OP_PlaneptuneMenu[] =
+static menuitem_t OP_NeptuneMenu[] =
 {
-	{IT_HEADER, NULL, "Planeptune Options", NULL, 0},
+	{IT_HEADER, NULL, "Neptune Options", NULL, 0},
 	
 	{IT_HEADER, NULL, "Sneaker", NULL, 15},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension", 			&cv_sneakerextend, 	 	25},
@@ -2482,8 +2482,8 @@ menu_t OP_DiscordOptionsDef = DEFAULTMENUSTYLE(NULL, OP_DiscordOptionsMenu, &OP_
 menu_t OP_EraseDataDef = DEFAULTMENUSTYLE("M_DATA", OP_EraseDataMenu, &OP_DataOptionsDef, 30, 30);
 
 menu_t OP_SaturnDef = DEFAULTMENUSTYLE(NULL, OP_SaturnMenu, &OP_MainDef, 30, 15);
-//Planeptune
-menu_t OP_PlaneptuneDef = DEFAULTMENUSTYLE(NULL, OP_PlaneptuneMenu, &OP_GameOptionsDef, 30, 5);
+//Neptune
+menu_t OP_NeptuneDef = DEFAULTMENUSTYLE(NULL, OP_NeptuneMenu, &OP_GameOptionsDef, 30, 5);
 menu_t OP_PlayerDistortDef = DEFAULTMENUSTYLE("M_VIDEO", OP_PlayerDistortMenu, &OP_SaturnDef, 30, 30);
 menu_t OP_HudOffsetDef = DEFAULTMENUSTYLE(NULL, OP_HudOffsetMenu, &OP_SaturnDef, 30, 20);
 menu_t OP_SaturnCreditsDef = DEFAULTMENUSTYLE(NULL, OP_SaturnCreditsMenu, &OP_SaturnDef, 30, 10);
@@ -3593,7 +3593,7 @@ void M_Drawer(void)
 				V_DrawThinString(vid.dupx, vid.height - 10*vid.dupy, V_NOSCALESTART|V_TRANSLUCENT|V_ALLOWLOWERCASE, va("%s", VERSIONSTRING));
 #endif
 				//NepNepNepNepNep
-				V_DrawThinString(vid.dupx, vid.height - 20*vid.dupy, V_NOSCALESTART|V_PURPLEMAP|V_TRANSLUCENT|V_ALLOWLOWERCASE, ("Top Nep"));
+				V_DrawThinString(vid.dupx, vid.height - 20*vid.dupy, V_NOSCALESTART|V_PURPLEMAP|V_TRANSLUCENT|V_ALLOWLOWERCASE, ("Nepgear sexo"));
 #ifdef HWRENDER
 				if (rendermode == render_opengl)
 				{
