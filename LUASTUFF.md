@@ -1,5 +1,16 @@
 # SRB2Kart Planeptune: Custom lua features
 
+
+# New Stuff from Neptune
+
+##OS library time and date functions
+
+os.clock
+os.time
+os.date
+os.difftime
+
+
 # New stuff from Saturn:
 
 ## mobj.localskin and player.localskin fields
