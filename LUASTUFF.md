@@ -3,7 +3,7 @@
 
 # New Stuff from Neptune
 
-##OS library time and date functions
+## OS library time and date functions
 
 os.clock
 os.time
