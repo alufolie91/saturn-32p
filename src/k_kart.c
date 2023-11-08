@@ -3418,9 +3418,9 @@ static void K_GetKartBoostPower(player_t *player)
 	
 		
 	int s;
-	fixed_t speedtablesum;
+	fixed_t speedtablesum = 0;
 	int a;
-	fixed_t acceltablesum;
+	fixed_t acceltablesum = 0;
 	
 	fixed_t cmpfunc (const void * a, const void * b) {
    		return ( *(fixed_t*)a - *(fixed_t*)b );
