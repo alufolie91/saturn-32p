@@ -331,11 +331,14 @@ typedef enum
 	k_startstack,
 	k_invincibilitystack,
 	k_ssstack,
+	k_trickstack,
 	k_totalstacks,
 	k_ssspeedboost,
 	k_ssaccelboost,
 	k_slopespeedboost,
 	k_slopeaccelboost,
+	k_trickspeedboost,
+	k_trickaccelboost,
 
 	NUMKARTSTUFF
 } kartstufftype_t;

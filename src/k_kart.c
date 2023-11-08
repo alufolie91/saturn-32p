@@ -3539,11 +3539,20 @@ static void K_GetKartBoostPower(player_t *player)
 			else
 			{
 				player->kartstuff[k_ssstack] = 0;
-			}			
+			}
+		
+			if (player->kartstuff[k_trickspeedboost] || player->kartstuff[k_trickaccelboost])
+			{
+				player->kartstuff[k_trickstack] = 1;
+			}
+			else
+			{
+				player->kartstuff[k_trickstack] = 0;
+			}
 		
 		
-				fixed_t speedtable[] = { hyudorospeedboost, player->kartstuff[k_slopespeedboost] ,player->kartstuff[k_ssspeedboost],startspeedboost, driftspeedboost, growspeedboost, sneakerspeedboost, invincibilityspeedboost };
-				fixed_t acceltable[] = { hyudoroaccelboost, player->kartstuff[k_slopeaccelboost] ,player->kartstuff[k_ssaccelboost],growaccelboost, startaccelboost, invincibilityaccelboost, driftaccelboost, sneakeraccelboost };
+				fixed_t speedtable[] = { hyudorospeedboost, player->kartstuff[k_slopespeedboost] ,player->kartstuff[k_ssspeedboost],startspeedboost, driftspeedboost,player->kartstuff[k_trickspeedboost], growspeedboost, sneakerspeedboost, invincibilityspeedboost };
+				fixed_t acceltable[] = { hyudoroaccelboost, player->kartstuff[k_slopeaccelboost] ,player->kartstuff[k_ssaccelboost],growaccelboost, startaccelboost,player->kartstuff[k_trickaccelboost], invincibilityaccelboost, driftaccelboost, sneakeraccelboost };
 				fixed_t speedsize = sizeof(speedtable) / sizeof(speedtable[0]);
 				fixed_t accelsize = sizeof(speedtable) / sizeof(speedtable[0]);
 					
@@ -3566,7 +3575,7 @@ static void K_GetKartBoostPower(player_t *player)
 				speedboost = speedtablesum;
 				accelboost = acceltablesum;
 				boostmult = finalboostmult;
-				player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack];
+				player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack] + player->kartstuff[k_trickstack];
 				
 				//speedboost = startspeedboost + driftspeedboost + growspeedboost + sneakerspeedboost + invincibilityspeedboost;
 				//accelboost = growaccelboost + startaccelboost + invincibilityaccelboost + driftaccelboost + sneakeraccelboost;
