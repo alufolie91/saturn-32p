@@ -126,9 +126,9 @@ extern char  logfilename[1024];
 // we use comprevision and compbranch instead.
 #else
 #define VERSION    1 // Game version
-#define SUBVERSION 93 // more precise version number
-#define VERSIONSTRING "Neptune 1.4"
-#define VERSIONSTRINGW L"Neptune 1.4"
+#define SUBVERSION 92 // more precise version number
+#define VERSIONSTRING "Neptune 1.4a"
+#define VERSIONSTRINGW L"Neptune 1.4a"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!
