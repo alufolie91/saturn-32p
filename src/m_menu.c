@@ -1801,30 +1801,47 @@ static menuitem_t OP_NeptuneMenu[] =
 {
 	{IT_HEADER, NULL, "Neptune Options", NULL, 0},
 	
-	{IT_HEADER, NULL, "Sneaker", NULL, 15},
-	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension", 			&cv_sneakerextend, 	 	25},
-	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension Type", 		&cv_sneakerextendtype, 	35},
-	{IT_STRING | IT_CVAR, NULL, "Sneaker Stack", 				&cv_sneakerstack,		45},
+	//{IT_HEADER, NULL, "Sneaker", NULL, 10},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension", 			&cv_sneakerextend, 	 	10},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension Type", 		&cv_sneakerextendtype, 	15},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Stack", 				&cv_sneakerstack,		20},
 	
-	{IT_HEADER, NULL, "Mini-Turbo", NULL, 65},
-	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	75},
-	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	85},
-	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	95},
-	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	105},
+	//{IT_HEADER, NULL, "Mini-Turbo", NULL, 30},
+	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	30},
+	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	35},
+	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	40},
+	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	45},
 	
-	{IT_HEADER, NULL, "Stacking", NULL, 125},
-	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	135},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		145},
+	//{IT_HEADER, NULL, "Stacking", NULL, 55},
+	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	55},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		60},
 	
-	{IT_HEADER, NULL, "Items", NULL, 165},
-	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			175},
-	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			185},
-	
-	
-	
-	
+	//{IT_HEADER, NULL, "Items", NULL, 70},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			70},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			75},
 	
 
+
+};
+
+static const char* OP_NeptuneTooltips[] =
+{
+	NULL,
+	//NULL,
+	"Allow sneakers be extended by mini-turbos.",
+	"How should sneaker extentension be treated?\nBS holds the sneaker until mini-turbo is over.\nZBL ties mini-turbo and sneakers together.",
+	"Number of times sneakers stack together.",
+	//NULL,
+	"Allow mini-turbos to add together",
+	"Duration of blue mini-turbo.",
+	"Duration of red mini-turbo.",
+	"Duration of rainbow mini-turbo.",
+	//NULL,
+	"Allow boosts to stack together.",
+	"Diminish boost strength the more things are stacked on each other.",
+	//NULL,
+	"Item system used for rolls.\nUranus is vanilla-like with some scaling modifications.\nCEP is congacalc-like with some scaling modifications.",
+	"Use custom itemtable. This is set via convars.",
 };
 
 enum
@@ -2554,7 +2571,7 @@ menu_t OP_EraseDataDef = DEFAULTMENUSTYLE("M_DATA", OP_EraseDataMenu, &OP_DataOp
 
 menu_t OP_SaturnDef = DEFAULTSCROLLSTYLE(NULL, OP_SaturnMenu, &OP_MainDef, 30, 30);
 //Neptune
-menu_t OP_NeptuneDef = DEFAULTMENUSTYLE(NULL, OP_NeptuneMenu, &OP_GameOptionsDef, 30, 5);
+menu_t OP_NeptuneDef = DEFAULTSCROLLSTYLE(NULL, OP_NeptuneMenu, &OP_GameOptionsDef, 30, 30);
 menu_t OP_PlayerDistortDef = DEFAULTMENUSTYLE("M_VIDEO", OP_PlayerDistortMenu, &OP_SaturnDef, 30, 30);
 menu_t OP_HudOffsetDef = DEFAULTSCROLLSTYLE(NULL, OP_HudOffsetMenu, &OP_SaturnDef, 30, 30);
 menu_t OP_SaturnCreditsDef = DEFAULTMENUSTYLE(NULL, OP_SaturnCreditsMenu, &OP_SaturnDef, 30, 10);
@@ -4754,6 +4771,17 @@ static void M_DrawGenericScrollMenu(void)
 		if (!(OP_SaturnTooltips[itemOn] == NULL)) 
 		{
 			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_SaturnTooltips[itemOn], 30, coolalphatimer);
+			if (coolalphatimer > 0 && interpTimerHackAllow)
+				coolalphatimer--;
+		}
+	}
+	
+	
+	if (currentMenu == &OP_NeptuneDef)
+	{
+		if (!(OP_NeptuneTooltips[itemOn] == NULL)) 
+		{
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_NeptuneTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
