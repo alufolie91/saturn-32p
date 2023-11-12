@@ -8,6 +8,7 @@
 #include "hu_stuff.h"
 #include "g_game.h"
 #include "m_random.h"
+#include "m_menu.h" // ffdhidshfuisduifigergho9igj89dgodhfih AAAAAAAAAA
 #include "p_local.h"
 #include "p_slopes.h"
 #include "r_draw.h"
@@ -910,7 +911,9 @@ UINT8 K_GetKartColorByName(const char *name)
 UINT8 K_GetHudColor()
 {
 	if (stplyr && players - stplyr != consoleplayer) return stplyr->skincolor;
-	if (cv_colorizedhudcolor.value) return cv_colorizedhudcolor.value;
+	if (cv_colorizedhud.value){
+		if (cv_colorizedhudcolor.value) return cv_colorizedhudcolor.value;
+	}
 	return cv_playercolor.value;
 }
 
