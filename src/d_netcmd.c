@@ -2965,11 +2965,11 @@ void D_SetupVote(void)
 		{
 			secondgt = 0x80;
 		}
-		else
-		{
-			gt = 0x80;
-			secondgt = G_SometimesGetDifferentGametype(gt);
-		}
+		//else
+		//{
+		//	gt = 0x80;
+		//	secondgt = G_SometimesGetDifferentGametype(gt);
+		//}
 	}
 
 	else
@@ -2979,11 +2979,11 @@ void D_SetupVote(void)
 
 	if (G_RaceGametype())
 	{
-		if (cv_encorevotes.value == 1)
-		{
-			gt |= ( secondgt & 0x80 );
-			secondgt &= ~(0x80);
-		}
+		//if (cv_encorevotes.value == 1)
+		//{
+		//	gt |= ( secondgt & 0x80 );
+		//	secondgt &= ~(0x80);
+		//}
 	}
 	else
 	{
@@ -2994,7 +2994,11 @@ void D_SetupVote(void)
 		}
 	}
 
-	WRITEUINT8(p, gt);
+	
+	if (cv_kartencore.value && cv_encorevotes.value == 1 && gt == GT_RACE)
+		WRITEUINT8(p, (gt|0x80));
+	else
+		WRITEUINT8(p, gt);
 	WRITEUINT8(p, secondgt);
 	secondgt &= ~0x80;
 	
