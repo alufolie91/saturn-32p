@@ -9428,13 +9428,19 @@ static void K_drawKartStats(void)
 	flags = V_SNAPTOBOTTOM|V_SNAPTOLEFT;
 
 	UINT8 splitnum = 0;
-
+		
 	for (; splitnum < MAXSPLITSCREENPLAYERS; ++splitnum)
 	{
 		if (stplyr == &players[displayplayers[splitnum]])
 			break;
 	}
-
+	
+#ifdef HAVE_BLUA
+	if (!LUA_HudEnabled(hud_statdisplay))
+		return;
+#endif
+	
+	
 	// I tried my best, but this is still mess :/
 	if (splitscreen)
 	{
@@ -11936,6 +11942,9 @@ void K_drawKartHUD(void)
 				K_drawInput();
 
 		if (!demo.title && cv_showstats.value)
+#ifdef HAVE_BLUA
+		if (LUA_HudEnabled(hud_statdisplay))
+#endif
 			K_drawKartStats();
 
 		if (demo.title) // Draw title logo instead in demo.titles
