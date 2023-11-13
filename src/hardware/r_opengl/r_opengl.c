@@ -658,7 +658,6 @@ static boolean gl_shaderprogramchanged = true;
 static boolean gl_batching = false;// are we currently collecting batches?
 
 static GLint gl_palette[768];
-static INT32 gl_use_palette_shader = 0;
 boolean gl_palette_initialized = false;
 
 static INT32 gl_enable_screen_textures = 1;
@@ -1289,7 +1288,7 @@ EXPORT boolean HWRAPI(InitCustomShaders) (void)
 	KillShaders();
 	return LoadShaders();
 	
-	if (gl_use_palette_shader)
+	if (HWR_ShouldUsePaletteRendering())
 	{
 		InitPalette(0, false);
 	}
@@ -2427,7 +2426,7 @@ static int comparePolygons(const void *p1, const void *p2)
 	diff = poly1->texNum - poly2->texNum;
 	if (diff != 0) return diff;
 	
-	if (gl_use_palette_shader)
+	if (HWR_ShouldUsePaletteRendering())
 	{
 		diff = poly1->surf.LightTableId - poly2->surf.LightTableId;
 		if (diff != 0) return diff;
@@ -2570,7 +2569,7 @@ EXPORT void HWRAPI(RenderBatches) (precise_t *sSortTime, precise_t *sDrawTime, i
 	if (gl_allowshaders)
 	{
 		Shader_Load(&currentSurfaceInfo, &firstPoly, &firstTint, &firstFade);
-		if (gl_use_palette_shader)
+		if (HWR_ShouldUsePaletteRendering())
 		{
 			pglActiveTexture(GL_TEXTURE2);// this stuff could be done better but gonna do it quick like this for now
 			pglBindTexture(GL_TEXTURE_2D, currentSurfaceInfo.LightTableId);
@@ -2687,7 +2686,7 @@ EXPORT void HWRAPI(RenderBatches) (precise_t *sSortTime, precise_t *sDrawTime, i
 				changeState = true;
 				changePolyFlags = true;
 			}
-			if ((gl_allowshaders) && (gl_use_palette_shader))
+			if ((gl_allowshaders) && (HWR_ShouldUsePaletteRendering()))
 			{
 				if (currentSurfaceInfo.PolyColor.rgba != nextSurfaceInfo.PolyColor.rgba ||
 					currentSurfaceInfo.TintColor.rgba != nextSurfaceInfo.TintColor.rgba ||
@@ -2701,7 +2700,7 @@ EXPORT void HWRAPI(RenderBatches) (precise_t *sSortTime, precise_t *sDrawTime, i
 					changeSurfaceInfo = true;
 				}
 			}
-			else if ((gl_allowshaders) && (!gl_use_palette_shader))
+			else if ((gl_allowshaders) && (!HWR_ShouldUsePaletteRendering()))
 			{
 				if (currentSurfaceInfo.PolyColor.rgba != nextSurfaceInfo.PolyColor.rgba ||
 					currentSurfaceInfo.TintColor.rgba != nextSurfaceInfo.TintColor.rgba ||
@@ -2832,7 +2831,7 @@ EXPORT void HWRAPI(RenderBatches) (precise_t *sSortTime, precise_t *sDrawTime, i
 
 				Shader_Load(&nextSurfaceInfo, &poly, &tint, &fade);
 				
-				if (gl_use_palette_shader)
+				if (HWR_ShouldUsePaletteRendering())
 				{
 					pglActiveTexture(GL_TEXTURE2);// this stuff could be done better but gonna do it quick like this for now
 					pglBindTexture(GL_TEXTURE_2D, nextSurfaceInfo.LightTableId);
@@ -2943,7 +2942,7 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 					fade.alpha = byte2float[pSurf->FadeColor.s.alpha];
 				}
 			
-				if (gl_use_palette_shader && gl_allowshaders)
+				if (HWR_ShouldUsePaletteRendering() && gl_allowshaders)
 				{
 					pglActiveTexture(GL_TEXTURE2);
 					pglBindTexture(GL_TEXTURE_2D, pSurf->LightTableId);
@@ -3290,10 +3289,6 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 					gl_allowshaders = false;
 					break;
 			}
-			break;
-			
-		case HWD_SET_PALETTE_SHADER_ENABLED:
-			gl_use_palette_shader = Value;
 			break;
 
 		case HWD_SET_TEXTUREFILTERMODE:
@@ -4364,7 +4359,10 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 	ClearBuffer(true, false, false, &clearColour);
 	pglBindTexture(GL_TEXTURE_2D, finalScreenTexture);
 	
-	if (gl_use_palette_shader && cv_grshaders.value)
+	// prepare shader, if it is enabled
+	Shader_SetUniforms(NULL, NULL, NULL, NULL);
+	
+	if (HWR_ShouldUsePaletteRendering())
 	{
 		pglUseProgram(gl_shaderprograms[8].program); // palette shader
 		pglActiveTexture(GL_TEXTURE1);
@@ -4378,7 +4376,7 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 
 	tex_downloaded = finalScreenTexture;
 	
-	if (gl_use_palette_shader && cv_grshaders.value)
+	if (HWR_ShouldUsePaletteRendering())
 	{
 		pglUseProgram(0);
 		pglActiveTexture(GL_TEXTURE0);
