@@ -10389,16 +10389,22 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 				colormap = R_GetTranslationColormap(TC_RAINBOW, players[tab[i].num].mo->color, GTC_CACHE);
 			else
 				colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
-
+			/* not even used by fickle heartmenu why is this here???
 			{
 				player_t *p;
 				p = &players[tab[i].num];
-				V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
-			}
+				if (cv_highresportrait.value)
+					V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(p), colormap);
+				else
+					V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
+			}*/
 			if (scorelines > 8)
 				V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[players[tab[i].num].skin], colormap);
 			else
-				V_DrawMappedPatch(x, y-4, 0, facerankprefix[players[tab[i].num].skin], colormap);
+				if (cv_highresportrait.value)
+					V_DrawSmallMappedPatch(x, y-4, 0, facewantprefix[players[tab[i].num].skin], colormap);
+				else	
+					V_DrawMappedPatch(x, y-4, 0, facerankprefix[players[tab[i].num].skin], colormap);
 
 			/*if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] > 0) -- not enough space for this
 			{

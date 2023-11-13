@@ -653,7 +653,10 @@ void Y_IntermissionDrawer(void)
 						if (data.match.numplayers > NUMFORNEWCOLUMN)
 							V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
 						else
-							V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
+							if (cv_highresportrait.value)
+								V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[*data.match.character[i]], colormap);
+							else
+								V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
 					}
 					
 					/*if (data.match.color[i]) //need to add support sometime, for now the intermission screen just shows your "actual" skin, but since most server use lua intermission screen anyways, it doesent matter that much
@@ -1629,7 +1632,10 @@ void Y_VoteDrawer(void)
 			if (players[i].skincolor)
 			{
 				UINT8 *colormap = R_GetTranslationColormap(players[i].skin, players[i].skincolor, GTC_CACHE);
-				V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].skin], colormap);
+				if (cv_highresportrait.value)
+					V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, facewantprefix[players[i].skin], colormap);
+				else
+					V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].skin], colormap);
 			}
 
 			if (!splitscreen && i == consoleplayer)
