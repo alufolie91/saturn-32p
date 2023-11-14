@@ -1289,6 +1289,7 @@ boolean camspin[MAXSPLITSCREENPLAYERS];
 static fixed_t forwardmove[2] = {25<<FRACBITS>>16, 50<<FRACBITS>>16};
 static fixed_t sidemove[2] = {2<<FRACBITS>>16, 4<<FRACBITS>>16};
 static fixed_t angleturn[3] = {KART_FULLTURN/2, KART_FULLTURN, KART_FULLTURN/4}; // + slow turn
+static fixed_t strafemove[2] = {25<<FRACBITS>>16, 50<<FRACBITS>>16}; // faster!
 
 void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 {
@@ -1420,15 +1421,29 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	// let movement keys cancel each other out
 	if (turnright && !(turnleft))
 	{
-		cmd->angleturn = (INT16)(cmd->angleturn - (angleturn[tspeed]));
-		cmd->driftturn = (INT16)(cmd->driftturn - (angleturn[tspeed]));
-		side += sidemove[1];
+		if (cv_usemouse.value && stplyr->spectator)
+		{
+			side += strafemove[1];
+		}
+		else
+		{	
+			cmd->angleturn = (INT16)(cmd->angleturn - (angleturn[tspeed]));
+			cmd->driftturn = (INT16)(cmd->driftturn - (angleturn[tspeed]));
+			side += sidemove[1];
+		}
 	}
 	else if (turnleft && !(turnright))
 	{
-		cmd->angleturn = (INT16)(cmd->angleturn + (angleturn[tspeed]));
-		cmd->driftturn = (INT16)(cmd->driftturn + (angleturn[tspeed]));
-		side -= sidemove[1];
+		if (cv_usemouse.value && stplyr->spectator)
+		{
+			side -= strafemove[1];
+		}
+		else
+		{
+			cmd->angleturn = (INT16)(cmd->angleturn + (angleturn[tspeed]));
+			cmd->driftturn = (INT16)(cmd->driftturn + (angleturn[tspeed]));
+			side -= sidemove[1];
+		}
 	}
 
 	if (analogjoystickmove && axis != 0)
