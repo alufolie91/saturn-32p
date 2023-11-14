@@ -1364,6 +1364,11 @@ CV_RegisterVar(&cv_DJAITBL10);
 	CV_RegisterVar(&cv_stagetitle);	
 	
 	CV_RegisterVar(&cv_lessflicker);
+	
+	//WTF
+	CV_RegisterVar(&cv_mouseturn);
+	CV_RegisterVar(&cv_spectatestrafe);
+	
 }
 
 //}

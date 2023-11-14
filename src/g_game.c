@@ -1421,7 +1421,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	// let movement keys cancel each other out
 	if (turnright && !(turnleft))
 	{
-		if (cv_usemouse.value && stplyr->spectator)
+		if (cv_spectatestrafe.value && stplyr->spectator)
 		{
 			side += strafemove[1];
 		}
@@ -1434,7 +1434,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	}
 	else if (turnleft && !(turnright))
 	{
-		if (cv_usemouse.value && stplyr->spectator)
+		if (cv_spectatestrafe.value && stplyr->spectator)
 		{
 			side -= strafemove[1];
 		}
@@ -1455,8 +1455,9 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	}
 
 	// Specator mouse turning
-	if (player->spectator)
+	if (player->spectator || cv_mouseturn.value)
 	{
+	//THIS WORKS WTF????????
 		cmd->angleturn = (INT16)(cmd->angleturn - ((mousex*(encoremode ? -1 : 1)*8)));
 		cmd->driftturn = (INT16)(cmd->driftturn - ((mousex*(encoremode ? -1 : 1)*8)));
 	}
