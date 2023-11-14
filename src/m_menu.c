@@ -1402,7 +1402,9 @@ static menuitem_t OP_ExpOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
 	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",		&cv_grmaxinterpdist,		 35},
-	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 		&cv_precipinterp, 		 		 65},
+	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 		&cv_precipinterp, 		 		 55},
+	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 		&cv_lessprecip, 		 		 65},
+	
 };
 
 
@@ -1411,6 +1413,7 @@ static const char* OP_ExpTooltips[] =
 	NULL,
 	"How far interpolation should take effect.",
 	"Should weather be interpolated?",
+	"When weather is on this will cut the object amount used in half.",
 
 };
 
