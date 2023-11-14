@@ -1657,15 +1657,15 @@ void Y_VoteDrawer(void)
 					}
 					else
 						if (cv_highresportrait.value)
-							V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, facewantprefix[players[i].localskin], colormap);
+							V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, facewantprefix[players[i].localskin - 1], colormap);
 						else
-							V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].localskin], colormap);
+							V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].localskin - 1], colormap);
 				}
 				else {
 					if (cv_highresportrait.value)
 						V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, localfacewantprefix[players[i].localskin - 1], colormap);
 					else
-						V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].localskin - 1], colormap);
+						V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, localfacerankprefix[players[i].localskin - 1], colormap);
 				}
 			}
 
