@@ -4274,7 +4274,7 @@ static void P_SpectatorMovement(player_t *player)
 		// Quake-style flying spectators :D
 		player->mo->momz += FixedMul(cmd->forwardmove*mapobjectscale, AIMINGTOSLOPE(player->aiming));
 	}
-	if (cv_usemouse.value && cmd->sidemove != 0) // was disabled in practice anyways, since sidemove was suppressed
+	if (cmd->sidemove != 0) // was disabled in practice anyways, since sidemove was suppressed
 	{	//False I fixed this shit - Nep
 		P_Thrust(player->mo, player->mo->angle-ANGLE_90, cmd->sidemove*mapobjectscale);
 	}
