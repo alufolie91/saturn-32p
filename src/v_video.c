@@ -203,7 +203,7 @@ void V_SetPalette(INT32 palettenum)
 #ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none) {
 		// in palette rendering mode, we already manage our palette ourselves
-		if (HWR_ShouldUsePaletteRendering()) 
+		if (gr_use_palette_shader) 
 		{
 			// reset our palette lookups n shit
 			gl_palette_initialized = false;
@@ -225,14 +225,14 @@ void V_SetPaletteLump(const char *pal)
 	LoadPalette(pal);
 #ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none) {
-		if (HWR_ShouldUsePaletteRendering()) 
+		if (gr_use_palette_shader) 
 		{
 			// reset our palette lookups n shit
 			gl_palette_initialized = false;
 			InitPalette(0, false);
 		}
-		
-		HWR_SetPalette(pLocalPalette);
+		else 
+			HWR_SetPalette(pLocalPalette);
 	}
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else

@@ -61,12 +61,15 @@ struct hwdriver_s hwdriver;
 // Commands and console variables
 // ==========================================================================
 
+// keep the state here instead of in the cv var, so it always matches the state in r_opengl.c
+int gr_use_palette_shader = 0;
+
 static void CV_filtermode_ONChange(void);
 static void CV_anisotropic_ONChange(void);
 static void CV_screentextures_ONChange(void);
 static void CV_useCustomShaders_ONChange(void); 
 static void CV_grpaletteshader_OnChange(void);
-static void CV_flashpal_OnChange(void);
+static void CV_grshaders_OnChange(void);
 static void CV_Gammaxxx_ONChange(void);
 
 static CV_PossibleValue_t grgamma_cons_t[] = {{1, "MIN"}, {255, "MAX"}, {0, NULL}};
@@ -137,12 +140,12 @@ static INT32 current_bsp_culling_distance = 0;
 consvar_t cv_grscreentextures = {"gr_screentextures", "On", CV_CALL, CV_OnOff,
                                  CV_screentextures_ONChange, 0, NULL, NULL, 0, 0, NULL};
 								 
-consvar_t cv_grshaders = {"gr_shaders", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_grshaders = {"gr_shaders", "On", CV_CALL|CV_SAVE, CV_OnOff, CV_grshaders_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grusecustomshaders = {"gr_usecustomshaders", "Yes", CV_CALL|CV_SAVE, CV_OnOff, CV_useCustomShaders_ONChange, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_grpaletteshader = {"gr_paletteshader", "Off", CV_CALL|CV_SAVE, CV_OnOff, CV_grpaletteshader_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_grflashpal = {"gr_flashpal", "On", CV_CALL|CV_SAVE, CV_OnOff, CV_flashpal_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_grflashpal = {"gr_flashpal", "On", CV_CALL|CV_SAVE, CV_OnOff, CV_grshaders_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_grmdls = {"gr_mdls", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grfallbackplayermodel = {"gr_fallbackplayermodel", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -151,12 +154,6 @@ consvar_t cv_grshearing = {"gr_shearing", "Off", CV_SAVE, CV_OnOff, NULL, 0, NUL
 consvar_t cv_grspritebillboarding = {"gr_spritebillboarding", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grfakecontrast = {"gr_fakecontrast", "Standard", CV_SAVE, grfakecontrast_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grslopecontrast = {"gr_slopecontrast", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-
-boolean HWR_ShouldUsePaletteRendering(void)
-{
-	return (cv_grpaletteshader.value && cv_grshaders.value);
-}
 
 static void CV_filtermode_ONChange(void)
 {
@@ -189,20 +186,22 @@ static void CV_grpaletteshader_OnChange(void)
 {
 	if (rendermode == render_opengl)	
 	{
-		InitPalette(0, false);
-		
-		if (HWR_ShouldUsePaletteRendering())
-		{		
+		if (cv_grshaders.value)
+		{
+			InitPalette(0, false);
+			HWD.pfnSetSpecialState(HWD_SET_PALETTE_SHADER_ENABLED, cv_grpaletteshader.value);
+			gr_use_palette_shader = cv_grpaletteshader.value;			
 			V_SetPalette(0);
-		}	
+		}
 	}
 }
 
-static void CV_flashpal_OnChange(void)
+
+static void CV_grshaders_OnChange(void)
 {
 	if (rendermode == render_opengl)	
 	{
-		if (HWR_ShouldUsePaletteRendering())
+		if (cv_grpaletteshader.value)
 		{
 			InitPalette(0, false);			
 			V_SetPalette(0);
@@ -210,13 +209,14 @@ static void CV_flashpal_OnChange(void)
 	}
 }
 
+
+
 // change the palette directly to see the change
 static void CV_Gammaxxx_ONChange(void)
 {
 	if (rendermode == render_opengl)
 		V_SetPalette(0);
 }
-
 
 // ==========================================================================
 // Globals
@@ -533,7 +533,7 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
 	Surface->LightInfo.fade_start = (colormap != NULL) ? colormap->fadestart : 0;
 	Surface->LightInfo.fade_end = (colormap != NULL) ? colormap->fadeend : 31;
 	
-	if (HWR_ShouldUsePaletteRendering())
+	if (gr_use_palette_shader && cv_grshaders.value)
 	{
 		if (!colormap)
 		{
@@ -887,7 +887,7 @@ void HWR_RenderPlane(extrasubsector_t *xsub, boolean isceiling, fixed_t fixedhei
 		else if (PolyFlags & PF_Ripple)
 			HWD.pfnSetShader(5);	// water shader
 		else
-			HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 9 : 1);	// floor shader
+			HWD.pfnSetShader(gr_use_palette_shader ? 9 : 1);	// floor shader
 		
 		PolyFlags |= PF_ColorMapped;
 	}
@@ -1046,7 +1046,7 @@ static void HWR_DrawSegsSplats(FSurfaceInfo * pSurf)
 
 		if (cv_grshaders.value && gr_shadersavailable)
 		{
-			HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 10 : 2);	// wall shader
+			HWD.pfnSetShader(gr_use_palette_shader ? 10 : 2);	// wall shader
 		}
 		
 		HWD.pfnDrawPolygon(&pSurf, wallVerts, 4, i|PF_Modulated|PF_Decal, false);
@@ -1084,7 +1084,7 @@ void HWR_ProjectWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend
 
 	if (cv_grshaders.value && gr_shadersavailable)
 	{
-		HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 10 : 2);	// wall shader
+		HWD.pfnSetShader(gr_use_palette_shader ? 10 : 2);	// wall shader
 		blendmode |= PF_ColorMapped;
 	}
 
@@ -3332,7 +3332,7 @@ void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, fixed_t
 
 	if (cv_grshaders.value && gr_shadersavailable)
 	{		
-		HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 9 : 1);	// floor shader
+		HWD.pfnSetShader(gr_use_palette_shader ? 9 : 1);	// floor shader
 		blendmode |= PF_ColorMapped;
 	}
 		
@@ -4149,7 +4149,7 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float t
 		
 		if (cv_grshaders.value && gr_shadersavailable)
 		{
-			HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 9 : 1);	// floor shader
+			HWD.pfnSetShader(gr_use_palette_shader ? 9 : 1);	// floor shader
 		}
 		
 		HWD.pfnDrawPolygon(&sSurf, swallVerts, 4, PF_Translucent|PF_Modulated, false);
@@ -4523,7 +4523,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 		
 		if (cv_grshaders.value && gr_shadersavailable)
 		{
-			HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 10 : 3);	// sprite shader
+			HWD.pfnSetShader(gr_use_palette_shader ? 10 : 3);	// sprite shader
 			blend |= PF_ColorMapped;
 		}
 			
@@ -4568,7 +4568,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 
 	if (cv_grshaders.value && gr_shadersavailable)
 	{
-		HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 10 : 3);	// sprite shader
+		HWD.pfnSetShader(gr_use_palette_shader ? 10 : 3);	// sprite shader
 		blend |= PF_ColorMapped;
 	}
 		
@@ -4726,7 +4726,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 
 		if (cv_grshaders.value && gr_shadersavailable)
 		{
-			HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 10 : 3);	// sprite shader
+			HWD.pfnSetShader(gr_use_palette_shader ? 10 : 3);	// sprite shader
 			blend |= PF_ColorMapped;
 		}
 		
@@ -4831,7 +4831,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 
 	if (cv_grshaders.value && gr_shadersavailable)
 	{
-		HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 10 : 3);	// sprite shader
+		HWD.pfnSetShader(gr_use_palette_shader ? 10 : 3);	// sprite shader
 		blend |= PF_ColorMapped;
 	}
 		
@@ -6480,7 +6480,7 @@ void HWR_RenderWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend,
 	{
 		if (cv_grshaders.value && gr_shadersavailable)
 		{
-			HWD.pfnSetShader(HWR_ShouldUsePaletteRendering() ? 10 : 2);	// wall shader
+			HWD.pfnSetShader(gr_use_palette_shader ? 10 : 2);	// wall shader
 			blendmode |= PF_ColorMapped;
 		}
 	}
@@ -6516,7 +6516,7 @@ void HWR_DoPostProcessor(player_t *player)
 
 	// Armageddon Blast Flash!
 	// Could this even be considered postprocessor?
-	if ((player->flashcount) && !(HWR_ShouldUsePaletteRendering() && cv_grflashpal.value))
+	if ((player->flashcount) && !(cv_grshaders.value && gr_use_palette_shader && cv_grflashpal.value))
 	{
 		FOutVector      v[4];
 		FSurfaceInfo Surf;
@@ -6643,7 +6643,7 @@ void HWR_MakeScreenFinalTexture(void)
 
 void HWR_DrawScreenFinalTexture(int width, int height)
 {
-	if (HWR_ShouldUsePaletteRendering())
+	if (gr_use_palette_shader)
 		HWD.pfnSetShader(11);	//post processing
     HWD.pfnDrawScreenFinalTexture(width, height);
 }
