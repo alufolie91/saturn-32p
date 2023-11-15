@@ -1331,7 +1331,7 @@ static const char* OP_MouseTooltips[] =
 	"Turn using the mouse.",
 	"Invert mouse movements.",
 	"Mouse horizontal sensitivity.",
-	"Mouse vertical sensitivity",
+	"Mouse vertical sensitivity.",
 
 };
 
