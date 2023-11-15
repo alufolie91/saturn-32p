@@ -1437,6 +1437,8 @@ static menuitem_t OP_ExpOptionsMenu[] =
 	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 		&cv_precipinterp, 		 		 55},
 	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 		&cv_lessprecip, 		 		 65},
 	
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 		&cv_grscreentextures, 		 		 85},
+	
 };
 
 
@@ -1444,8 +1446,9 @@ static const char* OP_ExpTooltips[] =
 {
 	NULL,
 	"How far interpolation should take effect.",
-	"Should weather be interpolated?",
+	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
+	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
 
 };
 
