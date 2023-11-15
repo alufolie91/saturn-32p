@@ -10,7 +10,6 @@ os.time
 os.date
 os.difftime
 
-
 # New stuff from Saturn:
 
 ## mobj.localskin and player.localskin fields
@@ -50,6 +49,10 @@ if rawget(_G, "S_StopSoundByNum") ~= nil then
     ... -- Can use it
 end
 ```
+
+## hud.disable("statdisplay") hud.enable("statdisplay")
+
+New lua hooks to enable/disable new hud element.
 
 # Stuff from Uranus
 

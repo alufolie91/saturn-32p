@@ -58,7 +58,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - itemoddsystem Default value: CEP
 - lastserver Default value: ""
 - pingicon Default value: on
-
+- highresportait Default value: off
 
 ## Item odds customization
 Please use the cfg script located at ServerScripts/itemodds.cfg if you are going to host a server that will use custom odds.
