@@ -2008,6 +2008,7 @@ enum
 	sm_input,
 	sm_speedometer,
 	sm_statdisplay,
+	sm_highresport,
 	sm_colorhud,
 	sm_coloritem,
 	sm_colorhud_customcolor,
@@ -4408,6 +4409,7 @@ void M_Init(void)
 	if (!clr_hud){ // uhguauhauguuhee
 
 		OP_SaturnMenu[sm_colorhud].status = IT_GRAYEDOUT;
+		OP_SaturnMenu[sm_coloritem].status = IT_GRAYEDOUT;
 		OP_SaturnMenu[sm_colorhud_customcolor].status = IT_GRAYEDOUT;
 	}
 
