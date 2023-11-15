@@ -1433,6 +1433,7 @@ static menuitem_t OP_VideoModeMenu[] =
 static menuitem_t OP_ExpOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
+
 	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",		&cv_grmaxinterpdist,		 	 35},
 	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 		&cv_precipinterp, 		 		 55},
 	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 		&cv_lessprecip, 		 		 65},
@@ -1441,6 +1442,11 @@ static menuitem_t OP_ExpOptionsMenu[] =
 	
 	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 			&cv_grfofcut, 		 		 	 105},
 	
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 				&cv_vhseffect, 		 		 	 75},
+#ifdef HWRENDER	
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 		&cv_grscreentextures, 		 		 75},
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 			&cv_grvhseffect, 		 		 	 85},
+#endif	
 };
 
 static const char* OP_ExpTooltips[] =
@@ -1449,8 +1455,10 @@ static const char* OP_ExpTooltips[] =
 	"How far interpolation should take effect.",
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
+	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
 #ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
+	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
 #endif
 	"Toggle for FOF wall cutoff when slopes.",
 
@@ -1461,8 +1469,10 @@ enum
 	op_exp_header,
 	op_exp_precipinter,
 	op_exp_lessprecip,
+	op_exp_vhs,
 #ifdef HWRENDER
 	op_exp_grscrtx,
+	op_exp_grvhs,
 #endif
 };
 
@@ -4408,7 +4418,11 @@ void M_Init(void)
 	{
 		OP_VideoOptionsMenu[op_video_ogl].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_grscrtx].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_grvhs].status = IT_DISABLED;
 	}
+	
+	if (rendermode == render_opengl)
+		OP_ExpOptionsMenu[op_exp_vhs].status = IT_DISABLED;
 #endif
 
 	if (!snw_speedo && !kartzspeedo) // why bother?
