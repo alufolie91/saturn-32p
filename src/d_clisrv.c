@@ -3338,102 +3338,10 @@ SINT8 nametonum(const char *name)
 	return -1;
 }
 
-
-//Screw the base game nodes lets replace with listplayers instead.
-static void Command_Nodes(void)
-{
-	const char *address;
-	int width = 0;
-
-	boolean admin;
-	boolean spectator;
-
-	/*
-	Mode of player status for an individual player (admin, spectator).
-	1 for admin
-	2 for spectator
-	4 for both
-	*/
-	int mode = 0;
-
-	INT32 totalplayers = 0;
-
-	const char *cc;
-	const char *pcc;
-
-	INT32 i;
-	int n;
-
-	for (i = 0; i < MAXPLAYERS; ++i)
-		if (playeringame[i])
-	{
-		n = strlen(player_names[i]);
-		if (n > width)
-			width = n;
-
-		if (mode != 7)
-		{
-			admin     = IsPlayerAdmin(i);
-			spectator = players[i].spectator;
-
-			if (admin)
-				mode |= 1;
-			if (spectator)
-				mode |= 2;
-			if (admin && spectator)
-				mode |= 4;
-		}
-	}
-
-	for (i = 0; i < MAXPLAYERS; ++i)
-		if (playeringame[i])
-	{
-		admin     = IsPlayerAdmin(i);
-		spectator = players[i].spectator;
-
-		if (admin)
-			cc = "\x85";/* red */
-		else if (spectator)
-			cc = "\x86";/* gray */
-		else
-			cc = "";
-
-		pcc = V_ApproximateSkinColorCode(players[i].skincolor);
-
-		CONS_Printf("%.2d: ""%s""%-*s""\x80", i, pcc,width, player_names[i]);
-
-			if (I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL)
-				CONS_Printf(" -- %s", address);
-			else/* print spacer */
-			{
-				/* ...but not if there's a crammed status and were admin */
-				if (mode != 7 || !admin)
-					CONS_Printf(" --     ");/* -- self */
-			}
-
-		if (admin)
-			CONS_Printf(M_GetText("%s"" (admin)"),cc);
-		if (spectator)
-			CONS_Printf(M_GetText("%s"" (spectator)"),cc);
-
-		CONS_Printf("\n");
-
-		totalplayers++;
-	}
-
-	if (totalplayers == 1)
-		CONS_Printf("\nThere is 1 player in the game.\n");
-	else
-		CONS_Printf("\nThere are %d players in the game.\n", totalplayers);
-}
-
-
-
 /** Lists all players and their player numbers.
   *
   * \sa Command_GetPlayerNum
   */
-/*
 static void Command_Nodes(void)
 {
 	INT32 i;
@@ -3466,7 +3374,6 @@ static void Command_Nodes(void)
 		}
 	}
 }
-*/
 
 //Screw the base game nodes lets replace with listplayers instead.
 static void Command_Listplayers(void)
@@ -4112,7 +4019,6 @@ void D_ClientServerInit(void)
 		VERSION, SUBVERSION));
 
 #ifndef NONET
-	COM_AddCommand("listplayers", Command_Nodes);
 	COM_AddCommand("getplayernum", Command_GetPlayerNum);
 	COM_AddCommand("kick", Command_Kick);
 	COM_AddCommand("ban", Command_Ban);
