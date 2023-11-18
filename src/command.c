@@ -184,6 +184,7 @@ void COM_BufExecute(void)
 	char *ptext;
 	char line[1024] = "";
 	INT32 quotes;
+	char qc = 0;
 
 	while (com_text.cursize)
 	{
@@ -193,10 +194,13 @@ void COM_BufExecute(void)
 		quotes = 0;
 		for (i = 0; i < com_text.cursize; i++)
 		{
-			if (ptext[i] == '\"' && !quotes && i > 0 && ptext[i-1] != ' ') // Malformed command
+			if ((ptext[i] == '\"' || ptext[i] == '\'') && !quotes && i > 0 && ptext[i-1] != ' ') // Malformed command
 				break;
-			if (ptext[i] == '\"')
+			if (((quotes & 1) ? (ptext[i] == qc) : (ptext[i] == '\"' || ptext[i] == '\'')) && (i == 0 || ptext[i-1] != '\\'))
+			{
 				quotes++;
+				qc = ptext[i];
+			}
 			if (!(quotes & 1) && ptext[i] == ';')
 				break; // don't break if inside a quoted string
 			if (ptext[i] == '\n' || ptext[i] == '\r')
@@ -2181,17 +2185,21 @@ skipwhite:
 	}
 
 	// handle quoted strings specially
-	if (c == '\"')
+	if (c == '\"' || c == '\'')
 	{
+		char qc = c;
 		data++;
 		for (;;)
 		{
 			c = *data++;
-			if (c == '\"' || c == '\0')
+			if (c == qc || c == '\0')
 			{
 				com_token[len] = 0;
 				return data;
 			}
+			if (c == '\\' && *data != '\0')
+				c = *data++; // parse next token literally
+
 			com_token[len] = c;
 			len++;
 		}
