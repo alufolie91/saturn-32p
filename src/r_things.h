@@ -211,7 +211,7 @@ extern INT32 numallskins;
 extern skin_t skins[MAXSKINS];
 extern UINT8 skinstats[9][9][MAXSKINS];
 extern UINT8 skinstatscount[9][9];
-extern UINT8 skinsorted[MAXSKINS];
+extern UINT16 skinsorted[MAXSKINS];
 
 void sortSkinGrid(void);
 extern skin_t localskins[MAXSKINS];
