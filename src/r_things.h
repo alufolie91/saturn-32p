@@ -208,7 +208,7 @@ typedef struct drawnode_s
 extern INT32 numskins;
 extern INT32 numlocalskins;
 extern INT32 numallskins;
-extern INT32 numsearchedskins;
+//extern INT32 numsearchedskins;
 extern skin_t skins[MAXSKINS];
 extern UINT16 skinstats[9][9][MAXSKINS];
 extern UINT16 skinstatscount[9][9];
@@ -216,7 +216,7 @@ extern UINT16 skinsorted[MAXSKINS];
 //extern UINT16* searchedskins;
 
 void sortSkinGrid(void);
-void SkinsearchFunc(void);
+//void SkinsearchFunc(void);
 extern skin_t localskins[MAXSKINS];
 extern skin_t allskins[MAXSKINS*2];
 //Skinsearch
