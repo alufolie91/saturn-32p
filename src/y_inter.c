@@ -1646,27 +1646,11 @@ void Y_VoteDrawer(void)
 
 			if (players[i].skincolor)
 			{
-				
 				UINT8 *colormap = R_GetTranslationColormap(players[i].skin, players[i].skincolor, GTC_CACHE);
-				if (!players[i].skinlocal) {
-					if (!players[data.match.num[i]].localskin){
-						if (cv_highresportrait.value)
-							V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, facewantprefix[players[i].skin], colormap);
-						else
-							V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].skin], colormap);
-					}
-					else
-						if (cv_highresportrait.value)
-							V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, facewantprefix[players[i].localskin - 1], colormap);
-						else
-							V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].localskin - 1], colormap);
-				}
-				else {
-					if (cv_highresportrait.value)
-						V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, localfacewantprefix[players[i].localskin - 1], colormap);
-					else
-						V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, localfacerankprefix[players[i].localskin - 1], colormap);
-				}
+				if (cv_highresportrait.value)
+					V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, (players[i].skinlocal ? localfacewantprefix : facewantprefix)[((players[i].localskin) ? players[i].localskin-1 : players[i].skin)], colormap);
+				else
+					V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, (players[i].skinlocal ? localfacerankprefix : facerankprefix)[((players[i].localskin) ? players[i].localskin-1 : players[i].skin)], colormap);
 			}
 
 			if (!splitscreen && i == consoleplayer)
