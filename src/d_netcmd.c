@@ -296,6 +296,8 @@ consvar_t cv_skin4 = {"skin4", DEFAULTSKIN4, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Sk
 // haha I've beaten you now, ONLINE
 consvar_t cv_localskin = {"internal___localskin", "none", CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_showlocalskinmenus = {"showlocalskinmenus", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 consvar_t cv_skipmapcheck = {"skipmapcheck", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 INT32 cv_debug;
@@ -1340,6 +1342,8 @@ void D_RegisterClientCommands(void)
 	
 	CV_RegisterVar(&cv_luaimmersion);
 	CV_RegisterVar(&cv_fakelocalskin);
+	
+	CV_RegisterVar(&cv_showlocalskinmenus);
 
 	//CV_RegisterVar(&cv_crosshair);
 	//CV_RegisterVar(&cv_crosshair2);
@@ -3516,7 +3520,7 @@ static void Got_Pause(UINT8 **cp, INT32 playernum)
 
 		if (paused)
 		{
-			if (!menuactive || netgame)
+			if ((!menuactive || netgame) && (!cv_pausemusic.value))
 				S_PauseAudio();
 		}
 		else
