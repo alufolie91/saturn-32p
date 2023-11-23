@@ -11033,7 +11033,7 @@ static boolean setupm_skinlockedselect;
 #define SKINGRIDHEIGHT 6
 
 #define SKINGRIDNEWWIDTH 8
-#define SKINGRIDNEWHEIGHT 9 // make this 8 when the search stuff is enabled...
+#define SKINGRIDNEWHEIGHT 9
 
 static char *sortNames[] = {
 	"Name",
@@ -11065,10 +11065,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	UINT32 speenframe;
 	INT32 sltw, actw, hetw;
 	UINT16 skintodisplay;
-	INT32 nameboxaddx = 0;
 	INT32 nameboxaddy = 0;
-	INT32 searchboxaddx = 0;
-	INT32 searchboxaddy = 0;
 
 	mx = MP_PlayerSetupDef.x;
 	my = MP_PlayerSetupDef.y;
@@ -11083,30 +11080,24 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	switch (cv_skinselectmenu.value)
 	{
 	case SKINMENUTYPE_EXTENDED:
-		//-30
-		nameboxaddx = 0;
 		nameboxaddy = 6;
-		//searchboxaddx = 20;
-		//searchboxaddy = 110;
 		break;
 	case SKINMENUTYPE_GRID:
-		nameboxaddx = 0;
 		nameboxaddy = 6;
 		break;
 	default:
-		nameboxaddx = 0;
 		nameboxaddy = 0;
 		break;
 	}
 
 	
 	
-	M_DrawTextBox(mx + 32 + nameboxaddx, my - 8 + nameboxaddy, MAXPLAYERNAME, 1);
-	V_DrawString(mx + 40 + nameboxaddx, my + nameboxaddy, V_ALLOWLOWERCASE, setupm_name);
+	M_DrawTextBox(mx + 32, my - 8 + nameboxaddy, MAXPLAYERNAME, 1);
+	V_DrawString(mx + 40, my + nameboxaddy, V_ALLOWLOWERCASE, setupm_name);
 
 	// draw text cursor for name
 	if (!itemOn && skullAnimCounter < 4) // blink cursor
-		V_DrawCharacter(mx + 40 + V_StringWidth(setupm_name, V_ALLOWLOWERCASE) + nameboxaddx, my + nameboxaddy, '_', false);
+		V_DrawCharacter(mx + 40 + V_StringWidth(setupm_name, V_ALLOWLOWERCASE), my + nameboxaddy, '_', false);
 
 	// draw skin string
 	st = V_StringWidth(skins[setupm_fakeskin].realname, 0);
@@ -11228,23 +11219,11 @@ static void M_DrawSetupMultiPlayerMenu(void)
 		case SKINMENUTYPE_EXTENDED:
 			// SRB2Kart: draw the stat backer
 			//This is where stats and shit would go.
-			//Putting the search box code here
-			
-			/*
-			M_DrawTextBox(statx - (21 + 5) + searchboxaddx, staty + searchboxaddy, 16, 1);
-			if (setupm_skinsearch[0])
-				V_DrawString(statx - 18 + searchboxaddx, staty + 8 + searchboxaddy, V_ALLOWLOWERCASE, setupm_skinsearch);
-			else
-				V_DrawString(statx - 18 + searchboxaddx, staty + 8 + searchboxaddy, V_ALLOWLOWERCASE|V_TRANSLUCENT, "Type to search...");
-						
-			if (itemOn == 1 && skullAnimCounter < 4) // blink cursor
-				V_DrawCharacter(statx - 18 +  searchboxaddx + V_StringWidth(setupm_skinsearch, V_ALLOWLOWERCASE), staty + 8 + searchboxaddy, '_', false);
-				*/
 			// gonna put the sorttype here as well
 			V_DrawSmallString(statx-3, staty-37, V_6WIDTHSPACE|highlightflags, "Sort:");
 			V_DrawSmallString(statx+17, staty-37, V_6WIDTHSPACE|highlightflags, sortNames[cv_skinselectgridsort.value]);
 			if (itemOn == 1)
-				V_DrawSmallString(statx+101, staty-37, V_6WIDTHSPACE|highlightflags, "F1: change");
+				V_DrawSmallString(statx+101, staty-37, V_6WIDTHSPACE|highlightflags, "BS: change");
 
 #define GETSELECTEDSPEED (itemOn == 1 && setupm_skinselect < numskins ? skins[skinsorted[setupm_skinselect]].kartspeed : skins[setupm_fakeskin].kartspeed)
 #define GETSELECTEDWEIGHT (itemOn == 1 && setupm_skinselect < numskins ? skins[skinsorted[setupm_skinselect]].kartweight : skins[setupm_fakeskin].kartweight)
@@ -11380,12 +11359,8 @@ static void M_DrawSetupMultiPlayerMenu(void)
 				INT32 skinn;
 				patch_t *face;
 				UINT8 *cmap;
-				/*
-				if (searchedskins != NULL && setupm_skinsearch[0] && (calcs < numsearchedskins))
-					skinn = 1;//searchedskins[calcs];
-				else if (!setupm_skinsearch[0] && (calcs < numskins))
-				*/
-				if (calcs < numskins) //remove this line when uncommenting...
+
+				if (calcs < numskins)
 					skinn = skinsorted[calcs];
 				else if (s % SKINGRIDNEWWIDTH == 0)
 					break; //really conveniant place to break out here
@@ -11656,12 +11631,6 @@ static void M_DrawSetupMultiPlayerMenu(void)
 				sprdef = &skins[0].spritedef;
 			break;
 		case SKINMENUTYPE_EXTENDED:
-			/*
-			if (searchedskins != NULL && setupm_skinsearch[0])
-				skintodisplay = (itemOn == 1 && setupm_skinselect < numsearchedskins ? searchedskins[setupm_skinselect] : setupm_fakeskin);
-			else if (searchedskins == NULL && setupm_skinsearch[0])
-				skintodisplay = setupm_fakeskin;
-			else if (!setupm_skinsearch[0]) */
 				skintodisplay = (itemOn == 1 && setupm_skinselect < numskins ? skinsorted[setupm_skinselect] : setupm_fakeskin);
 			if (R_SkinAvailable(skins[skintodisplay].name) != -1)
 				sprdef = &skins[R_SkinAvailable(skins[skintodisplay].name)].spritedef;
@@ -11763,8 +11732,15 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 					if (setupm_skinselect < ROUNDSKINSUPTO8 - SKINGRIDWIDTH) //if we arent at the bottom of the menu
 					{
 						setupm_skinselect += SKINGRIDWIDTH;
-						if (setupm_skinselect >= ((setupm_skinypos-1)+SKINGRIDHEIGHT)*8 && setupm_skinypos < (ROUNDSKINSUPTO8/8)-SKINGRIDHEIGHT)
-							setupm_skinypos++;
+						
+						if (cv_skinselectmenu.value == SKINMENUTYPE_GRID){
+							if (setupm_skinselect >= ((setupm_skinypos-1)+SKINGRIDHEIGHT)*8 && setupm_skinypos < (ROUNDSKINSUPTO8/8)-SKINGRIDHEIGHT)
+								setupm_skinypos++;
+						}
+						else if (cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED){
+							if (setupm_skinselect >= ((setupm_skinypos-1)+SKINGRIDHEIGHT)*8+24 && setupm_skinypos < (ROUNDSKINSUPTO8/8)-SKINGRIDHEIGHT+24)
+								setupm_skinypos++;
+						}
 					}
 					else
 					{
@@ -11822,8 +11798,16 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				else if (itemOn == 2)
 				{
 					setupm_skinselect = numskins - 1;
-					setupm_skinypos = (((numskins / SKINGRIDWIDTH) - (SKINGRIDHEIGHT-1)) > 0 ? ((numskins / SKINGRIDWIDTH) - (SKINGRIDHEIGHT-1)) : 0);
-					M_PrevOpt();
+					if (cv_skinselectmenu.value == SKINMENUTYPE_GRID){
+						setupm_skinypos = (((numskins / SKINGRIDWIDTH) - (SKINGRIDHEIGHT-1)) > 0 ? ((numskins / SKINGRIDWIDTH) - (SKINGRIDHEIGHT-1)) : 0);
+						M_PrevOpt();
+					}
+					else if (cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED){
+							setupm_skinypos = (((numskins / SKINGRIDWIDTH) - (SKINGRIDHEIGHT-1)-2) > 0 ? ((numskins / SKINGRIDWIDTH) - (SKINGRIDHEIGHT-1)-2) : 0);
+							M_PrevOpt();
+						
+					}
+						
 				}
 				else
 					M_PrevOpt();
@@ -11867,7 +11851,10 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				{
 					INT32 roundedskins = ROUNDSKINSUPTO8;
 					setupm_skinselect = roundedskins-1;
-					setupm_skinypos = (((roundedskins/8) - SKINGRIDHEIGHT) > 0 ? (roundedskins/8) - SKINGRIDHEIGHT : 0);
+					if (cv_skinselectmenu.value == SKINMENUTYPE_GRID)
+						setupm_skinypos = (((roundedskins/8) - SKINGRIDHEIGHT) > 0 ? (roundedskins/8) - SKINGRIDHEIGHT : 0);
+					else if (cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED)
+						setupm_skinypos = (((roundedskins/8) - SKINGRIDHEIGHT-2) > 0 ? (roundedskins/8) - SKINGRIDHEIGHT-2 : 0);
 				}
 				S_StartSound(NULL, sfx_menu1);
 				break;
@@ -11910,8 +11897,14 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				if (setupm_skinselect < ROUNDSKINSUPTO8 - 1)
 				{
 					setupm_skinselect++;
-					if (setupm_skinselect >= ((setupm_skinypos-1)+SKINGRIDHEIGHT)*8 && setupm_skinypos < (ROUNDSKINSUPTO8/8)-SKINGRIDHEIGHT)
-						setupm_skinypos++;
+					if (cv_skinselectmenu.value == SKINMENUTYPE_GRID){
+						if (setupm_skinselect >= ((setupm_skinypos-1)+SKINGRIDHEIGHT)*8 && setupm_skinypos < (ROUNDSKINSUPTO8/8)-SKINGRIDHEIGHT)
+							setupm_skinypos++;
+					}
+					else if (cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED){
+						if (setupm_skinselect >= ((setupm_skinypos-1)+SKINGRIDHEIGHT)*8+24 && setupm_skinypos < (ROUNDSKINSUPTO8/8)-SKINGRIDHEIGHT+24)
+							setupm_skinypos++;							
+					}
 				}
 				else
 				{
@@ -11953,19 +11946,7 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 					setupm_name[l-1] =0;
 				}
 			}
-			/*else if ((cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED) && itemOn == 1)
-			{
-				if ((l = strlen(setupm_skinsearch))!=0)
-				{
-					S_StartSound(NULL,sfx_menu1); // Tails
-					setupm_skinsearch[l-1] =0;
-					setupm_skinypos = 0;
-					setupm_skinxpos = 0;
-					setupm_skinselect = 0;
-					SkinsearchFunc();
-				}
-			}*/
-			else if ((cv_skinselectmenu.value == SKINMENUTYPE_GRID) && itemOn == 1)
+			else if ((cv_skinselectmenu.value == SKINMENUTYPE_GRID || cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED) && itemOn == 1)
 			{
 				// change sort for select menu (damn now i have to add another cvar...)
 				// now we have the cvar
@@ -11984,19 +11965,6 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				}
 			}
 			break;
-
-		case KEY_F1:
-			if ((cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED) && itemOn == 1)
-			{
-				// change sort for select menu (damn now i have to add another cvar...)
-				// now we have the cvar
-				// time to :shitsfree:
-				CV_StealthSetValue(&cv_skinselectgridsort, (cv_skinselectgridsort.value+1)%MAXSKINMENUSORTS);
-				sortSkinGrid();
-				S_StartSound(NULL, sfx_menu1);
-			}
-			break;
-		
 		case KEY_DEL:
 			if (cv_skinselectmenu.value)
 				BREAKWHENLOCKED
@@ -12005,19 +11973,6 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				S_StartSound(NULL,sfx_menu1); // Tails
 				setupm_name[0] = 0;
 			}
-
-			/*else if ((cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED) && itemOn == 1)
-			{
-				if (l = strlen(setupm_skinsearch)!=0)
-				{
-					S_StartSound(NULL,sfx_menu1); // Tails
-					setupm_skinsearch[0] = 0;
-					setupm_skinypos = 0;
-					setupm_skinxpos = 0;
-					setupm_skinselect = 0;
-					SkinsearchFunc();
-				}
-			}*/
 			break;
 
 		//c why?????
@@ -12064,19 +12019,6 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 					setupm_name[l+1] =0;
 				}
 			}
-			/*else if ((cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED) && itemOn == 1){
-				l = strlen(setupm_skinsearch);
-				if (l < 16)
-				{
-					S_StartSound(NULL,sfx_menu1); // Tails
-					setupm_skinsearch[l] =(char)choice;
-					setupm_skinsearch[l+1] =0;
-					setupm_skinypos = 0;
-					setupm_skinxpos = 0;
-					setupm_skinselect = 0;
-					SkinsearchFunc();
-				}
-			}*/
 			break;
 			
 			
@@ -12300,19 +12242,6 @@ static boolean M_QuitMultiPlayerMenu(void)
 			setupm_name[l] =0;
 		COM_BufAddText (va("%s \"%s\"\n",setupm_cvname->name,setupm_name));
 	}
-	/*//remove stuff after leaving menu
-	if (l = strlen(setupm_skinsearch)!=0)
-	{
-		setupm_skinsearch[0] = 0;
-	}
-	
-	if (searchedskins != NULL)
-	{
-		free(searchedskins);
-		searchedskins = NULL;
-		CONS_Printf("Skin array memory freed!\n");
-	}*/
-	
 	// you know what? always putting these in the buffer won't hurt anything.
 	COM_BufAddText (va("%s \"%s\"\n",setupm_cvskin->name,skins[setupm_fakeskin].name));
 	COM_BufAddText (va("%s %d\n",setupm_cvcolor->name,setupm_fakecolor));	

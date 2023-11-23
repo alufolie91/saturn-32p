@@ -3005,7 +3005,6 @@ void R_DrawMasked(void)
 INT32 numskins = 0;
 INT32 numallskins = 0;
 INT32 numlocalskins = 0;
-//INT32 numsearchedskins = 0;
 skin_t skins[MAXSKINS];
 UINT16 skinstats[9][9][MAXSKINS];
 UINT16 skinstatscount[9][9] = {
@@ -3020,11 +3019,8 @@ UINT16 skinstatscount[9][9] = {
 	{0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 UINT16 skinsorted[MAXSKINS];
-//UINT16* searchedskins;
 skin_t localskins[MAXSKINS];
 skin_t allskins[MAXSKINS*2];
-//Skinsearch
-//char   setupm_skinsearch[16+1];
 
 // FIXTHIS: don't work because it must be inistilised before the config load
 //#define SKINVALUES
@@ -3446,63 +3442,6 @@ void sortSkinGrid(void)
 	CONS_Printf("Sorting skin list (%d)...\n", cv_skinselectgridsort.value);
 	qsort(skinsorted, numskins, sizeof(UINT16), skinSortFunc);
 }
-/*
-void SkinsearchFunc(void)
-{
-	
-
-	UINT16 s;
-	UINT16 v;
-	int ic = 0;
-	const skin_t *skininput = &skins[*(const UINT16 *)skinsorted-1];
-	UINT16 val_a = *((const UINT16 *)skinsorted)-1;
-	CONS_Printf("Sorting skin list by name\n");
-	//qsort(skinsorted, numskins, sizeof(UINT16), skinSortFunc);
-	numsearchedskins = 0;
-	
-	for( s = 0 ; s <  sizeof(skinsorted) / sizeof(skinsorted[0]) ; s++ )
-	{
-		skininput++;
-		if (strcasestr(skininput->realname,setupm_skinsearch))
-		{	
-			ic++;
-			CONS_Printf("%d %s\n Name: %s\n Searched Term: %s\n Skin ID: %d\n" ,ic,skininput->realname,skininput->name,setupm_skinsearch,s);
-		}
-	}
-		if (searchedskins == NULL){
-	 		searchedskins = (UINT16*)malloc(ic * sizeof(UINT16));
-			CONS_Printf("Memory not allocated. Allocating...\n"); 
-		}
-		else{
-			searchedskins = (UINT16*)realloc(searchedskins,ic * sizeof(UINT16));
-			CONS_Printf("Memory already allocated. Re-Allocating...\n"); 
-		}
-	
-		if (searchedskins == NULL) { 
-			CONS_Printf("Memory not allocated.\n"); 
-		} 
-		else { 
-  
-        // Memory allocated 
-        //CONS_Printf("Memory successfully allocated using "
-        //       "malloc.\n"); 
-		
-			for( v = 0 ; v <  ic ; v++ )
-			{
-				val_a++;
-				numsearchedskins ++;
-				searchedskins[v] = val_a;
-			
-				CONS_Printf("Skin value inserted for %d\n",searchedskins[v]);
-			}
-			
-		}
-	
-
-  
-}
-*/
-
 
 //
 // Find skin sprites, sounds & optional status bar face, & add them
