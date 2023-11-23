@@ -3021,6 +3021,7 @@ UINT16 skinstatscount[9][9] = {
 UINT16 skinsorted[MAXSKINS];
 skin_t localskins[MAXSKINS];
 skin_t allskins[MAXSKINS*2];
+
 // FIXTHIS: don't work because it must be inistilised before the config load
 //#define SKINVALUES
 #ifdef SKINVALUES
