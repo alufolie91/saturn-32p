@@ -1445,10 +1445,10 @@ static menuitem_t OP_ExpOptionsMenu[] =
 	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 		&cv_grscreentextures, 		 		 85},
 #endif	
 	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 			&cv_grfofcut, 		 		 	 105},
+	
+		{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 				&cv_vhseffect, 		 		 	 125},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 			&cv_grvhseffect, 		 		 	 125},
-#else
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 				&cv_vhseffect, 		 		 	 125},
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 			&cv_grvhseffect, 		 		 	 126},
 #endif
 	
 
@@ -1465,8 +1465,10 @@ static const char* OP_ExpTooltips[] =
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
 #endif
 	"Toggle for FOF wall cutoff when slopes.",
-	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
-
+	"Show a VHS-like effect when the game is paused or youre\nrewinding replays.",
+#ifdef HWRENDER	
+	"Show a VHS-like effect when the game is paused or youre\nrewinding replays.",
+#endif
 
 };
 
@@ -1482,7 +1484,9 @@ enum
 	op_exp_fof,
 
 	op_exp_vhs,
-	
+#ifdef HWRENDER	
+	op_exp_grvhs,
+#endif
 };
 
 
@@ -4437,7 +4441,22 @@ void M_Init(void)
 		PlayerMenu[i].alphaKey = 0;
 	}
 
+	
+#ifdef HWRENDER
+	// Permanently hide some options based on render mode
+	if (rendermode == render_soft)
+	{
+		OP_VideoOptionsMenu[op_video_ogl].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_screentextures].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_grvhs].status = IT_DISABLED;
+	}
 
+	if (rendermode == render_opengl)
+		OP_ExpOptionsMenu[op_exp_vhs].status = IT_DISABLED;
+#endif
+
+
+	
 	if (!snw_speedo && !kartzspeedo) // why bother?
 		OP_SaturnMenu[sm_speedometer].status = IT_GRAYEDOUT;
 	
