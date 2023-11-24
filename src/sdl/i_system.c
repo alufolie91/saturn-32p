@@ -666,6 +666,7 @@ void I_GetConsoleEvents(void)
 		return;
 
 	ev.type = ev_console;
+	ev.data1 = 0;
 	if (read(STDIN_FILENO, &key, 1) == -1 || !key)
 		return;
 
@@ -692,7 +693,7 @@ void I_GetConsoleEvents(void)
 		}
 		else return;
 	}
-	else
+	else if (tty_con.cursor < sizeof (tty_con.buffer))
 	{
 		// push regular character
 		ev.data1 = tty_con.buffer[tty_con.cursor] = key;
@@ -3832,10 +3833,14 @@ static void pathonly(char *s)
 static const char *searchWad(const char *searchDir)
 {
 	static char tempsw[256] = "";
+	filequery_t fsquery;
 	filestatus_t fstemp;
+	
+	fsquery.filename = tempsw;
 
 	strcpy(tempsw, WADKEYWORD1);
-	fstemp = filesearch(tempsw,searchDir,NULL,true,20);
+	fsquery.status = FS_NOTFOUND;
+	fstemp = filesearch(1,&fsquery,searchDir,false,true,20,NULL);
 	if (fstemp == FS_FOUND)
 	{
 		pathonly(tempsw);
@@ -3843,7 +3848,7 @@ static const char *searchWad(const char *searchDir)
 	}
 
 	strcpy(tempsw, WADKEYWORD2);
-	fstemp = filesearch(tempsw, searchDir, NULL, true, 20);
+	fstemp = filesearch(1, &fsquery, searchDir, false, true, 20, NULL);
 	if (fstemp == FS_FOUND)
 	{
 		pathonly(tempsw);

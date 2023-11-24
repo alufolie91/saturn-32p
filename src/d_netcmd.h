@@ -499,6 +499,7 @@ extern consvar_t cv_showlapemblem;
 extern consvar_t cv_showviewpointtext;
 extern consvar_t cv_luaimmersion;
 extern consvar_t cv_fakelocalskin;
+extern consvar_t cv_showlocalskinmenus;
 
 extern consvar_t cv_skipmapcheck;
 
@@ -518,7 +519,8 @@ typedef enum
 {
 	SKINMENUTYPE_SCROLL = 0,
 	SKINMENUTYPE_2D,    // 1
-	SKINMENUTYPE_GRID   // 2
+	SKINMENUTYPE_GRID,   // 2
+	SKINMENUTYPE_EXTENDED	// 3
 } skinmenutype_t;
 
 typedef enum

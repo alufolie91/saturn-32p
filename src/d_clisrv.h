@@ -326,7 +326,7 @@ typedef struct
 	UINT8 gamestate;
 
 	// 0xFF == not in game; else player skin num
-	UINT8 playerskins[MAXPLAYERS];
+	UINT16 playerskins[MAXPLAYERS];
 	UINT8 playercolor[MAXPLAYERS];
 
 	UINT8 gametype;
@@ -432,7 +432,7 @@ typedef struct
 	char name[MAXPLAYERNAME+1];
 	UINT8 address[4]; // sending another string would run us up against MAXPACKETLENGTH
 	UINT8 team;
-	UINT8 skin;
+	UINT16 skin;
 	UINT8 data; // Color is first four bits, hasflag, isit and issuper have one bit each, the last is unused.
 	UINT32 score;
 	UINT16 timeinserver; // In seconds.
@@ -442,7 +442,7 @@ typedef struct
 typedef struct
 {
 	char name[MAXPLAYERNAME+1];
-	UINT8 skin;
+	UINT16 skin;
 	UINT8 color;
 	UINT32 pflags;
 	UINT32 score;
@@ -518,6 +518,8 @@ extern consvar_t cv_kicktime;
 
 extern consvar_t cv_showjoinaddress;
 extern consvar_t cv_playbackspeed;
+
+extern consvar_t cv_shownodeip;
 
 #define BASEPACKETSIZE      offsetof(doomdata_t, u)
 #define FILETXHEADER        offsetof(filetx_pak, data)

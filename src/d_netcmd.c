@@ -196,6 +196,8 @@ static void Command_Isgamemodified_f(void);
 static void Command_Cheats_f(void);
 
 static void Command_ListSkins(void);
+static void Command_SkinSearch(void);
+
 
 #ifdef _DEBUG
 static void Command_Togglemodified_f(void);
@@ -295,6 +297,8 @@ consvar_t cv_skin3 = {"skin3", DEFAULTSKIN3, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Sk
 consvar_t cv_skin4 = {"skin4", DEFAULTSKIN4, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 // haha I've beaten you now, ONLINE
 consvar_t cv_localskin = {"internal___localskin", "none", CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_showlocalskinmenus = {"showlocalskinmenus", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_skipmapcheck = {"skipmapcheck", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -874,7 +878,7 @@ static CV_PossibleValue_t skinselectspin_cons_t[] = {
 consvar_t cv_skinselectspin = {"skinselectspin", "5", CV_SAVE, skinselectspin_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t perfstats_cons_t[] = {
-	{0, "Off"}, {1, "Rendering"}, {2, "Logic"}, {3, "ThinkFrame"}, {0, NULL}};
+	{0, "Off"}, {1, "Rendering"}, {2, "Logic"}, {3, "ThinkFrame"}, {4, "PreThinkFrame"}, {5, "PostThinkFrame"}, {0, NULL}};
 consvar_t cv_perfstats = {"perfstats", "Off", CV_CALL, perfstats_cons_t, PS_PerfStats_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_ps_thinkframe_page = {"ps_thinkframe_page", "1", CV_CALL, CV_Natural, PS_ThinkFrame_Page_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -888,8 +892,8 @@ consvar_t cv_ps_descriptor = {"ps_descriptor", "Average", 0, ps_descriptor_cons_
 
 consvar_t cv_showtrackaddon = {"showtrackaddon", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t skinselectmenu_t[] = {{SKINMENUTYPE_SCROLL, "Scroll"}, {SKINMENUTYPE_2D, "2d"}, {SKINMENUTYPE_GRID, "Grid"}, {0, NULL}};
-consvar_t cv_skinselectmenu = {"skinselectmenu", "Grid", CV_SAVE, skinselectmenu_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t skinselectmenu_t[] = {{SKINMENUTYPE_SCROLL, "Scroll"}, {SKINMENUTYPE_2D, "2d"}, {SKINMENUTYPE_GRID, "Grid"}, {SKINMENUTYPE_EXTENDED, "Extended"}, {0, NULL}};
+consvar_t cv_skinselectmenu = {"skinselectmenu", "Extended", CV_SAVE, skinselectmenu_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t skinselectgridsort_t[] ={
 	{ SKINMENUSORT_REALNAME, "Real name" },
@@ -1141,6 +1145,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_joinnextround);
 #endif
 	CV_RegisterVar(&cv_showjoinaddress);
+	CV_RegisterVar(&cv_shownodeip);
 	CV_RegisterVar(&cv_blamecfail);
 #endif
 
@@ -1339,6 +1344,8 @@ void D_RegisterClientCommands(void)
 	
 	CV_RegisterVar(&cv_luaimmersion);
 	CV_RegisterVar(&cv_fakelocalskin);
+	
+	CV_RegisterVar(&cv_showlocalskinmenus);
 
 	//CV_RegisterVar(&cv_crosshair);
 	//CV_RegisterVar(&cv_crosshair2);
@@ -1533,6 +1540,7 @@ void D_RegisterClientCommands(void)
 #endif
 
 	COM_AddCommand("listskins", Command_ListSkins);
+	COM_AddCommand("skinsearch", Command_SkinSearch);
 }
 
 /**
@@ -1989,7 +1997,7 @@ static void SendNameAndColor(void)
 	// Finally write out the complete packet and send it off.
 	WRITESTRINGN(p, cv_playername.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor.value);
-	WRITEUINT8(p, (UINT8)cv_skin.value);
+	WRITEUINT16(p, (UINT16)cv_skin.value);
 	SendNetXCmd(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2118,7 +2126,7 @@ static void SendNameAndColor2(void)
 	// Finally write out the complete packet and send it off.
 	WRITESTRINGN(p, cv_playername2.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor2.value);
-	WRITEUINT8(p, (UINT8)cv_skin2.value);
+	WRITEUINT16(p, (UINT16)cv_skin2.value);
 	SendNetXCmd2(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2238,7 +2246,7 @@ static void SendNameAndColor3(void)
 	// Finally write out the complete packet and send it off.
 	WRITESTRINGN(p, cv_playername3.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor3.value);
-	WRITEUINT8(p, (UINT8)cv_skin3.value);
+	WRITEUINT16(p, (UINT16)cv_skin3.value);
 	SendNetXCmd3(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2366,7 +2374,7 @@ static void SendNameAndColor4(void)
 	// Finally write out the complete packet and send it off.
 	WRITESTRINGN(p, cv_playername4.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor4.value);
-	WRITEUINT8(p, (UINT8)cv_skin4.value);
+	WRITEUINT16(p, (UINT16)cv_skin4.value);
 	SendNetXCmd4(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2374,7 +2382,9 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 {
 	player_t *p = &players[playernum];
 	char name[MAXPLAYERNAME+1];
-	UINT8 color, skin;
+	UINT8 color; 
+	UINT16 skin;
+	
 
 #ifdef PARANOIA
 	if (playernum < 0 || playernum > MAXPLAYERS)
@@ -2397,7 +2407,7 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 
 	READSTRINGN(*cp, name, MAXPLAYERNAME);
 	color = READUINT8(*cp);
-	skin = READUINT8(*cp);
+	skin = READUINT16(*cp);
 
 	// set name
 	if (player_name_changes[playernum] < MAXNAMECHANGES)
@@ -3513,7 +3523,7 @@ static void Got_Pause(UINT8 **cp, INT32 playernum)
 
 		if (paused)
 		{
-			if (!menuactive || netgame)
+			if ((!menuactive || netgame) && (!cv_pausemusic.value))
 				S_PauseAudio();
 		}
 		else
@@ -6490,6 +6500,26 @@ static void Command_ListSkins(void)
 	{
 		CONS_Printf("There are no more pages.\n");
 	}
+}
+
+static void Command_SkinSearch(void)
+{	
+	size_t i;
+	UINT16 s;
+	UINT16 ic = 0;
+	//skin_t *skininput = &skins[s];
+	for (i = 1; i < COM_Argc(); i++){
+		for( s = 0 ; s <  numallskins ; s++ )
+		{
+			skin_t *skininput = &skins[s];
+			if (strcasestr(skininput->realname,COM_Argv(i)))
+			{	
+				ic++;
+				CONS_Printf("%d. %s%s:\x80 %s\n", ic,HU_SkinColorToConsoleColor(skininput->prefcolor),skininput->realname,skininput->name);
+			}
+		}
+	}
+				CONS_Printf("Total %d skins.\n", ic);
 }
 
 /** Sends a color change for the console player, unless that player is moving.

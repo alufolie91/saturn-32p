@@ -62,7 +62,7 @@ gamestate_t gamestate = GS_NULL;
 UINT8 ultimatemode = false;
 
 boolean botingame;
-UINT8 botskin;
+UINT16 botskin;
 UINT8 botcolor;
 
 JoyType_t Joystick;
@@ -1993,7 +1993,7 @@ boolean G_Responder(event_t *ev)
 				paused = true;
 				S_PauseAudio();
 			}
-			else if (paused)
+			else if ((paused) && (!cv_pausemusic.value))
 				S_PauseAudio();
 			else
 				S_ResumeAudio();

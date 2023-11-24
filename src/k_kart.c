@@ -912,11 +912,11 @@ UINT8 K_GetKartColorByName(const char *name)
 
 
 UINT8 K_GetHudColor(void)
-{
-	if (stplyr && players - stplyr != consoleplayer) return stplyr->skincolor;
+{	
 	if (cv_colorizedhud.value){
 		if (cv_colorizedhudcolor.value) return cv_colorizedhudcolor.value;
 	}
+	if (stplyr && P_IsLocalPlayer(stplyr)) return stplyr->skincolor;
 	return (stplyr ? stplyr->skincolor : cv_playercolor.value);
 }
 
@@ -4957,7 +4957,6 @@ static angle_t K_GetSlopeRollAngle(player_t *p, boolean dontflip, boolean useRes
 
 	lookAngle = R_PointToAngle2(camera[pNum].x, camera[pNum].y, p->mo->x, p->mo->y);
 
-
 	if (!R_PointToDist(p->mo->x, p->mo->y))
 		lookAngle = p->mo->angle;
 
@@ -4983,7 +4982,11 @@ static angle_t K_GetSlopeRollAngle(player_t *p, boolean dontflip, boolean useRes
 
 	an = (lookAngle - xydirection);
 	final_slope = -(FixedMul(FINESINE(an>>ANGLETOFINESHIFT), zangle));
-	an = (INT32)(final_slope - p->tilt_sprite) / 3; // instead of just a direct snap
+	
+	if (camspin[pNum])
+		an = (INT32)(final_slope - p->tilt_sprite); // do a direct snap
+	else
+		an = (INT32)(final_slope - p->tilt_sprite) / 3; // instead of just a direct snap
 
 	if (an)
 		p->tilt_sprite += an;
@@ -9506,7 +9509,7 @@ static void K_drawKartStats(void)
 		spdoffset = 0;
 	
 	// Customizations c:
-	x += cv_stat_xoffset.value;
+	x += 18 + cv_stat_xoffset.value;
 	y += cv_stat_yoffset.value + (G_BattleGametype() ? (stplyr->kartstuff[k_bumper] ? -5 : -8) : 0) + spdoffset;
 	flags |= V_HUDTRANS;
 

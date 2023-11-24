@@ -45,6 +45,7 @@
 #include "lua_script.h"
 #include "lua_hook.h"
 #include "k_kart.h"
+#include "d_async.h"
 #include "s_sound.h" // sfx_syfail
 #include "m_perfstats.h"
 
@@ -170,6 +171,8 @@ static textcmdtic_t *textcmds[TEXTCMD_HASH_SIZE] = {NULL};
 
 
 consvar_t cv_showjoinaddress = {"showjoinaddress", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_shownodeip = {"showipinnodelist", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t playbackspeed_cons_t[] = {{1, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_playbackspeed = {"playbackspeed", "1", 0, playbackspeed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1657,7 +1660,7 @@ static void SV_SendPlayerInfo(INT32 node)
 
 		netbuffer->u.playerinfo[i].score = LONG(players[i].score);
 		netbuffer->u.playerinfo[i].timeinserver = SHORT((UINT16)(players[i].jointime / TICRATE));
-		netbuffer->u.playerinfo[i].skin = (UINT8)players[i].skin;
+		netbuffer->u.playerinfo[i].skin = (UINT16)players[i].skin;
 
 		// Extra data
 		// Kart has extra skincolors, so we can't use this
@@ -1703,7 +1706,7 @@ static boolean SV_SendServerConfig(INT32 node)
 
 	// we fill these structs with FFs so that any players not in game get sent as 0xFFFF
 	// which is nice and easy for us to detect
-	memset(netbuffer->u.servercfg.playerskins, 0xFF, sizeof(netbuffer->u.servercfg.playerskins));
+	memset(netbuffer->u.servercfg.playerskins, 0xFFFF, sizeof(netbuffer->u.servercfg.playerskins));
 	memset(netbuffer->u.servercfg.playercolor, 0xFF, sizeof(netbuffer->u.servercfg.playercolor));
 
 	memset(netbuffer->u.servercfg.adminplayers, -1, sizeof(netbuffer->u.servercfg.adminplayers));
@@ -1715,7 +1718,7 @@ static boolean SV_SendServerConfig(INT32 node)
 		if (!playeringame[i])
 			continue;
 
-		netbuffer->u.servercfg.playerskins[i] = (UINT8)players[i].skin;
+		netbuffer->u.servercfg.playerskins[i] = (UINT16)players[i].skin;
 		netbuffer->u.servercfg.playercolor[i] = (UINT8)players[i].skincolor;
 	}
 
@@ -3335,9 +3338,45 @@ SINT8 nametonum(const char *name)
 	return -1;
 }
 
+/** Lists all players and their player numbers.
+  *
+  * \sa Command_GetPlayerNum
+  */
+static void Command_Nodes(void)
+{
+	INT32 i;
+	size_t maxlen = 0;
+	const char *address;
+
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		const size_t plen = strlen(player_names[i]);
+		if (playeringame[i] && plen > maxlen)
+			maxlen = plen;
+	}
+
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		if (playeringame[i])
+		{
+			CONS_Printf("%.2u: %*s", i, (int)maxlen, player_names[i]);
+			CONS_Printf(" - %.2d", playernode[i]);
+			if ((I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL) && (cv_shownodeip.value))
+				CONS_Printf(" - %s", address);
+
+			if (IsPlayerAdmin(i))
+				CONS_Printf(M_GetText(" (verified admin)"));
+
+			if (players[i].spectator)
+				CONS_Printf(M_GetText(" (spectator)"));
+
+			CONS_Printf("\n");
+		}
+	}
+}
 
 //Screw the base game nodes lets replace with listplayers instead.
-static void Command_Nodes(void)
+static void Command_Listplayers(void)
 {
 	const char *address;
 	int width = 0;
@@ -3395,11 +3434,11 @@ static void Command_Nodes(void)
 		else
 			cc = "";
 
-		pcc = V_ApproximateSkinColorCode(players[i].skincolor);
+		pcc = HU_SkinColorToConsoleColor(players[i].skincolor);
 
 		CONS_Printf("%.2d: ""%s""%-*s""\x80", i, pcc,width, player_names[i]);
 
-			if (I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL)
+			if ((I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL) && (cv_shownodeip.value))
 				CONS_Printf(" -- %s", address);
 			else/* print spacer */
 			{
@@ -3423,47 +3462,6 @@ static void Command_Nodes(void)
 	else
 		CONS_Printf("\nThere are %d players in the game.\n", totalplayers);
 }
-
-
-
-/** Lists all players and their player numbers.
-  *
-  * \sa Command_GetPlayerNum
-  */
-/*
-static void Command_Nodes(void)
-{
-	INT32 i;
-	size_t maxlen = 0;
-	const char *address;
-
-	for (i = 0; i < MAXPLAYERS; i++)
-	{
-		const size_t plen = strlen(player_names[i]);
-		if (playeringame[i] && plen > maxlen)
-			maxlen = plen;
-	}
-
-	for (i = 0; i < MAXPLAYERS; i++)
-	{
-		if (playeringame[i])
-		{
-			CONS_Printf("%.2u: %*s", i, (int)maxlen, player_names[i]);
-			CONS_Printf(" - %.2d", playernode[i]);
-			if (I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL)
-				CONS_Printf(" - %s", address);
-
-			if (IsPlayerAdmin(i))
-				CONS_Printf(M_GetText(" (verified admin)"));
-
-			if (players[i].spectator)
-				CONS_Printf(M_GetText(" (spectator)"));
-
-			CONS_Printf("\n");
-		}
-	}
-}
-*/
 
 static void Command_Ban(void)
 {
@@ -4021,7 +4019,6 @@ void D_ClientServerInit(void)
 		VERSION, SUBVERSION));
 
 #ifndef NONET
-	COM_AddCommand("listplayers", Command_Nodes);
 	COM_AddCommand("getplayernum", Command_GetPlayerNum);
 	COM_AddCommand("kick", Command_Kick);
 	COM_AddCommand("ban", Command_Ban);
@@ -4031,6 +4028,7 @@ void D_ClientServerInit(void)
 	COM_AddCommand("reloadbans", Command_ReloadBan);
 	COM_AddCommand("connect", Command_connect);
 	COM_AddCommand("nodes", Command_Nodes);
+	COM_AddCommand("listplayers", Command_Listplayers);
 #ifdef HAVE_CURL
 	COM_AddCommand("set_http_login", Command_set_http_login);
 	COM_AddCommand("list_http_logins", Command_list_http_logins);
@@ -4908,7 +4906,7 @@ static void HandlePacketFromAwayNode(SINT8 node)
 			memset(playeringame, 0, sizeof(playeringame));
 			for (j = 0; j < MAXPLAYERS; j++)
 			{
-				if (netbuffer->u.servercfg.playerskins[j] == 0xFF
+				if (netbuffer->u.servercfg.playerskins[j] == 0xFFFF
 				 && netbuffer->u.servercfg.playercolor[j] == 0xFF)
 					continue; // not in game
 
@@ -5406,7 +5404,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 			}
 			else
 			{
-				DEBFILE(va("frame not in bound: %u\n", neededtic));
+				DEBFILE(va("frame not in bound: %u (bounds are from %u to %u)\n", neededtic, realstart, realend));
 				/*if (realend < neededtic - 2 * TICRATE || neededtic + 2 * TICRATE < realstart)
 					I_Error("Received an out of order PT_SERVERTICS packet!\n"
 							"Got tics %d-%d, needed tic %d\n\n"
@@ -6049,6 +6047,8 @@ boolean TryRunTics(tic_t realtics)
 
 	if (singletics)
 		realtics = 1;
+	
+	Finish_async_addfile();
 
 	if (realtics >= 1)
 	{
@@ -6126,6 +6126,8 @@ boolean TryRunTics(tic_t realtics)
 	{
 		hu_stopped = true;
 	}
+	
+	Detach_async_addfile();
 
 	return ticking;
 }
