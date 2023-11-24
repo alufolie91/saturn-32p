@@ -428,8 +428,14 @@ filestatus_t filesearch(int nfiles, filequery_t *files, const char *startpath, b
 			if (lstat(searchpath,&fsstat) == 0 && S_ISDIR(fsstat.st_mode))
 				dent->d_type = DT_DIR;
             else if (lstat(searchpath,&fsstat) == 0 && S_ISLNK(fsstat.st_mode))
-                    dent->d_type = DT_LNK;
+                dent->d_type = DT_LNK;
 
+		// Symlinks aren't always directory symlinks. Dunno if this would resolve recursive
+		// symlinks, but i think stat already does that
+		if (dent->d_type == DT_LNK && stat(searchpath,&fsstat) == 0 && !S_ISDIR(fsstat.st_mode))
+		{
+			dent->d_type = DT_UNKNOWN;
+		}
 
 		// Linux and FreeBSD has a special field for file type on dirent, so use that to speed up lookups.
 		// FIXME: should we also follow symlinks?
