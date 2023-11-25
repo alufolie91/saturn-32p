@@ -831,7 +831,7 @@ static void COM_Exec_f(void)
 
 		strcpy(q.filename, filename);
 
-		if (FIL_FileOK(filename))
+		if (FIL_FileOK(va(pandf,srb2home,filename)))
 		{
 			q.status = FS_FOUND;
 		}
