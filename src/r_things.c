@@ -667,9 +667,12 @@ void R_InitSprites(void)
 
 	// it can be is do before loading config for skin cvar possible value
 	R_InitSkins();
-	for (i = 0; i < numwadfiles; i++)
+	for (i = 0; i < numwadfiles; i++) 
+	{
 		R_AddSkins((UINT16)i, false);
-
+		R_LoadSpriteInfoLumps(i, wadfiles[i]->numlumps);
+	}
+		
 	//
 	// check if all sprites have frames
 	//
@@ -1424,7 +1427,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	{
 		sprdef = &((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->spritedef;
 #ifdef ROTSPRITE
-		sprinfo = &spriteinfo[thing->sprite];
+		sprinfo = &((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->sprinfo;
 #endif
 
 		if (rot >= sprdef->numframes)
@@ -3114,6 +3117,7 @@ void R_InitSkins(void)
 
 	skin->spritedef.numframes = sprites[SPR_PLAY].numframes;
 	skin->spritedef.spriteframes = sprites[SPR_PLAY].spriteframes;
+	skin->sprinfo = spriteinfo[SPR_PLAY];
 	ST_LoadFaceGraphics(skin->facerank, skin->facewant, skin->facemmap, 0);
 
 	// Set values for Sonic skin
@@ -3638,6 +3642,7 @@ next_token:
 		free(buf2);
 
 		lump++; // if no sprite defined use spirte just after this one
+		INT32 sprnum;
 		if (skin->sprite[0] == '\0')
 		{
 			const char *csprname = W_CheckNameForNumPwad(wadnum, lump);
@@ -3648,6 +3653,9 @@ next_token:
 				lastlump++;
 			// allocate (or replace) sprite frames, and set spritedef
 			R_AddSingleSpriteDef(csprname, &skin->spritedef, wadnum, lump, lastlump);
+
+			// i feel like generally most skin authors just use PLAY here, so just assume PLAY
+			sprnum = SPR_PLAY;
 		}
 		else
 		{
@@ -3694,6 +3702,8 @@ next_token:
 
 				R_AddSingleSpriteDef(sprname, &skin->spritedef, wadnum, lstart, lend);
 			}
+
+			sprnum = numspritelumps - 1;
 
 			// I don't particularly care about skipping to the end of the used frames.
 			// We could be using frames from ANYWHERE in the current WAD file, including
