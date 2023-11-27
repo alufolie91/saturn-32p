@@ -1443,12 +1443,16 @@ static menuitem_t OP_ExpOptionsMenu[] =
 	
 #ifdef HWRENDER	
 	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 		&cv_grscreentextures, 		 		 85},
-#endif	
-	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 			&cv_grfofcut, 		 		 	 105},
+	#endif	
+	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix", 		&cv_splitwallfix, 		 95},
+	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	 105},
+	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	 115},
+
+	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 			&cv_grfofcut, 		 		 	 125},
 	
-		{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 				&cv_vhseffect, 		 		 	 125},
+		{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 				&cv_vhseffect, 		 		 	 145},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 			&cv_grvhseffect, 		 		 	 126},
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 			&cv_grvhseffect, 		 		 	 146},
 #endif
 	
 
@@ -1464,7 +1468,13 @@ static const char* OP_ExpTooltips[] =
 #ifdef HWRENDER	
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
 #endif
+	
+	"Fixes issues that resulted in Textures sticking from\n the ground sometimes. This may be CPU heavy and result in worse performance\n in some cases.",
+	"Fixes issues that resulted in Textures not being properly\n skewed example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result\n in worse performance in some cases.",
+	"Fixes issues that resulted in Textures on Floor over Floors ZFighting heavily.",
+
 	"Toggle for FOF wall cutoff when slopes.",
+	
 	"Show a VHS-like effect when the game is paused or youre\nrewinding replays.",
 #ifdef HWRENDER	
 	"Show a VHS-like effect when the game is paused or youre\nrewinding replays.",
@@ -1481,11 +1491,16 @@ enum
 #ifdef HWRENDER
 	op_exp_screentextures,
 #endif
+	op_exp_spltwal,
+	op_exp_pegging,
+	op_exp_fofzfight,
+	
 	op_exp_fof,
 
 	op_exp_vhs,
 #ifdef HWRENDER	
 	op_exp_grvhs,
+
 #endif
 };
 
@@ -4449,6 +4464,9 @@ void M_Init(void)
 		OP_VideoOptionsMenu[op_video_ogl].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_screentextures].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_grvhs].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_spltwal].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_pegging].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_fofzfight].status = IT_DISABLED;
 	}
 
 	if (rendermode == render_opengl)
