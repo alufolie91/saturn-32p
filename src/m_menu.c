@@ -1436,27 +1436,23 @@ static menuitem_t OP_VideoModeMenu[] =
 static menuitem_t OP_ExpOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
-
 	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",		&cv_grmaxinterpdist,		 	 35},
-	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 		&cv_precipinterp, 		 		 55},
-	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 		&cv_lessprecip, 		 		 65},
+	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 45},
+	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 55},
 	
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_vhseffect, 		 		 75},
+	
+	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 95},
+	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	 105},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 		&cv_grscreentextures, 		 		 85},
-	#endif	
-	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix", 		&cv_splitwallfix, 		 95},
-	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	 105},
-	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	 115},
-
-	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 			&cv_grfofcut, 		 		 	 125},
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 76},
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_grvhseffect, 		 	 86},
 	
-		{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 				&cv_vhseffect, 		 		 	 145},
-#ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 			&cv_grvhseffect, 		 		 	 146},
-#endif
-	
-
-	
+	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	106},
+	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	116},
+	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	126},
+	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		136},
+#endif	
 };
 
 static const char* OP_ExpTooltips[] =
@@ -1465,19 +1461,16 @@ static const char* OP_ExpTooltips[] =
 	"How far interpolation should take effect.",
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
-#ifdef HWRENDER	
+	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
+	"Hides 3DFloors which are not visible\npotentially resulting in a performance boost.",
+	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
+#ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
-#endif
-	
-	"Fixes issues that resulted in Textures sticking from\n the ground sometimes. This may be CPU heavy and result in worse performance\n in some cases.",
-	"Fixes issues that resulted in Textures not being properly\n skewed example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result\n in worse performance in some cases.",
+	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
+	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
+	"Fixes issues that resulted in Textures not being properly skewed\n example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result in worse performance in some cases.",
 	"Fixes issues that resulted in Textures on Floor over Floors ZFighting heavily.",
-
 	"Toggle for FOF wall cutoff when slopes.",
-	
-	"Show a VHS-like effect when the game is paused or youre\nrewinding replays.",
-#ifdef HWRENDER	
-	"Show a VHS-like effect when the game is paused or youre\nrewinding replays.",
 #endif
 
 };
@@ -1488,19 +1481,16 @@ enum
 	op_exp_interpdist,
 	op_exp_precipinter,
 	op_exp_lessprecip,
+	op_exp_vhs,
+	op_exp_ffclip,
+	op_exp_sprclip,
 #ifdef HWRENDER
 	op_exp_screentextures,
-#endif
+	op_exp_grvhs,
 	op_exp_spltwal,
 	op_exp_pegging,
 	op_exp_fofzfight,
-	
-	op_exp_fof,
-
-	op_exp_vhs,
-#ifdef HWRENDER	
-	op_exp_grvhs,
-
+	op_exp_fofcut,
 #endif
 };
 
@@ -4467,10 +4457,14 @@ void M_Init(void)
 		OP_ExpOptionsMenu[op_exp_spltwal].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_pegging].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_fofzfight].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_fofcut].status = IT_DISABLED;
 	}
-
-	if (rendermode == render_opengl)
+	
+	if (rendermode == render_opengl){
 		OP_ExpOptionsMenu[op_exp_vhs].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_ffclip].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_sprclip].status = IT_DISABLED;
+	}
 #endif
 
 
