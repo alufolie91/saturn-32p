@@ -2258,9 +2258,11 @@ static menuitem_t OP_BirdMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Only Show One Battle Choice", &cv_lessbattlevotes, 80},
 	{IT_STRING | IT_CVAR, NULL, "Encore Choices",              &cv_encorevotes,     90},
 
+
 	{IT_HEADER, NULL, "Music", NULL, 110},
-	{IT_STRING | IT_CVAR, NULL, "Resume Level Music",    &cv_resume,            120},
-	{IT_STRING | IT_CVAR, NULL, "Restart Special Music", &cv_resetspecialmusic, 130},
+	{IT_STRING | IT_CVAR, NULL, "Music Features",    	 &cv_birdmusic,            120},
+	{IT_STRING | IT_CVAR, NULL, "Resume Level Music",    &cv_resume,            130},
+	{IT_STRING | IT_CVAR, NULL, "Restart Special Music", &cv_resetspecialmusic, 140},
 
 	{IT_STRING | IT_SUBMENU, NULL, "Advanced Music Options...", &OP_AdvancedBirdDef, 150},
 };
@@ -2276,11 +2278,29 @@ static const char* OP_BirdTooltips[] =
 	"Only show one battle choice in map vote",
 	"Amount of encore choices in map vote.",
 	NULL,
+	"Global toggle for all bird music features.",
 	"Resume level music from last position after music change.",
 	"Restart Special music if item is used again.",
 	
 	"Options for advanced music settings.",
 	
+};
+
+enum
+{
+	headercrzy,
+	tiltmenu,
+	headerhud,
+	viewpointext,
+	freeplaytext,
+	headervoting,
+	battlechoice,
+	encorechoice,
+	headermusic,
+	birdmusic,
+	lvlresum,
+	spclresum,
+	advmusic,
 };
 
 static menuitem_t OP_ForkedBirdMenu[] =
@@ -3218,6 +3238,19 @@ void Bird_menu_Onchange(void)
 	OP_AdvancedBirdMenu[fadegrow].status = status;
 	OP_AdvancedBirdMenu[respawnfadeout].status = status;
 	OP_AdvancedBirdMenu[respawnfadein].status = status;
+	
+	if (cv_birdmusic.value)
+	{
+		OP_BirdMenu[lvlresum].status = IT_STRING | IT_CVAR;
+		OP_BirdMenu[spclresum].status = IT_STRING | IT_CVAR;
+		OP_BirdMenu[advmusic].status = IT_STRING | IT_SUBMENU;
+	}
+	else
+	{
+		OP_BirdMenu[lvlresum].status = IT_GRAYEDOUT;
+		OP_BirdMenu[spclresum].status = IT_GRAYEDOUT;
+		OP_BirdMenu[advmusic].status = IT_GRAYEDOUT;
+	}	
 }
 
 //menu code is nice
