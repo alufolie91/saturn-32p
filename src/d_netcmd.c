@@ -1483,6 +1483,7 @@ void D_RegisterClientCommands(void)
 	
 	//Showallmaps in map selector including hell
 	CV_RegisterVar(&cv_showallmaps);
+	CV_RegisterVar(&cv_showmusicfilename);
 
 
 	// ingame object placing
