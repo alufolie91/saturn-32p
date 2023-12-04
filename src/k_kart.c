@@ -4820,7 +4820,7 @@ static void K_StretchPlayerGravity(player_t *p)
 	if (p->mo->slamsoundtimer)
 		p->mo->slamsoundtimer--;
 
-	if (cv_slamsound.value == 1 && (p->mo->eflags & MFE_JUSTHITFLOOR) && p->mo->stretchslam > 4*mos && !p->mo->slamsoundtimer)
+	if (cv_slamsound.value && (p->mo->eflags & MFE_JUSTHITFLOOR) && p->mo->stretchslam > 4*mos && !p->mo->slamsoundtimer)
 	{
 		S_StartSound(p->mo, sfx_s3k4c);
 		p->mo->slamsoundtimer = TICRATE;
@@ -4853,12 +4853,11 @@ static void K_StretchPlayerGravity(player_t *p)
 		else
 			slamDiv = FixedDiv(p->mo->stretchslam, stretchScaleFactor);
         p->mo->spritexscale = (dxs+(((slamDiv*2)/3)*2));
-        p->mo->spriteyscale = ((dys-(slamDiv)));
+        p->mo->spriteyscale = (dys-(slamDiv));
         if (p->mo->stretchslam > 0)
             p->mo->stretchslam -= (4*mos);
         else
             p->mo->stretchslam = 0;
-
     }
 }
 
@@ -4928,6 +4927,7 @@ static void K_QuiteSaltyHop(player_t *p)
 static INT32 K_FindPlayerNum(player_t *plyr)
 {
 	INT32 i;
+	
 	for(i = 0; i < 4; i++)
 	{
 		if (plyr == &players[displayplayers[i]])
@@ -4968,13 +4968,10 @@ static angle_t K_GetSlopeRollAngle(player_t *p, boolean dontflip, boolean useRes
     		p->mo->reservezangle = zangle;
     		p->mo->reservexydir = xydirection;
 	}
-	else
+	else if (p->mo->reservezangle)
 	{
-		if (p->mo->reservezangle)
-		{
-			zangle = p->mo->reservezangle;
-			xydirection = p->mo->reservexydir;
-		}
+		zangle = p->mo->reservezangle;
+		xydirection = p->mo->reservexydir;
 	}
 
 	if ((p->mo->eflags & MFE_VERTICALFLIP) && (!dontflip))
@@ -4982,16 +4979,10 @@ static angle_t K_GetSlopeRollAngle(player_t *p, boolean dontflip, boolean useRes
 
 	an = (lookAngle - xydirection);
 	final_slope = -(FixedMul(FINESINE(an>>ANGLETOFINESHIFT), zangle));
+		
+	an = (INT32)(final_slope - p->tilt_sprite) / (camspin[pNum] ? 1 : 3);
 	
-	if (camspin[pNum])
-		an = (INT32)(final_slope - p->tilt_sprite); // do a direct snap
-	else
-		an = (INT32)(final_slope - p->tilt_sprite) / 3; // instead of just a direct snap
-
-	if (an)
-		p->tilt_sprite += an;
-	else
-		p->tilt_sprite = final_slope;
+	p->tilt_sprite = an ? p->tilt_sprite + an : final_slope;	
 	return -p->tilt_sprite;
 }
 
