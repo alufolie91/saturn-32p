@@ -36,9 +36,6 @@ extern boolean big_lap_color; //bigger lap counter but colour
 extern boolean kartzspeedo; //kartZ speedo
 extern boolean statdp; //stat display for extended player setup
 
-extern boolean autoloading;
-extern boolean autoloaded;
-
 // the infinite loop of D_SRB2Loop() called from win_main for windows version
 void D_SRB2Loop(void) FUNCNORETURN;
 
