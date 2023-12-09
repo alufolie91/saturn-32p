@@ -59,12 +59,14 @@ consvar_t cv_want_yoffset = {"hud_wanted_yoffset", "0", CV_SAVE, NULL, NULL, 0, 
 consvar_t cv_stat_xoffset = {"hud_stat_xoffset", "0", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_stat_yoffset = {"hud_stat_yoffset", "0", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+// extra hud things
 consvar_t cv_showstats = {"showstats", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_showinput = {"showinput", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 static CV_PossibleValue_t speedo_cons_t[] = {{1, "Default"}, {2, "Small"}, {3, "P-Meter"}, {0, NULL}};
 consvar_t cv_newspeedometer = {"newspeedometer", "Default", CV_SAVE, speedo_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-
+//hardcode satlyhop mhhm
 consvar_t cv_saltyhop = {"hardcodehop", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_saltyhopsfx = {"hardcodehopsfx", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_saltysquish = {"hardcodehopsquish", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -77,11 +79,11 @@ consvar_t cv_colorizeditembox = {"colorizeditembox", "On", CV_SAVE, CV_OnOff, NU
 static CV_PossibleValue_t HudColor_cons_t[MAXSKINCOLORS+1];
 consvar_t cv_colorizedhudcolor = {"colorizedhudcolor", "Skin Color", CV_SAVE, HudColor_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_darkitembox = {"darkitembox", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_highresportrait = {"highresportrait", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //make char potraits use their high-res version instead
 
-consvar_t cv_biglaps = {"biglaphud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; // here for ppl who dont want to make 2 more patches for their custom hud
+consvar_t cv_darkitembox = {"darkitembox", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //itembox gets a dark box with specific items
 
-consvar_t  cv_highresportrait = {"highresportrait", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_biglaps = {"biglaphud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //here for ppl who dont want to make 2 more patches for their custom hud
 
 
 
@@ -9713,12 +9715,8 @@ static void K_drawKartItem(void)
 					break;
 				case KITEM_INVINCIBILITY:
 					localpatch = localinv;
-					if (cv_darkitembox.value){
-						if (cv_colorizeditembox.value && K_UseColorHud())
-							localbg = kp_itembgclr[offset+1];
-						else
-							localbg = kp_itembg[offset+1];
-					}
+					if (cv_darkitembox.value)
+						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
 					break;
 				case KITEM_BANANA:
 					localpatch = kp_banana[offset];
@@ -9740,12 +9738,8 @@ static void K_drawKartItem(void)
 					break;
 				case KITEM_SPB:
 					localpatch = kp_selfpropelledbomb[offset];
-					if (cv_darkitembox.value){
-						if (cv_colorizeditembox.value && K_UseColorHud())
-							localbg = kp_itembgclr[offset+1];
-						else
-							localbg = kp_itembg[offset+1];
-					}
+					if (cv_darkitembox.value)
+						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
 					break;
 				case KITEM_GROW:
 					localpatch = kp_grow[offset];
@@ -9755,12 +9749,8 @@ static void K_drawKartItem(void)
 					break;
 				case KITEM_THUNDERSHIELD:
 					localpatch = kp_thundershield[offset];
-					if (cv_darkitembox.value){
-						if (cv_colorizeditembox.value && K_UseColorHud())
-							localbg = kp_itembgclr[offset+1];
-						else
-							localbg = kp_itembg[offset+1];
-					}
+					if (cv_darkitembox.value)
+						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
 					break;
 				case KITEM_HYUDORO:
 					localpatch = kp_hyudoro[offset];
@@ -9830,18 +9820,10 @@ static void K_drawKartItem(void)
 
 	
 	if (cv_colorizeditembox.value && K_UseColorHud())
-	{
 		V_DrawMappedPatch(fx, fy, V_HUDTRANS|fflags, localbg,colormap);
-	}
 	else
-	{	
 		V_DrawScaledPatch(fx, fy, V_HUDTRANS|fflags, localbg);
-	}
-	
-	
 
-
-	
 	// Then, the numbers:
 	if (stplyr->kartstuff[k_itemamount] >= numberdisplaymin && !stplyr->kartstuff[k_itemroulette])
 	{
