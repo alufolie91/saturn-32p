@@ -28,6 +28,7 @@
 // ==========================================================================
 
 EXPORT boolean HWRAPI(Init) (void);
+EXPORT void HWRAPI(SetupGLInfo) (void);
 #if defined (PURESDL) || defined (macintosh)
 EXPORT void HWRAPI(SetPalette) (INT32 *, RGBA_t *gamma);
 #else
@@ -96,6 +97,7 @@ EXPORT void HWRAPI(ClearLightTableCache) (void);
 struct hwdriver_s
 {
 	Init                	pfnInit;
+	SetupGLInfo             pfnSetupGLInfo;
 	SetPalette          	pfnSetPalette;
 	FinishUpdate        	pfnFinishUpdate;
 	Draw2DLine          	pfnDraw2DLine;
