@@ -4115,7 +4115,7 @@ static void HWR_RotateSpritePolyToAim(gr_vissprite_t *spr, FOutVector *wallVerts
 		// do interpolation
 		if (R_UsingFrameInterpolation() && !paused && (!cv_grmaxinterpdist.value || dist < cv_grmaxinterpdist.value))
 		{
-			if (spr->precip)
+			if (precip)
 			{
 				R_InterpolatePrecipMobjState((precipmobj_t *)spr->mobj, rendertimefrac, &interp);
 			}
@@ -4126,7 +4126,7 @@ static void HWR_RotateSpritePolyToAim(gr_vissprite_t *spr, FOutVector *wallVerts
 		}
 		else
 		{
-			if (spr->precip)
+			if (precip)
 			{
 				R_InterpolatePrecipMobjState((precipmobj_t *)spr->mobj, FRACUNIT, &interp);
 			}
