@@ -2092,9 +2092,12 @@ static menuitem_t OP_NeptuneMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	55},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		60},
 	
+	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			70},
+	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		75},
+	
 	//{IT_HEADER, NULL, "Items", NULL, 70},
-	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			70},
-	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			75},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			85},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			90},
 	
 
 
@@ -2115,6 +2118,9 @@ static const char* OP_NeptuneTooltips[] =
 	//NULL,
 	"Allow boosts to stack together.",
 	"Diminish boost strength the more things are stacked on each other.",
+	
+	"Should Maximum speed be capped?",
+	"Value of Maximum speed cap.",
 	//NULL,
 	"Item system used for rolls.\nUranus is vanilla-like with some scaling modifications.\nCEP is congacalc-like with some scaling modifications.",
 	"Use custom itemtable. This is set via convars.",
