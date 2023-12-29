@@ -125,10 +125,10 @@ extern char  logfilename[1024];
 // most interface strings are ignored in development mode.
 // we use comprevision and compbranch instead.
 #else
-#define VERSION    1 // Game version
-#define SUBVERSION 89 // more precise version number
-#define VERSIONSTRING "Neptune 1.6b"
-#define VERSIONSTRINGW L"Neptune 1.6b"
+#define VERSION    2 // Game version
+#define SUBVERSION 0 // more precise version number
+#define VERSIONSTRING "Neptune 1.7"
+#define VERSIONSTRINGW L"Neptune 1.7"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!

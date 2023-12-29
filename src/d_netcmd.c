@@ -443,8 +443,8 @@ consvar_t cv_startaccel = {"stacking_startaccel", "6.0", CV_NETVAR|CV_FLOAT|CV_C
 consvar_t cv_hyuudorospeed = {"stacking_hyuudorospeed", "0.1", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_hyuudoroaccel = {"stacking_hyuudoroaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_speedcap = 	{"stacking_speedcap", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_speedcapval = {"stacking_speedcapval", "128.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_speedcap = 	{"stacking_speedcap", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_speedcapval = {"stacking_speedcapval", "128", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
 //Fuckal Odds`
@@ -841,6 +841,10 @@ consvar_t cv_showping = {"showping", "Always", CV_SAVE, showping_cons_t, NULL, 0
 static CV_PossibleValue_t pingmeasurement_cons_t[] = {{0, "Frames"}, {1, "Milliseconds"}, {0, NULL}};
 consvar_t cv_pingmeasurement = {"pingmeasurement", "Frames", CV_SAVE, pingmeasurement_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_pingicon = {"pingicon", "On", CV_SAVE, CV_OnOff, 0, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t cv_pingstyle_cons_t[] = {{0, "New"}, {1, "Old"}, {0, NULL}};
+consvar_t cv_pingstyle = {"pingstyle", "New", CV_SAVE, cv_pingstyle_cons_t, 0, 0, NULL, NULL, 0, 0, NULL};
+
 consvar_t cv_luaimmersion = {"luaimmersion", "On", CV_SAVE, CV_OnOff, 0, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_minihead = {"smallminimapplayers", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1160,6 +1164,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_showping);
 	CV_RegisterVar(&cv_pingmeasurement);
 	CV_RegisterVar(&cv_pingicon);
+	CV_RegisterVar(&cv_pingstyle);
 
 #ifdef SEENAMES
 	CV_RegisterVar(&cv_allowseenames);
@@ -1476,17 +1481,6 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_ps_thinkframe_page);
 	CV_RegisterVar(&cv_ps_samplesize);
 	CV_RegisterVar(&cv_ps_descriptor);
-
-	CV_RegisterVar(&cv_invincmusicfade);
-	CV_RegisterVar(&cv_growmusicfade);
-
-	CV_RegisterVar(&cv_respawnfademusicout);
-	CV_RegisterVar(&cv_respawnfademusicback);
-
-	CV_RegisterVar(&cv_resetspecialmusic);
-
-	CV_RegisterVar(&cv_resume);
-	CV_RegisterVar(&cv_fading);
 	
 
 	//Value used to store last server player has joined
@@ -1494,6 +1488,7 @@ void D_RegisterClientCommands(void)
 	
 	//Showallmaps in map selector including hell
 	CV_RegisterVar(&cv_showallmaps);
+	CV_RegisterVar(&cv_showmusicfilename);
 
 
 	// ingame object placing
@@ -5046,14 +5041,6 @@ static void Command_Addfile(void)
 		SendNetXCmd(XD_ADDFILE, buf, buf_p - buf);
 }
 
-// i hate myself
-static boolean DumbStartsWith(const char *pre, const char *str)
-{
-    size_t lenpre = strlen(pre),
-           lenstr = strlen(str);
-    return lenstr < lenpre ? false : memcmp(pre, str, lenpre) == 0;
-}
-
 /** Adds something at runtime.
   */
 static void
@@ -5090,16 +5077,13 @@ Command_Addskins (void)
 	*/
 }
 
-// args n stuff
-#include "args.h"
-
-static void Command_GLocalSkin (void) 
+static void Command_GLocalSkin (void)
 {
 	size_t first_option;
 	size_t option_display;
 	size_t option_all;
 	size_t option_player;
-	
+
 	option_player	= COM_CheckPartialParm("-p");
 	option_display 	= COM_CheckPartialParm("-d");
 	option_all		= COM_CheckPartialParm("-a");
@@ -5127,31 +5111,27 @@ static void Command_GLocalSkin (void)
 
 	fuck = ConcatCommandArgv(1, first_option);
 
-	char* player_name = player_names[consoleplayer];
-	char* display_num = "0";
+	const char* player_name = player_names[consoleplayer];
+	const char* display_num = "0";
 	size_t dnum = 0;
 
 	if (option_display)  // -display
 	{
 		// handle default: 0
-		if (COM_Argv(option_display + 1)[0] == "" || COM_Argv(option_display + 1)[0] != "-")
+		if (COM_Argc() >= option_display)
 			display_num = COM_Argv(option_display + 1);
 
-		if (isdigit(display_num[0]) || display_num == "0") 
-		{
-			dnum = atoi(display_num);
-			if (dnum > 3 || dnum < 0) // nuh uh
-				dnum = 0;
-			SetLocalPlayerSkin(displayplayers[dnum], fuck, NULL);
+		dnum = atoi(display_num);
+		if (dnum > 3) // nuh uh
+			dnum = 0;
 
-			CONS_Printf("Successfully applied localskin to displayed player.\n");
-			return;
-		}
-		
-		CONS_Printf("Could not apply localskin.\n");
-		
+		SetLocalPlayerSkin(displayplayers[dnum], fuck, NULL);
+
+		CONS_Printf("Successfully applied localskin to displayed player.\n");
+
+		Z_Free(fuck);
 		return;
-	} 
+	}
 	else if (option_all) // -all
 	{
 		int i;
@@ -5164,34 +5144,38 @@ static void Command_GLocalSkin (void)
 		}
 		CONS_Printf("Successfully applied localskin to all players.\n");
 
+		Z_Free(fuck);
 		return;
-	} 
+	}
 	else // -player or no other arguments
 	{
-		if (option_player) 
+		if (option_player)
 		{
 			int i;
 			player_name = COM_Argv(option_player + 1);
 
-			for (i = 0; i < MAXPLAYERS; ++i) 
+			for (i = 0; i < MAXPLAYERS; ++i)
 			{
 				if (fasticmp(player_names[i], player_name))
 					SetLocalPlayerSkin(i, fuck, NULL);
 			}
 			CONS_Printf("Successfully applied localskin to specified player.\n");
 
+			Z_Free(fuck);
 			return;
-		} 
-		else 
+		}
+		else
 		{
 			SetLocalPlayerSkin(consoleplayer, fuck, &cv_localskin);
 			CONS_Printf("Successfully applied localskin.\n");
 
+			Z_Free(fuck);
 			return;
 		}
 
 		CONS_Printf("Could not apply localskin.\n");
 
+		Z_Free(fuck);
 		return;
 	}
 }

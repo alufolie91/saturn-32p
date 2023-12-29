@@ -20,11 +20,6 @@
 #include <stdlib.h>
 #endif
 
-// Was this just for the #define USEASM?
-//#ifdef _WIN32_WCE
-//#include "sdl12/SRB2CE/cehelp.h"
-//#endif
-
 /*!
   \brief bits of the fraction
 */
@@ -62,7 +57,6 @@ FUNCMATH FUNCINLINE static ATTRINLINE fixed_t FloatToFixed(float f)
 // for backwards compat
 #define FIXED_TO_FLOAT(x) FixedToFloat(x) // (((float)(x)) / ((float)FRACUNIT))
 #define FLOAT_TO_FIXED(f) FloatToFixed(f) // (fixed_t)((f) * ((float)FRACUNIT))
-
 
 /**	\brief	The FixedMul function
 

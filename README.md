@@ -17,6 +17,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - Customizable itemtable
 - Fixed NetID conflicts
 - 16-angle support for sprites 
+- 512 skins support (everything player num releated was made UINT16)
 - More to come!
 - All added features are toggable via convars
 

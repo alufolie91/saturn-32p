@@ -1448,7 +1448,7 @@ void I_FinishUpdate(void)
 	if (I_SkipFrame())
 		return;
 
-	if (cv_ticrate.value)
+	if (cv_ticrate.value && st_overlay)
 		SCR_DisplayTicRate();
 
 	if (cv_showping.value && netgame && consoleplayer != serverplayer)
@@ -2109,6 +2109,7 @@ void I_StartupGraphics(void)
 	if (rendermode == render_opengl)
 	{
 		HWD.pfnInit             = hwSym("Init",NULL);
+		HWD.pfnSetupGLInfo      = hwSym("SetupGLInfo",NULL);
 		HWD.pfnFinishUpdate     = NULL;
 		HWD.pfnDraw2DLine       = hwSym("Draw2DLine",NULL);
 		HWD.pfnDrawPolygon      = hwSym("DrawPolygon",NULL);
@@ -2151,6 +2152,7 @@ void I_StartupGraphics(void)
 		HWD.pfnStartBatching = hwSym("StartBatching",NULL);
 		HWD.pfnRenderBatches = hwSym("RenderBatches",NULL);
 
+		HWD.pfnInitPalette = hwSym("InitPalette",NULL);
 		HWD.pfnAddLightTable = hwSym("AddLightTable",NULL);
 		HWD.pfnClearLightTableCache = hwSym("ClearLightTableCache",NULL);
 

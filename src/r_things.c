@@ -667,9 +667,12 @@ void R_InitSprites(void)
 
 	// it can be is do before loading config for skin cvar possible value
 	R_InitSkins();
-	for (i = 0; i < numwadfiles; i++)
+	for (i = 0; i < numwadfiles; i++) 
+	{
 		R_AddSkins((UINT16)i, false);
-
+		R_LoadSpriteInfoLumps(i, wadfiles[i]->numlumps);
+	}
+		
 	//
 	// check if all sprites have frames
 	//
@@ -1335,10 +1338,12 @@ static void R_ProjectSprite(mobj_t *thing)
 	size_t lump;
 
 	size_t rot;
-	UINT16 flip;
-	/*boolean vflip = (!(thing->eflags & MFE_VERTICALFLIP) != !R_ThingVerticallyFlipped(thing));
+
+	UINT8 flip;
+	/*boolean vflip = (!(thing->eflags & MFE_VERTICALFLIP) != !R_ThingVerticallyFlipped(thing));*/
+	
 	boolean mirrored = thing->mirrored;
-	boolean hflip = (!R_ThingHorizontallyFlipped(thing) != !mirrored);*/
+	boolean hflip = (!(thing->frame & FF_HORIZONTALFLIP) != !mirrored);
 
 	INT32 lindex;
 
@@ -1420,11 +1425,11 @@ static void R_ProjectSprite(mobj_t *thing)
 	rot = thing->frame&FF_FRAMEMASK;
 
 	//Fab : 02-08-98: 'skin' override spritedef currently used for skin
-	if (thing->skin && thing->sprite == SPR_PLAY)
+	if ((thing->skin || thing->localskin) && thing->sprite == SPR_PLAY)
 	{
 		sprdef = &((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->spritedef;
 #ifdef ROTSPRITE
-		sprinfo = &spriteinfo[thing->sprite];
+		sprinfo = &((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->sprinfo;
 #endif
 
 		if (rot >= sprdef->numframes)
@@ -1466,6 +1471,8 @@ static void R_ProjectSprite(mobj_t *thing)
 	if (sprframe->rotate != SRF_SINGLE || papersprite)
 	{
 		ang = R_PointToAngle (interp.x, interp.y) - interp.angle;
+		if (mirrored)
+			ang = InvAngle(ang);
 		if (papersprite)
 			ang_scale = abs(FINESINE(ang>>ANGLETOFINESHIFT));
 	}
@@ -1512,19 +1519,15 @@ static void R_ProjectSprite(mobj_t *thing)
 	spr_topoffset = spritecachedinfo[lump].topoffset;
 
 #ifdef ROTSPRITE
-	if (thing->player)
-	{
-		sliptiderollangle = FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), ((cv_sloperoll.value == 1) ? thing->player->sliproll*(thing->player->sliptidemem) : 0));
-	}
-	else
-		sliptiderollangle = 0;
-
-	if ((thing->rollangle)||(thing->sloperoll)||sliptiderollangle)
+	if ((thing->rollangle)||(thing->sloperoll)||(thing->player && thing->player->sliproll))
 	{
 		if (thing->player)
-			rollsum = (thing->rollangle) + (thing->sloperoll) + sliptiderollangle;
+		{
+			sliptiderollangle = cv_sliptideroll.value ? thing->player->sliproll*(thing->player->sliptidemem) : 0;
+			rollsum = (thing->rollangle)+(thing->sloperoll)+FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), sliptiderollangle);
+		}
 		else
-			rollsum = (thing->rollangle) + (thing->sloperoll);
+			rollsum = (thing->rollangle)+(thing->sloperoll);
 
 		rollangle = R_GetRollAngle(rollsum);
 		rotsprite = Patch_GetRotatedSprite(sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
@@ -1565,6 +1568,8 @@ static void R_ProjectSprite(mobj_t *thing)
 		spr_offset += interp.spritexoffset * flipoffset;
 		spr_topoffset += interp.spriteyoffset * flipoffset;
 	}
+	
+	flip = !flip != !hflip;
 
 	if (flip)
 		offset = spr_offset - spr_width;
@@ -3114,6 +3119,7 @@ void R_InitSkins(void)
 
 	skin->spritedef.numframes = sprites[SPR_PLAY].numframes;
 	skin->spritedef.spriteframes = sprites[SPR_PLAY].spriteframes;
+	skin->sprinfo = spriteinfo[SPR_PLAY];
 	ST_LoadFaceGraphics(skin->facerank, skin->facewant, skin->facemmap, 0);
 
 	// Set values for Sonic skin
@@ -3638,6 +3644,7 @@ next_token:
 		free(buf2);
 
 		lump++; // if no sprite defined use spirte just after this one
+		INT32 sprnum;
 		if (skin->sprite[0] == '\0')
 		{
 			const char *csprname = W_CheckNameForNumPwad(wadnum, lump);
@@ -3648,6 +3655,9 @@ next_token:
 				lastlump++;
 			// allocate (or replace) sprite frames, and set spritedef
 			R_AddSingleSpriteDef(csprname, &skin->spritedef, wadnum, lump, lastlump);
+
+			// i feel like generally most skin authors just use PLAY here, so just assume PLAY
+			sprnum = SPR_PLAY;
 		}
 		else
 		{
@@ -3694,6 +3704,8 @@ next_token:
 
 				R_AddSingleSpriteDef(sprname, &skin->spritedef, wadnum, lstart, lend);
 			}
+
+			sprnum = numspritelumps - 1;
 
 			// I don't particularly care about skipping to the end of the used frames.
 			// We could be using frames from ANYWHERE in the current WAD file, including

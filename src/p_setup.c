@@ -2996,8 +2996,6 @@ boolean P_SetupLevel(boolean skipprecip)
 	R_FlushTranslationColormapCache();
 
 	Z_FreeTags(PU_LEVEL, PU_PURGELEVEL - 1);
-	
-	mobjcache = NULL;
 
 #if defined (WALLSPLATS) || defined (FLOORSPLATS)
 	// clear the splats from previous level
@@ -3561,6 +3559,11 @@ UINT16 P_PartialAddWadFile(const char *wadfilename, boolean local)
 	S_LoadMusicDefs(wadnum);
 
 	//
+	// edit music defs for stuff like musictest
+	//
+	S_LoadMTDefs(wadnum);
+
+	//
 	// search for maps
 	//
 	lumpinfo = wadfiles[wadnum]->lumpinfo;
@@ -3592,6 +3595,9 @@ UINT16 P_PartialAddWadFile(const char *wadfilename, boolean local)
 	}
 	if (!mapsadded)
 		CONS_Printf(M_GetText("No maps added\n"));
+
+	// TODO: Experimental SPRTINFO support, test first
+	R_LoadSpriteInfoLumps(wadnum, wadfiles[wadnum]->numlumps);
 
 	refreshdirmenu &= ~REFRESHDIR_GAMEDATA; // Under usual circumstances we'd wait for REFRESHDIR_GAMEDATA to disappear the next frame, but it's a bit too dangerous for that...
 	partadd_stage = 0;

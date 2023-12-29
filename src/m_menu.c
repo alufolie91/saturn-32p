@@ -222,6 +222,7 @@ static void M_GetAllEmeralds(INT32 choice);
 static void M_DestroyRobots(INT32 choice);
 //static void M_LevelSelectWarp(INT32 choice);
 static void M_Credits(INT32 choice);
+static void M_MusicTest(INT32 choice);
 static void M_PandorasBox(INT32 choice);
 static void M_EmblemHints(INT32 choice);
 static char *M_GetConditionString(condition_t cond);
@@ -394,6 +395,7 @@ static void M_DrawCenteredMenu(void);
 static void M_DrawAddons(void);
 static void M_DrawSkyRoom(void);
 static void M_DrawChecklist(void);
+static void M_DrawMusicTest(void);
 static void M_DrawEmblemHints(void);
 static void M_DrawPauseMenu(void);
 static void M_DrawLevelSelectOnly(boolean leftfade, boolean rightfade);
@@ -428,6 +430,7 @@ static boolean M_ExitPandorasBox(void);
 static boolean M_QuitMultiPlayerMenu(void);
 static void M_HandleAddons(INT32 choice);
 static void M_HandleSoundTest(INT32 choice);
+static void M_HandleMusicTest(INT32 choice);
 static void M_HandleImageDef(INT32 choice);
 //static void M_HandleLoadSave(INT32 choice);
 static void M_HandleLevelStats(INT32 choice);
@@ -469,6 +472,8 @@ CV_PossibleValue_t gametype_cons_t[NUMGAMETYPES+1];
 consvar_t cv_newgametype = {"newgametype", "Race", CV_HIDEN|CV_CALL, gametype_cons_t, Newgametype_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_showallmaps = {"showallmaps", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL };
+
+consvar_t cv_showmusicfilename = {"showmusicfilename", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t serversort_cons_t[] = {
 	{0,"Ping"},
@@ -859,6 +864,12 @@ static menuitem_t SR_UnlockChecklistMenu[] =
 	{IT_SUBMENU | IT_STRING,         NULL, "NEXT", &MainDef, 192},
 };
 
+static menuitem_t SR_MusicTestMenu[] =
+{
+	{IT_KEYHANDLER | IT_STRING, NULL, "", M_HandleMusicTest, 0},
+};
+
+
 static menuitem_t SR_EmblemHintMenu[] =
 {
 	{IT_STRING|IT_CVAR,         NULL, "Medal Radar",  &cv_itemfinder, 10},
@@ -1183,18 +1194,14 @@ static menuitem_t OP_ControlsMenu[] =
 
 static const char* OP_ControlsTooltips[] =
 {
-	
 	"Setup player 1 controls.",
 	"Setup player 2 controls.",
 	"Setup player 3 controls.",
 	"Setup player 4 controls.",
-	
 	"Options for mouse control.",
 	"Strafe in spectator rather then turn.",
-	
 	"Allowed amount of controls per key.",
 	"Turn smoothing for non-analog turning.",
-
 };
 
 static menuitem_t OP_AllControlsMenu[] =
@@ -1329,13 +1336,11 @@ static menuitem_t OP_MouseOptionsMenu[] =
 
 static const char* OP_MouseTooltips[] =
 {
-	
 	"Enable the use of the mouse.",
 	"Turn using the mouse.",
 	"Invert mouse movements.",
 	"Mouse horizontal sensitivity.",
 	"Mouse vertical sensitivity.",
-
 };
 
 /*static menuitem_t OP_Mouse2OptionsMenu[] =
@@ -1393,7 +1398,7 @@ static const char* OP_VideoTooltips[] =
 	"How far away weather is drawn.",
 	"Toggle being able to see the sky.",
 	"Player field of view.",
-	"Show current game framerate.",
+	"Show current game framerate and select the style.",
 	"Sync game framerate to refresh rate of monitor.",
 	"Set manual framerate cap.",
 	"Size of drift spark pulse.",
@@ -1436,23 +1441,23 @@ static menuitem_t OP_VideoModeMenu[] =
 static menuitem_t OP_ExpOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
-
 	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",		&cv_grmaxinterpdist,		 	 35},
-	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 		&cv_precipinterp, 		 		 55},
-	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 		&cv_lessprecip, 		 		 65},
+	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 45},
+	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 55},
 	
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_vhseffect, 		 		 75},
+	
+	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 95},
+	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	 105},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 		&cv_grscreentextures, 		 		 85},
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 76},
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_grvhseffect, 		 	 86},
+	
+	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	106},
+	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	116},
+	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	126},
+	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		136},
 #endif	
-	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 			&cv_grfofcut, 		 		 	 105},
-	
-		{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 				&cv_vhseffect, 		 		 	 125},
-#ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 			&cv_grvhseffect, 		 		 	 126},
-#endif
-	
-
-	
 };
 
 static const char* OP_ExpTooltips[] =
@@ -1461,13 +1466,16 @@ static const char* OP_ExpTooltips[] =
 	"How far interpolation should take effect.",
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
-#ifdef HWRENDER	
+	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
+	"Hides 3DFloors which are not visible\npotentially resulting in a performance boost.",
+	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
+#ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
-#endif
-	"Toggle for FOF wall cutoff when slopes.",
-	"Show a VHS-like effect when the game is paused or youre\nrewinding replays.",
-#ifdef HWRENDER	
-	"Show a VHS-like effect when the game is paused or youre\nrewinding replays.",
+	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
+	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
+	"Fixes issues that resulted in Textures not being properly skewed\n example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result in worse performance in some cases.",
+	"Fixes issues that resulted in Textures on Floor over Floors ZFighting heavily.",
+	"Toggle for FOF wall cutoff with slopes.",
 #endif
 
 };
@@ -1478,14 +1486,16 @@ enum
 	op_exp_interpdist,
 	op_exp_precipinter,
 	op_exp_lessprecip,
+	op_exp_vhs,
+	op_exp_ffclip,
+	op_exp_sprclip,
 #ifdef HWRENDER
 	op_exp_screentextures,
-#endif
-	op_exp_fof,
-
-	op_exp_vhs,
-#ifdef HWRENDER	
 	op_exp_grvhs,
+	op_exp_spltwal,
+	op_exp_pegging,
+	op_exp_fofzfight,
+	op_exp_fofcut,
 #endif
 };
 
@@ -1533,7 +1543,6 @@ static const char* OP_OpenGLTooltips[] =
 	"Recreates the look of software mode camera perspective.",
 	"How far the game world should be drawn.",
 	"Gamma (brightness) of colors.",
-
 };
 
 static menuitem_t OP_OpenGLColorMenu[] =
@@ -1571,8 +1580,9 @@ static menuitem_t OP_SoundOptionsMenu[] =
 	{IT_STRING|IT_CVAR,			NULL, "Chat Notifications",		&cv_chatnotifications,	 75},
 	{IT_STRING|IT_CVAR,			NULL, "Character voices",		&cv_kartvoices,			 85},
 	{IT_STRING|IT_CVAR,			NULL, "Powerup Warning",		&cv_kartinvinsfx,		 95},
-
-	{IT_KEYHANDLER|IT_STRING,	NULL, "Sound Test",				M_HandleSoundTest,		110},
+	
+	{IT_KEYHANDLER|IT_STRING,	NULL, "Sound Test",				M_HandleSoundTest,		105},
+	{IT_STRING|IT_CALL,	NULL, "Music Test",				M_MusicTest,		115},
 
 	{IT_STRING|IT_CVAR,        NULL, "Play Music While Unfocused", &cv_playmusicifunfocused, 125},
 	{IT_STRING|IT_CVAR,        NULL, "Play SFX While Unfocused", &cv_playsoundifunfocused, 135},
@@ -1581,7 +1591,6 @@ static menuitem_t OP_SoundOptionsMenu[] =
 
 static const char* OP_SoundTooltips[] =
 {
-
 	"Turn Sound effects on or off.",
 	"Volume of sound effects.",
 	"Turn Sound effects on or off.",
@@ -1592,10 +1601,10 @@ static const char* OP_SoundTooltips[] =
 	"Frequency of character voice lines.",
 	"Should the powerup warning be a sound effect or music?",
 	"Testing sounds...",
+	"Testing music...",
 	"Should the games music play while unfocused?",
 	"Should the games sound play while unfocused?",
 	"Options for advanced sound settings.",
-
 };
 
 
@@ -1763,23 +1772,24 @@ static menuitem_t OP_HUDOptionsMenu[] =
 static menuitem_t OP_ChatOptionsMenu[] =
 {
 	// will ANYONE who doesn't know how to use the console want to touch this one?
-	{IT_STRING | IT_CVAR, NULL, "Chat Mode",				&cv_consolechat,		10}, // nonetheless...
+	{IT_STRING | IT_CVAR, NULL, "Chat Mode",				&cv_consolechat,		5}, // nonetheless...
 
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Chat Box Width",			&cv_chatwidth,			25},
+	                      NULL, "Chat Box Width",			&cv_chatwidth,			20},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Chat Box Height",			&cv_chatheight,			35},
+	                      NULL, "Chat Box Height",			&cv_chatheight,			30},
 
-	{IT_STRING | IT_CVAR, NULL, "Chat Background Tint",		&cv_chatbacktint,		50},
-	{IT_STRING | IT_CVAR, NULL, "Message Fadeout Time",		&cv_chattime,			60},
-	{IT_STRING | IT_CVAR, NULL, "Spam Protection",			&cv_chatspamprotection,	70},
-	{IT_STRING | IT_CVAR, NULL, "Max Chat Messages",		&cv_chatlogsize,		80},
+	{IT_STRING | IT_CVAR, NULL, "Chat Background Tint",		&cv_chatbacktint,		45},
+	{IT_STRING | IT_CVAR, NULL, "Message Fadeout Time",		&cv_chattime,			55},
+	{IT_STRING | IT_CVAR, NULL, "Spam Protection",			&cv_chatspamprotection,	65},
+	{IT_STRING | IT_CVAR, NULL, "Max Chat Messages",		&cv_chatlogsize,		75},
 
-	{IT_STRING | IT_CVAR, NULL, "Local ping display",		&cv_showping,			100},	// shows ping next to framerate if we want to.
-	{IT_STRING | IT_CVAR, NULL, "Ping measurement",			&cv_pingmeasurement,	110},
-	{IT_STRING | IT_CVAR, NULL, "Ping icon",				&cv_pingicon,			120},
-	
-	{IT_STRING | IT_CVAR, NULL, "Show IP addresses in playerlist",		&cv_shownodeip,	140},
+	{IT_STRING | IT_CVAR, NULL, "Local ping display",		&cv_showping,			95},	// shows ping above the framerate if we want to.
+	{IT_STRING | IT_CVAR, NULL, "Ping display style",		&cv_pingstyle,			105},
+	{IT_STRING | IT_CVAR, NULL, "Ping measurement",			&cv_pingmeasurement,	115},
+	{IT_STRING | IT_CVAR, NULL, "Ping icon",				&cv_pingicon,			125},
+
+	{IT_STRING | IT_CVAR, NULL, "Show IP address in playerlist",		&cv_shownodeip,	135},
 };
 
 static const char* OP_ChatOptionsTooltips[] =
@@ -1792,6 +1802,7 @@ static const char* OP_ChatOptionsTooltips[] =
 	"Spam protection for in-game chat.",
 	"Maxiumum amount of chat messages to look back at.",
 	"Show player ping.",
+	"Choose the looks of the ping display.", // this is ass idk english lmao
 	"Measurement used for ping.",
 	"Visibility of ping icon.",
 	"Should Player IP addresses be printed when using\nthe nodes or listplayers command?",
@@ -1864,7 +1875,6 @@ static const char* OP_ServerOptionsTooltips[] =
 #ifndef NONET
 	"Name of server.",
 #endif
-	
 	"Length of intermission after races.",
 	"How the next map to be played is choosen.",
 	"How long map voting is.",
@@ -2008,12 +2018,15 @@ static menuitem_t OP_SaturnMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Show Lap Emblem",		 				&cv_showlapemblem, 	 		60},
 	{IT_STRING | IT_CVAR, NULL,	"Show Minimap Names",   				&cv_showminimapnames, 		65},
 	{IT_STRING | IT_CVAR, NULL,	"Small Minimap Players",   				&cv_minihead, 				70},
-	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		 	75},
+	{IT_STRING | IT_CVAR, NULL, "Show Cecho Messages", 					&cv_cechotoggle, 			80},
+	{IT_STRING | IT_CVAR, NULL, "Show Localskin Menus", 				&cv_showlocalskinmenus, 	85},
+	
+	{IT_STRING | IT_CVAR, NULL, "Midnight Channel Flicker Effect", 		&cv_lessflicker, 		 	95},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Player distortion...", 			&OP_PlayerDistortDef,	 	85},
-	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		 	90},
+	{IT_SUBMENU|IT_STRING,	NULL,	"Player distortion...", 			&OP_PlayerDistortDef,	 	105},
+	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		 	110},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,		105}, // uwu
+	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,		120}, // uwu
 };
 
 static const char* OP_SaturnTooltips[] =
@@ -2031,8 +2044,9 @@ static const char* OP_SaturnTooltips[] =
 	"Show the big 'LAP' text on a lap change.",
 	"Show player names on the minimap.",
 	"Minimize the player icons on the minimap.",
+	"Show the big Cecho Messages.",
+	"Show Localskin Menus.",
 	"Disables the flicker effect on Midnight Channel.",
-
 	"Options for player distortion effects.",
 	"Move position of HUD elements.",
 	"See the people who helped make this project possible!",
@@ -2078,9 +2092,12 @@ static menuitem_t OP_NeptuneMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	55},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		60},
 	
+	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			70},
+	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		75},
+	
 	//{IT_HEADER, NULL, "Items", NULL, 70},
-	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			70},
-	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			75},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			85},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			90},
 	
 
 
@@ -2101,6 +2118,9 @@ static const char* OP_NeptuneTooltips[] =
 	//NULL,
 	"Allow boosts to stack together.",
 	"Diminish boost strength the more things are stacked on each other.",
+	
+	"Should Maximum speed be capped?",
+	"Value of Maximum speed cap.",
 	//NULL,
 	"Item system used for rolls.\nUranus is vanilla-like with some scaling modifications.\nCEP is congacalc-like with some scaling modifications.",
 	"Use custom itemtable. This is set via convars.",
@@ -2147,7 +2167,6 @@ static const char* OP_PlayerDistortTooltips[] =
 	"Kart hopping while drifting. This is purely visual.",
 	"Player hop sound effect.",
 	"Player hop squash and stretch.",
-	
 };
 
 enum
@@ -2253,9 +2272,11 @@ static menuitem_t OP_BirdMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Only Show One Battle Choice", &cv_lessbattlevotes, 80},
 	{IT_STRING | IT_CVAR, NULL, "Encore Choices",              &cv_encorevotes,     90},
 
+
 	{IT_HEADER, NULL, "Music", NULL, 110},
-	{IT_STRING | IT_CVAR, NULL, "Resume Level Music",    &cv_resume,            120},
-	{IT_STRING | IT_CVAR, NULL, "Restart Special Music", &cv_resetspecialmusic, 130},
+	{IT_STRING | IT_CVAR, NULL, "Music Features",    	 &cv_birdmusic,            120},
+	{IT_STRING | IT_CVAR, NULL, "Resume Level Music",    &cv_resume,            130},
+	{IT_STRING | IT_CVAR, NULL, "Restart Special Music", &cv_resetspecialmusic, 140},
 
 	{IT_STRING | IT_SUBMENU, NULL, "Advanced Music Options...", &OP_AdvancedBirdDef, 150},
 };
@@ -2271,11 +2292,28 @@ static const char* OP_BirdTooltips[] =
 	"Only show one battle choice in map vote",
 	"Amount of encore choices in map vote.",
 	NULL,
+	"Global toggle for all bird music features.",
 	"Resume level music from last position after music change.",
 	"Restart Special music if item is used again.",
-	
 	"Options for advanced music settings.",
 	
+};
+
+enum
+{
+	headercrzy,
+	tiltmenu,
+	headerhud,
+	viewpointext,
+	freeplaytext,
+	headervoting,
+	battlechoice,
+	encorechoice,
+	headermusic,
+	birdmusic,
+	lvlresum,
+	spclresum,
+	advmusic,
 };
 
 static menuitem_t OP_ForkedBirdMenu[] =
@@ -2304,7 +2342,6 @@ static const char* OP_TiltTooltips[] =
 	"Tilt camera while turning.",
 	"Smoothing value used.",
 	"Tilt during screen quakes.",
-	
 };
 
 enum
@@ -2337,7 +2374,6 @@ static const char* OP_AdvancedBirdTooltips[] =
 	"Fade in music while respawning.",
 	"Threshold for syncing music.",
 	"Only sync special music.",
-	
 };
 
 enum
@@ -2550,6 +2586,20 @@ menu_t SR_UnlockChecklistDef =
 	NULL,
 	NULL
 };
+
+menu_t SR_MusicTestDef =
+{
+	NULL,
+	sizeof (SR_MusicTestMenu)/sizeof (menuitem_t),
+	&OP_SoundOptionsDef,
+	SR_MusicTestMenu,
+	M_DrawMusicTest,
+	60, 150,
+	0,
+	NULL,
+	NULL
+};
+
 menu_t SR_EmblemHintDef =
 {
 	NULL,
@@ -3213,6 +3263,19 @@ void Bird_menu_Onchange(void)
 	OP_AdvancedBirdMenu[fadegrow].status = status;
 	OP_AdvancedBirdMenu[respawnfadeout].status = status;
 	OP_AdvancedBirdMenu[respawnfadein].status = status;
+	
+	if (cv_birdmusic.value)
+	{
+		OP_BirdMenu[lvlresum].status = IT_STRING | IT_CVAR;
+		OP_BirdMenu[spclresum].status = IT_STRING | IT_CVAR;
+		OP_BirdMenu[advmusic].status = IT_STRING | IT_SUBMENU;
+	}
+	else
+	{
+		OP_BirdMenu[lvlresum].status = IT_GRAYEDOUT;
+		OP_BirdMenu[spclresum].status = IT_GRAYEDOUT;
+		OP_BirdMenu[advmusic].status = IT_GRAYEDOUT;
+	}	
 }
 
 //menu code is nice
@@ -4154,7 +4217,12 @@ void M_StartControlPanel(void)
 
 		// Reset these in case splitscreen messes things up
 		MPauseMenu[mpause_addons].alphaKey = 8;
-		MPauseMenu[mpause_addlocalskins].alphaKey = 8;
+		
+		if (IsPlayerAdmin(consoleplayer))
+			MPauseMenu[mpause_addlocalskins].alphaKey = 16;
+		else
+			MPauseMenu[mpause_addlocalskins].alphaKey = 24;
+	
 		MPauseMenu[mpause_scramble].alphaKey = 8;
 		MPauseMenu[mpause_switchmap].alphaKey = 24;
 
@@ -4449,10 +4517,17 @@ void M_Init(void)
 		OP_VideoOptionsMenu[op_video_ogl].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_screentextures].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_grvhs].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_spltwal].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_pegging].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_fofzfight].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_fofcut].status = IT_DISABLED;
 	}
-
-	if (rendermode == render_opengl)
+	
+	if (rendermode == render_opengl){
 		OP_ExpOptionsMenu[op_exp_vhs].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_ffclip].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_sprclip].status = IT_DISABLED;
+	}
 #endif
 
 
@@ -4465,10 +4540,8 @@ void M_Init(void)
 	
 	if (snw_speedo && !kartzspeedo)
 		OP_SaturnMenu[sm_speedometer].text = "Speedometer (No PMeter)";
-	
-		
-	if (!clr_hud){ // uhguauhauguuhee
 
+	if (!clr_hud){	// uhguauhauguuhee
 		OP_SaturnMenu[sm_colorhud].status = IT_GRAYEDOUT;
 		OP_SaturnMenu[sm_coloritem].status = IT_GRAYEDOUT;
 		OP_SaturnMenu[sm_colorhud_customcolor].status = IT_GRAYEDOUT;
@@ -5303,6 +5376,7 @@ static void M_DrawGenericScrollMenu(void)
 	V_DrawScaledPatch(currentMenu->x - 24, cursory, 0,
 		W_CachePatchName("M_CURSOR", PU_CACHE));
 
+#ifdef HWRENDER
 	// dumb hack
 	// tooltips
 	if (currentMenu == &OP_OpenGLOptionsDef)
@@ -5314,6 +5388,7 @@ static void M_DrawGenericScrollMenu(void)
 				coolalphatimer--;
 		}
 	}
+#endif
 	
 	
 	
@@ -5726,24 +5801,23 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt)
 				//return false;
 			
 			// Should the map be hidden? <-- well imma wanna toggle it, its just annoying being unable to select hell maps in mapselect
-			if (cv_showallmaps.value)
+			if ((mapheaderinfo[mapnum]->menuflags & LF2_HIDEINMENU && mapnum+1 != gamemap) && (gt == GT_RACE && (mapheaderinfo[mapnum]->typeoflevel & TOL_RACE))) // map hell
 			{
-				if ((mapheaderinfo[mapnum]->menuflags & LF2_HIDEINMENU && mapnum+1 != gamemap) && (gt == GT_RACE && (mapheaderinfo[mapnum]->typeoflevel & TOL_RACE)))
-					return true; // map hell
-			}
-			else if ((mapheaderinfo[mapnum]->menuflags & LF2_HIDEINMENU && mapnum+1 != gamemap) && (gt == GT_RACE && (mapheaderinfo[mapnum]->typeoflevel & TOL_RACE)))
+				if (cv_showallmaps.value)
+					return true;
+				else
 					return false;
+			}
 
 			// same goes here, just show every map if i want to
-			if (cv_showallmaps.value)
+			if (M_MapLocked(mapnum+1)) // not unlocked
 			{
-				if (M_MapLocked(mapnum+1))
-					return true; // not unlocked
-			} 
-			else if (M_MapLocked(mapnum+1))
-					return false; // not unlocked
-			
-			
+				if (cv_showallmaps.value)
+					return true;
+				else
+					return false;
+			}
+
 			/*if (gt == GT_COOP && (mapheaderinfo[mapnum]->typeoflevel & TOL_COOP))
 				return true;
 
@@ -6496,6 +6570,64 @@ static void M_AddonExec(INT32 ch)
 	COM_BufAddText(va("exec \"%s%s\"", menupath, dirmenu[dir_on[menudepthleft]]+DIR_STRING));
 }
 
+// static void M_AddonAutoLoad(INT32 ch);
+// exports mods to a file, which helps in autoloading that file
+//
+static void M_AddonAutoLoad(INT32 ch)
+{
+	// initalize these variables //
+	const char *path;
+	FILE *autoloadconfigfile;
+
+	// check our controls //
+	if (ch != 'y' && ch != KEY_ENTER && ch != KEY_RSHIFT)
+	{
+		S_StartSound(NULL, sfx_s26d);
+		return;
+	}
+	
+	// first, find the file //
+	path = va("%s"PATHSEP"%s", srb2home, AUTOLOADCONFIGFILENAME);
+	autoloadconfigfile = fopen(path, "a");
+
+	// then, execute the addon and store it in our autoload.cfg //
+	switch (dirmenu[dir_on[menudepthleft]][DIR_TYPE])
+	{
+	    case EXT_FOLDER:
+	        M_StartMessage(va("%c%s\x80\nAutoloading folders is not supported as of yet. \n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),NULL,MM_NOTHING);
+            break;
+		case EXT_TXT:
+		case EXT_CFG:
+			CONS_Printf("Added the \x82%s\x80 console script to the autoload configuration list.\n", dirmenu[dir_on[menudepthleft]]+DIR_STRING);
+			fprintf(autoloadconfigfile, "%s\n", dirmenu[dir_on[menudepthleft]]+DIR_STRING);
+				
+			S_StartSound(NULL, sfx_s221);
+			break;
+		case EXT_LUA:
+		case EXT_SOC:
+		case EXT_WAD:
+		case EXT_KART:
+		case EXT_PK3:
+		default:
+			if (!(refreshdirmenu & REFRESHDIR_MAX))
+			{
+				CONS_Printf("Added \x82%s\x80 to the autoload configuration list.\n", dirmenu[dir_on[menudepthleft]]+DIR_STRING);
+				fprintf(autoloadconfigfile, "%s\n", dirmenu[dir_on[menudepthleft]]+DIR_STRING);
+				
+				S_StartSound(NULL, sfx_s221);
+			}
+			else
+			{
+				M_StartMessage(va("%c%s\x80\nToo many add-ons are loaded! \nYou need to restart the game to autoload more add-ons and folders. \nYou can still autoload console scripts though. \n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),NULL,MM_NOTHING);
+				S_StartSound(NULL, sfx_s26d);
+			}
+			break;
+	}
+	
+	// lastly, do some last things and close the autoload config file //
+	fclose(autoloadconfigfile);
+}
+
 #define len menusearch[0]
 static boolean M_ChangeStringAddons(INT32 choice)
 {
@@ -6677,6 +6809,53 @@ static void M_HandleAddons(INT32 choice)
 							break;
 						default:
 							S_StartSound(NULL, sfx_s26d);
+					}
+				}
+				if (refresh)
+					refreshdirmenu |= REFRESHDIR_NORMAL;
+			}
+			break;
+
+		case KEY_RSHIFT:
+			{
+				boolean refresh = true;
+				if (!dirmenu[dir_on[menudepthleft]])
+					S_StartSound(NULL, sfx_s26d);
+				else
+				{
+					switch (dirmenu[dir_on[menudepthleft]][DIR_TYPE])
+					{
+						case EXT_FOLDER:
+							M_StartMessage(va("%c%s%s\x80\nAutoloading a folder is not yet suppported. \n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), M_AddonsHeaderPath(), dirmenu[dir_on[menudepthleft]]+DIR_STRING),NULL,MM_NOTHING);
+							S_StartSound(NULL, sfx_s26d);
+							break;
+						case EXT_UP:
+							S_StartSound(NULL, sfx_s224);
+							M_StartMessage(va("%c%s%s\x80\nNice try. \n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), M_AddonsHeaderPath(), dirmenu[dir_on[menudepthleft]]+DIR_STRING),NULL,MM_NOTHING);
+							break;
+						case EXT_TXT:
+						case EXT_CFG:
+							if ((strcmp(dirmenu[dir_on[menudepthleft]]+DIR_STRING, CONFIGFILENAME) == 0)
+								|| (strcmp(dirmenu[dir_on[menudepthleft]]+DIR_STRING, AUTOLOADCONFIGFILENAME) == 0)
+								|| (strcmp(dirmenu[dir_on[menudepthleft]]+DIR_STRING, "kartserv.cfg") == 0)
+								|| (strcmp(dirmenu[dir_on[menudepthleft]]+DIR_STRING, "kartexec.cfg") == 0))
+							{	
+								M_StartMessage(va("%c%s\x80\nYou can't autoload this builds' base console scripts, silly!\n They're already autoloaded on startup! \n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),NULL,MM_NOTHING);
+								S_StartSound(NULL, sfx_s26d);
+							}
+							else
+								M_StartMessage(va("%c%s\x80\nYou're trying to autoload a console script. \nIgnore my warning anyways? \n\n(Press 'Y' to confirm)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),M_AddonAutoLoad,MM_YESNO);
+							break;
+						case EXT_LUA:
+						case EXT_SOC:
+						case EXT_WAD:
+						case EXT_KART:
+						case EXT_PK3:
+							M_StartMessage(va("%c%s\x80\nYou are trying to mark an addon to autoload\nat startup. This will skip modifiedgame checks. \n\n(Press 'Y' to confirm)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),M_AddonAutoLoad,MM_YESNO);
+							break;
+						default:
+							M_StartMessage(va("%c%s\x80\nIt may be dangerous to autoload this file. \nBut you're the boss, and I'm just hand-written code.\n Proceed? \n\n(Press 'Y' to confirm)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),M_AddonAutoLoad,MM_YESNO);
+							break;
 					}
 				}
 				if (refresh)
@@ -7716,6 +7895,8 @@ static void M_Options(INT32 choice)
 	OP_MainMenu[4].status = OP_MainMenu[5].status = (Playing() && !(server || IsPlayerAdmin(consoleplayer))) ? (IT_GRAYEDOUT) : (IT_STRING|IT_SUBMENU);
 
 	OP_MainMenu[8].status = (Playing()) ? (IT_GRAYEDOUT) : (IT_STRING|IT_CALL); // Play credits
+	
+	OP_MainMenu[11].status = (!cv_showlocalskinmenus.value) ? (IT_DISABLED) : (IT_CALL|IT_STRING);
 
 #ifdef HAVE_DISCORDRPC
 	OP_DataOptionsMenu[4].status = (Playing()) ? (IT_GRAYEDOUT) : (IT_STRING|IT_SUBMENU); // Erase data
@@ -7728,7 +7909,6 @@ static void M_Options(INT32 choice)
 
 	OP_MainDef.prevMenu = currentMenu;
 	M_SetupNextMenu(&OP_MainDef);
-	OP_MainMenu[11].status = ((Playing() &&(server &&(!IsPlayerAdmin(consoleplayer)))) || (!cv_showlocalskinmenus.value)) ? (IT_DISABLED) : (IT_CALL|IT_STRING);
 }
 
 static void M_Manual(INT32 choice)
@@ -8141,6 +8321,397 @@ static void M_HandleSoundTest(INT32 choice)
 	}
 	if (exitmenu)
 	{
+		if (currentMenu->prevMenu)
+			M_SetupNextMenu(currentMenu->prevMenu);
+		else
+			M_ClearMenus(true);
+	}
+}
+
+static musicdef_t *curplaying = NULL;
+static INT32 st_sel = 0;
+static tic_t st_time = 0;
+static size_t st_namescroll = 0;
+static size_t st_namescrollstate = 0;
+//static patch_t* st_radio[9];
+//static patch_t* st_launchpad[4];
+
+static void M_MusicTest(INT32 choice)
+{
+	INT32 ul = skyRoomMenuTranslations[choice-1];
+	UINT8 i;
+	char buf[8];
+
+	if (!S_PrepareSoundTest())
+	{
+		M_StartMessage(M_GetText("No selectable tracks found.\n"),NULL,MM_NOTHING);
+		return;
+	}
+
+	/*STRBUFCPY(buf, "M_RADIOn");
+	for (i = 0; i < 9; i++)
+	{
+		if (st_radio[i])
+			W_UnlockCachedPatch(st_radio[i]);
+		buf[7] = (char)('0'+i);
+		st_radio[i] = W_CachePatchName(buf, PU_STATIC);
+	}
+
+	STRBUFCPY(buf, "M_LPADn");
+	for (i = 0; i < 4; i++)
+	{
+		if (st_launchpad[i])
+			W_UnlockCachedPatch(st_launchpad[i]);
+		buf[6] = (char)('0'+i);
+		st_launchpad[i] = W_CachePatchName(buf, PU_STATIC);
+	}*/
+
+	curplaying = NULL;
+	st_time = 0;
+
+	st_sel = 0;
+
+	M_SetupNextMenu(&SR_MusicTestDef);
+}
+
+static void M_DrawMusicTest(void)
+{
+	INT32 x, y, i;
+	char* title;
+	//fixed_t hscale = FRACUNIT/2, vscale = FRACUNIT/2, bounce = 0;
+	//UINT8 frame[4] = {0, 0, -1, SKINCOLOR_RUBY};
+
+	// let's handle the ticker first. ideally we'd tick this somewhere else, BUT...
+	if (curplaying)
+	{
+		{
+			fixed_t work;
+			//angle_t ang;
+			//bpm = FixedDiv((60*TICRATE)<<FRACBITS, bpm); -- bake this in on load
+
+			work = st_time;
+			//work %= bpm;
+
+			if (st_time >= (FRACUNIT << (FRACBITS - 2))) // prevent overflow jump - takes about 15 minutes of loop on the same song to reach
+					st_time = work;
+
+			//work = FixedDiv(work*180, bpm);
+			//frame[0] = 8-(work/(20<<FRACBITS));
+			//ang = (FixedAngle(work)>>ANGLETOFINESHIFT) & FINEMASK;
+			//bounce = (FINESINE(ang) - FRACUNIT/2);
+			//hscale -= bounce/16;
+			//vscale += bounce/16;
+
+			st_time += renderdeltatics;
+		}
+	}
+
+	x = 90<<FRACBITS;
+	y = (BASEVIDHEIGHT-32)<<FRACBITS;
+
+	/*V_DrawStretchyFixedPatch(x, y,
+		hscale, vscale,
+		0, st_radio[frame[0]], NULL);
+
+	V_DrawFixedPatch(x, y, FRACUNIT/2, 0, st_launchpad[0], NULL);
+
+	for (i = 0; i < 9; i++)
+	{
+		if (i == frame[2])
+		{
+			UINT8 *colmap = R_GetTranslationColormap(TC_RAINBOW, frame[3], GTC_CACHE);
+			V_DrawFixedPatch(x, y + (frame[1]<<FRACBITS), FRACUNIT/2, 0, st_launchpad[frame[1]+1], colmap);
+		}
+		else
+			V_DrawFixedPatch(x, y, FRACUNIT/2, 0, st_launchpad[1], NULL);
+
+		if ((i % 3) == 2)
+		{
+			x -= ((2*28) + 25)<<(FRACBITS-1);
+			y -= ((2*7) - 11)<<(FRACBITS-1);
+		}
+		else
+		{
+			x += 28<<(FRACBITS-1);
+			y += 7<<(FRACBITS-1);
+		}
+	}*/
+
+	y = (BASEVIDWIDTH-(vid.width/vid.dupx))/2;
+
+	V_DrawFill(y-1, 20, vid.width/vid.dupx+1, 24, 239);
+	{
+		static fixed_t st_scroll = -FRACUNIT;
+		const char* titl;
+		
+		x = 16;
+		V_DrawString(x, 10, 0, "NOW PLAYING:");
+		if (curplaying)
+		{
+			if (curplaying->title[0] && curplaying->alttitle[0])
+				titl = va("%s - %s - ", curplaying->title, curplaying->alttitle);
+			else if (curplaying->title[0])
+				titl = va("%s - ", curplaying->title);
+			else
+				titl = va("%s - ", curplaying->source);
+		}
+		else
+			titl = "NONE - ";
+
+		i = V_LevelNameWidth(titl);
+
+		st_scroll += renderdeltatics;
+
+		while (st_scroll >= (i << FRACBITS))
+			st_scroll -= i << FRACBITS;
+
+		x -= st_scroll >> FRACBITS;
+
+		while (x < BASEVIDWIDTH-y)
+			x += i;
+		while (x > y)
+		{
+			x -= i;
+			V_DrawLevelTitle(x, 24, 0, titl);
+		}
+
+		if (curplaying && curplaying->authors[0])
+			V_DrawRightAlignedThinString(BASEVIDWIDTH-16, 46, V_ALLOWLOWERCASE, curplaying->authors);
+		
+		if (curplaying)
+		{
+			if (!curplaying->usage[0])
+				V_DrawString(vid.dupx, vid.height - 10*vid.dupy, V_NOSCALESTART|V_ALLOWLOWERCASE, va("%.6s", curplaying->name));
+			else {
+				V_DrawSmallString(vid.dupx, vid.height - 5*vid.dupy, V_NOSCALESTART|V_ALLOWLOWERCASE, va("%.6s - %.255s\n", curplaying->name, curplaying->usage));
+			}
+			
+			if (cv_showmusicfilename.value)
+				V_DrawSmallString(0, 0, V_SNAPTOTOP|V_SNAPTOLEFT|V_ALLOWLOWERCASE, curplaying->filename);
+		}
+	}
+
+	V_DrawFill(20, 60, 280, 128, 239);
+
+	{
+		INT32 t, b, q, m = 128;
+
+		if (numsoundtestdefs <= 8)
+		{
+			t = 0;
+			b = numsoundtestdefs - 1;
+			i = 0;
+		}
+		else
+		{
+			q = m;
+			m = (5*m)/numsoundtestdefs;
+			if (st_sel < 3)
+			{
+				t = 0;
+				b = 7;
+				i = 0;
+			}
+			else if (st_sel >= numsoundtestdefs-4)
+			{
+				t = numsoundtestdefs - 8;
+				b = numsoundtestdefs - 1;
+				i = q-m;
+			}
+			else
+			{
+				t = st_sel - 3;
+				b = st_sel + 4;
+				i = (t * (q-m))/(numsoundtestdefs - 8);
+			}
+		}
+
+		V_DrawFill(20+280-1, 60 + i, 1, m, 0);
+
+		if (t != 0)
+			V_DrawString(20+280+4, 60+4 - (skullAnimCounter/5), V_YELLOWMAP, "\x1A");
+
+		if (b != numsoundtestdefs - 1)
+			V_DrawString(20+280+4, 60+128-12 + (skullAnimCounter/5), V_YELLOWMAP, "\x1B");
+
+		x = 24;
+		y = 64;
+
+		if (renderisnewtic) ++st_namescroll;
+
+		while (t <= b)
+		{
+			if (t == st_sel)
+				V_DrawFill(20, y-4, 280-1, 16, 237);
+
+			{
+				const size_t MAXLENGTH = 34;
+				const tic_t SCROLLSPEED = TICRATE/5; // Number of tics for name being scrolled by 1 letter
+				size_t nameoffset = 0;
+				size_t namelength = strlen(soundtestdefs[t]->source);
+				if (soundtestdefs[t]->title[0])
+					namelength = strlen(soundtestdefs[t]->title);
+
+				char buf[MAXLENGTH+1];
+
+				if (t == st_sel && namelength > MAXLENGTH)
+				{
+					switch (st_namescrollstate)
+					{
+						case 0:
+						{
+							// Scroll forward
+							nameoffset = (st_namescroll/SCROLLSPEED) % (namelength - MAXLENGTH + 1);
+
+							if (nameoffset == namelength - MAXLENGTH)
+							{
+								st_namescroll = 0;
+								st_namescrollstate++;
+							}
+						}
+						break;
+
+						case 1:
+						{
+							nameoffset = namelength - MAXLENGTH;
+
+							// Show name end for 1 second, then start scrolling back
+							if (st_namescroll == TICRATE)
+							{
+								st_namescroll = 0;
+								st_namescrollstate++;
+							}
+						}
+						break;
+
+						case 2:
+						{
+							// Scroll back
+							nameoffset = (namelength - MAXLENGTH - 1) - (st_namescroll/SCROLLSPEED) % (namelength - MAXLENGTH);
+
+							if (nameoffset == 0)
+							{
+								st_namescroll = 0;
+								st_namescrollstate++;
+							}
+						}
+						break;
+
+						case 3:
+						{
+							nameoffset = 0;
+
+							// Show name beginning for 1 second, then start scrolling forward again
+							if (st_namescroll == TICRATE)
+							{
+								st_namescroll = 0;
+								st_namescrollstate = 0;
+							}
+						}
+						break;
+					}
+				}
+
+				if (soundtestdefs[t]->title[0])
+					strncpy(buf, soundtestdefs[t]->title + nameoffset, MAXLENGTH);
+				else
+					strncpy(buf, soundtestdefs[t]->source + nameoffset, MAXLENGTH);
+				buf[MAXLENGTH] = 0;
+
+				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE|V_MONOSPACE, buf);
+				if (curplaying == soundtestdefs[t])
+				{
+					V_DrawFill(20+280-9, y-4, 8, 16, 230);
+					//V_DrawCharacter(165+140-8, y, '\x19' | V_YELLOWMAP, false);
+					//V_DrawFixedPatch((165+140-9)<<FRACBITS, (y<<FRACBITS)-(bounce*4), FRACUNIT, 0, hu_font['\x19'-HU_FONTSTART], V_GetStringColormap(V_YELLOWMAP));
+				}
+			}
+			t++;
+			y += 16;
+		}
+	}
+}
+
+static void M_HandleMusicTest(INT32 choice)
+{
+	boolean exitmenu = false; // exit to previous menu
+
+	switch (choice)
+	{
+		case KEY_DOWNARROW:
+			if (st_sel++ >= numsoundtestdefs-1)
+				st_sel = 0;
+			{
+				S_StartSound(NULL, sfx_menu1);
+			}
+			st_namescroll = 0;
+			st_namescrollstate = 0;
+			break;
+		case KEY_UPARROW:
+			if (!st_sel--)
+				st_sel = numsoundtestdefs-1;
+			{
+				S_StartSound(NULL, sfx_menu1);
+			}
+			st_namescroll = 0;
+			st_namescrollstate = 0;
+			break;
+		case KEY_PGDN:
+			if (st_sel < numsoundtestdefs-1)
+			{
+				st_sel += 3;
+				if (st_sel >= numsoundtestdefs-1)
+					st_sel = numsoundtestdefs-1;
+				S_StartSound(NULL, sfx_menu1);
+			}
+			st_namescroll = 0;
+			st_namescrollstate = 0;
+			break;
+		case KEY_PGUP:
+			if (st_sel)
+			{
+				st_sel -= 3;
+				if (st_sel < 0)
+					st_sel = 0;
+				S_StartSound(NULL, sfx_menu1);
+			}
+			st_namescroll = 0;
+			st_namescrollstate = 0;
+			break;
+		case KEY_BACKSPACE:
+			if (curplaying)
+			{
+				S_StopSounds();
+				S_StopMusic();
+				curplaying = NULL;
+				st_time = 0;
+				S_StartSound(NULL, sfx_skid);
+			}
+			break;
+		case KEY_ESCAPE:
+			exitmenu = true;
+			st_namescroll = 0;
+			st_namescrollstate = 0;
+			break;
+
+		case KEY_RIGHTARROW:
+		case KEY_LEFTARROW:
+		case KEY_ENTER:
+			S_StopSounds();
+			S_StopMusic();
+			st_time = 0;
+			curplaying = soundtestdefs[st_sel];		
+			S_ChangeMusicInternal(curplaying->name, true);
+			break;
+
+		default:
+			break;
+	}
+	if (exitmenu)
+	{
+		Z_Free(soundtestdefs);
+		soundtestdefs = NULL;
+
 		if (currentMenu->prevMenu)
 			M_SetupNextMenu(currentMenu->prevMenu);
 		else
@@ -10358,7 +10929,7 @@ static void M_ConnectMenuModChecks(INT32 choice)
 	(void)choice;
 	// okay never mind we want to COMMUNICATE to the player pre-emptively instead of letting them try and then get confused when it doesn't work
 
-	if (modifiedgame)
+	if (modifiedgame || autoloaded)
 	{
 		M_StartMessage(M_GetText("You have addons loaded.\nYou won't be able to join netgames!\n\nTo play online, restart the game\nand don't load any addons.\nSRB2Kart will automatically add\neverything you need when you join.\n\n(Press a key)\n"),M_ConnectMenu,MM_EVENTHANDLER);
 		return;
@@ -10370,6 +10941,12 @@ static void M_ConnectMenuModChecks(INT32 choice)
 
 boolean firstDismissedNagThisBoot = true;
 #ifdef MASTERSERVER
+
+enum {
+	CONNECT_MENU,
+	STARTSERVER_MENU,
+} connect_error_continue = CONNECT_MENU;
+
 static void M_HandleMasterServerResetChoice(event_t *ev)
 {
 	INT32 choice = -1;
@@ -10398,6 +10975,18 @@ static void M_HandleMasterServerResetChoice(event_t *ev)
 	}
 
 }
+
+void M_PopupMasterServerConnectError(void)
+{
+	if (!CV_IsSetToDefault(&cv_masterserver) && cv_masterserver_nagattempts.value > 0)
+	{
+		M_StartMessage(M_GetText("There was a problem connecting to\ncustom Master Server\n\nYou've changed the Server Browser address.\nUnless you're from the future, this probably isn't what you want.\n\n\x83Press Accel\x80 to fix this and continue.\n"), connect_error_continue == STARTSERVER_MENU ? M_PreStartServerMenuChoice : M_PreConnectMenuChoice,MM_EVENTHANDLER);
+	}
+	else
+	{
+		M_StartMessage(M_GetText("There was a problem connecting to\nthe Master Server\n\nCheck the console for details.\n"), NULL, MM_NOTHING);
+	}
+}
 #endif
 
 static void M_PreStartServerMenu(INT32 choice)
@@ -10405,11 +10994,7 @@ static void M_PreStartServerMenu(INT32 choice)
 
 	(void)choice;
 #ifdef MASTERSERVER
-	if (!CV_IsSetToDefault(&cv_masterserver) && cv_masterserver_nagattempts.value > 0)
-	{
-		M_StartMessage(M_GetText("Hey! You've changed the Server Browser address.\n\nYou won't be able to host games on the official Server Browser.\nUnless you're from the future, this probably isn't what you want.\n\n\x83Press Accel\x80 to fix this and continue.\x80\nPress any other key to continue anyway.\n"),M_PreStartServerMenuChoice,MM_EVENTHANDLER);
-		return;
-	}
+	connect_error_continue = STARTSERVER_MENU;
 #endif
 	M_StartServerMenu(-1);
 
@@ -10418,13 +11003,7 @@ static void M_PreStartServerMenu(INT32 choice)
 static void M_PreConnectMenu(INT32 choice)
 {
 	(void)choice;
-
-	if (!CV_IsSetToDefault(&cv_masterserver) && cv_masterserver_nagattempts.value > 0)
-	{
-		M_StartMessage(M_GetText("Hey! You've changed the Server Browser address.\n\nYou won't be able to see games from the official Server Browser.\nUnless you're from the future, this probably isn't what you want.\n\n\x83Press Accel\x80 to fix this and continue.\x80\nPress any other key to continue anyway.\n"),M_PreConnectMenuChoice,MM_EVENTHANDLER);
-		return;
-	}
-
+	connect_error_continue = CONNECT_MENU;
 	M_ConnectMenuModChecks(-1);
 }
 
@@ -11695,7 +12274,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	patch = W_CachePatchNum(sprframe->lumppat[speenframe], PU_CACHE);
 
 	// draw box around guy
-	V_DrawFill(mx + 43 - (charw/2), my+65, charw, 84, 239);
+	V_DrawFill(mx + 36 - (charw/2), my+65, charw, 84, 239);
 
 	// draw player sprite
 	if (setupm_fakecolor) // inverse should never happen
@@ -11704,13 +12283,13 @@ static void M_DrawSetupMultiPlayerMenu(void)
 
 		if (skins[skintodisplay].flags & SF_HIRES)
 		{
-			V_DrawFixedPatch((mx+43)<<FRACBITS,
+			V_DrawFixedPatch((mx+36)<<FRACBITS,
 						(my+131)<<FRACBITS,
 						skins[skintodisplay].highresscale,
 						flags, patch, colormap);
 		}
 		else
-			V_DrawMappedPatch(mx+43, my+131, flags, patch, colormap);
+			V_DrawMappedPatch(mx+36, my+131, flags, patch, colormap);
 	}
 #undef charw
 }

@@ -28,6 +28,7 @@
 // ==========================================================================
 
 EXPORT boolean HWRAPI(Init) (void);
+EXPORT void HWRAPI(SetupGLInfo) (void);
 #if defined (PURESDL) || defined (macintosh)
 EXPORT void HWRAPI(SetPalette) (INT32 *, RGBA_t *gamma);
 #else
@@ -50,7 +51,7 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value);
 
 //Hurdler: added for new development
 
-EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float hscale, float vscale, UINT8 flipped, FSurfaceInfo *Surface);
+EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float hscale, float vscale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface);
 
 EXPORT void HWRAPI(CreateModelVBOs) (model_t *model);
 EXPORT void HWRAPI(SetTransform) (FTransform *stransform);
@@ -84,6 +85,7 @@ EXPORT boolean HWRAPI(InitCustomShaders) (void);
 EXPORT void HWRAPI(StartBatching) (void);
 EXPORT void HWRAPI(RenderBatches) (precise_t *sSortTime, precise_t *sDrawTime, int *sNumPolys, int *sNumVerts, int *sNumCalls, int *sNumShaders, int *sNumTextures, int *sNumPolyFlags, int *sNumColors);
 
+EXPORT void HWRAPI(InitPalette) (int flashnum, boolean skiplut);
 EXPORT UINT32 HWRAPI(AddLightTable) (UINT8 *lighttable);
 EXPORT void HWRAPI(ClearLightTableCache) (void);
 
@@ -96,6 +98,7 @@ EXPORT void HWRAPI(ClearLightTableCache) (void);
 struct hwdriver_s
 {
 	Init                	pfnInit;
+	SetupGLInfo             pfnSetupGLInfo;
 	SetPalette          	pfnSetPalette;
 	FinishUpdate        	pfnFinishUpdate;
 	Draw2DLine          	pfnDraw2DLine;
@@ -138,6 +141,7 @@ struct hwdriver_s
 	StartBatching 			pfnStartBatching;
 	RenderBatches 			pfnRenderBatches;
 	
+	InitPalette 			pfnInitPalette;
 	AddLightTable 			pfnAddLightTable;
 	ClearLightTableCache 	pfnClearLightTableCache;
 };

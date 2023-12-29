@@ -668,7 +668,7 @@ void F_CreditDrawer(void)
 	// RR isn't any time soon as of writing, but v1.4 is expected to be the last v1 release. Let's give it a proper send off.
 	if (finalecount)
 	{
-		const char *goodbyefornow = "See you in ""\x82""Dr. Robotnik's Ring Racers""\x80""!";
+		const char *goodbyefornow = """\x82""Dr. Robotnik's Ring Racers""\x80"" is never coming out!";
 		fixed_t lpad = ((vid.width/vid.dupx) - BASEVIDWIDTH)<<FRACBITS;
 		fixed_t w = V_StringWidth(goodbyefornow, V_ALLOWLOWERCASE)<<FRACBITS;
 		fixed_t x = FixedMul(((BASEVIDWIDTH<<FRACBITS)+w+lpad), ((finalecount-1)<<FRACBITS)/(5*TICRATE)) - w - (lpad/2);

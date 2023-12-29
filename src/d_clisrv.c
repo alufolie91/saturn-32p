@@ -47,6 +47,7 @@
 #include "k_kart.h"
 #include "s_sound.h" // sfx_syfail
 #include "m_perfstats.h"
+#include "d_main.h"
 
 #ifdef CLIENT_LOADINGSCREEN
 // cl loading screen
@@ -1911,6 +1912,15 @@ static void CL_LoadReceivedSavegame(void)
 	demo.playback = false;
 	demo.title = false;
 	automapactive = false;
+
+	if (!postautoloaded) 
+	{
+		CONS_Printf("D_AutoloadFile(): Loading autoloaded addons...\n");
+		if (W_AddAutoloadedLocalFiles(autoloadwadfilespost) == 0)
+			CONS_Printf("D_AutoloadFile(): Are you sure you put in valid files or what?\n");
+		D_CleanFile(autoloadwadfilespost);
+		postautoloaded = true;
+	}
 
 	// load a base level
 	if (P_LoadNetGame())
@@ -4319,6 +4329,13 @@ static void Got_RemovePlayer(UINT8 **p, INT32 playernum)
 	pnum = READUINT8(*p);
 	reason = READUINT8(*p);
 
+	if (pnum == serverplayer)
+	{
+		CONS_Alert(CONS_WARNING, "Attempt to remove server player\n");
+
+		return;
+	}
+
 	CL_RemovePlayer(pnum, reason);
 
 #ifdef HAVE_DISCORDRPC
@@ -5085,36 +5102,26 @@ static void HandlePacketFromPlayer(SINT8 node)
 			/// \todo Use a separate cvar for that kind of timeout?
 			freezetimeout[node] = I_GetTime() + connectiontimeout;
 
-			//Ported this from 2.2 Prevent dropped ticcmds due to interp timing jutter 
-			// If we've alredy received a ticcmd for this tic, just submit it for the next one.
-			tic_t faketic = maketic;
-			if ((!!(netcmds[maketic % TICQUEUE][netconsole].angleturn & TICCMD_RECEIVED))
-				&& (maketic - firstticstosend < TICQUEUE - 1))
-					faketic++;
-
-
-			
 			// Don't do anything for packets of type NODEKEEPALIVE?
 			// Sryder 2018/07/01: Update the freezetimeout still!
 			if (netbuffer->packettype == PT_NODEKEEPALIVE
 				|| netbuffer->packettype == PT_NODEKEEPALIVEMIS)
 				break;
 
-			// Copy ticcmd Prevent dropped ticcmds due to interp timing jutter 
-			G_MoveTiccmd(&netcmds[faketic%TICQUEUE][netconsole], &netbuffer->u.clientpak.cmd, 1);
-
+			// Copy ticcmd
+			G_MoveTiccmd(&netcmds[maketic%TICQUEUE][netconsole], &netbuffer->u.clientpak.cmd, 1);
 
 			// Check ticcmd for "speed hacks"
 			if (CheckForSpeedHacks((UINT8)netconsole))
 				break;
 
-			// Splitscreen cmd Prevent dropped ticcmds due to interp timing jutter 
+			// Splitscreen cmd
 			if (((netbuffer->packettype == PT_CLIENT2CMD || netbuffer->packettype == PT_CLIENT2MIS)
 				|| (netbuffer->packettype == PT_CLIENT3CMD || netbuffer->packettype == PT_CLIENT3MIS)
 				|| (netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS))
 				&& (nodetoplayer2[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer2[node]],
+				G_MoveTiccmd(&netcmds[maketic%TICQUEUE][(UINT8)nodetoplayer2[node]],
 					&netbuffer->u.client2pak.cmd2, 1);
 
 				if (CheckForSpeedHacks((UINT8)nodetoplayer2[node]))
@@ -5125,7 +5132,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 				|| (netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS))
 				&& (nodetoplayer3[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer3[node]],
+				G_MoveTiccmd(&netcmds[maketic%TICQUEUE][(UINT8)nodetoplayer3[node]],
 					&netbuffer->u.client3pak.cmd3, 1);
 
 				if (CheckForSpeedHacks((UINT8)nodetoplayer3[node]))
@@ -5135,7 +5142,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 			if ((netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS)
 				&& (nodetoplayer4[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer4[node]],
+				G_MoveTiccmd(&netcmds[maketic%TICQUEUE][(UINT8)nodetoplayer4[node]],
 					&netbuffer->u.client4pak.cmd4, 1);
 
 				if (CheckForSpeedHacks((UINT8)nodetoplayer4[node]))
