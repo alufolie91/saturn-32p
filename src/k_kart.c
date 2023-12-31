@@ -10587,6 +10587,7 @@ static void K_drawKartSpeedometer(void)
 					V_DrawKartString(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, va("%4d P", convSpeed));
 				else
 					V_DrawKartString(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, va("%4d %%", convSpeed));
+				break;
 		}
 	}
 	else if (cv_newspeedometer.value == 2 && snw_speedo) // why bother if we dont?
