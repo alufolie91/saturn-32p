@@ -494,7 +494,6 @@ static void P_NetUnArchivePlayers(void)
 static void P_NetArchiveWorld(void)
 {
 	size_t i;
-	INT32 statsec = 0, statline = 0;
 	const line_t *li = lines;
 	const side_t *si;
 	UINT8 *put;
@@ -587,8 +586,6 @@ static void P_NetArchiveWorld(void)
 
 		if (diff)
 		{
-			statsec++;
-
 			WRITEUINT16(put, i);
 			WRITEUINT8(put, diff);
 			if (diff & SD_DIFF2)
@@ -705,7 +702,6 @@ static void P_NetArchiveWorld(void)
 
 		if (diff)
 		{
-			statline++;
 			WRITEINT16(put, i);
 			WRITEUINT8(put, diff);
 			if (diff & LD_DIFF2)
@@ -1980,14 +1976,22 @@ static void LoadMobjThinker(actionf_p1 thinker)
 	mobj->thinker.function.acp1 = thinker;
 
 	mobj->rollangle = 0;
-	mobj->spritexoffset = mobj->spriteyoffset = mobj->old_spritexoffset = mobj->old_spriteyoffset = FRACUNIT;
-	mobj->spritexscale = mobj->spriteyscale = mobj->old_spritexscale = mobj->old_spriteyscale = FRACUNIT;
-	mobj->realxscale = mobj->realyscale = FRACUNIT;
+	mobj->sloperoll = 0;
+	mobj->reservexydir = 0;
+	mobj->reservezangle = 0;
+	
+	mobj->spritexoffset = mobj->old_spritexoffset = 0;
+	mobj->spriteyoffset = mobj->old_spriteyoffset = 0;
+	mobj->spritexscale = mobj->old_spritexscale = FRACUNIT;
+	mobj->spriteyscale = mobj->old_spriteyscale = FRACUNIT;
+	mobj->realxscale = FRACUNIT;
+	mobj->realyscale = FRACUNIT;
+	
 	mobj->stretchslam = 0;
 	mobj->slamsoundtimer = 0;
 	
-	mobj->sloperoll = mobj->reservezangle = mobj->reservexydir = 0;
-
+	mobj->mirrored = 0;
+	
 	mobj->z = z;
 	mobj->floorz = floorz;
 	mobj->ceilingz = ceilingz;

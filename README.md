@@ -15,37 +15,13 @@ Adds a 12 player cap to the distance calculation, to make item rng in big lobbie
 
 Everything Saturn client also has See: https://github.com/Indev450/SRB2Kart-Saturn
 
-##Features (Uranus Branch)
-Everything from above
-This fork focuses on more experimental features and netcode fixes
-
-The Player collision system has been redone to be Cylindrical instead of being a Box. This will most likely fix magnet walls, and alot of other issues, esp on maps with complicated geometry
-
-Interpoints, a hook to replace Scores on the ingame scoreboard
-
-More Blua Hooks, For Stealing Bumpers in Battle mode, Hyudoro, Sneakers and Mobj Scales
-
-Aswell as more Lua hooks for Intermission
-
-Double the skin limit (512 instead of 255)
-
-General Fixes in the netcode. This makes players with high ping less likely to lag out the whole server.
-
-Synchfixes, maps with Wavy floors (or maps with things that use pmomz) are less likely to desynch Players
-
-Also resynching has a higher chance to be succesful in doing so
-
-Optimized netarchiving for Lua values
-
-Optimized Polygon sorting with OpenGl batching
-
 ## Dependencies
-- NASM (x86 builds only)
 - SDL2 (Linux/OS X only)
 - SDL2-Mixer (Linux/OS X only)
 - libupnp (Linux/OS X only)
 - libgme (Linux/OS X only)
 - libopenmpt (Linux/OS X only)
+- libbacktrace (Linux/OS X only)
 
 ## Compiling
 

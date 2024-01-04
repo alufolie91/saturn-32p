@@ -16,16 +16,12 @@
 #ifdef __GNUC__
 #include <dirent.h>
 #endif
-#if defined (_WIN32) && !defined (_XBOX)
+#ifdef _WIN32
 //#define WIN32_LEAN_AND_MEAN
 #define RPC_NO_WINDOWS_H
 #include <windows.h>
 #endif
-#ifdef _WIN32_WCE
-#include "sdl12/SRB2CE/cehelp.h"
-#else
 #include <sys/stat.h>
-#endif
 #include <string.h>
 
 #include "filesrch.h"
@@ -34,7 +30,7 @@
 #include "z_zone.h"
 #include "m_menu.h" // Addons_option_Onchange
 
-#if (defined (_WIN32) && !defined (_WIN32_WCE)) && defined (_MSC_VER) && !defined (_XBOX)
+#if defined (_WIN32) && defined (_MSC_VER)
 
 #include <errno.h>
 #include <io.h>
@@ -341,109 +337,22 @@ size_t dir_on[menudepth];
 UINT8 refreshdirmenu = 0;
 char *refreshdirname = NULL;
 
-
-#if defined (_XBOX) && defined (_MSC_VER)
-filestatus_t filesearch(char *filename, const char *startpath, const UINT8 *wantedmd5sum,
-	boolean completepath, int maxsearchdepth)
+// Checks if the specified path is a directory.
+// Returns 1 if so, 0 if not, and -1 if an error occurred.
+// direrror is set if there was an error.
+INT32 pathisdirectory(const char *path)
 {
-//NONE?
-	startpath = filename = NULL;
-	wantedmd5sum = NULL;
-	maxsearchdepth = 0;
-	completepath = false;
-	return FS_NOTFOUND;
-}
+	struct stat fsstat;
 
-void closefilemenu(boolean validsize)
-{
-	(void)validsize;
-	return;
-}
-
-void searchfilemenu(char *tempname)
-{
-	(void)tempname;
-	return;
-}
-
-boolean preparefilemenu(boolean samedepth, boolean replayhut)
-{
-	(void)samedepth;
-	(void)replayhut;
-	return false;
-}
-
-#elif defined (_WIN32_WCE)
-filestatus_t filesearch(char *filename, const char *startpath, const UINT8 *wantedmd5sum,
-	boolean completepath, int maxsearchdepth)
-{
-#ifdef __GNUC__
-//NONE?
-	startpath = filename = NULL;
-	wantedmd5sum = NULL;
-	maxsearchdepth = 0;
-	completepath = false;
-#else
-	WIN32_FIND_DATA dta;
-	HANDLE searchhandle = INVALID_HANDLE_VALUE;
-	const wchar_t wm[4] = L"*.*";
-
-	//if (startpath) SetCurrentDirectory(startpath);
-	if (FIL_ReadFileOK(filename))
+	if (stat(path, &fsstat) < 0)
 	{
-		// checkfilemd5 returns an FS_* value, either FS_FOUND or FS_MD5SUMBAD
-		return checkfilemd5(filename, wantedmd5sum);
+		return -1;
 	}
-	ZeroMemory(&dta,sizeof (dta));
-	if (maxsearchdepth)
-		searchhandle = FindFirstFile(wm,&dta);
-	if (searchhandle != INVALID_HANDLE_VALUE)
-	{
-		do
-		{
-			if ((dta.cFileName[0]!='.') && (dta.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-			{
-				//if (SetCurrentDirectory(dta.cFileName))
-				{ // can fail if we haven't the right
-					filestatus_t found;
-					found = filesearch(filename,NULL,wantedmd5sum,completepath,maxsearchdepth-1);
-					//SetCurrentDirectory("..");
-					if (found == FS_FOUND || found == FS_MD5SUMBAD)
-					{
-						if (completepath)
-							strcatbf(filename,(char *)dta.cFileName,"\\");
-						FindClose(searchhandle);
-						return found;
-					}
-				}
-			}
-		} while (FindNextFile(searchhandle,&dta)==0);
-		FindClose(searchhandle);
-	}
-#endif
-	return FS_NOTFOUND;
-}
+	else if (S_ISDIR(fsstat.st_mode))
+		return 1;
 
-void closefilemenu(boolean validsize)
-{
-	(void)validsize;
-	return;
+	return 0;
 }
-
-void searchfilemenu(char *tempname)
-{
-	(void)tempname;
-	return;
-}
-
-boolean preparefilemenu(boolean samedepth, boolean replayhut)
-{
-	(void)samedepth;
-	(void)replayhut;
-	return false;
-}
-
-#else
 
 filestatus_t filesearch(char *filename, const char *startpath, const UINT8 *wantedmd5sum, boolean completepath, int maxsearchdepth)
 {
@@ -504,9 +413,28 @@ filestatus_t filesearch(char *filename, const char *startpath, const UINT8 *want
 		// okay, now we actually want searchpath to incorporate d_name
 		strcpy(&searchpath[searchpathindex[depthleft]],dent->d_name);
 
+#if defined(__linux__) || defined(__FreeBSD__)
+		if (dent->d_type == DT_UNKNOWN)
+			if (lstat(searchpath,&fsstat) == 0 && S_ISDIR(fsstat.st_mode))
+				dent->d_type = DT_DIR;
+            else if (lstat(searchpath,&fsstat) == 0 && S_ISLNK(fsstat.st_mode))
+                dent->d_type = DT_LNK;
+
+		// Symlinks aren't always directory symlinks. Dunno if this would resolve recursive
+		// symlinks, but i think stat already does that
+		if (dent->d_type == DT_LNK && stat(searchpath,&fsstat) == 0 && !S_ISDIR(fsstat.st_mode))
+		{
+			dent->d_type = DT_UNKNOWN;
+		}
+
+		// Linux and FreeBSD has a special field for file type on dirent, so use that to speed up lookups.
+		// FIXME: should we also follow symlinks?
+		if ((dent->d_type == DT_DIR && depthleft) || (dent->d_type == DT_LNK && depthleft))
+#else
 		if (stat(searchpath,&fsstat) < 0) // do we want to follow symlinks? if not: change it to lstat
 			; // was the file (re)moved? can't stat it
 		else if (S_ISDIR(fsstat.st_mode) && depthleft)
+#endif
 		{
 			searchpathindex[--depthleft] = strlen(searchpath) + 1;
 			dirhandle[depthleft] = opendir(searchpath);
@@ -921,5 +849,3 @@ boolean preparefilemenu(boolean samedepth, boolean replayhut)
 
 	return true;
 }
-
-#endif

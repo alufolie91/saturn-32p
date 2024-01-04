@@ -51,7 +51,9 @@ doomcom_t *doomcom = NULL;
 /// \brief network packet data, points inside doomcom
 doomdata_t *netbuffer = NULL;
 /// \brief hole punching packet, also points inside doomcom
+#ifdef HOLEPUNCH
 holepunch_t *holepunchpacket = NULL;
+#endif
 
 #ifdef DEBUGFILE
 FILE *debugfile = NULL; // put some net info in a file during the game
@@ -75,8 +77,10 @@ boolean (*I_NetCanGet)(void) = NULL;
 void (*I_NetCloseSocket)(void) = NULL;
 void (*I_NetFreeNodenum)(INT32 nodenum) = NULL;
 SINT8 (*I_NetMakeNodewPort)(const char *address, const char* port) = NULL;
+#ifdef HOLEPUNCH
 void (*I_NetRequestHolePunch)(INT32 node) = NULL;
 void (*I_NetRegisterHolePunch)(void) = NULL;
+#endif
 boolean (*I_NetOpenSocket)(void) = NULL;
 boolean (*I_Ban) (INT32 node) = NULL;
 void (*I_ClearBans)(void) = NULL;
@@ -827,6 +831,10 @@ static const char *packettypename[NUMPACKETTYPE] =
 	"CLIENTJOIN",
 	"NODETIMEOUT",
 	"RESYNCHING",
+
+	"TELLFILESNEEDED",
+	"MOREFILESNEEDED",
+
 	"PING"
 };
 
@@ -1349,14 +1357,11 @@ boolean D_CheckNetGame(void)
 		I_Error("Too many nodes (%d), max:%d", doomcom->numnodes, MAXNETNODES);
 
 	netbuffer = (doomdata_t *)(void *)&doomcom->data;
+	#ifdef HOLEPUNCH
 	holepunchpacket = (holepunch_t *)(void *)&doomcom->data;
+	#endif
 
 #ifdef DEBUGFILE
-#ifdef _arch_dreamcast
-	//debugfile = stderr;
-	if (debugfile)
-			CONS_Printf(M_GetText("debug output to: %s\n"), "STDERR");
-#else
 	if (M_CheckParm("-debugfile"))
 	{
 		char filename[21];
@@ -1374,7 +1379,6 @@ boolean D_CheckNetGame(void)
 		else
 			CONS_Alert(CONS_WARNING, M_GetText("cannot debug output to file %s!\n"), va("%s" PATHSEP "%s", srb2home, filename));
 	}
-#endif
 #endif
 
 	D_ClientServerInit();
@@ -1464,7 +1468,7 @@ void Command_Ping_f(void)
 
 	if (!server && playeringame[consoleplayer])
 	{
-		CONS_Printf("\nYour ping is %d frames (%d ms)\n", playerpingtable[consoleplayer], (INT32)(playerpingtable[i] * (1000.00f / TICRATE)));
+		CONS_Printf("\nYour ping is %d frames (%d ms)\n", playerpingtable[consoleplayer], (INT32)(playerpingtable[consoleplayer] * (1000.00f / TICRATE)));
 	}
 }
 

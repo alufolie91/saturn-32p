@@ -514,7 +514,7 @@ void HU_AddChatText(const char *text, boolean playsound)
 
 static void DoSayCommand(SINT8 target, size_t usedargs, UINT8 flags)
 {
-	XBOXSTATIC char buf[2 + HU_MAXMSGLEN + 1];
+	char buf[2 + HU_MAXMSGLEN + 1];
 	size_t numwords, ix;
 	char *msg = &buf[2];
 	const size_t msgspace = sizeof buf - 2;
@@ -946,7 +946,7 @@ static void Got_Saycmd(UINT8 **p, INT32 playernum)
 			player_names[playernum]);
 		if (server)
 		{
-			XBOXSTATIC UINT8 buf[2];
+			UINT8 buf[2];
 
 			buf[0] = (UINT8)playernum;
 			buf[1] = KICK_MSG_CON_FAIL;
@@ -966,7 +966,7 @@ static void Got_Saycmd(UINT8 **p, INT32 playernum)
 				CONS_Alert(CONS_WARNING, M_GetText("Illegal say command received from %s containing invalid characters\n"), player_names[playernum]);
 				if (server)
 				{
-					XBOXSTATIC char buf[2];
+					char buf[2];
 
 					buf[0] = (char)playernum;
 					buf[1] = KICK_MSG_CON_FAIL;
@@ -1246,6 +1246,10 @@ void HU_Ticker(void)
 	}
 
 	if (cechotimer > 0) --cechotimer;
+	
+	// Animate the desynch dots
+	if (hu_resynching)
+		resynch_ticker++;	//tic tic tic tic tic	
 
 	HU_TickSongCredits();
 }
@@ -2683,8 +2687,24 @@ void HU_drawPing(INT32 x, INT32 y, UINT32 lag, INT32 flags)
 	gfxnum = Ping_gfx_num(lag);
 
 	if (measureid == 1)
-		V_DrawScaledPatch(x+11 - pingmeasure[measureid]->width, y+9, flags, pingmeasure[measureid]);
-	V_DrawScaledPatch(x+2, y, flags, pinggfx[gfxnum]);
+	{
+		if (cv_ticrate.value == 2){
+			V_DrawScaledPatch(x+12 - pingmeasure[measureid]->width, y+22, flags, pingmeasure[measureid]);
+		}else{
+			V_DrawScaledPatch(x+11 - pingmeasure[measureid]->width, y+9, flags, pingmeasure[measureid]);
+		}	
+	}
+	
+	
+	if (cv_pingicon.value)
+	{	
+	if (cv_ticrate.value == 2){
+			V_DrawScaledPatch(x+2, y+13, flags, pinggfx[gfxnum]);
+		}else{
+			V_DrawScaledPatch(x+2, y, flags, pinggfx[gfxnum]);
+		}
+	}
+	
 
 	if (servermaxping && lag > servermaxping && hu_tick < 4)
 	{
@@ -2696,11 +2716,21 @@ void HU_drawPing(INT32 x, INT32 y, UINT32 lag, INT32 flags)
 	{
 		lag = (INT32)(lag * (1000.00f / TICRATE));
 	}
+	
+	if (cv_ticrate.value == 2){
+		x = V_DrawPingNum(x + (measureid == 1 ? 11 - pingmeasure[measureid]->width : 10), y+22, flags, lag, colormap);
+	}else{
+		x = V_DrawPingNum(x + (measureid == 1 ? 11 - pingmeasure[measureid]->width : 10), y+9, flags, lag, colormap);
+	}
 
-	x = V_DrawPingNum(x + (measureid == 1 ? 11 - pingmeasure[measureid]->width : 10), y+9, flags, lag, colormap);
-
-	if (measureid == 0)
-		V_DrawScaledPatch(x+1 - pingmeasure[measureid]->width, y+9, flags, pingmeasure[measureid]);
+	if (measureid == 0){
+		if (cv_ticrate.value == 2){
+			V_DrawScaledPatch(x+1 - pingmeasure[measureid]->width, y+22, flags, pingmeasure[measureid]);
+		}else{
+			V_DrawScaledPatch(x+1 - pingmeasure[measureid]->width, y+9, flags, pingmeasure[measureid]);
+		}
+	}		
+		
 }
 
 //
@@ -2788,10 +2818,16 @@ static void HU_DrawRankings(void)
 		hilicol = ((gametype == GT_RACE) ? V_SKYMAP : V_REDMAP);
 
 	// draw the current gametype in the lower right
-	if (modeattacking)
-		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, "Record Attack");
+	//if (modeattacking)
+		//V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, "Record Attack");
+	//else
+		//V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, gametype_cons_t[gametype].strvalue);
+	
+	// draw the current map in the lower right if theres none just say its unknown
+	if (!G_BuildMapTitle(gamemap))
+		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, "UNKNOWN");
 	else
-		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, gametype_cons_t[gametype].strvalue);
+		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, G_BuildMapTitle(gamemap));
 
 	if (G_GametypeHasTeams())
 	{
@@ -2958,6 +2994,9 @@ void HU_SetCEchoFlags(INT32 flags)
 
 void HU_DoCEcho(const char *msg)
 {
+	if (!cv_cechotoggle.value)
+		return
+	
 	I_OutputMsg("%s\n", msg); // print to log
 
 	strncpy(cechotext, msg, sizeof(cechotext));

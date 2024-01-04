@@ -20,6 +20,8 @@
 #include "p_local.h"
 #include "g_game.h"
 #include "p_setup.h"
+#include "doomdef.h"
+#include "d_netcmd.h"
 
 #include "lua_script.h"
 #include "lua_libs.h"
@@ -48,6 +50,8 @@ int mobj_state_setter(lua_State *L);
 int mobj_flags_setter(lua_State *L);
 int mobj_skin_getter(lua_State *L);
 int mobj_skin_setter(lua_State *L);
+int mobj_localskin_getter(lua_State *L);
+int mobj_localskin_setter(lua_State *L);
 int mobj_color_setter(lua_State *L);
 int mobj_bnext_noset(lua_State *L);
 int mobj_bprev_unimplemented(lua_State *L);
@@ -106,6 +110,7 @@ static const udata_field_t mobj_fields[] = {
     FIELD(mobj_t, flags2,              udatalib_getter_uint32,     udatalib_setter_uint32),
     FIELD(mobj_t, eflags,              udatalib_getter_uint32,     udatalib_setter_uint32),
     FIELD(mobj_t, skin,                mobj_skin_getter,           mobj_skin_setter),
+    FIELD(mobj_t, localskin,           mobj_localskin_getter,      mobj_localskin_setter),
     FIELD(mobj_t, color,               udatalib_getter_uint8,      mobj_color_setter),
     FIELD(mobj_t, bnext,               udatalib_getter_mobj,       mobj_bnext_noset),
     FIELD(mobj_t, bprev,               mobj_bprev_unimplemented,   mobj_bprev_unimplemented),
@@ -138,6 +143,7 @@ static const udata_field_t mobj_fields[] = {
     FIELD(mobj_t, cvmem,               udatalib_getter_int32,      udatalib_setter_int32),
     FIELD(mobj_t, standingslope,       udatalib_getter_slope,      mobj_standingslope_noset),
     FIELD(mobj_t, colorized,           udatalib_getter_boolean,    udatalib_setter_boolean),
+	FIELD(mobj_t, mirrored,           udatalib_getter_boolean,    udatalib_setter_boolean),
     FIELD(mobj_t, rollmodel,           udatalib_getter_boolean,    udatalib_setter_boolean),
     { NULL },
 };
@@ -212,7 +218,7 @@ UNIMPLEMENTED(mobjnum)
 
 // For some dumb reason it is valid to set sloperoll, even though it is read
 // only
-int mobj_sloperoll_noop(lua_State *L) { return 0; }
+int mobj_sloperoll_noop(lua_State *L) { (void)L; return 0; }
 
 // Now other getters/setters with arbitary logic
 
@@ -363,8 +369,14 @@ int mobj_skin_getter(lua_State *L)
     if (!mo->skin)
 		return 0;
 
-	lua_pushstring(L, ((skin_t *)mo->skin)->name);
-
+	if (hud_running && cv_luaimmersion.value) {
+			if (mo->localskin) // HUD ONLY!!!!!!!!!!
+				lua_pushstring(L, ((skin_t *)mo->localskin)->name);
+			else
+				lua_pushstring(L, ((skin_t *)mo->skin)->name);
+		} else {
+			lua_pushstring(L, ((skin_t *)mo->skin)->name);
+		}
     return 1;
 }
 
@@ -385,7 +397,61 @@ int mobj_skin_setter(lua_State *L)
         }
     }
 
-    return luaL_error(L, "mobj.skin '%s' not found!", skin);
+	return luaL_error(L, "mobj.skin '%s' not found!", skin);
+}
+
+int mobj_localskin_getter(lua_State *L)
+{
+	mobj_t *mo = GETMO();
+
+	if (mo->localskin)
+		lua_pushstring(L, ((skin_t *)mo->localskin)->name);
+	else
+		lua_pushnil(L);
+
+	return 1;
+}
+
+int mobj_localskin_setter(lua_State *L)
+{
+	mobj_t *mo = GETMO();
+
+	if (mo->player)
+	{
+		SetLocalPlayerSkin(mo->player - players, luaL_checkstring(L, 2), NULL);
+	}
+	else
+	{
+		INT32 i;
+		char skin[SKINNAMESIZE+1]; // all skin names are limited to this length
+		strlcpy(skin, luaL_checkstring(L, 2), sizeof skin);
+		strlwr(skin); // all skin names are lowercase
+
+		// Try localskins
+		for (i = 0; i < numlocalskins; i++)
+		{
+			if (stricmp(localskins[i].name, skin) == 0)
+			{
+				mo->localskin = &localskins[i];
+				mo->skinlocal = true;
+				return 0;
+			}
+		}
+
+		// Try other skins
+		for (i = 0; i < numskins; i++)
+		{
+			if (fastcmp(skins[i].name, skin))
+			{
+				mo->localskin = &skins[i];
+				mo->skinlocal = false;
+				return 0;
+			}
+		}
+	}
+
+
+	return 0;
 }
 
 int mobj_color_setter(lua_State *L)

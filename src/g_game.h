@@ -160,16 +160,7 @@ extern consvar_t cv_sliptideroll;
 extern consvar_t cv_slamsound;
 extern consvar_t cv_sloperolldist;
 
-extern consvar_t cv_invincmusicfade;
-extern consvar_t cv_growmusicfade;
-
-extern consvar_t cv_respawnfademusicout;
-extern consvar_t cv_respawnfademusicback;
-
-extern consvar_t cv_resetspecialmusic;
-
-extern consvar_t cv_resume;
-extern consvar_t cv_fading;
+extern consvar_t cv_cechotoggle;
 
 #ifndef NONET
 extern consvar_t cv_chatlogsize;
@@ -403,6 +394,7 @@ boolean G_GetRetryFlag(void);
 void G_LoadGameData(void);
 void G_LoadGameSettings(void);
 
+void G_SetWadModified(boolean silent, boolean major, UINT16 wadnum);
 void G_SetGameModified(boolean silent, boolean major);
 
 void G_SetGamestate(gamestate_t newstate);

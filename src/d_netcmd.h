@@ -21,6 +21,7 @@
 extern consvar_t cv_playername;
 extern consvar_t cv_playercolor;
 extern consvar_t cv_skin;
+extern consvar_t cv_localskin;
 // secondary splitscreen player
 extern consvar_t cv_playername2;
 extern consvar_t cv_playercolor2;
@@ -40,6 +41,8 @@ extern consvar_t cv_splitplayers;
 extern consvar_t cv_seenames, cv_allowseenames;
 #endif
 extern consvar_t cv_usemouse;
+//WTF
+extern consvar_t cv_mouseturn;
 extern consvar_t cv_usejoystick;
 extern consvar_t cv_usejoystick2;
 extern consvar_t cv_usejoystick3;
@@ -56,7 +59,7 @@ extern consvar_t cv_joyscale4;
 // splitscreen with second mouse
 extern consvar_t cv_mouse2port;
 extern consvar_t cv_usemouse2;
-#if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON)
+#if defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)
 extern consvar_t cv_mouse2opt;
 #endif
 
@@ -110,6 +113,9 @@ extern consvar_t cv_thundershield, cv_hyudoro, cv_pogospring, cv_kitchensink;
 extern consvar_t cv_triplesneaker, cv_triplebanana, cv_decabanana;
 extern consvar_t cv_tripleorbinaut, cv_quadorbinaut, cv_dualjawz;
 
+//Lastserver
+extern consvar_t cv_lastserver;
+
 extern consvar_t cv_kartminimap;
 extern consvar_t cv_kartcheck;
 extern consvar_t cv_kartinvinsfx;
@@ -150,6 +156,7 @@ extern consvar_t cv_maxping;
 extern consvar_t cv_pingtimeout;
 extern consvar_t cv_showping;
 extern consvar_t cv_pingmeasurement;
+extern consvar_t cv_pingicon;
 
 //extern consvar_t cv_smallpos;
 extern consvar_t cv_showminimapnames;
@@ -158,6 +165,9 @@ extern consvar_t cv_minihead;
 extern consvar_t cv_showlapemblem; 
 
 extern consvar_t cv_showviewpointtext;
+extern consvar_t cv_luaimmersion;
+extern consvar_t cv_fakelocalskin;
+extern consvar_t cv_showlocalskinmenus;
 
 extern consvar_t cv_skipmapcheck;
 
@@ -177,7 +187,8 @@ typedef enum
 {
 	SKINMENUTYPE_SCROLL = 0,
 	SKINMENUTYPE_2D,    // 1
-	SKINMENUTYPE_GRID   // 2
+	SKINMENUTYPE_GRID,   // 2
+	SKINMENUTYPE_EXTENDED	// 3
 } skinmenutype_t;
 
 typedef enum

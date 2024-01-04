@@ -10,9 +10,7 @@
 /// \file  d_clisrv.c
 /// \brief SRB2 Network game communication and protocol, all OS independent parts.
 
-#if !defined (UNDER_CE)
 #include <time.h>
-#endif
 #ifdef __GNUC__
 #include <unistd.h> //for unlink
 #endif
@@ -49,15 +47,12 @@
 #include "k_kart.h"
 #include "s_sound.h" // sfx_syfail
 #include "m_perfstats.h"
+#include "d_main.h"
 
 #ifdef CLIENT_LOADINGSCREEN
 // cl loading screen
 #include "v_video.h"
 #include "f_finale.h"
-#endif
-
-#ifdef _XBOX
-#include "sdl12/SRB2XBOX/xboxhelp.h"
 #endif
 
 #ifdef HAVE_DISCORDRPC
@@ -176,6 +171,8 @@ static textcmdtic_t *textcmds[TEXTCMD_HASH_SIZE] = {NULL};
 
 
 consvar_t cv_showjoinaddress = {"showjoinaddress", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_shownodeip = {"showipinnodelist", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t playbackspeed_cons_t[] = {{1, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_playbackspeed = {"playbackspeed", "1", 0, playbackspeed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -452,7 +449,7 @@ static void ExtraDataTicker(void)
 					{
 						if (server)
 						{
-							XBOXSTATIC UINT8 buf[3];
+							UINT8 buf[3];
 
 							buf[0] = (UINT8)i;
 							buf[1] = KICK_MSG_CON_FAIL;
@@ -1073,7 +1070,7 @@ static void SV_SendResynch(INT32 node)
 
 	if (resynch_score[node] > (unsigned)cv_resynchattempts.value*250)
 	{
-		XBOXSTATIC UINT8 buf[2];
+		UINT8 buf[2];
 		buf[0] = (UINT8)nodetoplayer[node];
 		buf[1] = KICK_MSG_CON_FAIL;
 		SendNetXCmd(XD_KICK, &buf, 2);
@@ -1833,7 +1830,7 @@ static void SV_SavedGame(void)
 {
 	size_t length;
 	UINT8 *savebuffer;
-	XBOXSTATIC char tmpsave[264];
+	char tmpsave[264];
 
 	if (!cv_dumpconsistency.value)
 		return;
@@ -1875,7 +1872,7 @@ static void CL_LoadReceivedSavegame(void)
 {
 	UINT8 *savebuffer = NULL;
 	size_t length, decompressedlen;
-	XBOXSTATIC char tmpsave[264];
+	char tmpsave[264];
 
 	sprintf(tmpsave, "%s" PATHSEP TMPSAVENAME, srb2home);
 
@@ -1904,6 +1901,15 @@ static void CL_LoadReceivedSavegame(void)
 	demo.playback = false;
 	demo.title = false;
 	automapactive = false;
+
+	if (!postautoloaded) 
+	{
+		CONS_Printf("D_AutoloadFile(): Loading autoloaded addons...\n");
+		if (W_AddAutoloadedLocalFiles(autoloadwadfilespost) == 0)
+			CONS_Printf("D_AutoloadFile(): Are you sure you put in valid files or what?\n");
+		D_CleanFile(autoloadwadfilespost);
+		postautoloaded = true;
+	}
 
 	// load a base level
 	if (P_LoadNetGame())
@@ -1945,12 +1951,13 @@ static void CL_LoadReceivedSavegame(void)
 static void SendAskInfo(INT32 node)
 {
 	tic_t asktime;
-
+	#ifdef HOLEPUNCH
 	if (node != 0 && node != BROADCASTADDR &&
 			cv_rendezvousserver.string[0])
 	{
 		I_NetRequestHolePunch(node);
 	}
+	#endif
 
 	asktime = I_GetTime();
 
@@ -2639,7 +2646,7 @@ static void CL_ConnectToServer(void)
 	tic_t asksent;
 #endif
 #ifdef JOININGAME
-	XBOXSTATIC char tmpsave[264];
+	char tmpsave[264];
 
 	sprintf(tmpsave, "%s" PATHSEP TMPSAVENAME, srb2home);
 #endif
@@ -3351,7 +3358,7 @@ static void Command_Nodes(void)
 		{
 			CONS_Printf("%.2u: %*s", i, (int)maxlen, player_names[i]);
 			CONS_Printf(" - %.2d", playernode[i]);
-			if (I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL)
+			if ((I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL) && (cv_shownodeip.value))
 				CONS_Printf(" - %s", address);
 
 			if (IsPlayerAdmin(i))
@@ -3363,6 +3370,94 @@ static void Command_Nodes(void)
 			CONS_Printf("\n");
 		}
 	}
+}
+
+//Screw the base game nodes lets replace with listplayers instead.
+static void Command_Listplayers(void)
+{
+	const char *address;
+	int width = 0;
+
+	boolean admin;
+	boolean spectator;
+
+	/*
+	Mode of player status for an individual player (admin, spectator).
+	1 for admin
+	2 for spectator
+	4 for both
+	*/
+	int mode = 0;
+
+	INT32 totalplayers = 0;
+
+	const char *cc;
+	const char *pcc;
+
+	INT32 i;
+	int n;
+
+	for (i = 0; i < MAXPLAYERS; ++i)
+		if (playeringame[i])
+	{
+		n = strlen(player_names[i]);
+		if (n > width)
+			width = n;
+
+		if (mode != 7)
+		{
+			admin     = IsPlayerAdmin(i);
+			spectator = players[i].spectator;
+
+			if (admin)
+				mode |= 1;
+			if (spectator)
+				mode |= 2;
+			if (admin && spectator)
+				mode |= 4;
+		}
+	}
+
+	for (i = 0; i < MAXPLAYERS; ++i)
+		if (playeringame[i])
+	{
+		admin     = IsPlayerAdmin(i);
+		spectator = players[i].spectator;
+
+		if (admin)
+			cc = "\x85";/* red */
+		else if (spectator)
+			cc = "\x86";/* gray */
+		else
+			cc = "";
+
+		pcc = HU_SkinColorToConsoleColor(players[i].skincolor);
+
+		CONS_Printf("%.2d: ""%s""%-*s""\x80", i, pcc,width, player_names[i]);
+
+			if ((I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL) && (cv_shownodeip.value))
+				CONS_Printf(" -- %s", address);
+			else/* print spacer */
+			{
+				/* ...but not if there's a crammed status and were admin */
+				if (mode != 7 || !admin)
+					CONS_Printf(" --     ");/* -- self */
+			}
+
+		if (admin)
+			CONS_Printf(M_GetText("%s"" (admin)"),cc);
+		if (spectator)
+			CONS_Printf(M_GetText("%s"" (spectator)"),cc);
+
+		CONS_Printf("\n");
+
+		totalplayers++;
+	}
+
+	if (totalplayers == 1)
+		CONS_Printf("\nThere is 1 player in the game.\n");
+	else
+		CONS_Printf("\nThere are %d players in the game.\n", totalplayers);
 }
 
 static void Command_Ban(void)
@@ -3381,7 +3476,7 @@ static void Command_Ban(void)
 
 	if (server || IsPlayerAdmin(consoleplayer))
 	{
-		XBOXSTATIC UINT8 buf[3 + MAX_REASONLENGTH];
+		UINT8 buf[3 + MAX_REASONLENGTH];
 		UINT8 *p = buf;
 		const SINT8 pn = nametonum(COM_Argv(1));
 
@@ -3498,7 +3593,7 @@ static void Command_Kick(void)
 
 	if (server || IsPlayerAdmin(consoleplayer))
 	{
-		XBOXSTATIC UINT8 buf[3 + MAX_REASONLENGTH];
+		UINT8 buf[3 + MAX_REASONLENGTH];
 		UINT8 *p = buf;
 		const SINT8 pn = nametonum(COM_Argv(1));
 
@@ -3550,7 +3645,7 @@ static void Command_Kick(void)
 static void Got_KickCmd(UINT8 **p, INT32 playernum)
 {
 	INT32 pnum, msg;
-	XBOXSTATIC char buf[3 + MAX_REASONLENGTH];
+	char buf[3 + MAX_REASONLENGTH];
 	char *reason = buf;
 	kickreason_t kickreason = KR_KICK;
 	UINT32 banMinutes = 0;
@@ -3930,6 +4025,7 @@ void D_ClientServerInit(void)
 	COM_AddCommand("reloadbans", Command_ReloadBan);
 	COM_AddCommand("connect", Command_connect);
 	COM_AddCommand("nodes", Command_Nodes);
+	COM_AddCommand("listplayers", Command_Listplayers);
 #ifdef HAVE_CURL
 	COM_AddCommand("set_http_login", Command_set_http_login);
 	COM_AddCommand("list_http_logins", Command_list_http_logins);
@@ -4124,7 +4220,7 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 		CONS_Alert(CONS_WARNING, M_GetText("Illegal add player command received from %s\n"), player_names[playernum]);
 		if (server)
 		{
-			XBOXSTATIC UINT8 buf[2];
+			UINT8 buf[2];
 
 			buf[0] = (UINT8)playernum;
 			buf[1] = KICK_MSG_CON_FAIL;
@@ -4209,7 +4305,7 @@ static void Got_RemovePlayer(UINT8 **p, INT32 playernum)
 		CONS_Alert(CONS_WARNING, M_GetText("Illegal remove player command received from %s\n"), player_names[playernum]);
 		if (server)
 		{
-			XBOXSTATIC UINT8 buf[2];
+			UINT8 buf[2];
 
 			buf[0] = (UINT8)playernum;
 			buf[1] = KICK_MSG_CON_FAIL;
@@ -4221,6 +4317,13 @@ static void Got_RemovePlayer(UINT8 **p, INT32 playernum)
 	pnum = READUINT8(*p);
 	reason = READUINT8(*p);
 
+	if (pnum == serverplayer)
+	{
+		CONS_Alert(CONS_WARNING, "Attempt to remove server player\n");
+
+		return;
+	}
+
 	CL_RemovePlayer(pnum, reason);
 
 #ifdef HAVE_DISCORDRPC
@@ -4231,7 +4334,7 @@ static void Got_RemovePlayer(UINT8 **p, INT32 playernum)
 static boolean SV_AddWaitingPlayers(void)
 {
 	INT32 node, n, newplayer = false;
-	XBOXSTATIC UINT8 buf[2];
+	UINT8 buf[2];
 	UINT8 newplayernum = 0;
 
 	// What is the reason for this? Why can't newplayernum always be 0?
@@ -4304,7 +4407,7 @@ void CL_AddSplitscreenPlayer(void)
 
 void CL_RemoveSplitscreenPlayer(UINT8 p)
 {
-	XBOXSTATIC UINT8 buf[2];
+	UINT8 buf[2];
 
 	if (cl_mode != CL_CONNECTED)
 		return;
@@ -4890,7 +4993,7 @@ static boolean CheckForSpeedHacks(UINT8 p)
 		|| netcmds[maketic%TICQUEUE][p].sidemove > MAXPLMOVE || netcmds[maketic%TICQUEUE][p].sidemove < -MAXPLMOVE
 		|| netcmds[maketic%TICQUEUE][p].driftturn > KART_FULLTURN || netcmds[maketic%TICQUEUE][p].driftturn < -KART_FULLTURN)
 	{
-		XBOXSTATIC char buf[2];
+		char buf[2];
 		CONS_Alert(CONS_WARNING, M_GetText("Illegal movement value received from node %d\n"), playernode[p]);
 		//D_Clearticcmd(k);
 
@@ -4912,11 +5015,11 @@ static boolean CheckForSpeedHacks(UINT8 p)
   *
   */
 static void HandlePacketFromPlayer(SINT8 node)
-{FILESTAMP
-	XBOXSTATIC INT32 netconsole;
-	XBOXSTATIC tic_t realend, realstart;
-	XBOXSTATIC UINT8 *pak, *txtpak, numtxtpak;
-FILESTAMP
+{
+	INT32 netconsole;
+	tic_t realend, realstart;
+	UINT8 *pak, *txtpak, numtxtpak;
+
 
 	txtpak = NULL;
 
@@ -5061,7 +5164,7 @@ FILESTAMP
 				}
 				else
 				{
-					XBOXSTATIC UINT8 buf[3];
+					UINT8 buf[3];
 
 					buf[0] = (UINT8)netconsole;
 					buf[1] = KICK_MSG_CON_FAIL;
@@ -5174,7 +5277,7 @@ FILESTAMP
 			nodewaiting[node] = 0;
 			if (netconsole != -1 && playeringame[netconsole])
 			{
-				XBOXSTATIC UINT8 buf[2];
+				UINT8 buf[2];
 				buf[0] = (UINT8)netconsole;
 				if (netbuffer->packettype == PT_NODETIMEOUT)
 					buf[1] = KICK_MSG_TIMEOUT;
@@ -5219,7 +5322,7 @@ FILESTAMP
 
 				if (server)
 				{
-					XBOXSTATIC UINT8 buf[2];
+					UINT8 buf[2];
 					buf[0] = (UINT8)node;
 					buf[1] = KICK_MSG_CON_FAIL;
 					SendNetXCmd(XD_KICK, &buf, 2);
@@ -5244,7 +5347,7 @@ FILESTAMP
 
 				if (server)
 				{
-					XBOXSTATIC UINT8 buf[2];
+					UINT8 buf[2];
 					buf[0] = (UINT8)node;
 					buf[1] = KICK_MSG_CON_FAIL;
 					SendNetXCmd(XD_KICK, &buf, 2);
@@ -5295,7 +5398,7 @@ FILESTAMP
 			}
 			else
 			{
-				DEBFILE(va("frame not in bound: %u\n", neededtic));
+				DEBFILE(va("frame not in bound: %u (bounds are from %u to %u)\n", neededtic, realstart, realend));
 				/*if (realend < neededtic - 2 * TICRATE || neededtic + 2 * TICRATE < realstart)
 					I_Error("Received an out of order PT_SERVERTICS packet!\n"
 							"Got tics %d-%d, needed tic %d\n\n"
@@ -5311,7 +5414,7 @@ FILESTAMP
 
 				if (server)
 				{
-					XBOXSTATIC char buf[2];
+					char buf[2];
 					buf[0] = (char)node;
 					buf[1] = KICK_MSG_CON_FAIL;
 					SendNetXCmd(XD_KICK, &buf, 2);
@@ -5330,7 +5433,7 @@ FILESTAMP
 
 				if (server)
 				{
-					XBOXSTATIC char buf[2];
+					char buf[2];
 					buf[0] = (char)node;
 					buf[1] = KICK_MSG_CON_FAIL;
 					SendNetXCmd(XD_KICK, &buf, 2);
@@ -5361,7 +5464,7 @@ FILESTAMP
 
 				if (server)
 				{
-					XBOXSTATIC UINT8 buf[2];
+					UINT8 buf[2];
 					buf[0] = (UINT8)node;
 					buf[1] = KICK_MSG_CON_FAIL;
 					SendNetXCmd(XD_KICK, &buf, 2);
@@ -5384,9 +5487,9 @@ FILESTAMP
   *
   */
 static void GetPackets(void)
-{FILESTAMP
-	XBOXSTATIC SINT8 node; // The packet sender
-FILESTAMP
+{
+	SINT8 node; // The packet sender
+
 
 	player_joining = false;
 
@@ -6085,7 +6188,7 @@ static inline void PingUpdate(void)
 			UINT8 minimumkicklevel = (nonlaggers > 0) ? PINGKICK_LIMIT : PINGKICK_TICQUEUE;
 			for (i = 0; i < MAXPLAYERS; i++)
 			{
-				XBOXSTATIC char buf[2];
+				char buf[2];
 
 				if (!playeringame[i] || pingkick[i] < minimumkicklevel)
 					continue;
@@ -6149,6 +6252,7 @@ static void UpdatePingTable(void)
 	}
 }
 
+#ifdef HOLEPUNCH
 static void RenewHolePunch(void)
 {
 	if (cv_rendezvousserver.string[0])
@@ -6164,6 +6268,7 @@ static void RenewHolePunch(void)
 		}
 	}
 }
+#endif
 
 // Handle timeouts to prevent definitive freezes from happenning
 static void HandleNodeTimeouts(void)
@@ -6190,19 +6295,21 @@ void NetKeepAlive(void)
 
 	UpdatePingTable();
 
-// Sryder: What is FILESTAMP???
-FILESTAMP
+// Sryder: What is FILESTAMP??? << lmao
+
 	GetPackets();
-FILESTAMP
 
 #ifdef MASTERSERVER
 	MasterClient_Ticker();
 #endif
-
+	
+	#ifdef HOLEPUNCH
 	if (netgame && serverrunning)
 	{
 		RenewHolePunch();
 	}
+	#endif
+
 
 	if (client)
 	{
@@ -6305,9 +6412,9 @@ void NetUpdate(void)
 
 	if (server)
 		CL_SendClientCmd(); // send it
-FILESTAMP
+
 	GetPackets(); // get packet from client or from server
-FILESTAMP
+	
 	// client send the command after a receive of the server
 	// the server send before because in single player is beter
 
@@ -6315,10 +6422,12 @@ FILESTAMP
 	MasterClient_Ticker(); // Acking the Master Server
 #endif
 
+	#ifdef HOLEPUNCH
 	if (netgame && serverrunning)
 	{
 		RenewHolePunch();
 	}
+	#endif
 
 	if (client)
 	{

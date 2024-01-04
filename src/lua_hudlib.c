@@ -54,6 +54,7 @@ static const char *const hud_disable_options[] = {
 	"battlecomebacktimer",		// come back timer in battlefullscreen
 	"wanted",
 	"speedometer",
+	"statdisplay",
 	"freeplay",
 	"rankings",
 	NULL};
@@ -447,20 +448,20 @@ static int libd_drawOnMinimap(lua_State *L)
 	// replicate exactly what source does for its minimap drawer; AKA hardcoded garbo.
 
 	// first, check what position the mmap is supposed to be in (pasted from k_kart.c):
-	MM_X = BASEVIDWIDTH - 50;		// 270
-	MM_Y = (BASEVIDHEIGHT/2)-16; //  84
+	MM_X = BASEVIDWIDTH - 50 + cv_mini_xoffset.value;		// 270
+	MM_Y = (BASEVIDHEIGHT/2)-16 + cv_mini_yoffset.value; //  84
 	if (splitscreen)
 	{
-		MM_Y = (BASEVIDHEIGHT/2);
+		MM_Y = (BASEVIDHEIGHT/2) + cv_mini_yoffset.value;
 		if (splitscreen > 1)	// 3P : bottom right
 		{
-			MM_X = (3*BASEVIDWIDTH/4);
-			MM_Y = (3*BASEVIDHEIGHT/4);
+			MM_X = (3*BASEVIDWIDTH/4) + cv_mini_xoffset.value;
+			MM_Y = (3*BASEVIDHEIGHT/4) + cv_mini_yoffset.value;
 
 			if (splitscreen > 2) // 4P: centered
 			{
-				MM_X = (BASEVIDWIDTH/2);
-				MM_Y = (BASEVIDHEIGHT/2);
+				MM_X = (BASEVIDWIDTH/2) + cv_mini_xoffset.value;
+				MM_Y = (BASEVIDHEIGHT/2) + cv_mini_yoffset.value;
 			}
 		}
 	}
@@ -579,14 +580,57 @@ static int libd_drawOnMinimap(lua_State *L)
 	list = (huddrawlist_h) lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
-	if (LUA_HUD_IsDrawListValid(list))
-		LUA_HUD_AddDrawScaled(list, amxpos, amypos, scale, patch, splitflags, colormap);
-	else
-		V_DrawFixedPatch(amxpos, amypos, scale, splitflags, patch, colormap);
+	if (LUA_HUD_IsDrawListValid(list)){
+		if (cv_minihead.value)
+			LUA_HUD_AddDrawScaled(list, amxpos, amypos, scale/2, patch, splitflags, colormap);
+		else
+			LUA_HUD_AddDrawScaled(list, amxpos, amypos, scale, patch, splitflags, colormap);
+	}else{
+		if (cv_minihead.value)
+			V_DrawFixedPatch(amxpos, amypos, scale/2, splitflags, patch, colormap);
+		else
+			V_DrawFixedPatch(amxpos, amypos, scale, splitflags, patch, colormap);
+	}
 
 	
 	return 0;
 }
+
+static int libd_drawStretched(lua_State *L)
+{
+	fixed_t x, y, hscale, vscale;
+	INT32 flags;
+	patch_t *patch;
+	UINT8 *colormap = NULL;
+	huddrawlist_h list;
+
+	HUDONLY
+	x = luaL_checkinteger(L, 1);
+	y = luaL_checkinteger(L, 2);
+	hscale = luaL_checkinteger(L, 3);
+	if (hscale < 0)
+		return luaL_error(L, "negative horizontal scale");
+	vscale = luaL_checkinteger(L, 4);
+	if (vscale < 0)
+		return luaL_error(L, "negative vertical scale");
+	patch = *((patch_t **)luaL_checkudata(L, 5, META_PATCH));
+	flags = luaL_optinteger(L, 6, 0);
+	if (!lua_isnoneornil(L, 7))
+		colormap = *((UINT8 **)luaL_checkudata(L, 7, META_COLORMAP));
+
+	flags &= ~V_PARAMMASK; // Don't let crashes happen.
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "HUD_DRAW_LIST");
+	list = (huddrawlist_h) lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
+	if (LUA_HUD_IsDrawListValid(list))
+		LUA_HUD_AddDrawStretched(list, x, y, hscale, vscale, patch, flags, colormap);
+	else
+		V_DrawStretchyFixedPatch(x, y, hscale, vscale, flags, patch, colormap);
+	return 0;
+}
+
 
 static int libd_drawNum(lua_State *L)
 {
@@ -640,6 +684,8 @@ static int libd_drawPingNum(lua_State *L)
 {
 	INT32 x, y, flags, num;
 	const UINT8 *colormap = NULL;
+	huddrawlist_h list;
+
 	HUDONLY
 	x = luaL_checkinteger(L, 1);
 	y = luaL_checkinteger(L, 2);
@@ -649,7 +695,15 @@ static int libd_drawPingNum(lua_State *L)
 	if (!lua_isnoneornil(L, 5))
 		colormap = *((UINT8 **)luaL_checkudata(L, 5, META_COLORMAP));
 
-	V_DrawPingNum(x, y, flags, num, colormap);
+	lua_getfield(L, LUA_REGISTRYINDEX, "HUD_DRAW_LIST");
+	list = (huddrawlist_h) lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
+	if (LUA_HUD_IsDrawListValid(list))
+		LUA_HUD_AddDrawPingNum(list, x, y, num, flags, colormap);
+	else
+		V_DrawPingNum(x, y, flags, num, colormap);
+
 	return 0;
 }
 
@@ -895,6 +949,7 @@ static luaL_Reg lib_draw[] = {
 	{"cachePatch", libd_cachePatch},
 	{"draw", libd_draw},
 	{"drawScaled", libd_drawScaled},
+	{"drawStretched", libd_drawStretched},
 	{"drawNum", libd_drawNum},
 	{"drawPaddedNum", libd_drawPaddedNum},
 	{"drawPingNum", libd_drawPingNum},

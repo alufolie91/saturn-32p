@@ -15,7 +15,7 @@
 ///        plus functions to parse command line parameters, configure game
 ///        parameters, and call the startup functions.
 
-#if (defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)
+#if defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)
 #include <sys/stat.h>
 #include <sys/types.h>
 #endif
@@ -24,22 +24,12 @@
 #include <unistd.h> // for getcwd
 #endif
 
-#ifdef PC_DOS
-#include <stdio.h> // for snprintf
-int	snprintf(char *str, size_t n, const char *fmt, ...);
-//int	vsnprintf(char *str, size_t n, const char *fmt, va_list ap);
-#endif
-
-#if (defined (_WIN32) && !defined (_WIN32_WCE)) && !defined (_XBOX)
+#ifdef _WIN32
 #include <direct.h>
 #include <malloc.h>
 #endif
 
-#if !defined (UNDER_CE)
 #include <time.h>
-#elif defined (_XBOX)
-#define NO_TIME
-#endif
 
 #include "doomdef.h"
 #include "am_map.h"
@@ -76,7 +66,7 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 #include "fastcmp.h"
 #include "r_fps.h" // Frame interpolation/uncapped
 #include "keys.h"
-#include "filesrch.h" // refreshdirmenu
+#include "filesrch.h" // refreshdirmenu, pathisdirectory
 #include "d_protocol.h"
 #include "m_perfstats.h"
 
@@ -86,16 +76,8 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 #include "config.h.in"
 #endif
 
-#ifdef _XBOX
-#include "sdl12/SRB2XBOX/xboxhelp.h"
-#endif
-
 #ifdef HWRENDER
 #include "hardware/hw_main.h" // 3D View Rendering
-#endif
-
-#ifdef _WINDOWS
-#include "win32/win_main.h" // I_DoStartupMouse
 #endif
 
 #ifdef HW3SOUND
@@ -112,8 +94,6 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 
 // platform independant focus loss
 UINT8 window_notinfocus = false;
-INT32 window_x;
-INT32 window_y;
 
 //
 // DEMO LOOP
@@ -122,6 +102,13 @@ INT32 window_y;
 static const char *pagename = "MAP1PIC";
 static char *startupwadfiles[MAX_WADFILES];
 static char *startuppwads[MAX_WADFILES];
+
+// autoloading
+static char *autoloadwadfiles[MAX_WADFILES];
+char *autoloadwadfilespost[MAX_WADFILES];
+boolean autoloading;
+boolean autoloaded;
+boolean postautoloaded;
 
 boolean devparm = false; // started game with -devparm
 
@@ -134,19 +121,11 @@ INT32 postimgparam[MAXSPLITSCREENPLAYERS];
 // These variables are only true if
 // whether the respective sound system is disabled
 // or they're init'ed, but the player just toggled them
-#ifdef _XBOX
-#ifndef NO_MIDI
-boolean midi_disabled = true;
-#endif
-boolean sound_disabled = true;
-boolean digital_disabled = true;
-#else
 #ifndef NO_MIDI
 boolean midi_disabled = false;
 #endif
 boolean sound_disabled = false;
 boolean digital_disabled = false;
-#endif
 
 #ifdef DEBUGFILE
 INT32 debugload = 0;
@@ -154,13 +133,8 @@ INT32 debugload = 0;
 
 char savegamename[256];
 
-#ifdef _arch_dreamcast
-char srb2home[256] = "/cd";
-char srb2path[256] = "/cd";
-#else
 char srb2home[256] = ".";
 char srb2path[256] = ".";
-#endif
 boolean usehome = true;
 const char *pandf = "%s" PATHSEP "%s";
 
@@ -185,10 +159,6 @@ void D_PostEvent(const event_t *ev)
 	events[eventhead] = *ev;
 	eventhead = (eventhead+1) & (MAXEVENTS-1);
 }
-// just for lock this function
-#if defined (PC_DOS) && !defined (DOXYGEN)
-void D_PostEvent_end(void) {};
-#endif
 
 // modifier keys
 // Now handled in I_OsPolling
@@ -663,11 +633,6 @@ void D_SRB2Loop(void)
 
 	// Pushing of + parameters is now done back in D_SRB2Main, not here.
 
-#ifdef _WINDOWS
-	CONS_Printf("I_StartupMouse()...\n");
-	I_DoStartupMouse();
-#endif
-
 	I_UpdateTime(cv_timescale.value);
 	oldentertics = I_GetTime();
 
@@ -802,9 +767,6 @@ void D_SRB2Loop(void)
 		// consoleplayer -> displayplayers (hear sounds from viewpoint)
 		S_UpdateSounds(); // move positional sounds
 
-		// check for media change, loop music..
-		I_UpdateCD();
-
 #ifdef HW3SOUND
 		HW3S_EndFrameUpdate();
 #endif
@@ -928,7 +890,131 @@ static void D_AddFile(const char *file, char **filearray)
 	filearray[pnumwadfiles] = newfile;
 }
 
-static inline void D_CleanFile(char **filearray)
+// Taken from TSoURDt3rd
+// https://github.com/StarManiaKG/The-Story-of-Uncapped-Revengence-Discord-the-3rd/blob/main/src/STAR/star_functions.c
+static INT32 D_DetectFileType(const char* filename)
+{
+	if (pathisdirectory(filename) == 1)
+		return 1;
+	else
+	{
+		if (!stricmp(&filename[strlen(filename) - 4], ".wad"))
+			return 2;
+		else if (!stricmp(&filename[strlen(filename) - 4], ".pk3"))
+			return 3;
+		else if (!stricmp(&filename[strlen(filename) - 5], ".kart"))
+			return 4;
+
+		else if (!stricmp(&filename[strlen(filename) - 4], ".lua"))
+			return 5;
+		else if (!stricmp(&filename[strlen(filename) - 4], ".soc"))
+			return 6;
+		
+		else if (!stricmp(&filename[strlen(filename) - 4], ".cfg"))
+			return 7;
+		else if (!stricmp(&filename[strlen(filename) - 4], ".txt"))
+			return 8;
+	}
+
+	return 0;
+}
+
+// autoload that shit
+static void D_AutoloadFile(const char *file, char **filearray)
+{
+	size_t pnumwadfiles;
+	char *newfile;
+	INT32 fileType = D_DetectFileType(file);
+
+	for (pnumwadfiles = 0; filearray[pnumwadfiles]; pnumwadfiles++)
+		;
+
+	newfile = malloc(strlen(file) + 1);
+	if (!newfile)
+		I_Error("No more free memory to AutoloadFile %s",file);
+
+	if (!fileType) 
+	{
+		CONS_Printf("D_AutoloadFile: File %s is unknown or invalid\n", file);
+		return;
+	}
+		
+	strcpy(newfile, file);
+
+	if (fileType <= 6)
+		filearray[pnumwadfiles] = newfile;
+	else
+		COM_BufAddText(va("exec %s\n", newfile));
+}
+
+static char *strremove(char *str, const char *sub) {
+    char *p, *q, *r;
+    if (*sub && (q = r = strstr(str, sub)) != NULL) {
+        size_t len = strlen(sub);
+        while ((r = strstr(p = r + len, sub)) != NULL) {
+            while (p < r)
+                *q++ = *p++;
+        }
+        while ((*q++ = *p++) != '\0')
+            continue;
+    }
+    return str;
+}
+
+// FIND THEM
+static void D_FindAddonsToAutoload(void)
+{
+	FILE *autoloadconfigfile;
+	const char *autoloadpath;
+	boolean postload;
+
+	INT32 i;
+	char wadsToAutoload[256] = "", renameAutoloadStrings[256] = "";
+
+	// does it exist tho
+	autoloadpath = va("%s"PATHSEP"%s",srb2home,AUTOLOADCONFIGFILENAME);
+	autoloadconfigfile = fopen(autoloadpath, "r");
+
+	// If the file is found, run our shit
+	if (!autoloadconfigfile) // nope outta here
+		return;
+
+	while (fgets(wadsToAutoload, sizeof wadsToAutoload, autoloadconfigfile) != NULL)
+	{
+		postload = false;
+		// skip if commented or empty
+		if ((wadsToAutoload[1] == '\0' || wadsToAutoload[1] == '\n')
+			|| (wadsToAutoload[0] == '#'))
+			continue;
+		// this marks it so that it loads after loading server addons
+		else if (fastncmp(wadsToAutoload, "postload ", 9)) {
+			strremove(wadsToAutoload, "postload ");
+			postload = true;
+		}
+
+		// Remove Any Empty or Skipped Lines
+		for (i = 0; wadsToAutoload[i] != '\0'; i++)
+		{
+			if (wadsToAutoload[i] == '\n')
+				wadsToAutoload[i] = '\0';
+		}
+
+		// LOAD IT
+		if (!postload)
+			D_AutoloadFile(wadsToAutoload, autoloadwadfiles);
+		else
+			D_AutoloadFile(wadsToAutoload, autoloadwadfilespost);
+
+		// end it here
+		for (i = 0; wadsToAutoload[i] != '\0'; i++)
+			wadsToAutoload[i] = '\0';
+	}
+
+	// we dont want memory leaks around here do we?
+	fclose(autoloadconfigfile);
+}
+
+void D_CleanFile(char **filearray)
 {
 	size_t pnumwadfiles;
 	for (pnumwadfiles = 0; filearray[pnumwadfiles]; pnumwadfiles++)
@@ -958,13 +1044,22 @@ static boolean AddIWAD(void)
 }
 
 boolean found_extra_kart;
+boolean found_extra2_kart;
+
+boolean snw_speedo; // snowy speedometer check
+boolean clr_hud; // colour hud check
+boolean big_lap; // bigger lap counter
+boolean big_lap_color; // bigger lap counter but colour
+boolean kartzspeedo; // kartZ speedometer
+boolean statdp; // New stat
 
 static void IdentifyVersion(void)
 {
 	const char *srb2waddir = NULL;
 	found_extra_kart = false;
+	found_extra2_kart = false;
 
-#if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
+#if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	// change to the directory where 'srb2.srb' is found
 	srb2waddir = I_LocateWad();
 #endif
@@ -976,17 +1071,11 @@ static void IdentifyVersion(void)
 	}
 	else
 	{
-#if !defined(_WIN32_WCE) && !defined(_PS3)
 		if (getcwd(srb2path, 256) != NULL)
 			srb2waddir = srb2path;
 		else
-#endif
 		{
-#ifdef _arch_dreamcast
-			srb2waddir = "/cd";
-#else
 			srb2waddir = srb2path;
-#endif
 		}
 	}
 
@@ -1020,6 +1109,12 @@ static void IdentifyVersion(void)
 		D_AddFile(va(pandf,srb2waddir,"extra.kart"), startupwadfiles);
 		found_extra_kart = true;
 	}
+	
+	// completely optional 2: Back with a vengence
+	if (FIL_ReadFileOK(va(pandf,srb2waddir,"extra2.kart"))) {
+		D_AddFile(va(pandf,srb2waddir,"extra2.kart"), startupwadfiles);
+		found_extra2_kart = true;
+	}
 
 #if !defined (HAVE_SDL) || defined (HAVE_MIXER)
 #define MUSICTEST(str) \
@@ -1036,28 +1131,6 @@ static void IdentifyVersion(void)
 #undef MUSICTEST
 #endif
 }
-
-/* ======================================================================== */
-// Just print the nice red titlebar like the original SRB2 for DOS.
-/* ======================================================================== */
-#ifdef PC_DOS
-static inline void D_Titlebar(char *title1, char *title2)
-{
-	// SRB2 banner
-	clrscr();
-	textattr((BLUE<<4)+WHITE);
-	clreol();
-	cputs(title1);
-
-	// standard srb2 banner
-	textattr((RED<<4)+WHITE);
-	clreol();
-	gotoxy((80-strlen(title2))/2, 2);
-	cputs(title2);
-	normvideo();
-	gotoxy(1,3);
-}
-#endif
 
 //
 // Center the title string, then add the date and time of compilation.
@@ -1085,7 +1158,6 @@ static inline void D_MakeTitleString(char *s)
 	temp[80] = '\0';
 	strcpy(s, temp);
 }
-
 
 //
 // D_SRB2Main
@@ -1117,7 +1189,7 @@ void D_SRB2Main(void)
 	"in this program.\n\n");
 
 	// keep error messages until the final flush(stderr)
-#if !defined (PC_DOS) && !defined (_WIN32_WCE) && !defined(NOTERMIOS)
+#if !defined(NOTERMIOS)
 	if (setvbuf(stderr, NULL, _IOFBF, 1000))
 		I_OutputMsg("setvbuf didnt work\n");
 #endif
@@ -1139,28 +1211,22 @@ void D_SRB2Main(void)
 	// identify the main IWAD file to use
 	IdentifyVersion();
 
-#if !defined (_WIN32_WCE) && !defined(NOTERMIOS)
+#if !defined(NOTERMIOS)
 	setbuf(stdout, NULL); // non-buffered output
 #endif
 
-#if defined (_WIN32_WCE) //|| defined (_DEBUG) || defined (GP2X)
+#if 0 //defined (_DEBUG)
 	devparm = M_CheckParm("-nodebug") == 0;
 #else
 	devparm = M_CheckParm("-debug") != 0;
 #endif
 
 	// for dedicated server
-#if !defined (_WINDOWS) //already check in win_main.c
 	dedicated = M_CheckParm("-dedicated") != 0;
-#endif
 
 	strcpy(title, "SRB2Kart");
 	strcpy(srb2, "SRB2Kart");
 	D_MakeTitleString(srb2);
-
-#ifdef PC_DOS
-	D_Titlebar(srb2, title);
-#endif
 
 #if defined (__OS2__) && !defined (HAVE_SDL)
 	// set PM window title
@@ -1183,13 +1249,8 @@ void D_SRB2Main(void)
 
 		if (!userhome)
 		{
-#if ((defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)) && !defined (__CYGWIN__) && !defined (DC) && !defined (PSP) && !defined(GP2X)
+#if (defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)
 			I_Error("Please set $HOME to your home directory\n");
-#elif defined (_WIN32_WCE) && 0
-			if (dedicated)
-				snprintf(configfile, sizeof configfile, "/Storage Card/SRB2DEMO/d"CONFIGFILENAME);
-			else
-				snprintf(configfile, sizeof configfile, "/Storage Card/SRB2DEMO/"CONFIGFILENAME);
 #else
 			if (dedicated)
 				snprintf(configfile, sizeof configfile, "d"CONFIGFILENAME);
@@ -1246,10 +1307,6 @@ void D_SRB2Main(void)
 			fclose(tmpfile);
 			remove(testfile);
 		}
-
-#ifdef _arch_dreamcast
-	strcpy(downloaddir, "/ram"); // the dreamcast's TMP
-#endif
 	}
 
 	D_SetupProtocol();
@@ -1259,6 +1316,9 @@ void D_SRB2Main(void)
 
 	if (M_CheckParm("-password") && M_IsNextParm())
 		D_SetPassword(M_GetNextParm());
+
+	// FIND THEM
+	D_FindAddonsToAutoload();
 
 	// add any files specified on the command line with -file wadfile
 	// to the wad list
@@ -1345,8 +1405,48 @@ void D_SRB2Main(void)
 
 #endif //ifndef DEVELOP
 
-	if (found_extra_kart) // found the funny, add it in!
-		mainwads++;
+	if (found_extra_kart || found_extra2_kart) // found the funny, add it in!
+	{
+		// HAYA: These are seperated for a reason lmao
+		if (found_extra_kart) 
+			mainwads++;
+		if (found_extra2_kart)
+			mainwads++;
+
+		// now check for speedometer stuff
+		if (W_CheckMultipleLumps("SP_SMSTC", "K_TRNULL", "SP_MKMH", "SP_MMPH", "SP_MFRAC", "SP_MPERC", NULL))
+			snw_speedo = true;
+
+		// check for bigger lap count
+		if (W_CheckMultipleLumps("K_STLAPB", "K_STLA2B", NULL)) 
+			big_lap = true;
+
+		// now check for colour hud stuff
+		if (W_CheckMultipleLumps("K_SCTIME", "K_SCTIMW", "K_SCLAPS", "K_SCLAPW", \
+			"K_SCBALN", "K_SCBALW", "K_SCKARM", "K_SCTOUT", "K_ISMULC", "K_ITMULC", "K_ITBC","K_ITBCD", "K_ISBC", "K_ISBCD", NULL))
+			clr_hud = true;
+
+		// check for bigger lap count but color** its color bitch
+		if (W_CheckMultipleLumps("K_SCLAPB", "K_SCLA2B", NULL)) 
+			big_lap_color = true;
+
+		// kartzspeedo
+		if (W_CheckMultipleLumps("K_KZSP1", "K_KZSP2", "K_KZSP3", "K_KZSP4", "K_KZSP5", \
+			"K_KZSP6", "K_KZSP7", "K_KZSP8", "K_KZSP9", "K_KZSP10", "K_KZSP11", "K_KZSP12", \
+			"K_KZSP13", "K_KZSP14", "K_KZSP15", "K_KZSP16", "K_KZSP17", "K_KZSP18", "K_KZSP19", \
+			"K_KZSP20", "K_KZSP21", "K_KZSP22", "K_KZSP23", "K_KZSP24", "K_KZSP25", NULL)) 
+			kartzspeedo = true;
+
+		// stat display for extended player setup
+		if (W_CheckMultipleLumps("K_STATNB", "K_STATN1", "K_STATN2", "K_STATN3", "K_STATN4", \
+			"K_STATN5", "K_STATN6", NULL)) 
+			statdp = true;
+	}
+
+	CONS_Printf("D_AutoloadFile(): Loading autoloaded addons...\n");
+	if (W_AddAutoloadedLocalFiles(autoloadwadfiles) == 0)
+		CONS_Printf("D_AutoloadFile(): Are you sure you put in valid files or what?\n");
+	D_CleanFile(autoloadwadfiles);
 
 	//
 	// search for maps
@@ -1417,6 +1517,13 @@ void D_SRB2Main(void)
 	I_StartupGraphics();
 
 #ifdef HWRENDER
+	// Lactozilla: Add every hardware mode CVAR and CCMD.
+	// Has to be done before the configuration file loads,
+	// but after the OpenGL library loads.
+	HWR_AddCommands();
+#endif
+
+#ifdef HWRENDER
 	if (rendermode == render_opengl)
 	{
 		for (i = 0; i < numwadfiles; i++)
@@ -1433,12 +1540,7 @@ void D_SRB2Main(void)
 	HU_Init();
 
 	COM_Init();
-	// libogc has a CON_Init function, we must rename SRB2's CON_Init in WII/libogc
-#ifndef _WII
 	CON_Init();
-#else
-	CON_InitWii();
-#endif
 
 	D_RegisterServerCommands();
 	D_RegisterClientCommands(); // be sure that this is called before D_CheckNetGame
@@ -1452,7 +1554,7 @@ void D_SRB2Main(void)
 
 	G_LoadGameData();
 
-#if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
+#if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	VID_PrepareModeList(); // Regenerate Modelist according to cv_fullscreen
 #endif
 
@@ -1481,10 +1583,6 @@ void D_SRB2Main(void)
 			autostart = true;
 		}
 	}
-
-	// Initialize CD-Audio
-	if (M_CheckParm("-usecd") && !dedicated)
-		I_InitCD();
 
 	if (M_CheckParm("-noupload"))
 		COM_BufAddText("downloading 0\n");
@@ -1544,6 +1642,7 @@ void D_SRB2Main(void)
 		I_InitMusic();
 		S_InitSfxChannels(cv_soundvolume.value);
 		S_InitMusicDefs();
+		S_InitMTDefs();
 	}
 
 	CONS_Printf("ST_Init(): Init status bar.\n");
@@ -1772,26 +1871,19 @@ const char *D_Home(void)
 #ifdef ANDROID
 	return "/data/data/org.srb2/";
 #endif
-#ifdef _arch_dreamcast
-	char VMUHOME[] = "HOME=/vmu/a1";
-	putenv(VMUHOME); //don't use I_PutEnv
-#endif
 
 	if (M_CheckParm("-home") && M_IsNextParm())
 		userhome = M_GetNextParm();
 	else
 	{
-#if defined (GP2X)
-		usehome = false; //let use the CWD
-		return NULL;
-#elif !((defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)) && !defined (__APPLE__) && !defined(_WIN32_WCE)
+#if !(defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON))
 		if (FIL_FileOK(CONFIGFILENAME))
 			usehome = false; // Let's NOT use home
 		else
 #endif
 			userhome = I_GetEnv("HOME"); //Alam: my new HOME for srb2
 	}
-#if defined (_WIN32) && !defined(_WIN32_WCE) //Alam: only Win32 have APPDATA and USERPROFILE
+#ifdef _WIN32 //Alam: only Win32 have APPDATA and USERPROFILE
 	if (!userhome && usehome) //Alam: Still not?
 	{
 		char *testhome = NULL;

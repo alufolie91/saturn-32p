@@ -6063,13 +6063,22 @@ static void P_AddOverlay(mobj_t *thing)
 static void P_RemoveOverlay(mobj_t *thing)
 {
 	mobj_t *mo;
+	if (overlaycap == thing)
+	{
+		P_SetTarget(&overlaycap, thing->hnext);
+		P_SetTarget(&thing->hnext, NULL);
+		return;
+	}
+
 	for (mo = overlaycap; mo; mo = mo->hnext)
-		if (mo->hnext == thing)
-		{
-			P_SetTarget(&mo->hnext, thing->hnext);
-			P_SetTarget(&thing->hnext, NULL);
-			return;
-		}
+	{
+		if (mo->hnext != thing)
+			continue;
+
+		P_SetTarget(&mo->hnext, thing->hnext);
+		P_SetTarget(&thing->hnext, NULL);
+		return;
+	}
 }
 
 void P_RunShadows(void)
@@ -6175,12 +6184,14 @@ static void P_RemoveShadow(mobj_t *thing)
 	}
 
 	for (mo = shadowcap; mo; mo = mo->hnext)
-		if (mo->hnext == thing)
-		{
-			P_SetTarget(&mo->hnext, thing->hnext);
-			P_SetTarget(&thing->hnext, NULL);
-			return;
-		}
+	{
+		if (mo->hnext != thing)
+			continue;
+
+		P_SetTarget(&mo->hnext, thing->hnext);
+		P_SetTarget(&thing->hnext, NULL);
+		return;
+	}
 }
 
 void A_BossDeath(mobj_t *mo);
@@ -10370,8 +10381,16 @@ void P_SpawnPrecipitation(void)
 
 		//for (j = 0; j < cv_precipdensity.value; ++j) -- density is 1 for kart always
 		{
-			x = basex + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
-			y = basey + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
+			if (cv_lessprecip.value)
+			{
+				x = basex*1.5 + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
+				y = basey*1.5 + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
+			}
+			else
+			{
+				x = basex + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
+				y = basey + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
+			}
 
 			precipsector = R_IsPointInSubsector(x, y);
 
@@ -10772,6 +10791,16 @@ void P_SpawnPlayer(INT32 playernum)
 	// (usefulness: when body mobj is detached from player (who respawns),
 	// the dead body mobj retains the skin through the 'spritedef' override).
 	mobj->skin = &skins[p->skin];
+	if (p->localskin > 0)
+	{
+		if (p->skinlocal)
+			mobj->localskin = &localskins[p->localskin - 1];
+		else
+			mobj->localskin = &     skins[p->localskin - 1];
+	}
+	else
+		mobj->localskin = 0;
+	mobj->skinlocal = p->skinlocal;
 
 	mobj->health = p->health;
 	p->playerstate = PST_LIVE;
@@ -11373,6 +11402,12 @@ void P_SpawnMapThing(mapthing_t *mthing)
 	}
 
 	mobj = P_SpawnMobj(x, y, z, i);
+
+	if (!mobj || P_MobjWasRemoved(mobj)) {
+		CONS_Alert(CONS_WARNING, "Failed to spawn map thing #%d at %d, %d\n", mthing->type, x>>FRACBITS, y>>FRACBITS);
+		return;
+	}
+
 	mobj->spawnpoint = mthing;
 
 	switch(mobj->type)
