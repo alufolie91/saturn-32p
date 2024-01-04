@@ -552,7 +552,57 @@ void Y_IntermissionDrawer(void)
 				else
 					V_DrawCenteredString(x+6, y, 0, va("%d", data.match.pos[i]));
 
-				if (data.match.color[i])
+				if (data.match.color[i]) // holy fuck this is beyond ass
+				{
+					UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
+
+					if (data.match.numplayers > NUMFORNEWCOLUMN)
+					{
+						if (!players[data.match.num[i]].skinlocal) {
+							if (!players[data.match.num[i]].localskin)
+								if (cv_highresportrait.value)
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, facewantprefix[*data.match.character[i]], colormap);
+								else	
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
+							else
+								if (cv_highresportrait.value)
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+								else
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+						} else {
+							if (cv_highresportrait.value)
+								V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+							else
+								V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+						}
+					}
+					else
+					{
+						if (!players[data.match.num[i]].skinlocal) {
+							if (!players[data.match.num[i]].localskin)
+								if (cv_highresportrait.value)
+									V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[*data.match.character[i]], colormap);
+								else	
+									V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
+							else
+								if (cv_highresportrait.value)
+									V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+								else
+									V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+						} else {
+							if (cv_highresportrait.value)
+								V_DrawSmallMappedPatch(x+16, y-4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+							else
+								V_DrawMappedPatch(x+16, y-4, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+						}
+					}
+				}
+
+				/*if (data.match.numplayers > NUMFORNEWCOLUMN)
+						V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
+					else
+						V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], 
+
 				{
 					UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
 					// i fucking hate this i fucking hate this i hate this so much
@@ -573,7 +623,7 @@ void Y_IntermissionDrawer(void)
 						else
 							V_DrawMappedPatch(x+16, y-4, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
 					}
-				}
+				}*/
 
 				if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN)
 				{
