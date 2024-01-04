@@ -8825,15 +8825,36 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 				colormap = R_GetTranslationColormap(TC_RAINBOW, players[tab[i].num].mo->color, GTC_CACHE);
 			else
 				colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
-
+			
 			{
+				player_t *p;
+				p = &players[tab[i].num];
+				
+				if (scorelines > 8)
+				{
+					if (cv_highresportrait.value)
+						V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, R_GetSkinFaceWant(p), colormap);
+					else	
+						V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, R_GetSkinFaceRank(p), colormap);
+				}
+				else
+				{
+					if (cv_highresportrait.value)
+						V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(p), colormap);
+					else	
+						V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
+				}
+			}
+
+			/*{
 				player_t *p;
 				p = &players[tab[i].num];
 				if (cv_highresportrait.value)
 					V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(p), colormap);
 				else	
 					V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
-			}
+			}*/
+			
 			/*if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] > 0) -- not enough space for this
 			{
 				INT32 bumperx = x+19;
