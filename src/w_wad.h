@@ -22,6 +22,8 @@
 #pragma interface
 #endif
 
+#include <stdarg.h> // hopefully this shouldn't cause any problems...
+
 // a raw entry of the wad directory
 // NOTE: This sits here and not in w_wad.c because p_setup.c makes use of it to load map WADs inside PK3s.
 #if defined(_MSC_VER)
@@ -114,6 +116,8 @@ typedef struct wadfile_s
 	UINT32 filesize; // for network
 	UINT8 md5sum[16];
 	boolean important;
+	boolean majormod;
+	boolean localfile; // only for skins
 } wadfile_t;
 
 #define WADFILENUM(lumpnum) (UINT16)((lumpnum)>>16) // wad flumpnum>>16) // wad file number in upper word
@@ -132,7 +136,7 @@ FILE *W_OpenWadFile(const char **filename, boolean useerrors);
 //
 // if local is true, it wouldn't check if file adds complex things, therefore
 // allowing to still join server without the "you have wrong addons loaded" error
-UINT16 W_InitFile(const char *filename, boolean local);
+UINT16 W_InitFile(const char *filename, const char *lumpname, UINT16 *wadnump, boolean local);
 #ifdef DELFILE
 void W_UnloadWadFile(UINT16 num);
 #endif
@@ -140,6 +144,9 @@ void W_UnloadWadFile(UINT16 num);
 // W_InitMultipleFiles returns 1 if all is okay, 0 otherwise,
 // so that it stops with a message if a file was not found, but not if all is okay.
 INT32 W_InitMultipleFiles(char **filenames, boolean addons);
+
+// Used for autoload. Uses P_AddWadFileLocal instead of W_InitFiles.
+INT32 W_AddAutoloadedLocalFiles(char **filenames);
 
 #define W_FileHasFolders(wadfile) ((wadfile)->type == RET_PK3)
 
@@ -163,6 +170,7 @@ lumpnum_t W_GetNumForName(const char *name); // like W_CheckNumForName but I_Err
 lumpnum_t W_GetNumForLongName(const char *name);
 lumpnum_t W_CheckNumForNameInBlock(const char *name, const char *blockstart, const char *blockend);
 UINT8 W_LumpExists(const char *name); // Lua uses this.
+UINT8 W_CheckMultipleLumps(const char* lump, ...); // variadic version of above lmao
 
 size_t W_LumpLengthPwad(UINT16 wad, UINT16 lump);
 size_t W_LumpLength(lumpnum_t lumpnum);

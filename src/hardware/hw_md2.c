@@ -75,6 +75,7 @@
 
 md2_t md2_models[NUMSPRITES];
 md2_t md2_playermodels[MAXSKINS];
+md2_t md2_localplayermodels[MAXSKINS];
 
 
 /*
@@ -487,6 +488,13 @@ void HWR_InitMD2(void)
 		md2_playermodels[s].skin = -1;
 		md2_playermodels[s].notfound = true;
 		md2_playermodels[s].error = false;
+		
+		md2_localplayermodels[s].scale = -1.0f;
+		md2_localplayermodels[s].model = NULL;
+		md2_localplayermodels[s].grpatch = NULL;
+		md2_localplayermodels[s].skin = -1;
+		md2_localplayermodels[s].notfound = true;
+		md2_localplayermodels[s].error = false;
 	}
 	for (i = 0; i < NUMSPRITES; i++)
 	{
@@ -559,11 +567,12 @@ md2found:
 	fclose(f);
 }
 
-void HWR_AddPlayerMD2(int skin) // For MD2's that were added after startup
+void HWR_AddPlayerMD2(int skin, boolean local) // For MD2's that were added after startup
 {
 	FILE *f;
 	char name[20], filename[32];
 	float scale, offset;
+	md2_t *md2s;
 
 	if (nomd2s)
 		return;
@@ -585,22 +594,23 @@ void HWR_AddPlayerMD2(int skin) // For MD2's that were added after startup
 		}
 	}
 
-	// Check for any MD2s that match the names of sprite names!
+	md2s = ( (local) ? md2_localplayermodels : md2_playermodels );
+	// Check for any MD2s that match the names of player skins!
 	while (fscanf(f, "%19s %31s %f %f", name, filename, &scale, &offset) == 4)
 	{
-		if (stricmp(name, skins[skin].name) == 0)
+		if (stricmp(name, ( (local) ? localskins : skins )[skin].name) == 0)
 		{
-			md2_playermodels[skin].skin = skin;
-			md2_playermodels[skin].scale = scale;
-			md2_playermodels[skin].offset = offset;
-			md2_playermodels[skin].notfound = false;
-			strcpy(md2_playermodels[skin].filename, filename);
+			md2s[skin].skin = skin;
+			md2s[skin].scale = scale;
+			md2s[skin].offset = offset;
+			md2s[skin].notfound = false;
+			strcpy(md2s[skin].filename, filename);
 			goto playermd2found;
 		}
 	}
 
 	//CONS_Printf("MD2 for player skin %s not found\n", skins[skin].name);
-	md2_playermodels[skin].notfound = true;
+	md2s[skin].notfound = true;
 playermd2found:
 	fclose(f);
 }
@@ -1139,6 +1149,7 @@ void HWR_DrawMD2(gr_vissprite_t *spr)
 		INT32 tics = spr->mobj->tics;
 		//mdlframe_t *next = NULL;
 		const UINT8 flip = (UINT8)((spr->mobj->eflags & MFE_VERTICALFLIP) == MFE_VERTICALFLIP);
+		const UINT8 hflip = (UINT8)(!(spr->mobj->mirrored) != !(spr->mobj->frame & FF_HORIZONTALFLIP));
 		spritedef_t *sprdef;
 		spriteframe_t *sprframe;
 		spriteinfo_t *sprinfo;
@@ -1154,6 +1165,8 @@ void HWR_DrawMD2(gr_vissprite_t *spr)
 		{
 			R_InterpolateMobjState(spr->mobj, FRACUNIT, &interp);
 		}
+		md2_t *md2s;
+		int skinnum;
 
 		// Apparently people don't like jump frames like that, so back it goes
 		//if (tics > durs)
@@ -1168,13 +1181,33 @@ void HWR_DrawMD2(gr_vissprite_t *spr)
 
 		// dont forget to enabled the depth test because we can't do this like
 		// before: polygons models are not sorted
+		
+		/* fuck you */
+		if (spr->mobj->localskin)
+		{
+			if (spr->mobj->skinlocal)
+			{
+				md2s = md2_localplayermodels;
+				skinnum = (skin_t *)spr->mobj->localskin - localskins;
+			}
+			else
+			{
+				md2s = md2_playermodels;
+				skinnum = (skin_t *)spr->mobj->localskin -      skins;
+			}
+		}
+		else
+		{
+			md2s = md2_playermodels;
+			skinnum = (skin_t *)spr->mobj->skin - skins;
+		}
 
 		// 1. load model+texture if not already loaded
 		// 2. draw model with correct position, rotation,...
-		if (spr->mobj->skin && spr->mobj->sprite == SPR_PLAY && !md2_playermodels[(skin_t*)spr->mobj->skin-skins].notfound) // Use the player MD2 list if the mobj has a skin and is using the player sprites
+		if (spr->mobj->skin && spr->mobj->sprite == SPR_PLAY && !md2s[skinnum].notfound) // Use the player MD2 list if the mobj has a skin and is using the player sprites
 		{
-			md2 = &md2_playermodels[(skin_t*)spr->mobj->skin-skins];
-			md2->skin = (skin_t*)spr->mobj->skin-skins;
+			md2 = &md2s[skinnum];
+			md2->skin = skinnum;
 			sprinfo = &spriteinfo[spr->mobj->sprite];
 		}
 		else
@@ -1239,7 +1272,7 @@ void HWR_DrawMD2(gr_vissprite_t *spr)
 							skinnum = TC_RAINBOW;
 						else
 						{
-							skinnum = (INT32)((skin_t*)spr->mobj->skin-skins);
+							skinnum = (INT32)((skin_t*)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ) - ( (spr->mobj->skinlocal) ? localskins : skins ));
 						}
 					}
 					else skinnum = TC_DEFAULT;
@@ -1306,7 +1339,7 @@ void HWR_DrawMD2(gr_vissprite_t *spr)
 			p.z = FIXED_TO_FLOAT(interp.z);
 
 		if (spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
-			sprdef = &((skin_t *)spr->mobj->skin)->spritedef;
+			sprdef = &((skin_t *)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ))->spritedef;
 		else
 			sprdef = &sprites[spr->mobj->sprite];
 
@@ -1334,17 +1367,16 @@ void HWR_DrawMD2(gr_vissprite_t *spr)
 		angle_t sliptideroll = 0;
 
 		if (spr->mobj->player)
-			sliptideroll = ((cv_sloperoll.value) ? spr->mobj->player->sliproll : 0);
+			sliptideroll = ((cv_sloperoll.value && cv_sliptideroll.value) ? spr->mobj->player->sliproll : 0);
 
-		if ((spr->mobj->rollangle)||sliptideroll)
+		if ((spr->mobj->rollangle)||(sliptideroll && cv_sliptideroll.value))
 		{
 			angle_t rollang = 0;
 			rollfactor = ((spr->mobj->rollmodel == true) ? 1 : 0);
 
-			if (spr->mobj->player)
-				rollang = (spr->mobj->rollangle*rollfactor) + (sliptideroll*spr->mobj->player->sliptidemem);
-			else
-				rollang = (spr->mobj->rollangle*rollfactor);
+			rollang = (spr->mobj->player && sliptideroll && cv_sliptideroll.value)
+            ? (spr->mobj->rollangle * rollfactor) + (sliptideroll * spr->mobj->player->sliptidemem)
+            : (spr->mobj->rollangle * rollfactor);
 			
 			fixed_t anglef = AngleFixed(rollang);
 			p.rollangle = FIXED_TO_FLOAT(anglef);
@@ -1391,7 +1423,7 @@ void HWR_DrawMD2(gr_vissprite_t *spr)
 
 		HWD.pfnSetShader(4);	// model shader
 		{
-		float this_scale = FIXED_TO_FLOAT(interp.scale);
+			float this_scale = FIXED_TO_FLOAT(interp.scale);
 
 			float xs = this_scale * FIXED_TO_FLOAT(interp.spritexscale);
 			float ys = this_scale * FIXED_TO_FLOAT(interp.spriteyscale);
@@ -1404,7 +1436,7 @@ void HWR_DrawMD2(gr_vissprite_t *spr)
 			p.y += ox * gr_viewcos;
 			p.z += oy;
 
-			HWD.pfnDrawModel(md2->model, frame, durs, tics, nextFrame, &p, md2->scale * xs, md2->scale * ys, flip, &Surf);
+			HWD.pfnDrawModel(md2->model, frame, durs, tics, nextFrame, &p, md2->scale * xs, md2->scale * ys, flip, hflip, &Surf);
 		}
 	}
 }

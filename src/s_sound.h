@@ -33,6 +33,7 @@ extern consvar_t cv_soundvolume, cv_digmusicvolume;//, cv_midimusicvolume;
 extern consvar_t cv_numChannels;
 
 extern consvar_t surround;
+extern consvar_t cv_audbuffersize;
 //extern consvar_t cv_resetmusic;
 extern consvar_t cv_gamedigimusic;
 #ifndef NO_MIDI
@@ -41,6 +42,7 @@ extern consvar_t cv_gamemidimusic;
 extern consvar_t cv_gamesounds;
 extern consvar_t cv_playmusicifunfocused;
 extern consvar_t cv_playsoundifunfocused;
+extern consvar_t cv_pausemusic;
 
 #ifdef HAVE_OPENMPT
 extern consvar_t cv_modfilter;
@@ -51,30 +53,24 @@ extern consvar_t cv_amigatype;
 #endif
 #endif
 
+//bird music stuff
 extern consvar_t cv_music_resync_threshold;
 extern consvar_t cv_music_resync_powerups_only;
 
-#ifdef SNDSERV
-extern consvar_t sndserver_cmd, sndserver_arg;
-#endif
-#ifdef MUSSERV
-extern consvar_t musserver_cmd, musserver_arg;
-#endif
+extern consvar_t cv_invincmusicfade;
+extern consvar_t cv_growmusicfade;
+
+extern consvar_t cv_respawnfademusicout;
+extern consvar_t cv_respawnfademusicback;
+
+extern consvar_t cv_resetspecialmusic;
+
+extern consvar_t cv_resume;
+extern consvar_t cv_fading;
+extern consvar_t cv_birdmusic;
+
 
 extern CV_PossibleValue_t soundvolume_cons_t[];
-//part of i_cdmus.c
-extern consvar_t cd_volume, cdUpdate;
-
-#if defined (macintosh) && !defined (HAVE_SDL)
-typedef enum
-{
-	music_normal,
-	playlist_random,
-	playlist_normal
-} playmode_t;
-
-extern consvar_t play_mode;
-#endif
 
 typedef enum
 {
@@ -118,6 +114,13 @@ void S_RestartMusic(void);
 lumpnum_t S_GetSfxLumpNum(sfxinfo_t *sfx);
 
 //
+// Sound Status
+//
+
+boolean S_SoundDisabled(void);
+
+
+//
 // Start sound for thing at <origin> using <sound_id> from sounds.h
 //
 void S_StartSound(const void *origin, sfxenum_t sound_id);
@@ -137,6 +140,7 @@ boolean S_MIDIMusicDisabled(void);
 boolean S_MusicDisabled(void);
 boolean S_MusicPlaying(void);
 boolean S_MusicPaused(void);
+boolean S_MusicNotInFocus(void);
 musictype_t S_MusicType(void);
 const char *S_MusicName(void);
 boolean S_MusicInfo(char *mname, UINT16 *mflags, boolean *looping);
@@ -155,10 +159,24 @@ boolean S_SpeedMusic(float speed);
 typedef struct musicdef_s
 {
 	char name[7];
-	//char usage[256];
+	char usage[256];
 	char source[256];
+	char filename[256];
+	// for the music test stuff
+	// generally if these are present on vanilla the game would throw up a warning
+	// a sacrifice i suppose
+	char title[256];
+	char alttitle[256];
+	char authors[256];
+	boolean use_info;
 	struct musicdef_s *next;
 } musicdef_t;
+
+extern musicdef_t soundtestsfx;
+extern musicdef_t *musicdefstart;
+extern musicdef_t **soundtestdefs;
+extern INT32 numsoundtestdefs;
+extern UINT8 soundtestpage;
 
 extern struct cursongcredit
 {
@@ -168,13 +186,16 @@ extern struct cursongcredit
 	UINT8 trans;
 } cursongcredit;
 
-extern musicdef_t *musicdefstart;
 
 void S_LoadMusicDefs(UINT16 wadnum);
 void S_InitMusicDefs(void);
+void S_LoadMTDefs(UINT16 wadnum);
+void S_InitMTDefs(void);
 musicdef_t *S_FindMusicCredit(const char *musname);
 void S_ShowSpecifiedMusicCredit(const char *musname);
 void S_ShowMusicCredit(void);
+
+boolean S_PrepareSoundTest(void);
 
 //
 // Music Seeking
@@ -229,9 +250,6 @@ void S_StopMusic(void);
 void S_PauseAudio(void);
 void S_ResumeAudio(void);
 
-// Enable and disable sound effects
-void S_EnableSound(void);
-void S_DisableSound(void);
 
 //
 // Music Fading

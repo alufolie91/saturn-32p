@@ -37,16 +37,6 @@
 #include "hardware/hw_main.h"
 #endif
 
-//profile stuff ---------------------------------------------------------
-//#define TIMING
-#ifdef TIMING
-#include "p5prof.h"
-INT64 mycount;
-INT64 mytotal = 0;
-//unsigned long  nombre = 100000;
-#endif
-//profile stuff ---------------------------------------------------------
-
 // Fineangles in the SCREENWIDTH wide window.
 #define FIELDOFVIEW 2048
 
@@ -160,8 +150,8 @@ static CV_PossibleValue_t drawdist_cons_t[] = {
 static CV_PossibleValue_t drawdist_precip_cons_t[] = {
 	{256, "256"},	{512, "512"},	{768, "768"},
 	{1024, "1024"},	{1536, "1536"},	{2048, "2048"},
-	{3072, "3072"},	{4096, "4096"},
-	{0, "None"},	{0, NULL}};
+	{3072, "3072"}, {0, "None"},	{0, NULL}};
+	
 
 static CV_PossibleValue_t fov_cons_t[] = {{5*FRACUNIT, "MIN"}, {178*FRACUNIT, "MAX"}, {0, NULL}};
 
@@ -197,7 +187,8 @@ consvar_t cv_flipcam4 = {"flipcam4", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, 
 consvar_t cv_shadow = {"shadow", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_shadowoffs = {"offsetshadows", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_skybox = {"skybox", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ffloorclip = {"ffloorclip", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ffloorclip = {"r_ffloorclip", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_spriteclip = {"r_spriteclip", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_soniccd = {"soniccd", "Off", CV_NETVAR|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_allowmlook = {"allowmlook", "Yes", CV_NETVAR, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_showhud = {"showhud", "Yes", CV_CALL,  CV_YesNo, R_SetViewSize, 0, NULL, NULL, 0, 0, NULL};
@@ -207,6 +198,7 @@ consvar_t cv_translucency = {"translucency", "On", CV_SAVE, CV_OnOff, NULL, 0, N
 consvar_t cv_drawdist = {"drawdist", "Infinite", CV_SAVE, drawdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 //consvar_t cv_drawdist_nights = {"drawdist_nights", "2048", CV_SAVE, drawdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_drawdist_precip = {"drawdist_precip", "1024", CV_SAVE, drawdist_precip_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_lessprecip = {"lessweathereffects", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 //consvar_t cv_precipdensity = {"precipdensity", "Moderate", CV_SAVE, precipdensity_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // cap fov, fov too high tears software apart.
@@ -333,7 +325,7 @@ static void FlipCam4_OnChange(void)
 //
 // killough 5/2/98: reformatted
 //
-INT32 R_PointOnSide(fixed_t x, fixed_t y, node_t *node)
+INT32 R_PointOnSide(fixed_t x, fixed_t y, node_t *restrict node)
 {
 	if (!node->dx)
 		return x <= node->x ? node->dy > 0 : node->dy < 0;
@@ -344,10 +336,11 @@ INT32 R_PointOnSide(fixed_t x, fixed_t y, node_t *node)
 	x -= node->x;
 	y -= node->y;
 
-	// Try to quickly decide by looking at sign bits.
-	if ((node->dy ^ node->dx ^ x ^ y) < 0)
-		return (node->dy ^ x) < 0;  // (left is negative)
-	return FixedMul(y, node->dx>>FRACBITS) >= FixedMul(node->dy>>FRACBITS, x);
+	// Try to quickly decide by looking at sign bits.	
+	// also use a mask to avoid branch prediction
+	INT32 mask = (node->dy ^ node->dx ^ x ^ y) >> 31;
+	return (mask & ((node->dy ^ x) < 0)) |  // (left is negative)
+		(~mask & (FixedMul(y, node->dx>>FRACBITS) >= FixedMul(node->dy>>FRACBITS, x)));
 }
 
 // killough 5/2/98: reformatted
@@ -402,22 +395,6 @@ angle_t R_PointToAngle(fixed_t x, fixed_t y)
 		0;
 }
 
-angle_t R_PointToAngle64(INT64 x, INT64 y)
-{
-	return (y -= viewy, (x -= viewx) || y) ?
-	x >= 0 ?
-	y >= 0 ?
-		(x > y) ? tantoangle[SlopeDivEx(y,x)] :                            // octant 0
-		ANGLE_90-tantoangle[SlopeDivEx(x,y)] :                               // octant 1
-		x > (y = -y) ? 0-tantoangle[SlopeDivEx(y,x)] :                    // octant 8
-		ANGLE_270+tantoangle[SlopeDivEx(x,y)] :                              // octant 7
-		y >= 0 ? (x = -x) > y ? ANGLE_180-tantoangle[SlopeDivEx(y,x)] :  // octant 3
-		ANGLE_90 + tantoangle[SlopeDivEx(x,y)] :                             // octant 2
-		(x = -x) > (y = -y) ? ANGLE_180+tantoangle[SlopeDivEx(y,x)] :    // octant 4
-		ANGLE_270-tantoangle[SlopeDivEx(x,y)] :                              // octant 5
-		0;
-}
-
 angle_t R_PointToAngle2(fixed_t pviewx, fixed_t pviewy, fixed_t x, fixed_t y)
 {
 	return (y -= pviewy, (x -= pviewx) || y) ?
@@ -441,28 +418,18 @@ fixed_t R_PointToDist2(fixed_t px2, fixed_t py2, fixed_t px1, fixed_t py1)
 
 angle_t R_PlayerSliptideAngle(player_t *player)
 {
-	mobj_t *mo = player->mo;
+	mobj_t *mo;
+    spritedef_t *sprdef;
+    spriteframe_t *sprframe;
+    angle_t ang = 0;
 
-	if (!cv_sliptideroll.value || !mo || P_MobjWasRemoved(mo)) return 0;
+    if (!cv_sliptideroll.value || !player || P_MobjWasRemoved(player->mo))
+        return 0;
 
-	size_t rot = mo->frame&FF_FRAMEMASK;
-	boolean papersprite = (mo->frame & FF_PAPERSPRITE);
+    mo = player->mo;
 
-	spritedef_t *sprdef;
-	spriteframe_t *sprframe;
-	angle_t ang = 0;
-
-	interpmobjstate_t interp = {0};
-
-	// Yes.
-	if (R_UsingFrameInterpolation() && !paused)
-	{
-		R_InterpolateMobjState(mo, rendertimefrac, &interp);
-	}
-	else
-	{
-		R_InterpolateMobjState(mo, FRACUNIT, &interp);
-	}
+    size_t rot = mo->frame & FF_FRAMEMASK;
+    boolean papersprite = (mo->frame & FF_PAPERSPRITE);
 
 	if (mo->skin && mo->sprite == SPR_PLAY)
 	{
@@ -488,7 +455,7 @@ angle_t R_PlayerSliptideAngle(player_t *player)
 	if (!sprframe) return 0;
 
 	if (sprframe->rotate != SRF_SINGLE || papersprite)
-		ang = R_PointToAngle(interp.x, interp.y) - interp.angle;
+		ang = R_PointToAngle(mo->x, mo->y) - mo->angle;
 
 	return FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), mo->player->sliproll*(mo->player->sliptidemem));
 }
@@ -520,6 +487,32 @@ angle_t R_PointToAngleEx(INT32 x2, INT32 y2, INT32 x1, INT32 y1)
 		(x1 = -x1) > (y1 = -y1) ? ANGLE_180+tantoangle[SlopeDivEx(y1,x1)] :    // octant 4
 		ANGLE_270-tantoangle[SlopeDivEx(x1,y1)] :                              // octant 5
 		0;
+}
+
+angle_t R_PointToAngleEx64(INT64 x2, INT64 y2, INT64 x1, INT64 y1)
+{
+    INT64 dx = x1 - x2;
+    INT64 dy = y1 - y2;
+
+    // Check for potential overflow or underflow
+    if (dx < INT64_MIN || dx > INT64_MAX || dy < INT64_MIN || dy > INT64_MAX)
+    {
+        x1 = (INT64)(dx / 2 + x2);
+        y1 = (INT64)(dy / 2 + y2);
+    }
+
+    return (y1 -= y2, (x1 -= x2) || y1) ?
+    x1 >= 0 ?
+    y1 >= 0 ?
+         (x1 > y1) ? tantoangle[SlopeDivEx(y1, x1)] :                            // octant 0
+         ANGLE_90 - tantoangle[SlopeDivEx(x1, y1)] :                               // octant 1
+         x1 > (y1 = -y1) ? 0 - tantoangle[SlopeDivEx(y1, x1)] :                    // octant 8
+         ANGLE_270 + tantoangle[SlopeDivEx(x1, y1)] :                              // octant 7
+         y1 >= 0 ? (x1 = -x1) > y1 ? ANGLE_180 - tantoangle[SlopeDivEx(y1, x1)] :  // octant 3
+         ANGLE_90 + tantoangle[SlopeDivEx(x1, y1)] :                             // octant 2
+         (x1 = -x1) > (y1 = -y1) ? ANGLE_180 + tantoangle[SlopeDivEx(y1, x1)] :    // octant 4
+         ANGLE_270 - tantoangle[SlopeDivEx(x1, y1)] :                              // octant 5
+        0;
 }
 
 //
@@ -1819,26 +1812,15 @@ void R_RenderPlayerView(player_t *player)
 
 	// The head node is the last node output.
 
-//profile stuff ---------------------------------------------------------
-#ifdef TIMING
-	mytotal = 0;
-	ProfZeroTimer();
-#endif
 	ps_numbspcalls.value.i = ps_numpolyobjects.value.i = ps_numdrawnodes.value.i = 0;
 	PS_START_TIMING(ps_bsptime);
 	R_RenderBSPNode((INT32)numnodes - 1);
 	PS_STOP_TIMING(ps_bsptime);
-	ps_numsprites.value.i = visspritecount;
 	PS_START_TIMING(ps_sw_spritecliptime);
 	R_ClipSprites();
 	PS_STOP_TIMING(ps_sw_spritecliptime);
-#ifdef TIMING
-	RDMSR(0x10, &mycount);
-	mytotal += mycount; // 64bit add
-
-	CONS_Debug(DBG_RENDER, "RenderBSPNode: 0x%d %d\n", *((INT32 *)&mytotal + 1), (INT32)mytotal);
-#endif
-//profile stuff ---------------------------------------------------------
+	
+	ps_numsprites.value.i = numvisiblesprites;
 
 	// PORTAL RENDERING
 	PS_START_TIMING(ps_sw_portaltime);
@@ -1924,6 +1906,7 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_drawdist);
 	//CV_RegisterVar(&cv_drawdist_nights);
 	CV_RegisterVar(&cv_drawdist_precip);
+	CV_RegisterVar(&cv_lessprecip);
 	CV_RegisterVar(&cv_fov);
 
 	CV_RegisterVar(&cv_chasecam);
@@ -1934,6 +1917,7 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_shadowoffs);
 	CV_RegisterVar(&cv_skybox);
 	CV_RegisterVar(&cv_ffloorclip);
+	CV_RegisterVar(&cv_spriteclip);
 
 	CV_RegisterVar(&cv_cam_dist);
 	CV_RegisterVar(&cv_cam_still);
@@ -1967,19 +1951,12 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_quaketilt);
 	CV_RegisterVar(&cv_tiltsmoothing);
 	CV_RegisterVar(&cv_actionmovie);
-	CV_RegisterVar(&cv_windowquake);
 
 	CV_RegisterVar(&cv_driftsparkpulse);
 	CV_RegisterVar(&cv_gravstretch);
 	CV_RegisterVar(&cv_sloperoll);
 	CV_RegisterVar(&cv_sliptideroll);
 	CV_RegisterVar(&cv_sloperolldist);
-
-	CV_RegisterVar(&cv_tilting);
-	CV_RegisterVar(&cv_quaketilt);
-	CV_RegisterVar(&cv_tiltsmoothing);
-	CV_RegisterVar(&cv_actionmovie);
-	CV_RegisterVar(&cv_windowquake);
 
 	CV_RegisterVar(&cv_showhud);
 	CV_RegisterVar(&cv_translucenthud);
@@ -1990,34 +1967,7 @@ void R_RegisterEngineStuff(void)
 	// initialized to standard viewheight
 	//CV_RegisterVar(&cv_viewheight);
 
-#ifdef HWRENDER
-	// GL-specific Commands
-	CV_RegisterVar(&cv_grgammablue);
-	CV_RegisterVar(&cv_grgammagreen);
-	CV_RegisterVar(&cv_grgammared);
-	CV_RegisterVar(&cv_grfovchange);
-#ifdef ALAM_LIGHTING
-	CV_RegisterVar(&cv_grstaticlighting);
-	CV_RegisterVar(&cv_grdynamiclighting);
-	CV_RegisterVar(&cv_grcoronas);
-	CV_RegisterVar(&cv_grcoronasize);
-#endif
-	CV_RegisterVar(&cv_grmdls);
-	CV_RegisterVar(&cv_grfallbackplayermodel);
-	CV_RegisterVar(&cv_grspritebillboarding);
-	CV_RegisterVar(&cv_grfakecontrast);
-	CV_RegisterVar(&cv_grshearing);
-	CV_RegisterVar(&cv_grshaders);
-	CV_RegisterVar(&cv_grusecustomshaders);
-	CV_RegisterVar(&cv_grpaletteshader);
-	CV_RegisterVar(&cv_grflashpal);
-#endif
-
-#ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none)
-		HWR_AddCommands();
-#endif
-
 	// Frame interpolation/uncapped
 	CV_RegisterVar(&cv_fpscap);
+	CV_RegisterVar(&cv_precipinterp);
 }
