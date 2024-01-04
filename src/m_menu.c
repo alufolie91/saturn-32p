@@ -1631,7 +1631,6 @@ static const char* OP_SoundAdvancedTooltips[] =
 	NULL,
 	"Should the Grow music be on or off?",
 	"Should the Invulnerability music be on or off?",
-
 };
 
 
@@ -1862,6 +1861,7 @@ static const char* OP_ServerOptionsTooltips[] =
 	"Length of intermission after races.",
 	"How the next map to be played is choosen.",
 	"How long map voting is.",
+	"How many voting rows there are",
 	"How often should other gamemodes appear.",
 #ifndef NONET
 	"Max amount of players allowed in this server.",
