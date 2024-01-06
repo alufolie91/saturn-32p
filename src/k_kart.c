@@ -4951,6 +4951,7 @@ void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance)
     I_Assert(mo->subsector->sector != NULL);
 
     angle_t an;
+    boolean flip = mo->eflags & MFE_VERTICALFLIP;
     fixed_t m_dist = R_PointToDist(mo->x, mo->y);
     fixed_t rolldist = cv_sloperolldist.value * mapobjectscale;
 
@@ -4975,7 +4976,7 @@ void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance)
         else
             mo->pitch_sprite = FixedAngle(0);
 
-        mo->slopepitch = mo->pitch_sprite;
+        mo->slopepitch = flip ? InvAngle(mo->pitch_sprite) : mo->pitch_sprite;
 
         // roll
         tempangle = (R_PointToAngle2(0, 0, tempz, tempy));
@@ -4989,7 +4990,7 @@ void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance)
         else
             mo->roll_sprite = FixedAngle(0);
 
-        mo->sloperoll = mo->roll_sprite;
+        mo->sloperoll = flip ? InvAngle(mo->roll_sprite) : mo->roll_sprite;
     }
     else if (P_IsObjectOnGround(mo))
     {
