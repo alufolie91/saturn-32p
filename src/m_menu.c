@@ -3223,7 +3223,7 @@ void PDistort_menu_Onchange(void)
 {
 	UINT16 status;
 
-	if (cv_sloperoll.value)
+	if ((cv_sloperoll.value) && (cv_spriteroll.value))
 	{
 			status = IT_STRING | IT_CVAR;
 	}
