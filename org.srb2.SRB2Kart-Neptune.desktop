@@ -1,11 +1,11 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Sonic Robo Blast 2 Kart Saturn
-Comment=A kart racing mod based on the 3D Sonic the Hedgehog fangame Sonic Robo Blast 2
+Name=Sonic Robo Blast 2 Kart Neptune
+Comment=A SRB2Kart modification based on SRB2Kart Saturn and Uranus. Not netgame compatible with vanilla.
 TryExec=srb2kart.sh
 Exec=srb2kart.sh
-Icon=org.srb2.SRB2Kart-Saturn
+Icon=org.srb2.SRB2Kart-Neptune
 Terminal=false
 Categories=Game;SportsGame;
 Keywords=kart;sonic;racer;multiplayer;doom;
