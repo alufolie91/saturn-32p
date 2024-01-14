@@ -1450,8 +1450,7 @@ static menuitem_t OP_ExpOptionsMenu[] =
 	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 95},
 	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	 105},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 76},
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_grvhseffect, 		 	 86},
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 85},
 	
 	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	106},
 	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	116},
@@ -1466,15 +1465,14 @@ static const char* OP_ExpTooltips[] =
 	"How far interpolation should take effect.",
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
-	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
+	"Show a VHS-like effect when the game is paused\n or youre rewinding replays.",
 	"Hides 3DFloors which are not visible\npotentially resulting in a performance boost.",
 	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
 #ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
-	"Show a VHS-like effect when the game is paused or youre rewinding replays.",
-	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
+	"Fixes issues that resulted in Textures sticking from the\nground sometimes.\nThis may be CPU heavy and result in worse performance in some cases.",
 	"Fixes issues that resulted in Textures not being properly skewed\n example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result in worse performance in some cases.",
-	"Fixes issues that resulted in Textures on Floor over Floors ZFighting heavily.",
+	"Fixes issues that resulted in Textures on Floor over Floors\nZFighting heavily.",
 	"Toggle for FOF wall cutoff with slopes.",
 #endif
 
@@ -1490,8 +1488,7 @@ enum
 	op_exp_ffclip,
 	op_exp_sprclip,
 #ifdef HWRENDER
-	op_exp_screentextures,
-	op_exp_grvhs,
+	op_exp_grscrtx,
 	op_exp_spltwal,
 	op_exp_pegging,
 	op_exp_fofzfight,
@@ -4519,8 +4516,7 @@ void M_Init(void)
 	if (rendermode == render_soft)
 	{
 		OP_VideoOptionsMenu[op_video_ogl].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_screentextures].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_grvhs].status = IT_DISABLED;
+		OP_ExpOptionsMenu[op_exp_grscrtx].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_spltwal].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_pegging].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_fofzfight].status = IT_DISABLED;
@@ -4528,7 +4524,6 @@ void M_Init(void)
 	}
 	
 	if (rendermode == render_opengl){
-		OP_ExpOptionsMenu[op_exp_vhs].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_ffclip].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_sprclip].status = IT_DISABLED;
 	}
