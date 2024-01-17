@@ -65,6 +65,13 @@ static const char *const hud_disable_options[] = {
 	"interscores", // Player scores
 	"interscoretitle", // "RANK", "TIME", etc. Good for custom rank names
 	"intertitle", // Level title and "TOTAL RANKINGS" text
+	
+	"titlecheckl",
+	"titlecheckr",
+	"titlelogo",
+	"titlebanner",
+	"titleflash",
+	
 	NULL};
 
 enum hudinfo {
@@ -97,12 +104,14 @@ enum hudhook {
 	hudhook_scores = 1,
 	hudhook_intermission = 2,
 	hudhook_vote = 3,
+	hudhook_title = 4,
 };
 static const char *const hudhook_opt[] = {
 	"game",
 	"scores",
 	"intermission",
 	"vote",
+	"title",
 	NULL};
 
 // alignment types for v.drawString
@@ -1210,6 +1219,9 @@ int LUA_HudLib(lua_State *L)
 
 		lua_newtable(L);
 		lua_rawseti(L, -2, 5); // HUD[5] = vote rendering functions array
+	
+		lua_newtable(L);
+		lua_rawseti(L, -2, 6); // HUD[5] = title rendering functions array
 	lua_setfield(L, LUA_REGISTRYINDEX, "HUD");
 
 	luaL_newmetatable(L, META_HUDINFO);
@@ -1419,5 +1431,40 @@ void LUAh_VoteHUD(huddrawlist_h list)
 	lua_pushlightuserdata(gL, NULL);
 	lua_setfield(gL, LUA_REGISTRYINDEX, "HUD_DRAW_LIST");
 }
+
+void LUAh_TitleHUD(huddrawlist_h list)
+{
+	if (!gL || !(hudAvailable & (1<<hudhook_title)))
+		return;
+	
+	lua_pushlightuserdata(gL, list);
+	lua_setfield(gL, LUA_REGISTRYINDEX, "HUD_DRAW_LIST");
+
+	hud_running = true;
+	lua_settop(gL, 0);
+	
+	lua_pushcfunction(gL, LUA_GetErrorMessage);
+
+	lua_getfield(gL, LUA_REGISTRYINDEX, "HUD");
+	I_Assert(lua_istable(gL, -1));
+	lua_rawgeti(gL, -1, hudhook_title+2); // HUD[5] = rendering funcs
+	I_Assert(lua_istable(gL, -1));
+
+	lua_rawgeti(gL, -2, 1); // HUD[1] = lib_draw
+	I_Assert(lua_istable(gL, -1));
+	lua_remove(gL, -3); // pop HUD
+	lua_pushnil(gL);
+	while (lua_next(gL, -3) != 0) {
+		lua_pushvalue(gL, -3); // graphics library (HUD[1])
+		LUA_Call(gL, 1, 0, 1);
+	}
+	lua_settop(gL, 0);
+	hud_running = false;
+
+	lua_pushlightuserdata(gL, NULL);
+	lua_setfield(gL, LUA_REGISTRYINDEX, "HUD_DRAW_LIST");
+}
+
+
 
 #endif

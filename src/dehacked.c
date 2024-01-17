@@ -8850,6 +8850,7 @@ struct {
 	// Custom client features exposed to lua
 	{"FEATURE_INTERMISSIONHUD",1},
 	{"FEATURE_VOTEHUD",1},
+	{"FEATURE_TITLEHUD",1},
 #endif
 
 	{NULL,0}

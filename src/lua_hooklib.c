@@ -69,6 +69,7 @@ const char *const hookNames[hook_MAX+1] = {
 	"PlayerCmd",
 	"IntermissionThinker",
 	"VoteThinker",
+	"TitleThinker",
 	"PlayerItemUse",
 	"KartHyudoro",
 	"KartStealBumper",
@@ -595,6 +596,31 @@ void LUAh_VoteThinker(void)
 
 	for (hookp = roothook; hookp; hookp = hookp->next)
 		if (hookp->type == hook_VoteThinker)
+		{
+			lua_pushfstring(gL, FMT_HOOKID, hookp->id);
+			lua_gettable(gL, LUA_REGISTRYINDEX);
+			if (lua_pcall(gL, 0, 0, 1)) {
+				if (!hookp->error || cv_debug & DBG_LUA)
+					CONS_Alert(CONS_WARNING,"%s\n",lua_tostring(gL, -1));
+				lua_pop(gL, 1);
+				hookp->error = true;
+			}
+		}
+		
+		lua_pop(gL, 1); // Pop error handler
+}
+
+// Hook for TitleTicker
+void LUAh_TitleThinker(void)
+{
+	hook_p hookp;
+	if (!gL || !(hooksAvailable[hook_TitleThinker/8] & (1<<(hook_TitleThinker%8))))
+		return;
+	
+	lua_pushcfunction(gL, LUA_GetErrorMessage);
+
+	for (hookp = roothook; hookp; hookp = hookp->next)
+		if (hookp->type == hook_TitleThinker)
 		{
 			lua_pushfstring(gL, FMT_HOOKID, hookp->id);
 			lua_gettable(gL, LUA_REGISTRYINDEX);

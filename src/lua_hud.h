@@ -41,6 +41,12 @@ enum hud {
 	hud_interscores,
 	hud_interscoretitle,
 	hud_intertitle,
+	
+	hud_titlecheckl,
+	hud_titlecheckr	,
+	hud_titlelogo,
+	hud_titlebanner,
+	hud_titleflash,
 
 	hud_MAX
 };
@@ -53,5 +59,6 @@ void LUAh_GameHUD(player_t *stplyr, huddrawlist_h list);
 void LUAh_ScoresHUD(huddrawlist_h list);
 void LUAh_IntermissionHUD(huddrawlist_h list);
 void LUAh_VoteHUD(huddrawlist_h list);
+void LUAh_TitleHUD(huddrawlist_h list);
 
 #endif // __LUA_HUD_H__

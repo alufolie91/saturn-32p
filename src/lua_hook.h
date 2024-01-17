@@ -57,6 +57,7 @@ enum hook {
 	hook_PlayerCmd,		//SRB2KART
 	hook_IntermissionThinker, //SRB2KART
 	hook_VoteThinker, 	//SRB2KART
+	hook_TitleThinker,
 	hook_PlayerItemUse, //SRB2KART
 	hook_KartHyudoro,	//SRB2KART
 	hook_KartStealBumper, //SRB2KART
@@ -117,6 +118,7 @@ boolean LUAh_PlayerCmd(player_t *player, ticcmd_t *cmd);	// Allows to write to p
 
 void LUAh_IntermissionThinker(void); // Hook for Y_Ticker
 void LUAh_VoteThinker(void);	// Hook for Y_VoteTicker
+void LUAh_TitleThinker(void);	// Hook for TitleTicker
 #define LUAh_PlayerThink(player) LUAh_PlayerHook(player, hook_PlayerThink) // Hook for P_PlayerThink
 
 // SRB2Kart: Hook for K_MoveKartPlayer (specifically for using items and overriding default behaviour.)
