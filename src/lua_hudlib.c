@@ -441,9 +441,9 @@ static int libd_getSpritePatch(lua_State *L)
 	// in case somebody didn't know that angle 0 really just maps all 8 angles to the same patch
 	if (angle != 0)
 		angle--;
-
-	if (angle >= 8) // out of range?
-		angle = (angle & 7); // modulus angle by 8
+	
+	if (angle >= ((sprframe->rotate & SRF_3DGE) ? 16 : 8)) // out of range?
+		angle = (angle & ((sprframe->rotate & SRF_3DGE) ? 15 : 7)); // modulus angle by 8*/
 
 	// rotsprite?????
 	if (lua_isnumber(L, 4) && (cv_spriteroll.value))
