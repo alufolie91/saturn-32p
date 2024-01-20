@@ -1,4 +1,4 @@
-# SRB2Kart: Uranus - Neptune fork
+# SRB2Kart: Neptune fork
 
 [SRB2Kart](https://srb2.org/mods/) is a kart racing mod based on the 3D Sonic the Hedgehog fangame [Sonic Robo Blast 2](https://srb2.org/), based on a modified version of [Doom Legacy](http://doomlegacy.sourceforge.net/).
 
@@ -6,6 +6,8 @@
 A fork of a fork. This hardcodes many features that I personally enjoy using or I thought would be good customization.
 
 ## Features (Neptune)
+- All stuff from Saturn
+- Existing lua features from other custom clients such as interpoints, mashstop, PlayerItemUse, KartHyudoro, KartStealBumper, MobjScaleChange and KartSneaker
 - Sneaker Extension with mini-turbos (Choose between two types bs and zbl)
 - Additive Mini-turbos
 - Customizable mini-turbo boost time
@@ -18,6 +20,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - Fixed NetID conflicts
 - 16-angle support for sprites 
 - 512 skins support (everything player num releated was made UINT16)
+- Title Screen Thinker and HUD Hook
 - More to come!
 - All added features are toggable via convars
 

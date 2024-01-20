@@ -56,6 +56,13 @@ New lua hooks to enable/disable new hud element.
 
 # Stuff from Uranus
 
+## Interpoints (p.interpoints)
+
+Allows you to specify custom amount of points to give player. Useful for custom scoring systems and the like.
+
+## Mashstop (p.mashstop)
+
+Allows you to disable/enable player item mashing to cause red roulette.
 
 ## PlayerItemUse
 
@@ -74,6 +81,19 @@ Changes scale of specific mobj type.
 ## KartSneaker
 
 Lets you do a sneaker and choose what type visually.
+
+## Titlescreen thinker, HUD hook and hud.disable and hud.enable stuff
+
+New hooks
+New "TitleThinker" Thinker
+New "title" HUD hook
+
+New set of things that can be enabled/disabled on title screen
+"titlecheckl"
+"titlecheckr"
+"titlelogo"
+"titlebanner"
+"titleflash"
 
 
 
