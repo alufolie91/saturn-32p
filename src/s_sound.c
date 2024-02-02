@@ -1435,6 +1435,8 @@ void S_LoadMusicDefs(UINT16 wadnum)
 					//CONS_Printf("S_LoadMusicDefs: Added song '%s'\n", def->name);
 				}
 			}
+			
+			strncpy(def->filename, wadfiles[wadnum]->filename, 256);
 
 			memcpy(def->filename, wadfiles[wadnum]->filename, 256);
 			def->filename[256] = '\0';

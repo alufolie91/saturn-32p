@@ -32,11 +32,8 @@
 /**	\brief	Redefinition of INT32 as fixed_t
 	unit used as fixed_t
 */
-
-//Max number a stat can have
-#define MAXSTAT 9
-
 typedef INT32 fixed_t;
+typedef UINT32 ufixed_t;
 
 typedef UINT32 ufixed_t;
 

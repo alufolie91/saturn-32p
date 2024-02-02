@@ -21,6 +21,8 @@
 #include "doomdef.h"
 #include "d_main.h"
 #include "d_netcmd.h"
+#include "d_clisrv.h"
+#include "i_net.h"
 #include "console.h"
 #include "r_fps.h"
 #include "r_local.h"
@@ -93,6 +95,7 @@
 #define SLIDER_RANGE 10
 #define SLIDER_WIDTH (8*SLIDER_RANGE+6)
 #define SERVERS_PER_PAGE 11
+#define MAXSTAT 9 //Max number a stat can have
 
 typedef enum
 {
@@ -1074,7 +1077,6 @@ static menuitem_t MP_MainMenu[] =
 	{IT_GRAYEDOUT,            NULL, "Internet server browser...",NULL,                     142-24},
 	{IT_GRAYEDOUT,            NULL, "Join last server",     NULL,               	       150-24},
 	{IT_GRAYEDOUT,            NULL, "Specify IPv4 address:",     NULL,                     158-24},
-
 #endif
 	//{IT_HEADER, NULL, "Player setup", NULL, 80},
 	//{IT_STRING|IT_CALL,       NULL, "Name, character, color...", M_SetupMultiPlayer,       90},
@@ -1490,28 +1492,28 @@ static menuitem_t OP_ColorOptionsMenu[] =
 static menuitem_t OP_ExpOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
-	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",		&cv_grmaxinterpdist,		 	 35},
-	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 45},
-	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 55},
+	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 25},
+	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 35},
 	
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_vhseffect, 		 		 75},
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_vhseffect, 		 		 55},
 	
-	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 95},
-	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	 105},
+	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 75},
+	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	 85},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 85},
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 75},
+
+	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		 85},
 	
-	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	106},
-	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	116},
-	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	126},
-	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		136},
+	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	105},
+	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	115},
+	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	125},
+	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		135},
 #endif	
 };
 
 static const char* OP_ExpTooltips[] =
 {
 	NULL,
-	"How far interpolation should take effect.",
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
 	"Show a VHS-like effect when the game is paused\n or youre rewinding replays.",
@@ -1519,18 +1521,17 @@ static const char* OP_ExpTooltips[] =
 	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
 #ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
-	"Fixes issues that resulted in Textures sticking from the\nground sometimes.\nThis may be CPU heavy and result in worse performance in some cases.",
+	"Change the depth of the Palette in Palette rendering mod\n 16 bits is like software looks ingame\nwhile 24 bits is how software looks in screenshots.",
+	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
 	"Fixes issues that resulted in Textures not being properly skewed\n example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result in worse performance in some cases.",
 	"Fixes issues that resulted in Textures on Floor over Floors\nZFighting heavily.",
 	"Toggle for FOF wall cutoff with slopes.",
 #endif
-
 };
 
 enum
 {
 	op_exp_header,
-	op_exp_interpdist,
 	op_exp_precipinter,
 	op_exp_lessprecip,
 	op_exp_vhs,
@@ -1779,7 +1780,7 @@ static menuitem_t OP_HUDOptionsMenu[] =
 {
 	{IT_STRING | IT_CVAR, NULL, "Show HUD (F3)",			&cv_showhud,			 10},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "HUD Visibility",			&cv_translucenthud,		 20},
+	                      NULL, "HUD Visibility",			&cv_translucenthud,		 20},				  
 
 	{IT_STRING | IT_SUBMENU, NULL, "Online HUD options...",&OP_ChatOptionsDef, 	 	 35},
 	{IT_STRING | IT_CVAR, NULL, "Background Glass",			&cons_backcolor,		 45},
@@ -1790,7 +1791,7 @@ static menuitem_t OP_HUDOptionsMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Show \"CHECK\"",			&cv_kartcheck,			 80},
 
 	{IT_STRING | IT_CVAR, NULL,	"Menu Highlights",			&cons_menuhighlight,     95},
-	// highlight info - (GOOD HIGHLIGHT, WARNING HIGHLIGHT) - 105 (see M_DrawHUDOptions)
+	// highlight info - (GOOD HIGHLIGHT, WARNING HIGHLIGHT) - 110 (see M_DrawHUDOptions)
 
 	{IT_STRING | IT_CVAR, NULL,	"Console Text Size",		&cv_constextsize,		120},
 
@@ -2047,7 +2048,7 @@ static menuitem_t OP_SaturnMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Input Display outside of RA",		 	&cv_showinput, 	 			25},
 	{IT_STRING | IT_CVAR, NULL, "Speedometer Style",		 			&cv_newspeedometer, 	 	30},
 	{IT_STRING | IT_CVAR, NULL, "Stat Display",		 					&cv_showstats, 	 			35},
-	{IT_STRING | IT_CVAR, NULL, "Higher Resoultion Portraits",			&cv_highresportrait, 	 	40},
+	{IT_STRING | IT_CVAR, NULL, "Higher Resolution Portraits",			&cv_highresportrait, 	 	40},
 	{IT_STRING | IT_CVAR, NULL, "Colourized HUD",						&cv_colorizedhud,		 	45},
 	{IT_STRING | IT_CVAR, NULL, "Colourized Itembox",					&cv_colorizeditembox,		50},
 	{IT_STRING | IT_CVAR, NULL, "Colourized HUD Color",					&cv_colorizedhudcolor,		55},
@@ -2073,9 +2074,9 @@ static const char* OP_SaturnTooltips[] =
 	"Displays the input display outside of Record Attack. Also adjusts the\nposition scale to match.",
 	"Change what style the speedometer is.",
 	"Enable the stat display.",
-	"Enable the use of the higher resoultion want icons instead of rank\nfor some places.",
+	"Enable the use of the higher resolution want icons instead of rank\nfor some places.",
 	"Enable colourized hud.",
-	"Enable the colorized itembox when colourized hud is enabled.",
+	"Enable the colourized itembox when colourized hud is enabled.",
 	"The color to use instead of the player color when colourized hud is enabled.",
 	"Show the big 'LAP' text on a lap change.",
 	"Show player names on the minimap.",
@@ -2228,37 +2229,39 @@ static menuitem_t OP_HudOffsetMenu[] =
 {
 	{IT_HEADER, NULL, "Kart Hud Offsets", NULL, 0},
 
-	{IT_HEADER, NULL, "Itembox", NULL, 10},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",      		&cv_item_xoffset, 		15},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Vertical Offset",        		&cv_item_yoffset,     	20},
+	{IT_STRING | IT_CALL, NULL, "Reset all", M_ResetCvars, 5},
 
-	{IT_HEADER, NULL, "Timer", NULL, 30},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset", 		  	&cv_time_xoffset, 		35},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	      		&cv_time_yoffset,     	40},
+	{IT_HEADER, NULL, "Itembox", NULL, 15},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",			&cv_item_xoffset, 		20},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Vertical Offset",				&cv_item_yoffset,     	25},
 
-	{IT_HEADER, NULL, "Lap Count", NULL, 50},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",     		&cv_laps_xoffset, 		55},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Vertical Offset",       		&cv_laps_yoffset,     	60},
+	{IT_HEADER, NULL, "Timer", NULL, 35},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",			&cv_time_xoffset, 		40},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",				&cv_time_yoffset,     	45},
 
-	{IT_HEADER, NULL, "Speedometer", NULL, 70},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_speed_xoffset, 		75},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  			&cv_speed_yoffset,     	80},
+	{IT_HEADER, NULL, "Lap Count", NULL, 55},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",     		&cv_laps_xoffset, 		60},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Vertical Offset",       		&cv_laps_yoffset,     	65},
 
-	{IT_HEADER, NULL, "Mini Rankings", NULL, 90},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_face_xoffset, 		95},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  			&cv_face_yoffset,     	100},
+	{IT_HEADER, NULL, "Speedometer", NULL, 75},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_speed_xoffset, 		80},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  			&cv_speed_yoffset,     	85},
 
-	{IT_HEADER, NULL, "Minimap", NULL, 110},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_mini_xoffset, 		115},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	 		&cv_mini_yoffset,     	120},
+	{IT_HEADER, NULL, "Mini Rankings", NULL, 95},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_face_xoffset, 		100},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  			&cv_face_yoffset,     	105},
 
-	{IT_HEADER, NULL, "Position / R.A. Wheel", NULL, 130},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_posi_xoffset, 		135},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_posi_yoffset,     	140},
+	{IT_HEADER, NULL, "Minimap", NULL, 115},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_mini_xoffset, 		120},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	 		&cv_mini_yoffset,     	125},
 
-	{IT_HEADER, NULL, "Stat Display", NULL, 150},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_stat_xoffset, 		155},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_stat_yoffset,     	160},
+	{IT_HEADER, NULL, "Position / R.A. Wheel", NULL, 135},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_posi_xoffset, 		140},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_posi_yoffset,     	145},
+
+	{IT_HEADER, NULL, "Stat Display", NULL, 155},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_stat_xoffset, 		160},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_stat_yoffset,     	165},
 };
 
 static menuitem_t OP_SaturnCreditsMenu[] =
@@ -4581,8 +4584,6 @@ void M_Init(void)
 	}
 #endif
 
-
-	
 	if (!snw_speedo && !kartzspeedo) // why bother?
 		OP_SaturnMenu[sm_speedometer].status = IT_GRAYEDOUT;
 	
@@ -4922,23 +4923,23 @@ static void M_DrawMenuTitle(void)
 }
 
 // TODO: This is fucking terrible.
-static void M_DrawSplitText(INT32 x, INT32 y, INT32 option, const char* str, INT32 alpha)
+static void M_DrawSplitText(INT32 x, INT32 y, INT32 option, const char* str, INT32 box_x, INT32 alpha) 
 {
-	char* icopy = strdup(str);
-	char** clines = NULL;
+	const char* icopy = strdup(str);
+	const char** clines = NULL;
 	INT16 num_lines = 0;
 
 	if (icopy == NULL) return;
 
 	char* token = strtok(icopy, "\n");
 
-	while (token != NULL)
+	while (token != NULL) 
 	{
-		char* line = strdup(token);
+		const char* line = strdup(token);
 
 		if (line == NULL) return;
 
-		clines = realloc(clines, (num_lines + 1) * sizeof(char*));
+		clines = (const char**)realloc(clines, (num_lines + 1) * sizeof(const char*));
 		clines[num_lines] = line;
 		num_lines++;
 
@@ -4966,7 +4967,7 @@ static void M_DrawSplitText(INT32 x, INT32 y, INT32 option, const char* str, INT
 		V_DrawCenteredThinString(x, y + yoffset, option|V_YELLOWMAP|((9 - alpha) << V_ALPHASHIFT), clines[i]);
 		yoffset += 10;
         // Remember to free the memory for each line when you're done with it.
-        free(clines[i]);
+        free((void*)clines[i]);
     }
 
 	free(clines);
@@ -5124,7 +5125,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_ControlsTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ControlsTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ControlsTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5134,18 +5135,17 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_MouseTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_MouseTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_MouseTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
 	}
 	
-	
 	if (currentMenu == &OP_VideoOptionsDef)
 	{
 		if (!(OP_VideoTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_VideoTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_VideoTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5155,7 +5155,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_SoundTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_SoundTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_SoundTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5165,19 +5165,17 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_SoundAdvancedTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_SoundAdvancedTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_SoundAdvancedTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
 	}
 	
-	
-	
 	if (currentMenu == &OP_ExpOptionsDef)
 	{
 		if (!(OP_ExpTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ExpTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ExpTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5187,7 +5185,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_ChatOptionsTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ChatOptionsTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ChatOptionsTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5199,7 +5197,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_GameTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_GameTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_GameTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5210,7 +5208,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_ServerOptionsTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ServerOptionsTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ServerOptionsTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5221,7 +5219,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_AdvServerOptionsTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_AdvServerOptionsTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_AdvServerOptionsTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5234,7 +5232,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_PlayerDistortTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_PlayerDistortTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_PlayerDistortTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5247,7 +5245,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_CreditTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_CreditTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_CreditTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5257,7 +5255,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_BirdTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_BirdTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_BirdTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5267,7 +5265,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_TiltTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_TiltTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_TiltTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -5277,7 +5275,7 @@ static void M_DrawGenericMenu(void)
 	{
 		if (!(OP_AdvancedBirdTooltips[itemOn] == NULL)) 
 		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_AdvancedBirdTooltips[itemOn], coolalphatimer);
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_AdvancedBirdTooltips[itemOn], 30, coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -8392,11 +8390,9 @@ static size_t st_namescrollstate = 0;
 
 static void M_MusicTest(INT32 choice)
 {
-	//INT32 ul = skyRoomMenuTranslations[choice-1];
-	//UINT8 i;
-	//char buf[8];
-
-	(void)choice;
+	INT32 ul = skyRoomMenuTranslations[choice-1];
+	UINT8 i;
+	char buf[8];
 
 	if (!S_PrepareSoundTest())
 	{
@@ -8433,7 +8429,7 @@ static void M_MusicTest(INT32 choice)
 static void M_DrawMusicTest(void)
 {
 	INT32 x, y, i;
-	//char* title;
+	char* title;
 	//fixed_t hscale = FRACUNIT/2, vscale = FRACUNIT/2, bounce = 0;
 	//UINT8 frame[4] = {0, 0, -1, SKINCOLOR_RUBY};
 
@@ -8669,9 +8665,9 @@ static void M_DrawMusicTest(void)
 				}
 
 				if (soundtestdefs[t]->title[0])
-					memcpy(buf, soundtestdefs[t]->title + nameoffset, MAXLENGTH);
+					strncpy(buf, soundtestdefs[t]->title + nameoffset, MAXLENGTH);
 				else
-					memcpy(buf, soundtestdefs[t]->source + nameoffset, MAXLENGTH);
+					strncpy(buf, soundtestdefs[t]->source + nameoffset, MAXLENGTH);
 				buf[MAXLENGTH] = 0;
 
 				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE|V_MONOSPACE, buf);
@@ -10644,8 +10640,8 @@ static void M_Connect(INT32 choice)
 	M_ClearMenus(false);
 	
 	CV_Set(&cv_lastserver, I_GetNodeAddress(serverlist[choice-FIRSTSERVERLINE + serverlistpage * SERVERS_PER_PAGE].node));
-
-	COM_BufAddText(va("connect node %d\n", serverlist[choice-FIRSTSERVERLINE + serverlistpage * SERVERS_PER_PAGE].node));
+		
+	COM_BufAddText(va("connect node %d\n", serverlist[choice-FIRSTSERVERLINE + serverlistpage * SERVERS_PER_PAGE].node));	
 }
 
 static void M_Refresh(INT32 choice)
@@ -11551,6 +11547,7 @@ static void M_ConnectIP(INT32 choice)
 	}
 
 	M_ClearMenus(true);
+
 	CV_Set(&cv_lastserver,setupm_ip);
 	COM_BufAddText(va("connect \"%s\"\n", setupm_ip));
 
@@ -11571,7 +11568,7 @@ static void M_ConnectLastServer(INT32 choice)
 
 	if (!*cv_lastserver.string)
 	{
-		M_StartMessage("You haven't previosuly joined a server.\n", NULL, MM_NOTHING);
+		M_StartMessage("You haven't previously joined a server.\n", NULL, MM_NOTHING);
 		return;
 	}
 
@@ -11689,7 +11686,7 @@ static boolean setupm_skinlockedselect;
 #define SKINGRIDNEWWIDTH 8
 #define SKINGRIDNEWHEIGHT 9
 
-static const char *sortNames[] = {
+static char *sortNames[] = {
 	"Name",
 	"Internal name",
 	"Speed",

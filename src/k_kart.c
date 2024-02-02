@@ -66,9 +66,8 @@ consvar_t cv_saltyhopsfx = {"hardcodehopsfx", "On", CV_SAVE, CV_OnOff, NULL, 0, 
 consvar_t cv_saltysquish = {"hardcodehopsquish", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 //Colourized HUD
-consvar_t cv_colorizedhud = {"colorizedhud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_colorizeditembox = {"colorizeditembox", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-
+consvar_t cv_colorizedhud = {"colorizedhud", "Off", CV_SAVE|CV_CALL, CV_OnOff, Saturn_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_colorizeditembox = {"colorizeditembox", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t HudColor_cons_t[MAXSKINCOLORS+1];
 consvar_t cv_colorizedhudcolor = {"colorizedhudcolor", "Skin Color", CV_SAVE, HudColor_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -78,7 +77,6 @@ consvar_t cv_highresportrait = {"highresportrait", "Off", CV_SAVE, CV_OnOff, NUL
 consvar_t cv_darkitembox = {"darkitembox", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //itembox gets a dark box with specific items
 
 consvar_t cv_biglaps = {"biglaphud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //here for ppl who dont want to make 2 more patches for their custom hud
-
 
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
 // gamespeed is cc (0 for easy, 1 for normal, 2 for hard, 3 for expert)
@@ -905,9 +903,8 @@ UINT8 K_GetKartColorByName(const char *name)
 	return 0;
 }
 
-
-static UINT8 K_GetHudColor(void)
-{
+UINT8 K_GetHudColor(void)
+{	
 	if (cv_colorizedhud.value){
 		if (cv_colorizedhudcolor.value) return cv_colorizedhudcolor.value;
 	}
@@ -915,7 +912,7 @@ static UINT8 K_GetHudColor(void)
 	return ((stplyr && gamestate == GS_LEVEL) ? stplyr->skincolor : cv_playercolor.value);
 }
 
-static boolean K_UseColorHud(void)
+boolean K_UseColorHud(void)
 {
 	return (cv_colorizedhud.value && clr_hud);
 }
@@ -1346,7 +1343,7 @@ CV_RegisterVar(&cv_DJAITBL10);
 	CV_RegisterVar(&cv_saltyhopsfx);
 	CV_RegisterVar(&cv_saltysquish);
 	
-	//Colorized HUD
+	//Colourized HUD
 	CV_RegisterVar(&cv_colorizedhud);
 	CV_RegisterVar(&cv_colorizedhudcolor);
 	CV_RegisterVar(&cv_colorizeditembox);
@@ -8764,14 +8761,14 @@ static patch_t *kp_karmasticker;
 static patch_t *kp_splitkarmabomb;
 static patch_t *kp_timeoutsticker;
 
-//Colorized HUD
+//Colourized hud
 static patch_t *kp_timestickerclr;
 static patch_t *kp_timestickerwideclr;
 static patch_t *kp_lapstickerclr;
 static patch_t *kp_lapstickerbigclr;
 static patch_t *kp_lapstickerbig2clr;
 static patch_t *kp_lapstickerwideclr;
-//static patch_t *kp_lapstickernarrowclr;
+static patch_t *kp_lapstickernarrowclr;
 static patch_t *kp_bumperstickerclr;
 static patch_t *kp_bumperstickerwideclr;
 static patch_t *kp_karmastickerclr;
@@ -8877,7 +8874,6 @@ void K_LoadKartHUDGraphics(void)
 
 	//Colourized hud
 	if (clr_hud)
-
 	{
 		kp_timestickerclr = 			W_CachePatchName("K_SCTIME", PU_HUDGFX);
 		kp_timestickerwideclr = 		W_CachePatchName("K_SCTIMW", PU_HUDGFX);
@@ -9550,7 +9546,7 @@ static void K_drawKartItem(void)
 	{
 		if (K_GetHudColor())
 			localcolor = K_GetHudColor();
-		
+
 		switch((stplyr->kartstuff[k_itemroulette] % (14*3)) / 3)
 		{
 			// Each case is handled in threes, to give three frames of in-game time to see the item on the roulette
@@ -9854,8 +9850,7 @@ void K_drawKartTimestamp(tic_t drawtime, INT32 TX, INT32 TY, INT16 emblemmap, UI
 {
 	// TIME_X = BASEVIDWIDTH-124;	// 196
 	// TIME_Y = 6;					//   6
-	
-	
+		
 	tic_t worktime;
 
 	INT32 splitflags = 0;
@@ -10446,7 +10441,6 @@ static void K_drawKartLaps(void)
 	INT32 fx = 0, fy = 0, fflags = 0;	// stuff for 3p / 4p splitscreen.
 	boolean flipstring = false;	// used for 3p or 4p
 	INT32 stringw = 0;	// used with the above
-
 	
 	if (splitscreen > 1)
 	{
@@ -10510,6 +10504,7 @@ static void K_drawKartLaps(void)
 			else
 				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
 		}
+		
 		if (stplyr->exiting)
 			V_DrawKartString(LAPS_X+33, LAPS_Y+3, V_HUDTRANS|splitflags, "FIN");
 		else
@@ -10590,7 +10585,7 @@ static void K_drawKartSpeedometer(void)
 		}
 
 		V_DrawRankNum(SPDM_X + 26, SPDM_Y + 4, V_HUDTRANS|splitflags, convSpeed, 3, NULL);
-	
+
 		V_DrawScaledPatch(SPDM_X + 31, SPDM_Y + 4, V_HUDTRANS|splitflags, skp_speedpatches[cv_kartspeedometer.value]);
 	}
 	
@@ -11560,7 +11555,7 @@ static void K_drawLapStartAnim(void)
 {
 	// This is an EVEN MORE insanely complicated animation.
 	const UINT8 progress = 80-stplyr->kartstuff[k_lapanimation];
-	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, stplyr->skincolor, GTC_CACHE);
+	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
 
 	V_DrawFixedPatch((BASEVIDWIDTH/2 + (32*max(0, stplyr->kartstuff[k_lapanimation]-76)))*FRACUNIT,
 		(48 - (32*max(0, progress-76)))*FRACUNIT,

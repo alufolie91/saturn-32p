@@ -1504,14 +1504,11 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_ps_samplesize);
 	CV_RegisterVar(&cv_ps_descriptor);
 	
-
 	//Value used to store last server player has joined
 	CV_RegisterVar(&cv_lastserver);
 	
-	//Showallmaps in map selector including hell
 	CV_RegisterVar(&cv_showallmaps);
 	CV_RegisterVar(&cv_showmusicfilename);
-
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
