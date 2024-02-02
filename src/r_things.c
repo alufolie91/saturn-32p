@@ -1341,15 +1341,13 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	UINT8 flip;
 	/*boolean vflip = (!(thing->eflags & MFE_VERTICALFLIP) != !R_ThingVerticallyFlipped(thing));*/
-	
+
 	boolean mirrored = thing->mirrored;
 	boolean hflip = (!(thing->frame & FF_HORIZONTALFLIP) != !mirrored);
 
 	INT32 lindex;
 
 	vissprite_t *vis;
-	
-	spritecut_e cut = SC_NONE;
 
 	angle_t ang = 0; // gcc 4.6 and lower fix
 	angle_t camang = 0;
@@ -3688,7 +3686,6 @@ next_token:
 		free(buf2);
 
 		lump++; // if no sprite defined use spirte just after this one
-		INT32 sprnum;
 		if (skin->sprite[0] == '\0')
 		{
 			const char *csprname = W_CheckNameForNumPwad(wadnum, lump);
@@ -3699,9 +3696,6 @@ next_token:
 				lastlump++;
 			// allocate (or replace) sprite frames, and set spritedef
 			R_AddSingleSpriteDef(csprname, &skin->spritedef, wadnum, lump, lastlump);
-
-			// i feel like generally most skin authors just use PLAY here, so just assume PLAY
-			sprnum = SPR_PLAY;
 		}
 		else
 		{
@@ -3748,8 +3742,6 @@ next_token:
 
 				R_AddSingleSpriteDef(sprname, &skin->spritedef, wadnum, lstart, lend);
 			}
-
-			sprnum = numspritelumps - 1;
 
 			// I don't particularly care about skipping to the end of the used frames.
 			// We could be using frames from ANYWHERE in the current WAD file, including

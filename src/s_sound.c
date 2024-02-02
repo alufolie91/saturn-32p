@@ -1435,8 +1435,9 @@ void S_LoadMusicDefs(UINT16 wadnum)
 					//CONS_Printf("S_LoadMusicDefs: Added song '%s'\n", def->name);
 				}
 			}
-			
+
 			strncpy(def->filename, wadfiles[wadnum]->filename, 256);
+			def->filename[256] = '\0';
 
 			memcpy(def->filename, wadfiles[wadnum]->filename, 256);
 			def->filename[256] = '\0';
@@ -2469,7 +2470,7 @@ static void AmigaFilter_OnChange(void)
 {
 	if (openmpt_mhandle)
 #if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
-		openmpt_module_ctl_set_text(openmpt_mhandle, "render.resampler.emulate_amiga", cv_amigafilter.value ? "1" : "0");
+		openmpt_module_ctl_set_boolean(openmpt_mhandle, "render.resampler.emulate_amiga", cv_amigafilter.value);
 #else
 		openmpt_module_ctl_set(openmpt_mhandle, "render.resampler.emulate_amiga", cv_amigafilter.value ? "1" : "0");
 #endif

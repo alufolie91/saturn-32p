@@ -903,8 +903,8 @@ UINT8 K_GetKartColorByName(const char *name)
 	return 0;
 }
 
-UINT8 K_GetHudColor(void)
-{	
+static UINT8 K_GetHudColor(void)
+{
 	if (cv_colorizedhud.value){
 		if (cv_colorizedhudcolor.value) return cv_colorizedhudcolor.value;
 	}
@@ -912,7 +912,7 @@ UINT8 K_GetHudColor(void)
 	return ((stplyr && gamestate == GS_LEVEL) ? stplyr->skincolor : cv_playercolor.value);
 }
 
-boolean K_UseColorHud(void)
+static boolean K_UseColorHud(void)
 {
 	return (cv_colorizedhud.value && clr_hud);
 }
@@ -8768,7 +8768,7 @@ static patch_t *kp_lapstickerclr;
 static patch_t *kp_lapstickerbigclr;
 static patch_t *kp_lapstickerbig2clr;
 static patch_t *kp_lapstickerwideclr;
-static patch_t *kp_lapstickernarrowclr;
+//static patch_t *kp_lapstickernarrowclr;
 static patch_t *kp_bumperstickerclr;
 static patch_t *kp_bumperstickerwideclr;
 static patch_t *kp_karmastickerclr;

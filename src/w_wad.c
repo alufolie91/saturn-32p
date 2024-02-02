@@ -148,7 +148,7 @@ static char filenamebuf[MAX_WADPATH];
 #include <windows.h>
 
 // Windows can't open utf-8 path so it must be converted to utf-16
-FILE* fopen_utf8(const char* filename, const char* mode)
+static FILE* fopen_utf8(const char* filename, const char* mode)
 {
 	static const int MY_PATH_MAX =  2048;
 	WCHAR nameW[MY_PATH_MAX];
@@ -1724,7 +1724,7 @@ void *W_CacheLumpName(const char *name, INT32 tag)
 
 // Software-only compile cache the data without conversion
 #ifdef HWRENDER
-static inline void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
+FUNCINLINE static ATTRINLINE void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
 {
 	GLPatch_t *grPatch;
 
