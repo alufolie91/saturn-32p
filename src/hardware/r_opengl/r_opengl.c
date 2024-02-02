@@ -2271,11 +2271,8 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			}
 			if (majorGL == 1 && minorGL <= 3)
 			{
-				if (!pgluBuild2DMipmaps)
-				{
-					MipMap = GL_FALSE;
-					min_filter = GL_LINEAR;
-				}
+				MipMap = GL_FALSE;
+				min_filter = GL_LINEAR;
 			}
 #ifdef GL_VERSION_3_0
 			else
