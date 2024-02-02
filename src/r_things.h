@@ -18,10 +18,6 @@
 #include "r_plane.h"
 #include "r_patch.h"
 
-// "Left" and "Right" character symbols for additional rotation functionality
-#define ROT_L ('L' - '0')
-#define ROT_R ('R' - '0')
-
 // number of sprite lumps for spritewidth,offset,topoffset lookup tables
 // Fab: this is a hack : should allocate the lookup tables per sprite
 #define MAXVISSPRITES 2048 // added 2-2-98 was 128
@@ -85,6 +81,7 @@ typedef struct
 {
 	char name[SKINNAMESIZE+1]; // INT16 descriptive name of the skin
 	spritedef_t spritedef;
+	spriteinfo_t sprinfo;
 	UINT16 wadnum;
 	char sprite[4]; // Sprite name, if seperated from S_SKIN.
 	skinflags_t flags;
@@ -120,7 +117,10 @@ typedef enum
 	SC_NONE = 0,
 	SC_TOP = 1,
 	SC_BOTTOM = 2,
-	SC_VFLIP = 3
+	SC_VFLIP = 3,
+	SC_NOTVISIBLE = 4,
+	SC_CUTMASK    = SC_TOP|SC_BOTTOM|SC_NOTVISIBLE,
+	SC_FLAGMASK   = ~SC_CUTMASK
 } spritecut_e;
 
 // A vissprite_t is a thing that will be drawn during a refresh,
@@ -181,10 +181,9 @@ typedef struct vissprite_s
 	INT32 dispoffset; // copy of info->dispoffset, affects ordering but not drawing
 } vissprite_t;
 
-extern UINT32 visspritecount;
+extern UINT32 visspritecount, numvisiblesprites;
 
 void R_ClipSprites(void);
-void R_ClipVisSprite(vissprite_t *spr, INT32 x1, INT32 x2);
 
 UINT8 *R_GetSpriteTranslation(vissprite_t *vis);
 
@@ -210,9 +209,9 @@ extern INT32 numskins;
 extern INT32 numlocalskins;
 extern INT32 numallskins;
 extern skin_t skins[MAXSKINS];
-extern UINT8 skinstats[9][9][MAXSKINS];
-extern UINT8 skinstatscount[9][9];
-extern UINT8 skinsorted[MAXSKINS];
+extern UINT16 skinstats[9][9][MAXSKINS];
+extern UINT16 skinstatscount[9][9];
+extern UINT16 skinsorted[MAXSKINS];
 
 void sortSkinGrid(void);
 extern skin_t localskins[MAXSKINS];
@@ -261,7 +260,7 @@ FUNCMATH FUNCINLINE static ATTRINLINE UINT8 R_Char2Frame(char cn)
 	if (cn == '+') return '\\' - 'A'; // PK3 can't use backslash, so use + instead
 	return cn - 'A';
 #else
-	if (cn >= 'A' && cn <= 'Z') return cn - 'A';
+	if (cn >= 'A' && cn <= 'Z') return (cn - 'A');
 	if (cn >= '0' && cn <= '9') return (cn - '0') + 26;
 	if (cn >= 'a' && cn <= 'z') return (cn - 'a') + 36;
 	if (cn == '!') return 62;
@@ -270,9 +269,26 @@ FUNCMATH FUNCINLINE static ATTRINLINE UINT8 R_Char2Frame(char cn)
 #endif
 }
 
-FUNCMATH FUNCINLINE static ATTRINLINE boolean R_ValidSpriteAngle(UINT8 rotation)
+// "Left" and "Right" character symbols for additional rotation functionality
+#define ROT_L 17
+#define ROT_R 18
+
+FUNCMATH FUNCINLINE static ATTRINLINE char R_Rotation2Char(UINT8 rot)
 {
-	return ((rotation <= 8) || (rotation == ROT_L) || (rotation == ROT_R));
+	if (rot <=     9) return '0' + rot;
+	if (rot <=    16) return 'A' + (rot - 10);
+	if (rot == ROT_L) return 'L';
+	if (rot == ROT_R) return 'R';
+	return '\xFF';
+}
+
+FUNCMATH FUNCINLINE static ATTRINLINE UINT8 R_Char2Rotation(char cn)
+{
+	if (cn >= '0' && cn <= '9') return (cn - '0');
+	if (cn >= 'A' && cn <= 'G') return (cn - 'A') + 10;
+	if (cn == 'L') return ROT_L;
+	if (cn == 'R') return ROT_R;
+	return 255;
 }
 
 #endif //__R_THINGS__

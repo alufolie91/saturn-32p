@@ -1,29 +1,97 @@
-# SRB2Kart: Saturn - Uranus fork
+# SRB2Kart: Neptune fork
 
 [SRB2Kart](https://srb2.org/mods/) is a kart racing mod based on the 3D Sonic the Hedgehog fangame [Sonic Robo Blast 2](https://srb2.org/), based on a modified version of [Doom Legacy](http://doomlegacy.sourceforge.net/).
 
-## Uranus Fork
--This fork focuses on things that are not compatible with Vanilla Clients, things like netcode fixes, more players etc.
+## Neptune Fork
+A fork of a fork. This hardcodes many features that I personally enjoy using or I thought would be good customization.
 
-## Features (Normal Branch)
-- Support for up to 32 Players
-- Extra Skin colors
-- Double the mobjfreeslots (2048 compared to 1024 in vanilla)
-- Up to 3 Rows for Map voting
-- Adds a 12 player cap to the distance calculation, to make item rng in big lobbies with more than 16 to be less bad (With this change, the distance multiplier is capped at 0.857 instead of 0.714 )
-- Everything Saturn client also has See: https://github.com/Indev450/SRB2Kart-Saturn
+## Features (Neptune)
+- All stuff from Saturn
+- Existing lua features from other custom clients such as interpoints, mashstop, PlayerItemUse, KartHyudoro, KartStealBumper, MobjScaleChange and KartSneaker
+- Sneaker Extension with mini-turbos (Choose between two types bs and zbl)
+- Additive Mini-turbos
+- Customizable mini-turbo boost time
+- Colorized HUD(With the ability to choose its color or to use your own skin color)
+- BoostStacking(This is a big one!)
+- Being able to change what speed battle is in
+- Expert Speed
+- CEP Item Odd system(based on conga calc)
+- Customizable itemtable
+- Fixed NetID conflicts
+- 16-angle support for sprites 
+- 512 skins support (everything player num releated was made UINT16)
+- Title Screen Thinker and HUD Hook
+- More to come!
+- All added features are toggable via convars
 
-- ## Features (Experimental Branch)
-- Everything from above
-- The Player collision system has been redone to be Cylindrical instead of being a Box. This will most likely fix magnet walls, and alot of other issues, esp on maps with complicated geometry
-- More Blua Hooks, For Stealing Bumpers in Battle mode, Hyudoro, Sneakers and Mobj Scales
-- Aswell as more Lua things for Intermission
-- Double the skin limit (512 instead of 255)
-- General Fixes in the netcode. This makes players with high ping less likely to lag out the whole server.
-- Synchfixes, maps with Wavy floors are less likely to desynch Players
-- Also resynching has a higher chance to be succesful in doing so
-- Optimized netarchiving for Lua things
-- Optimized Polygon sorting with OpenGl batching 
+## New CVARs
+- sneakerextend Default value: On
+- sneakerextendtype Default value: zbl
+- additivemt Default value: Off
+- bluesparktics Default value: 20
+- redsparktics Default value: 50
+- rainbowsparktics Default value: 125
+- colorizedhud Default value: On
+- colorizeditembox Default value: On
+- darkitembox Default value: On
+- stacking Default value:	On
+- stackingdim Default value: On
+- stackingdimval Default value: 1.20
+- stackingbrakemod Default value: 0.05
+- stacking_sneakerstack Default value: 5
+- stacking_sneakerspeedeasy Default value: 0.8317
+- stacking_sneakerspeednormal Default value: 0.5
+- stacking_sneakerspeedhard Default value: 0.2756
+- stacking_sneakerspeedexpert Default value: 0.2243
+- stacking_sneakeraccel Default value: 8.0
+- stacking_invincibilitypeed Default value: 0.375
+- stacking_invincibilityaccel Default value: 3.0
+- stacking_growspeed Default value: 0.2
+- stacking_growaccel Default value: 0.5
+- stacking_growmult Default value: 0
+- stacking_drfitspeed Default value: 0.25
+- stacking_drfitaccel Default value: 4.0
+- stacking_startspeed Default value: 0.25
+- stacking_startaccel Default value: 6.0
+- stacking_hyuudorospeed Default value: 0.1
+- stacking_hyuudoroaccel Default value: 0.5
+- stacking_speedcap Default value: On
+- stacking_speedcapval Default value: 128.0
+- kartbattlespeed Default value: Normal
+- customodds Default value: on
+- itemoddsystem Default value: CEP
+- lastserver Default value: ""
+- pingicon Default value: on
+- highresportait Default value: off
+
+## Item odds customization
+Please use the cfg script located at ServerScripts/itemodds.cfg if you are going to host a server that will use custom odds.
+
+This makes this dramitcally easier then doing it all by hand.
+
+## New kartstuff data
+- k_sneakerstack Current number of active sneaker stacks. Modfifying this will effect stack value
+- k_driftstack Cosmetic Stack number. Can be used to see if a specfic boost is active but modifying it won't change how it stacks
+- k_startstack ^
+- k_invincibilitystack ^
+- k_ssstack  ^
+- k_trickstack ^
+- k_totalstacks Value of all current stacks coesmetic or not
+- k_ssspeedboost Used to pass through slipstream speedboost to internal stacking system
+- k_ssaccelboost Used to pass through slipstream accelboost to internal stacking system
+- k_slopespeedboost Used to pass through slopeboost speedboost to internal stacking system
+- k_slopeaccelboost Used to pass through slopeboost accelboost to internal stacking system
+- k_trickspeedboost Used to pass through trickmod speedboost to internal stacking system
+- k_trickaccelboost Used to pass through trickmod accelboost to internal stacking system
+
+
+## New lua functions
+
+These should be the same as how they are usually used in lua.
+- os.clock
+- os.time
+- os.date
+- os.difftime
 
 ## Dependencies
 - SDL2 (Linux/OS X only)

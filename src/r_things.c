@@ -128,26 +128,23 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
                                 UINT8 rotation,
                                 UINT8 flipped)
 {
-	char cn = R_Frame2Char(frame); // for debugging
+	char cn = R_Frame2Char(frame), cr = R_Rotation2Char(rotation); // for debugging
 
 	INT32 r;
 	lumpnum_t lumppat = wad;
 	lumppat <<= 16;
 	lumppat += lump;
 
-	if (frame >= 64 || !(R_ValidSpriteAngle(rotation)))
-		I_Error("R_InstallSpriteLump: Bad frame characters in lump %s", W_CheckNameForNum(lumppat));
-
 	if (maxframe ==(size_t)-1 || frame > maxframe)
 		maxframe = frame;
 
 // rotsprite
 #ifdef ROTSPRITE
-		for (r = 0; r < 16; r++)
-		{
-			sprtemp[frame].rotated[0][r] = NULL;
-			sprtemp[frame].rotated[1][r] = NULL;
-		}
+	for (r = 0; r < 16; r++)
+	{
+		sprtemp[frame].rotated[0][r] = NULL;
+		sprtemp[frame].rotated[1][r] = NULL;
+	}
 #endif/*ROTSPRITE*/
 
 
@@ -156,16 +153,16 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 		// the lump should be used for all rotations
 		if (sprtemp[frame].rotate == SRF_SINGLE)
 			CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has multiple rot = 0 lump\n", spritename, cn);
-		else if (sprtemp[frame].rotate != SRF_NONE) // Let's complain for both 1-8 and L/R rotations.
+		else if (sprtemp[frame].rotate != SRF_NONE) // Let's bundle 1-8/16 and L/R rotations into one debug message.
 			CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has rotations and a rot = 0 lump\n", spritename, cn);
 
 		sprtemp[frame].rotate = SRF_SINGLE;
-		for (r = 0; r < 8; r++)
+		for (r = 0; r < 16; r++)
 		{
 			sprtemp[frame].lumppat[r] = lumppat;
 			sprtemp[frame].lumpid[r] = lumpid;
 		}
-		sprtemp[frame].flip = flipped ? UINT8_MAX : 0; // 11111111 in binary
+		sprtemp[frame].flip = flipped ? 0xFFFF : 0; // 1111111111111111 in binary
 		return;
 	}
 
@@ -174,52 +171,67 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 		UINT8 rightfactor = ((rotation == ROT_R) ? 4 : 0);
 
 		// the lump should be used for half of all rotations
-		if (sprtemp[frame].rotate == SRF_SINGLE)
-			CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has L/R rotations and a rot = 0 lump\n", spritename, cn);
-		else if (sprtemp[frame].rotate == SRF_3D)
-			CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has both L/R and 1-8 rotations\n", spritename, cn);
-		// Let's not complain about multiple L/R rotations. It's not worth the effort.
-
 		if (sprtemp[frame].rotate == SRF_NONE)
 			sprtemp[frame].rotate = SRF_SINGLE;
+		else if (sprtemp[frame].rotate == SRF_SINGLE)
+			CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has L/R rotations and a rot = 0 lump\n", spritename, cn);
+		
+		else if (sprtemp[frame].rotate == SRF_3D)
+			CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has both L/R and 1-8 rotations\n", spritename, cn);
+		
+		else if (sprtemp[frame].rotate == SRF_3DGE)
+			CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has both L/R and 1-G rotations\n", spritename, cn);
+		// Let's not complain about multiple L/R rotations. It's not worth the effort.
 
 		sprtemp[frame].rotate |= ((rotation == ROT_R) ? SRF_RIGHT : SRF_LEFT);
 
-		if (sprtemp[frame].rotate == (SRF_3D|SRF_2D))
-			sprtemp[frame].rotate = SRF_2D; // SRF_3D|SRF_2D being enabled at the same time doesn't HURT in the current sprite angle implementation, but it DOES mean more to check in some of the helper functions. Let's not allow this scenario to happen.
+		if ((sprtemp[frame].rotate & SRF_2D) == SRF_2D)
+			sprtemp[frame].rotate &= ~SRF_3DMASK; // SRF_3D|SRF_2D being enabled at the same time doesn't HURT in the current sprite angle implementation, but it DOES mean more to check in some of the helper functions. Let's not allow this scenario to happen.
 
-		for (r = 0; r < 4; r++) // Thanks to R_PrecacheLevel, we can't leave sprtemp[*].lumppat[*] == LUMPERROR... so we load into the front/back angle too.
+		// load into every relevant angle, including the front one
+		for (r = 0; r < 4; r++)
 		{
 			sprtemp[frame].lumppat[r + rightfactor] = lumppat;
 			sprtemp[frame].lumpid[r + rightfactor] = lumpid;
+			sprtemp[frame].lumppat[r + rightfactor + 8] = lumppat;
+			sprtemp[frame].lumpid[r + rightfactor + 8] = lumpid;
 		}
 
 		if (flipped)
-			sprtemp[frame].flip |= (0x0F<<rightfactor); // 00001111 or 11110000 in binary, depending on rotation being ROT_L or ROT_R
+			sprtemp[frame].flip |= (0x0F0F<<rightfactor); // 0000111100001111 or 1111000011110000 in binary, depending on rotation being ROT_L or ROT_R
 		else
-			sprtemp[frame].flip &= ~(0x0F<<rightfactor); // ditto
+			sprtemp[frame].flip &= ~(0x0F0F<<rightfactor); // ditto
 
 		return;
 	}
 
 	// the lump is only used for one rotation
-	if (sprtemp[frame].rotate == SRF_SINGLE)
-		CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has 1-8 rotations and a rot = 0 lump\n", spritename, cn);
-	else if ((sprtemp[frame].rotate != SRF_3D) && (sprtemp[frame].rotate != SRF_NONE))
-		CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has both L/R and 1-8 rotations\n", spritename, cn);
+	if (sprtemp[frame].rotate == SRF_NONE)
+		sprtemp[frame].rotate = SRF_SINGLE;
+	else if (sprtemp[frame].rotate == SRF_SINGLE)
+		CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has 1-8/G rotations and a rot = 0 lump\n", spritename, cn);
+	else if (sprtemp[frame].rotate & SRF_2D)
+		CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s frame %c has both L/R and 1-8/G rotations\n", spritename, cn);
 
 	// make 0 based
 	rotation--;
 
-	if (rotation == 0 || rotation == 4) // Front or back...
-		sprtemp[frame].rotate = SRF_3D; // Prevent L and R changeover
-	else if (rotation > 3) // Right side
-		sprtemp[frame].rotate = (SRF_3D | (sprtemp[frame].rotate & SRF_LEFT)); // Continue allowing L frame changeover
-	else // if (rotation <= 3) // Left side
-		sprtemp[frame].rotate = (SRF_3D | (sprtemp[frame].rotate & SRF_RIGHT)); // Continue allowing R frame changeover
+	{
+		// SRF_3D|SRF_3DGE being enabled at the same time doesn't HURT in the current sprite angle implementation, but it DOES mean more to check in some of the helper functions. Let's not allow this scenario to happen.
+		UINT8 threedrot = (rotation > 7) ? SRF_3DGE : (sprtemp[frame].rotate & SRF_3DMASK);
+		if (!threedrot)
+			threedrot = SRF_3D;
+
+		if (rotation == 0 || rotation == 4) // Front or back...
+			sprtemp[frame].rotate = threedrot; // Prevent L and R changeover
+		else if ((rotation & 7) > 3) // Right side
+			sprtemp[frame].rotate = (threedrot | (sprtemp[frame].rotate & SRF_LEFT)); // Continue allowing L frame changeover
+		else // if ((rotation & 7) <= 3) // Left side
+			sprtemp[frame].rotate = (threedrot | (sprtemp[frame].rotate & SRF_RIGHT)); // Continue allowing R frame changeover
+	}
 
 	if (sprtemp[frame].lumppat[rotation] != LUMPERROR)
-		CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s: %c%c has two lumps mapped to it\n", spritename, cn, '1'+rotation);
+		CONS_Debug(DBG_SETUP, "R_InitSprites: Sprite %s: %c%c has two lumps mapped to it\n", spritename, cn, cr);
 
 	// lumppat & lumpid are the same for original Doom, but different
 	// when using sprites in pwad : the lumppat points the new graphics
@@ -277,9 +289,9 @@ static boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef,
 		if (memcmp(lumpinfo[l].name,sprname,4)==0)
 		{
 			frame = R_Char2Frame(lumpinfo[l].name[4]);
-			rotation = (UINT8)(lumpinfo[l].name[5] - '0');
+			rotation = R_Char2Rotation(lumpinfo[l].name[5]);
 
-			if (frame >= 64 || !(R_ValidSpriteAngle(rotation))) // Give an actual NAME error -_-...
+			if (frame >= 64 || rotation == 255) // Give an actual NAME error -_-...
 			{
 				CONS_Alert(CONS_WARNING, M_GetText("Bad sprite name: %s\n"), W_CheckNameForNumPwad(wadnum,l));
 				continue;
@@ -314,7 +326,13 @@ static boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef,
 			if (lumpinfo[l].name[6])
 			{
 				frame = R_Char2Frame(lumpinfo[l].name[6]);
-				rotation = (UINT8)(lumpinfo[l].name[7] - '0');
+				rotation = R_Char2Rotation(lumpinfo[l].name[7]);
+
+				if (frame >= 64 || rotation == 255) // Give an actual NAME error -_-...
+				{
+					CONS_Alert(CONS_WARNING, M_GetText("Bad sprite name: %s\n"), W_CheckNameForNumPwad(wadnum,l));
+					continue;
+				}
 				R_InstallSpriteLump(wadnum, l, numspritelumps, frame, rotation, 1);
 			}
 
@@ -365,7 +383,8 @@ static boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef,
 		{
 			case SRF_NONE:
 			// no rotations were found for that frame at all
-			I_Error("R_AddSingleSpriteDef: No patches found for %.4s frame %c", sprname, R_Frame2Char(frame));
+			CONS_Printf("\x82 WARNING:\x80 R_AddSingleSpriteDef: No patches found for %.4s frame %c are you sure your mod is packaged correctly? \n", sprname, R_Frame2Char(frame));
+			//I_Error("R_AddSingleSpriteDef: No patches found for %.4s frame %c", sprname, R_Frame2Char(frame));
 			break;
 
 			case SRF_SINGLE:
@@ -375,18 +394,23 @@ static boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef,
 			case SRF_2D: // both Left and Right rotations
 				// we test to see whether the left and right slots are present
 				if ((sprtemp[frame].lumppat[2] == LUMPERROR) || (sprtemp[frame].lumppat[6] == LUMPERROR))
-					I_Error("R_AddSingleSpriteDef: Sprite %s frame %c is missing rotations",
+					CONS_Printf("\x82 WARNING:\x80 R_AddSingleSpriteDef: Sprite %.4s frame %c is missing rotations (L-R mode). are you sure your mod is packaged correctly? \n",
 					        sprname, R_Frame2Char(frame));
+					//I_Error("R_AddSingleSpriteDef: Sprite %.4s frame %c is missing rotations (L-R mode)",
+					        //sprname, R_Frame2Char(frame));
 			break;
 
 			default:
-			// must have all 8 frames
-			for (rotation = 0; rotation < 8; rotation++)
+			// must have all 8/16 frames
+				rotation = ((sprtemp[frame].rotate & SRF_3DGE) ? 16 : 8);
+				while (rotation--)
 				// we test the patch lump, or the id lump whatever
 				// if it was not loaded the two are LUMPERROR
 				if (sprtemp[frame].lumppat[rotation] == LUMPERROR)
-					I_Error("R_AddSingleSpriteDef: Sprite %.4s frame %c is missing rotations",
-					        sprname, R_Frame2Char(frame));
+					CONS_Printf("\x82 WARNING:\x80 R_AddSingleSpriteDef: Sprite %.4s frame %c is missing rotations (1-%c mode). are you sure your mod is packaged correctly? \n",
+					        sprname, R_Frame2Char(frame), ((sprtemp[frame].rotate & SRF_3DGE) ? 'G' : '8'));
+					//I_Error("R_AddSingleSpriteDef: Sprite %.4s frame %c is missing rotations (1-%c mode)",
+					        //sprname, R_Frame2Char(frame), ((sprtemp[frame].rotate & SRF_3DGE) ? 'G' : '8'));
 			break;
 		}
 	}
@@ -589,7 +613,8 @@ void R_DelSpriteDefs(UINT16 wadnum)
 //
 // GAME FUNCTIONS
 //
-UINT32 visspritecount;
+UINT32 visspritecount, numvisiblesprites;
+
 static UINT32 clippedvissprites;
 static vissprite_t *visspritechunks[MAXVISSPRITES >> VISSPRITECHUNKBITS] = {NULL};
 
@@ -642,9 +667,12 @@ void R_InitSprites(void)
 
 	// it can be is do before loading config for skin cvar possible value
 	R_InitSkins();
-	for (i = 0; i < numwadfiles; i++)
+	for (i = 0; i < numwadfiles; i++) 
+	{
 		R_AddSkins((UINT16)i, false);
-
+		R_LoadSpriteInfoLumps(i, wadfiles[i]->numlumps);
+	}
+		
 	//
 	// check if all sprites have frames
 	//
@@ -661,7 +689,7 @@ void R_InitSprites(void)
 //
 void R_ClearSprites(void)
 {
-	visspritecount = clippedvissprites = 0;
+	visspritecount = numvisiblesprites = clippedvissprites = 0;
 }
 
 //
@@ -940,10 +968,10 @@ static void R_DrawVisSprite(vissprite_t *vis)
 		{
 			vis->scale = FixedMul(vis->scale, this_scale);
 			vis->scalestep = FixedMul(vis->scalestep, this_scale);
-			vis->xiscale = FixedDiv(vis->xiscale,this_scale);
+			vis->xiscale = FixedDiv(vis->xiscale, this_scale);
 			vis->isScaled = true;
 		}
-		dc_texturemid = FixedDiv(dc_texturemid,this_scale);
+		dc_texturemid = FixedDiv(dc_texturemid, this_scale);
 	}
 
 	spryscale = vis->scale;
@@ -1310,16 +1338,19 @@ static void R_ProjectSprite(mobj_t *thing)
 	size_t lump;
 
 	size_t rot;
+
 	UINT8 flip;
-	/*boolean vflip = (!(thing->eflags & MFE_VERTICALFLIP) != !R_ThingVerticallyFlipped(thing));
+	/*boolean vflip = (!(thing->eflags & MFE_VERTICALFLIP) != !R_ThingVerticallyFlipped(thing));*/
+
 	boolean mirrored = thing->mirrored;
-	boolean hflip = (!R_ThingHorizontallyFlipped(thing) != !mirrored);*/
+	boolean hflip = (!(thing->frame & FF_HORIZONTALFLIP) != !mirrored);
 
 	INT32 lindex;
 
 	vissprite_t *vis;
 
 	angle_t ang = 0; // gcc 4.6 and lower fix
+	angle_t camang = 0;
 	fixed_t iscale;
 	fixed_t scalestep; // toast '16
 	fixed_t offset, offset2;
@@ -1339,6 +1370,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	patch_t *rotsprite = NULL;
 	INT32 rollangle = 0;
 	angle_t rollsum = 0;
+	angle_t pitchnroll = 0;
 	angle_t sliptiderollangle = 0;
 #endif
 
@@ -1393,11 +1425,11 @@ static void R_ProjectSprite(mobj_t *thing)
 	rot = thing->frame&FF_FRAMEMASK;
 
 	//Fab : 02-08-98: 'skin' override spritedef currently used for skin
-	if (thing->skin && thing->sprite == SPR_PLAY)
+	if ((thing->skin || thing->localskin) && thing->sprite == SPR_PLAY)
 	{
 		sprdef = &((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->spritedef;
 #ifdef ROTSPRITE
-		sprinfo = &spriteinfo[thing->sprite];
+		sprinfo = &((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->sprinfo;
 #endif
 
 		if (rot >= sprdef->numframes)
@@ -1439,6 +1471,10 @@ static void R_ProjectSprite(mobj_t *thing)
 	if (sprframe->rotate != SRF_SINGLE || papersprite)
 	{
 		ang = R_PointToAngle (interp.x, interp.y) - interp.angle;
+		camang = R_PointToAngle (interp.x, interp.y);
+
+		if (mirrored)
+			ang = InvAngle(ang);
 		if (papersprite)
 			ang_scale = abs(FINESINE(ang>>ANGLETOFINESHIFT));
 	}
@@ -1448,7 +1484,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		// use single rotation for all views
 		rot = 0;                        //Fab: for vis->patch below
 		lump = sprframe->lumpid[0];     //Fab: see note above
-		flip = sprframe->flip; // Will only be 0x00 or 0xFF
+		flip = sprframe->flip; 			// Will only be 0 or 0xFFFF
 	}
 	else
 	{
@@ -1459,6 +1495,11 @@ static void R_ProjectSprite(mobj_t *thing)
 			rot = 6; // F7 slot
 		else if ((ang >= ANGLE_180) && (sprframe->rotate & SRF_LEFT)) // See from left
 			rot = 2; // F3 slot
+		else if (sprframe->rotate & SRF_3DGE) // 16-angle mode
+		{
+			rot = (ang+ANGLE_180+ANGLE_11hh)>>28;
+			rot = ((rot & 1)<<3)|(rot>>1);
+		}
 		else // Normal behaviour
 			rot = (ang+ANGLE_202h)>>29;
 
@@ -1468,7 +1509,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	}
 
 	I_Assert(lump < max_spritelumps);
-
+	
 	if (thing->localskin && ((skin_t *)thing->localskin)->flags & SF_HIRES)
 		this_scale = FixedMul(this_scale, ((skin_t *)thing->localskin)->highresscale);
 	else if (thing->skin && ((skin_t *)thing->skin)->flags & SF_HIRES)
@@ -1480,34 +1521,63 @@ static void R_ProjectSprite(mobj_t *thing)
 	spr_topoffset = spritecachedinfo[lump].topoffset;
 
 #ifdef ROTSPRITE
+    pitchnroll = 0;  // set this to 0, non-paper sprites will affect this value
 	
-	if (thing->player)
+	if (cv_spriteroll.value)
 	{
-		sliptiderollangle = FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), ((cv_sloperoll.value == 1) ? thing->player->sliproll*(thing->player->sliptidemem) : 0));
-	}
-	else
-		sliptiderollangle = 0;
-
-	if ((thing->rollangle)||(thing->sloperoll)||sliptiderollangle)
-	{
-		if (thing->player)
-			rollsum = (thing->rollangle) + (thing->sloperoll) + sliptiderollangle;
-		else
-			rollsum = (thing->rollangle) + (thing->sloperoll);
-
-		rollangle = R_GetRollAngle(rollsum);
-		rotsprite = Patch_GetRotatedSprite(sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
-
-		if (rotsprite != NULL)
+		if (papersprite)
 		{
-			spr_width = rotsprite->width << FRACBITS;
-			spr_height = rotsprite->height << FRACBITS;
-			spr_offset = rotsprite->leftoffset << FRACBITS;
-			spr_topoffset = rotsprite->topoffset << FRACBITS;
-			spr_topoffset += FEETADJUST;
+			if (ang >= ANGLE_180)
+			{
+				// Makes Software act much more sane like OpenGL
+				rollangle = InvAngle(thing->rollangle);
+			}
+			else
+			{
+				rollangle = thing->rollangle;
+			}
+		}
+		else
+		{
+			// this is very messy, but it on-the-fly calculates rotations for all the
+			// pitch and roll variables
+			pitchnroll = FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), interp.roll) +
+						 FixedMul(FINESINE((ang) >> ANGLETOFINESHIFT), interp.pitch) +
+						 FixedMul(FINECOSINE((camang) >> ANGLETOFINESHIFT), interp.sloperoll) +
+						 FixedMul(FINESINE((camang) >> ANGLETOFINESHIFT), interp.slopepitch);
 
-			// flip -> rotate, not rotate -> flip
-			flip = 0;
+			rollangle = thing->rollangle;
+		}
+
+		if ((rollangle) || (pitchnroll) || (thing->player && thing->player->sliproll))
+		{
+			rollsum = pitchnroll;
+
+			if (thing->player)
+			{
+				sliptiderollangle =
+					cv_sliptideroll.value ? thing->player->sliproll * (thing->player->sliptidemem) : 0;
+				rollsum += thing->rollangle +
+						   FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), sliptiderollangle);
+			}
+			else
+				rollsum += thing->rollangle;
+
+			rollangle = R_GetRollAngle(rollsum);
+			rotsprite = Patch_GetRotatedSprite(
+				sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
+
+			if (rotsprite != NULL)
+			{
+				spr_width = rotsprite->width << FRACBITS;
+				spr_height = rotsprite->height << FRACBITS;
+				spr_offset = rotsprite->leftoffset << FRACBITS;
+				spr_topoffset = rotsprite->topoffset << FRACBITS;
+				spr_topoffset += FEETADJUST;
+
+				// flip -> rotate, not rotate -> flip
+				flip = 0;
+			}
 		}
 	}
 #endif
@@ -1515,6 +1585,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	// calculate edges of the shape
 	spritexscale = interp.spritexscale;
 	spriteyscale = interp.spriteyscale;
+	
 	if (spritexscale < 1 || spriteyscale < 1)
 		return;
 
@@ -1533,6 +1604,8 @@ static void R_ProjectSprite(mobj_t *thing)
 		spr_offset += interp.spritexoffset * flipoffset;
 		spr_topoffset += interp.spriteyoffset * flipoffset;
 	}
+	
+	flip = !flip != !hflip;
 
 	if (flip)
 		offset = spr_offset - spr_width;
@@ -1757,7 +1830,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	//Fab: lumppat is the lump number of the patch to use, this is different
 	//     than lumpid for sprites-in-pwad : the graphics are patched
 #ifdef ROTSPRITE
-	if (rotsprite != NULL)
+	if ((rotsprite != NULL) && (cv_spriteroll.value))
 		vis->patch = rotsprite;
 	else
 #endif
@@ -2193,6 +2266,14 @@ void R_SortVisSprites(void)
 		bestscale = bestdispoffset = INT32_MAX;
 		for (ds = unsorted.next; ds != &unsorted; ds = ds->next)
 		{
+			// Remove this sprite if it was determined to not be visible
+			if (ds->cut & SC_NOTVISIBLE)
+			{
+				ds->next->prev = ds->prev;
+				ds->prev->next = ds->next;
+				continue;
+			}
+
 			if (ds->sortscale < bestscale)
 			{
 				bestscale = ds->sortscale;
@@ -2206,12 +2287,15 @@ void R_SortVisSprites(void)
 				best = ds;
 			}
 		}
-		best->next->prev = best->prev;
-		best->prev->next = best->next;
-		best->next = &vsprsortedhead;
-		best->prev = vsprsortedhead.prev;
-		vsprsortedhead.prev->next = best;
-		vsprsortedhead.prev = best;
+		if (best)
+		{
+			best->next->prev = best->prev;
+			best->prev->next = best->next;
+			best->next = &vsprsortedhead;
+			best->prev = vsprsortedhead.prev;
+			vsprsortedhead.prev->next = best;
+			vsprsortedhead.prev = best;
+		}
 	}
 }
 
@@ -2573,9 +2657,47 @@ static void R_DrawPrecipitationSprite(vissprite_t *spr)
 	R_DrawPrecipitationVisSprite(spr);
 }
 
-// R_ClipSprites
+static boolean R_CheckSpriteVisible(vissprite_t *spr, INT32 x1, INT32 x2)
+{
+	INT16 sz = spr->sz;
+	INT16 szt = spr->szt;
+
+	fixed_t texturemid, yscale, scalestep = spr->scalestep;
+	INT32 height;
+
+	if (scalestep)
+	{
+		height = spr->patch->height;
+		yscale = spr->scale;
+		scalestep = FixedMul(scalestep, spr->spriteyscale);
+
+		if (spr->thingscale != FRACUNIT)
+			texturemid = FixedDiv(spr->texturemid, max(spr->thingscale, 1));
+		else
+			texturemid = spr->texturemid;
+	}
+
+	for (INT32 x = x1; x <= x2; x++)
+	{
+		if (scalestep)
+		{
+			fixed_t top = centeryfrac - FixedMul(texturemid, yscale);
+			fixed_t bottom = top + (height * yscale);
+			szt = (INT16)(top >> FRACBITS);
+			sz = (INT16)(bottom >> FRACBITS);
+			yscale += scalestep;
+		}
+
+		if (spr->cliptop[x] < spr->clipbot[x] && sz > spr->cliptop[x] && szt < spr->clipbot[x])
+			return true;
+	}
+
+	return false;
+}
+
+// R_ClipVisSprite
 // Clips vissprites without drawing, so that portals can work. -Red
-void R_ClipVisSprite(vissprite_t *spr, INT32 x1, INT32 x2)
+static void R_ClipVisSprite(vissprite_t *spr, INT32 x1, INT32 x2)
 {
 	drawseg_t *ds;
 	INT32		x;
@@ -2756,8 +2878,15 @@ void R_ClipVisSprite(vissprite_t *spr, INT32 x1, INT32 x2)
 			spr->clipbot[x] = (INT16)viewheight;
 
 		if (spr->cliptop[x] == -2)
-			//Fab : 26-04-98: was -1, now clips against console bottom
-			spr->cliptop[x] = (INT16)con_clipviewtop;
+			spr->cliptop[x] = -1;
+	}
+	
+	// Check if it'll be visible
+	// Not done for floorsprites.
+	if (cv_spriteclip.value)
+	{
+		if (!R_CheckSpriteVisible(spr, x1, x2))
+			spr->cut |= SC_NOTVISIBLE;
 	}
 }
 
@@ -2826,6 +2955,13 @@ void R_ClipSprites(void)
 	for (; clippedvissprites < visspritecount; clippedvissprites++)
 	{
 		vissprite_t *spr = R_GetVisSprite(clippedvissprites);
+		
+		if (cv_spriteclip.value
+		&& (spr->szt > vid.height || spr->sz < 0))
+		{
+			spr->cut |= SC_NOTVISIBLE;
+			continue;
+		}
 
 		if (spr->x2 < cx)
 		{
@@ -2844,6 +2980,9 @@ void R_ClipSprites(void)
 		}
 
 		R_ClipVisSprite(spr, spr->x1, spr->x2);
+		
+		if ((spr->cut & SC_NOTVISIBLE) == 0)
+			numvisiblesprites++;
 	}
 }
 
@@ -2908,8 +3047,8 @@ INT32 numskins = 0;
 INT32 numallskins = 0;
 INT32 numlocalskins = 0;
 skin_t skins[MAXSKINS];
-UINT8 skinstats[9][9][MAXSKINS];
-UINT8 skinstatscount[9][9] = {
+UINT16 skinstats[9][9][MAXSKINS];
+UINT16 skinstatscount[9][9] = {
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -2920,9 +3059,10 @@ UINT8 skinstatscount[9][9] = {
 	{0, 1, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
-UINT8 skinsorted[MAXSKINS];
+UINT16 skinsorted[MAXSKINS];
 skin_t localskins[MAXSKINS];
 skin_t allskins[MAXSKINS*2];
+
 // FIXTHIS: don't work because it must be inistilised before the config load
 //#define SKINVALUES
 #ifdef SKINVALUES
@@ -3015,6 +3155,7 @@ void R_InitSkins(void)
 
 	skin->spritedef.numframes = sprites[SPR_PLAY].numframes;
 	skin->spritedef.spriteframes = sprites[SPR_PLAY].spriteframes;
+	skin->sprinfo = spriteinfo[SPR_PLAY];
 	ST_LoadFaceGraphics(skin->facerank, skin->facewant, skin->facemmap, 0);
 
 	// Set values for Sonic skin
@@ -3240,11 +3381,11 @@ static UINT16 W_CheckForSkinMarkerInPwad(UINT16 wadid, UINT16 startlump)
 //sort function for sorting skin names
 static int skinSortFunc(const void *a, const void *b) //tbh i have no clue what the naming conventions for local functions are
 {
-	const skin_t *in1 = &skins[*(const UINT8 *)a];
-	const skin_t *in2 = &skins[*(const UINT8 *)b];
+	const skin_t *in1 = &skins[*(const UINT16 *)a];
+	const skin_t *in2 = &skins[*(const UINT16 *)b];
 	INT32 temp = 0;
-	const UINT8 val_a = *((const UINT8 *)a);
-	const UINT8 val_b = *((const UINT8 *)b);
+	const UINT16 val_a = *((const UINT16 *)a);
+	const UINT16 val_b = *((const UINT16 *)b);
 
 
 	//return (strcmp(in1->realname, in2->realname) < 0) || (strcmp(in1->realname, in2->realname) ==);
@@ -3341,7 +3482,7 @@ static int skinSortFunc(const void *a, const void *b) //tbh i have no clue what 
 void sortSkinGrid(void)
 {
 	CONS_Printf("Sorting skin list (%d)...\n", cv_skinselectgridsort.value);
-	qsort(skinsorted, numskins, sizeof(UINT8), skinSortFunc);
+	qsort(skinsorted, numskins, sizeof(UINT16), skinSortFunc);
 }
 
 //
@@ -3469,22 +3610,25 @@ void R_AddSkins(UINT16 wadnum, boolean local)
 			else if (!stricmp(stoken, "sprite"))
 			{
 				strupr(value);
-				strncpy(skin->sprite, value, sizeof skin->sprite);
+				memcpy(skin->sprite, value, sizeof skin->sprite);
 			}
 			else if (!stricmp(stoken, "facerank"))
 			{
 				strupr(value);
-				strncpy(skin->facerank, value, sizeof skin->facerank);
+				memcpy(skin->facerank, value, sizeof(skin->facerank)-1);
+				skin->facerank[sizeof(skin->facerank)-1] = '\0';
 			}
 			else if (!stricmp(stoken, "facewant"))
 			{
 				strupr(value);
-				strncpy(skin->facewant, value, sizeof skin->facewant);
+				memcpy(skin->facewant, value, sizeof(skin->facewant)-1);
+				skin->facewant[sizeof(skin->facewant)-1] = '\0';
 			}
 			else if (!stricmp(stoken, "facemmap"))
 			{
 				strupr(value);
-				strncpy(skin->facemmap, value, sizeof skin->facemmap);
+				strncpy(skin->facemmap, value, sizeof(skin->facemmap)-1);
+				skin->facemmap[sizeof(skin->facemmap)-1] = '\0';
 			}
 
 #define FULLPROCESS(field) else if (!stricmp(stoken, #field)) skin->field = get_number(value);

@@ -68,7 +68,7 @@ static inline void P_ArchivePlayer(void)
 		pllives = 3; // has less than that.
 
 	WRITEUINT8(save_p, player->skincolor);
-	WRITEUINT8(save_p, player->skin);
+	WRITEUINT16(save_p, player->skin);
 
 	WRITEUINT32(save_p, player->score);
 	WRITEINT32(save_p, pllives);
@@ -76,7 +76,7 @@ static inline void P_ArchivePlayer(void)
 
 	if (botskin)
 	{
-		WRITEUINT8(save_p, botskin);
+		WRITEUINT16(save_p, botskin);
 		WRITEUINT8(save_p, botcolor);
 	}
 }
@@ -87,7 +87,7 @@ static inline void P_ArchivePlayer(void)
 static inline void P_UnArchivePlayer(void)
 {
 	savedata.skincolor = READUINT8(save_p);
-	savedata.skin = READUINT8(save_p);
+	savedata.skin = READUINT16(save_p);
 
 	savedata.score = READINT32(save_p);
 	savedata.lives = READINT32(save_p);
@@ -95,7 +95,7 @@ static inline void P_UnArchivePlayer(void)
 
 	if (savedata.botcolor)
 	{
-		savedata.botskin = READUINT8(save_p);
+		savedata.botskin = READUINT16(save_p);
 		if (savedata.botskin-1 >= numskins)
 			savedata.botskin = 0;
 		savedata.botcolor = READUINT8(save_p);
@@ -140,7 +140,9 @@ static void P_NetArchivePlayers(void)
 
 		WRITEANGLE(save_p, players[i].frameangle);
 		WRITEINT32(save_p, players[i].interpoints);
-
+		//MashStop
+		WRITEUINT8(save_p, players[i].mashstop);
+		
 		WRITEUINT8(save_p, players[i].playerstate);
 		WRITEUINT32(save_p, players[i].pflags);
 		WRITEUINT8(save_p, players[i].panim);
@@ -322,6 +324,8 @@ static void P_NetUnArchivePlayers(void)
 
 		players[i].frameangle = READANGLE(save_p);
 		players[i].interpoints = READINT32(save_p);
+		//Mashstop
+		players[i].mashstop = (boolean)READUINT8(save_p);
 
 		players[i].playerstate = READUINT8(save_p);
 		players[i].pflags = READUINT32(save_p);
@@ -496,7 +500,6 @@ static void P_NetUnArchivePlayers(void)
 static void P_NetArchiveWorld(void)
 {
 	size_t i;
-	INT32 statsec = 0, statline = 0;
 	const line_t *li = lines;
 	const side_t *si;
 	UINT8 *put;
@@ -589,8 +592,6 @@ static void P_NetArchiveWorld(void)
 
 		if (diff)
 		{
-			statsec++;
-
 			WRITEUINT16(put, i);
 			WRITEUINT8(put, diff);
 			if (diff & SD_DIFF2)
@@ -707,7 +708,6 @@ static void P_NetArchiveWorld(void)
 
 		if (diff)
 		{
-			statline++;
 			WRITEINT16(put, i);
 			WRITEUINT8(put, diff);
 			if (diff & LD_DIFF2)
@@ -1257,7 +1257,7 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 	if (diff2 & MD2_CVMEM)
 		WRITEINT32(save_p, mobj->cvmem);
 	if (diff2 & MD2_SKIN)
-		WRITEUINT8(save_p, (UINT8)((skin_t *)mobj->skin - skins));
+		WRITEUINT16(save_p, (UINT16)((skin_t *)mobj->skin - skins));
 	if (diff2 & MD2_COLOR)
 		WRITEUINT8(save_p, mobj->color);
 	if (diff2 & MD2_EXTVAL1)
@@ -1982,14 +1982,28 @@ static void LoadMobjThinker(actionf_p1 thinker)
 	mobj->thinker.function.acp1 = thinker;
 
 	mobj->rollangle = 0;
-	mobj->spritexoffset = mobj->spriteyoffset = mobj->old_spritexoffset = mobj->old_spriteyoffset = FRACUNIT;
-	mobj->spritexscale = mobj->spriteyscale = mobj->old_spritexscale = mobj->old_spriteyscale = FRACUNIT;
-	mobj->realxscale = mobj->realyscale = FRACUNIT;
+
+	mobj->pitch = 0;
+	mobj->roll = 0;
+
+	mobj->sloperoll = 0;
+	mobj->slopepitch = 0;
+
+	mobj->pitch_sprite = 0;
+	mobj->roll_sprite = 0;
+	
+	mobj->spritexoffset = mobj->old_spritexoffset = 0;
+	mobj->spriteyoffset = mobj->old_spriteyoffset = 0;
+	mobj->spritexscale = mobj->old_spritexscale = FRACUNIT;
+	mobj->spriteyscale = mobj->old_spriteyscale = FRACUNIT;
+	mobj->realxscale = FRACUNIT;
+	mobj->realyscale = FRACUNIT;
+	
 	mobj->stretchslam = 0;
 	mobj->slamsoundtimer = 0;
 	
-	mobj->sloperoll = mobj->reservezangle = mobj->reservexydir = 0;
-
+	mobj->mirrored = 0;
+	
 	mobj->z = z;
 	mobj->floorz = floorz;
 	mobj->ceilingz = ceilingz;
@@ -2138,7 +2152,7 @@ static void LoadMobjThinker(actionf_p1 thinker)
 	if (diff2 & MD2_CVMEM)
 		mobj->cvmem = READINT32(save_p);
 	if (diff2 & MD2_SKIN)
-		mobj->skin = &skins[READUINT8(save_p)];
+		mobj->skin = &skins[READUINT16(save_p)];
 	if (diff2 & MD2_COLOR)
 		mobj->color = READUINT8(save_p);
 	if (diff2 & MD2_EXTVAL1)

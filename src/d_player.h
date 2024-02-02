@@ -324,6 +324,21 @@ typedef enum
 	k_jawztargetdelay,	// Delay for Jawz target switching, to make it less twitchy
 	k_spectatewait,		// How long have you been waiting as a spectator
 	k_growcancel,		// Hold the item button down to cancel Grow
+	
+	//stacking
+	k_sneakerstack,
+	k_driftstack,
+	k_startstack,
+	k_invincibilitystack,
+	k_ssstack,
+	k_trickstack,
+	k_totalstacks,
+	k_ssspeedboost,
+	k_ssaccelboost,
+	k_slopespeedboost,
+	k_slopeaccelboost,
+	k_trickspeedboost,
+	k_trickaccelboost,
 
 	NUMKARTSTUFF
 } kartstufftype_t;
@@ -397,6 +412,9 @@ typedef struct player_s
 	// SRB2Kart CEP: Sliptide rolling
 	INT32 sliptidemem;
 	angle_t sliproll;
+	
+	// SRB2kart CEP: Should we prevent mash registering?
+	boolean mashstop;
 
 	INT16 lturn_max[MAXPREDICTTICS]; // What's the expected turn value for full-left for a number of frames back (to account for netgame latency)?
 	INT16 rturn_max[MAXPREDICTTICS]; // Ditto but for full-right
@@ -416,8 +434,8 @@ typedef struct player_s
 	UINT8 skincolor;
 
 	INT32 skin;
-	INT32 localskin;
-	boolean skinlocal;
+	INT32 localskin; // current localskin number
+	boolean skinlocal; // determines if localskin is a skin already loaded in the server
 
 	UINT32 score; // player score
 	INT32 interpoints; // SRB2kart CEP: Points the player gets before an intermission, if said score is set.

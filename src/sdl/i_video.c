@@ -640,9 +640,6 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 			break;
 		case SDL_WINDOWEVENT_MAXIMIZED:
 			break;
-		case SDL_WINDOWEVENT_MOVED:
-			window_x = evt.data1;
-			window_y = evt.data2;
 	}
 
 	if (mousefocus && kbfocus)
@@ -653,7 +650,7 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 		S_InitMusicVolume();
 
 		if (cv_gamesounds.value)
-			S_EnableSound();
+			S_ResumeAudio(); //resume it
 
 		if (!firsttimeonmouse)
 		{
@@ -665,10 +662,10 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 	{
 		// Tell game we lost focus, pause music
 		window_notinfocus = true;
-		if (!cv_playmusicifunfocused.value)
+		if (! cv_playmusicifunfocused.value)
 			I_SetMusicVolume(0);
-		if (!cv_playsoundifunfocused.value)
-			S_DisableSound();
+		if (! cv_playsoundifunfocused.value)
+			S_StopSounds();
 
 		if (!disable_mouse)
 		{
@@ -1451,10 +1448,10 @@ void I_FinishUpdate(void)
 	if (I_SkipFrame())
 		return;
 
-	if (cv_ticrate.value)
+	if (cv_ticrate.value && st_overlay)
 		SCR_DisplayTicRate();
 
-	if (cv_showping.value && netgame && consoleplayer != serverplayer)
+	if (cv_showping.value && netgame && consoleplayer != serverplayer && st_overlay)
 		SCR_DisplayLocalPing();
 
 #ifdef HAVE_DISCORDRPC
@@ -1486,6 +1483,18 @@ void I_FinishUpdate(void)
 #ifdef HWRENDER
 	else if (rendermode == render_opengl)
 	{
+		/*// Final postprocess step of palette rendering, after everything else has been drawn.
+		if (HWR_ShouldUsePaletteRendering())
+		{
+			// not using the function for its original named purpose but can be used like this too
+			HWR_MakeScreenFinalTexture();
+			HWD.pfnSetSpecialState(HWD_SET_SHADERS, 1);
+			HWD.pfnSetShader(8);
+			HWR_DrawScreenFinalTexture(vid.width, vid.height);
+			HWD.pfnUnSetShader();
+			HWD.pfnSetSpecialState(HWD_SET_SHADERS, 0);
+		}*/ //for some reason this does not work here,so ill keep it in DrawScreenFinalTexture itself for now
+
 		OglSdlFinishUpdate(cv_vidwait.value);
 	}
 #endif
@@ -1849,7 +1858,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 		// "direct3d" driver (D3D9) causes Drmingw exchndl
 		// to not write RPT files. Every other driver
 		// seems fine.
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
 
 		renderer = SDL_CreateRenderer(window, -1, flags);
 		if (renderer == NULL)
@@ -1981,7 +1990,6 @@ void I_StartupGraphics(void)
 #ifdef HWRENDER
 	else if (M_CheckParm("-opengl"))
 		rendermode = render_opengl;
-#endif
 
     msaa = 0; boolean msaa_set = false;
     a2c = false; boolean a2c_set = false;
@@ -2011,7 +2019,6 @@ void I_StartupGraphics(void)
 		FILE * file = OpenRendererFile("r");
 		if (file != NULL)
 		{
-#ifdef HWRENDER
 			while (fgets(line, sizeof line, file) != NULL)
 			{
                 word = strtok(line, " \n");
@@ -2063,18 +2070,19 @@ void I_StartupGraphics(void)
 
 			fclose(file);
 		}
-#endif
-		if (rendermode == render_none)
-		{
-#ifdef HWRENDER
-			rendermode = render_opengl;
-			CONS_Printf("Defaulting to OpenGL renderer.\n");
-#else
-			rendermode = render_soft;
-			CONS_Printf("Using default software renderer.\n");
-#endif
-		}
     }
+#endif
+
+	if (rendermode == render_none)
+	{
+#ifdef HWRENDER
+		rendermode = render_opengl;
+		CONS_Printf("Defaulting to OpenGL renderer.\n");
+#else
+		rendermode = render_soft;
+		CONS_Printf("Using default software renderer.\n");
+#endif
+	}
 
 	{
 		FILE * file = OpenRendererFile("w");
@@ -2089,10 +2097,12 @@ void I_StartupGraphics(void)
 				fputs("opengl\n", file);
 			}
 
+#ifdef HWRENDER
             fprintf(file, "msaa %u\n", msaa);
 
             if (a2c)
                 fputs("a2c\n", file);
+#endif
 
             fclose(file);
 		}
@@ -2111,17 +2121,19 @@ void I_StartupGraphics(void)
 	if (rendermode == render_opengl)
 	{
 		HWD.pfnInit             = hwSym("Init",NULL);
+		HWD.pfnSetupGLInfo      = hwSym("SetupGLInfo",NULL);
 		HWD.pfnFinishUpdate     = NULL;
 		HWD.pfnDraw2DLine       = hwSym("Draw2DLine",NULL);
 		HWD.pfnDrawPolygon      = hwSym("DrawPolygon",NULL);
 		HWD.pfnSetBlend         = hwSym("SetBlend",NULL);
 		HWD.pfnClearBuffer      = hwSym("ClearBuffer",NULL);
 		HWD.pfnSetTexture       = hwSym("SetTexture",NULL);
+		HWD.pfnUpdateTexture    = hwSym("UpdateTexture",NULL);
 		HWD.pfnReadRect         = hwSym("ReadRect",NULL);
 		HWD.pfnGClipRect        = hwSym("GClipRect",NULL);
 		HWD.pfnClearMipMapCache = hwSym("ClearMipMapCache",NULL);
 		HWD.pfnSetSpecialState  = hwSym("SetSpecialState",NULL);
-		HWD.pfnSetPalette       = hwSym("SetPalette",NULL);
+		HWD.pfnSetTexturePalette= hwSym("SetTexturePalette",NULL);
 		HWD.pfnGetTextureUsed   = hwSym("GetTextureUsed",NULL);
 		HWD.pfnDrawModel        = hwSym("DrawModel",NULL);
 		HWD.pfnCreateModelVBOs  = hwSym("CreateModelVBOs",NULL);
@@ -2133,6 +2145,7 @@ void I_StartupGraphics(void)
 		HWD.pfnDoScreenWipe     = hwSym("DoScreenWipe",NULL);
 		HWD.pfnDrawIntermissionBG=hwSym("DrawIntermissionBG",NULL);
 		HWD.pfnMakeScreenTexture= hwSym("MakeScreenTexture",NULL);
+		HWD.pfnRenderVhsEffect  = hwSym("RenderVhsEffect",NULL);
 		HWD.pfnMakeScreenFinalTexture=hwSym("MakeScreenFinalTexture",NULL);
 		HWD.pfnDrawScreenFinalTexture=hwSym("DrawScreenFinalTexture",NULL);
 
@@ -2143,14 +2156,17 @@ void I_StartupGraphics(void)
 		HWD.pfnSetShader = hwSym("SetShader",NULL);
 		HWD.pfnUnSetShader = hwSym("UnSetShader",NULL);
 
+		HWD.pfnSetShaderInfo    = hwSym("SetShaderInfo",NULL);
 		HWD.pfnLoadCustomShader = hwSym("LoadCustomShader",NULL);
 		HWD.pfnInitCustomShaders = hwSym("InitCustomShaders",NULL);
 
 		HWD.pfnStartBatching = hwSym("StartBatching",NULL);
 		HWD.pfnRenderBatches = hwSym("RenderBatches",NULL);
-		
-		HWD.pfnAddLightTable = hwSym("AddLightTable",NULL);
-		HWD.pfnClearLightTableCache = hwSym("ClearLightTableCache",NULL);
+
+		HWD.pfnSetPaletteLookup = hwSym("SetPaletteLookup",NULL);
+		HWD.pfnCreateLightTable = hwSym("CreateLightTable",NULL);
+		HWD.pfnClearLightTables = hwSym("ClearLightTables",NULL);
+		HWD.pfnSetScreenPalette = hwSym("SetScreenPalette",NULL);
 
 		if (!HWD.pfnInit()) // load the OpenGL library
 			rendermode = render_soft;

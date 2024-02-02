@@ -14,6 +14,7 @@
 #ifdef HAVE_BLUA
 #include "fastcmp.h"
 #include "r_main.h"
+#include "r_things.h"
 #include "p_mobj.h"
 #include "d_player.h"
 #include "g_game.h"
@@ -44,6 +45,8 @@ int player_bot_noset(lua_State *L);
 int player_splitscreenindex_noset(lua_State *L);
 int player_ping_getter(lua_State *L);
 int player_ping_noset(lua_State *L);
+int player_localskin_getter(lua_State *L);
+int player_localskin_setter(lua_State *L);
 
 // Non synch safe!
 int player_sliproll_getter(lua_State *L);
@@ -71,12 +74,14 @@ static const udata_field_t player_fields[] = {
     FIELD(player_t, flashcount,       udatalib_getter_uint16,      udatalib_setter_uint16),
     FIELD(player_t, flashpal,         udatalib_getter_uint16,      udatalib_setter_uint16),
     FIELD(player_t, skincolor,        udatalib_getter_uint8,       player_skincolor_setter),
+    FIELD(player_t, localskin,        player_localskin_getter,     player_localskin_setter),
     FIELD(player_t, score,            udatalib_getter_uint32,      udatalib_setter_uint32),
     FIELD(player_t, dashspeed,        udatalib_getter_fixed,       udatalib_setter_fixed),
     FIELD(player_t, dashtime,         udatalib_getter_int32,       udatalib_setter_int32),
     FIELD(player_t, kartspeed,        udatalib_getter_uint8,       udatalib_setter_uint8),
     FIELD(player_t, kartweight,       udatalib_getter_uint8,       udatalib_setter_uint8),
 	FIELD(player_t, interpoints,      udatalib_getter_int32,       udatalib_setter_int32),
+	FIELD(player_t, mashstop,      	  udatalib_getter_boolean,     udatalib_setter_boolean),
     FIELD(player_t, charflags,        udatalib_getter_uint32,      udatalib_setter_uint32),
     FIELD(player_t, lives,            udatalib_getter_sint8,       udatalib_setter_sint8),
     FIELD(player_t, continues,        udatalib_getter_sint8,       udatalib_setter_sint8),
@@ -283,6 +288,28 @@ int player_skincolor_setter(lua_State *L)
 
     return 0;
 }
+
+int player_localskin_getter(lua_State *L)
+{
+	player_t *plr = GETPLAYER();
+
+	if (plr->localskin)
+		lua_pushstring(L, (plr->skinlocal ? localskins : skins)[plr->localskin - 1].name);
+	else
+		lua_pushnil(L);
+
+	return 1;
+}
+
+int player_localskin_setter(lua_State *L)
+{
+	player_t *plr = GETPLAYER();
+
+	SetLocalPlayerSkin(plr - players, luaL_optstring(L, 2, "none"), NULL);
+
+	return 0;
+}
+
 int player_axis_setter(lua_State *L)
 {
     mobj_t **axis;

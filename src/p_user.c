@@ -1135,6 +1135,46 @@ void P_PlayVictorySound(mobj_t *source)
 		S_StartSound(source, sfx_kwin);
 }
 
+// Can't rely on k_position and K_IsPlayerLosing in battle smh
+static UINT8 getPlayerPos(player_t *player)
+{
+	if (G_BattleGametype())
+	{
+		UINT8 pos = 1;
+
+		for (int i = 0; i < MAXPLAYERS; ++i) {
+			if (!playeringame[i] || players[i].spectator) continue;
+			if (players[i].marescore > player->marescore) ++pos;
+		}
+
+		return pos;
+	}
+
+	return player->kartstuff[k_position];
+}
+
+static boolean isPlayerLosing(player_t *player)
+{
+	if (G_BattleGametype()) {
+		UINT8 pos = 1;
+		UINT8 maxpos = 1;
+
+		for (int i = 0; i < MAXPLAYERS; ++i) {
+			if (!playeringame[i] || players[i].spectator) continue;
+			if (players[i].marescore > player->marescore) ++pos;
+			maxpos = max(getPlayerPos(&players[i]), maxpos);
+		}
+
+		if (maxpos == 1) return false;
+
+		if (maxpos % 2) ++maxpos;
+
+		return pos > (maxpos / 2);
+	}
+
+	return K_IsPlayerLosing(player);
+}
+
 //
 // P_EndingMusic
 //
@@ -1164,12 +1204,12 @@ boolean P_EndingMusic(player_t *player)
 			return false;
 
 		bestlocalplayer = &players[displayplayers[0]];
-		bestlocalpos = ((players[displayplayers[0]].pflags & PF_TIMEOVER) ? MAXPLAYERS+1 : players[displayplayers[0]].kartstuff[k_position]);
+		bestlocalpos = ((players[displayplayers[0]].pflags & PF_TIMEOVER) ? MAXPLAYERS+1 : getPlayerPos(&players[displayplayers[0]]));
 #define setbests(p) \
-	if (((players[p].pflags & PF_TIMEOVER) ? MAXPLAYERS+1 : players[p].kartstuff[k_position]) < bestlocalpos) \
+	if (((players[p].pflags & PF_TIMEOVER) ? MAXPLAYERS+1 : getPlayerPos(&players[p])) < bestlocalpos) \
 	{ \
 		bestlocalplayer = &players[p]; \
-		bestlocalpos = ((players[p].pflags & PF_TIMEOVER) ? MAXPLAYERS+1 : players[p].kartstuff[k_position]); \
+		bestlocalpos = ((players[p].pflags & PF_TIMEOVER) ? MAXPLAYERS+1 : getPlayerPos(&players[p])); \
 	}
 		setbests(displayplayers[1]);
 		if (splitscreen > 1)
@@ -1184,7 +1224,7 @@ boolean P_EndingMusic(player_t *player)
 			return false;
 
 		bestlocalplayer = player;
-		bestlocalpos = ((player->pflags & PF_TIMEOVER) ? MAXPLAYERS+1 : player->kartstuff[k_position]);
+		bestlocalpos = ((player->pflags & PF_TIMEOVER) ? MAXPLAYERS+1 : getPlayerPos(player));
 	}
 
 	if (G_RaceGametype() && bestlocalpos == MAXPLAYERS+1)
@@ -1193,7 +1233,7 @@ boolean P_EndingMusic(player_t *player)
 	{
 		if (bestlocalpos == 1)
 			sprintf(buffer, "k*win");
-		else if (K_IsPlayerLosing(bestlocalplayer))
+		else if (isPlayerLosing(bestlocalplayer))
 			sprintf(buffer, "k*lose");
 		else
 			sprintf(buffer, "k*ok");
@@ -1281,13 +1321,17 @@ void P_RestoreMusic(player_t *player)
 		if (wantedmus == 2 && cv_growmusic.value)
 		{
 			S_ChangeMusicInternal("kgrow", true);
-			S_SetRestoreMusicFadeInCvar(&cv_growmusicfade);
+			
+			if (cv_birdmusic.value)
+				S_SetRestoreMusicFadeInCvar(&cv_growmusicfade);
 		}
 		// Item - Invincibility
 		else if (wantedmus == 1 && cv_supermusic.value)
 		{
 			S_ChangeMusicInternal("kinvnc", true);
-			S_SetRestoreMusicFadeInCvar(&cv_invincmusicfade);
+			
+			if (cv_birdmusic.value)
+				S_SetRestoreMusicFadeInCvar(&cv_invincmusicfade);
 		}
 		else
 		{
@@ -1297,14 +1341,20 @@ void P_RestoreMusic(player_t *player)
 			if (G_RaceGametype() && player->laps >= (UINT8)(cv_numlaps.value - 1))
 				S_SpeedMusic(1.2f);
 #endif
-			if (mapmusresume && cv_resume.value)
-				position = mapmusresume;
-			else
-				position = mapmusposition;
+			if (cv_birdmusic.value)
+			{
+				if (mapmusresume && cv_resume.value)
+					position = mapmusresume;
+				else
+					position = mapmusposition;
 
-			S_ChangeMusicEx(mapmusname, mapmusflags, true, position, 0,
-					S_GetRestoreMusicFadeIn());
-			S_ClearRestoreMusicFadeInCvar();
+				S_ChangeMusicEx(mapmusname, mapmusflags, true, position, 0,
+						S_GetRestoreMusicFadeIn());
+				S_ClearRestoreMusicFadeInCvar();
+			}
+			else
+				S_ChangeMusicEx(mapmusname, mapmusflags, true, mapmusposition, 0, 0);
+			
 			mapmusresume = 0;
 		}
 	}
@@ -1687,17 +1737,26 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 	else
 		ghost->angle = mobj->angle;
 
+	ghost->pitch = mobj->pitch;
+	ghost->roll = mobj->roll;
+
 	ghost->sprite = mobj->sprite;
 	ghost->frame = mobj->frame;
 	ghost->tics = -1;
 	ghost->frame &= ~FF_TRANSMASK;
 	ghost->frame |= tr_trans50<<FF_TRANSSHIFT;
+	ghost->slopepitch = mobj->slopepitch; 
 	ghost->sloperoll = mobj->sloperoll;
 	
 	ghost->fuse = ghost->info->damage;
 	ghost->skin = mobj->skin;
 	ghost->localskin = mobj->localskin;
 	ghost->skinlocal = mobj->skinlocal;
+	ghost->realxscale = mobj->realxscale;
+	ghost->spritexscale = mobj->spritexscale;
+	ghost->spriteyscale = mobj->spriteyscale;
+	ghost->spritexoffset = mobj->spritexoffset;
+	ghost->spriteyoffset = mobj->spriteyoffset;
 
 	if (mobj->flags2 & MF2_OBJECTFLIP)
 		ghost->flags |= MF2_OBJECTFLIP;
@@ -1710,6 +1769,10 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 	ghost->old_y = mobj->old_y2;
 	ghost->old_z = mobj->old_z2;
 	ghost->old_angle = (mobj->player ? mobj->player->old_frameangle2 : mobj->old_angle2);
+	ghost->old_pitch = mobj->old_pitch2;
+	ghost->old_roll = mobj->old_roll2;
+	ghost->old_sloperoll = mobj->old_sloperoll2;
+	ghost->old_slopepitch = mobj->old_slopepitch2;
 
 	return ghost;
 }
@@ -2335,7 +2398,9 @@ static void P_CheckInvincibilityTimer(player_t *player)
 		return;
 
 	//if (mariomode && !player->powers[pw_super]) // SRB2kart
+	{
 		player->mo->color = (UINT8)(1 + (leveltime % (MAXSKINCOLORS-1)));
+	}
 	/*if (leveltime % (TICRATE/7) == 0)
 	{
 		mobj_t *sparkle = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_IVSP);
@@ -4232,10 +4297,10 @@ static void P_SpectatorMovement(player_t *player)
 		// Quake-style flying spectators :D
 		player->mo->momz += FixedMul(cmd->forwardmove*mapobjectscale, AIMINGTOSLOPE(player->aiming));
 	}
-	/*if (cmd->sidemove != 0) -- was disabled in practice anyways, since sidemove was suppressed
-	{
+	if (cmd->sidemove != 0) // was disabled in practice anyways, since sidemove was suppressed
+	{	//False I fixed this shit - Nep
 		P_Thrust(player->mo, player->mo->angle-ANGLE_90, cmd->sidemove*mapobjectscale);
-	}*/
+	}
 }
 
 //
@@ -7153,7 +7218,6 @@ consvar_t cv_quaketilt = {"quaketilt", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, 
 consvar_t cv_tiltsmoothing = {"tiltsmoothing", "32", CV_SAVE, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_actionmovie = {"actionmovie", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_windowquake = {"windowquake", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 fixed_t t_cam_dist = -42;
 fixed_t t_cam_height = -42;
@@ -8058,6 +8122,9 @@ boolean P_SpectatorJoinGame(player_t *player)
 	// Partial code reproduction from p_tick.c autobalance code.
 	else if (G_GametypeHasTeams())
 	{
+		if (P_IsLocalPlayer(player))
+			localaiming[0] = 0;
+		
 		INT32 changeto = 0;
 		INT32 z, numplayersred = 0, numplayersblue = 0;
 
@@ -8093,6 +8160,10 @@ boolean P_SpectatorJoinGame(player_t *player)
 		player->kartstuff[k_spectatewait] = 0;
 		player->ctfteam = changeto;
 		player->playerstate = PST_REBORN;
+		
+		//center camera if its not already
+		if ((P_IsLocalPlayer(player)) && localaiming[0] != 0)
+			localaiming[0] = 0;
 
 		//Reset away view
 		if (P_IsLocalPlayer(player) && displayplayers[0] != consoleplayer)
@@ -8108,6 +8179,9 @@ boolean P_SpectatorJoinGame(player_t *player)
 	// Joining in game from firing.
 	else
 	{
+		if (P_IsLocalPlayer(player))
+			localaiming[0] = 0;
+		
 		if (player->mo)
 		{
 			P_RemoveMobj(player->mo);
@@ -8117,6 +8191,10 @@ boolean P_SpectatorJoinGame(player_t *player)
 		player->pflags &= ~PF_WANTSTOJOIN;
 		player->kartstuff[k_spectatewait] = 0;
 		player->playerstate = PST_REBORN;
+
+		//center camera if its not already
+		if ((P_IsLocalPlayer(player)) && localaiming[0] != 0)
+			localaiming[0] = 0;
 
 		//Reset away view
 		if (P_IsLocalPlayer(player) && displayplayers[0] != consoleplayer)

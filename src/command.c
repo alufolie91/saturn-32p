@@ -49,6 +49,7 @@ static void COM_CEchoDuration_f(void);
 static void COM_Exec_f(void);
 static void COM_Wait_f(void);
 static void COM_Help_f(void);
+static void COM_Find_f(void);
 static void COM_Toggle_f(void);
 static void COM_Add_f(void);
 
@@ -58,7 +59,10 @@ static boolean CV_FilterVarByVersion(consvar_t *v, const char *valstr);
 static boolean CV_Command(void);
 consvar_t *CV_FindVar(const char *name);
 static const char *CV_StringValue(const char *var_name);
+
 static consvar_t *consvar_vars; // list of registered console variables
+static UINT16     consvar_number_of_netids = 0;
+
 
 static char com_token[1024];
 static char *COM_Parse(char *data);
@@ -69,8 +73,9 @@ CV_PossibleValue_t CV_Unsigned[] = {{0, "MIN"}, {999999999, "MAX"}, {0, NULL}};
 CV_PossibleValue_t CV_Natural[] = {{1, "MIN"}, {999999999, "MAX"}, {0, NULL}};
 
 //SRB2kart
+//Expert Speed
 CV_PossibleValue_t kartspeed_cons_t[] = {
-	{0, "Easy"}, {1, "Normal"}, {2, "Hard"},
+	{0, "Easy"}, {1, "Normal"}, {2, "Hard"}, {3, "Expert"},
 	{0, NULL}};
 
 // Filter consvars by EXECVERSION
@@ -299,6 +304,7 @@ void COM_Init(void)
 	COM_AddCommand("exec", COM_Exec_f);
 	COM_AddCommand("wait", COM_Wait_f);
 	COM_AddCommand("help", COM_Help_f);
+    COM_AddCommand("find", COM_Find_f);
 	COM_AddCommand("toggle", COM_Toggle_f);
 	COM_AddCommand("add", COM_Add_f);
 	RegisterNetXCmd(XD_NETVAR, Got_NetVar);
@@ -820,7 +826,7 @@ static void COM_Help_f(void)
 		if (cvar)
 		{
 			CONS_Printf("\x82""Variable %s:\n", cvar->name);
-			CONS_Printf(M_GetText("  flags :"));
+			CONS_Printf(M_GetText("  flags: "));
 			if (cvar->flags & CV_SAVE)
 				CONS_Printf("AUTOSAVE ");
 			if (cvar->flags & CV_FLOAT)
@@ -874,30 +880,9 @@ static void COM_Help_f(void)
 				return;
 			}
 
-			CONS_Printf("No exact match, searching...\n");
-			// commands
-			CONS_Printf("\x82""Commands:\n");
-			for (cmd = com_commands; cmd; cmd = cmd->next)
-			{
-				if (!strstr(cmd->name, help))
-					continue;
-				CONS_Printf("%s ",cmd->name);
-				i++;
-			}
+			CONS_Printf("No variable or command named %s", help);
+			CONS_Printf("\x82""\nCheck wiki.srb2.org for more or try typing help without arguments\n");
 
-			// variables
-			CONS_Printf("\x82""\nVariables:\n");
-			for (cvar = consvar_vars; cvar; cvar = cvar->next)
-			{
-				if ((cvar->flags & CV_NOSHOWHELP) || (!strstr(cvar->name, help)))
-					continue;
-				CONS_Printf("%s ", cvar->name);
-				i++;
-			}
-
-			CONS_Printf("\x82""\nCheck wiki.srb2.org for more or type help <command or variable>\n");
-
-			CONS_Debug(DBG_GAMELOGIC, "\x87Total : %d\n", i);
 		}
 		return;
 	}
@@ -926,6 +911,78 @@ static void COM_Help_f(void)
 		CONS_Debug(DBG_GAMELOGIC, "\x82Total : %d\n", i);
 	}
 }
+
+
+static void COM_Find_f(void)
+{
+	static char prefix[80];
+	xcommand_t *cmd;
+	consvar_t *cvar;
+	cmdalias_t *alias;
+	const char *match;
+	const char *help;
+	size_t helplen;
+	boolean matchesany;
+
+	if (COM_Argc() != 2)
+	{
+		CONS_Printf(M_GetText("find <text>: Search for variables, commands and aliases containing <text>\n"));
+		return;
+	}
+
+	help = COM_Argv(1);
+	helplen = strlen(help);
+	CONS_Printf("\x82""Variables:\n");
+	matchesany = false;
+	for (cvar = consvar_vars; cvar; cvar = cvar->next)
+	{
+		if (cvar->flags & CV_NOSHOWHELP)
+			continue;
+		match = strstr(cvar->name, help);
+		if (match != NULL)
+		{
+			memcpy(prefix, cvar->name, match - cvar->name);
+			prefix[match - cvar->name] = '\0';
+			CONS_Printf("  %s\x83%s\x80%s\n", prefix, help, &match[helplen]);
+			matchesany = true;
+		}
+	}
+	if (!matchesany)
+		CONS_Printf("  (none)\n");
+
+	CONS_Printf("\x82""Commands:\n");
+	matchesany = false;
+	for (cmd = com_commands; cmd; cmd = cmd->next)
+	{
+		match = strstr(cmd->name, help);
+		if (match != NULL)
+		{
+			memcpy(prefix, cmd->name, match - cmd->name);
+			prefix[match - cmd->name] = '\0';
+			CONS_Printf("  %s\x83%s\x80%s\n", prefix, help, &match[helplen]);
+			matchesany = true;
+		}
+	}
+	if (!matchesany)
+		CONS_Printf("  (none)\n");
+
+	CONS_Printf("\x82""Aliases:\n");
+	matchesany = false;
+	for (alias = com_alias; alias; alias = alias->next)
+	{
+		match = strstr(alias->name, help);
+		if (match != NULL)
+		{
+			memcpy(prefix, alias->name, match - alias->name);
+			prefix[match - alias->name] = '\0';
+			CONS_Printf("  %s\x83%s\x80%s\n", prefix, help, &match[helplen]);
+			matchesany = true;
+		}
+	}
+	if (!matchesany)
+		CONS_Printf("  (none)\n");
+}
+
 
 /** Toggles a console variable. Useful for on/off values.
   *
@@ -1112,43 +1169,24 @@ consvar_t *CV_FindVar(const char *name)
 	return NULL;
 }
 
-/** Builds a unique Net Variable identifier number, which is used
-  * in network packets instead of the full name.
-  *
-  * \param s Name of the variable.
-  * \return A new unique identifier.
-  * \sa CV_FindNetVar
-  */
-static inline UINT16 CV_ComputeNetid(const char *s)
-{
-	UINT16 ret = 0, i = 0;
-	static UINT16 premiers[16] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53};
-
-	while (*s)
-	{
-		ret = (UINT16)(ret + (*s)*premiers[i]);
-		s++;
-		i = (UINT16)((i+1) % 16);
-	}
-	return ret;
-}
 
 /** Finds a net variable based on its identifier number.
   *
   * \param netid The variable's identifier number.
   * \return A pointer to the variable itself if found, or NULL.
-  * \sa CV_ComputeNetid
-  */
+*/
 static consvar_t *CV_FindNetVar(UINT16 netid)
 {
 	consvar_t *cvar;
+	
+	if (netid > consvar_number_of_netids)
+		return NULL;
+
 
 	for (cvar = consvar_vars; cvar; cvar = cvar->next)
 		if (cvar->netid == netid)
 			return cvar;
 
-	if (netid == 44542) // ouch this hack
-		return &cv_karteliminatelast;
 
 	return NULL;
 }
@@ -1161,6 +1199,8 @@ static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
   */
 void CV_RegisterVar(consvar_t *variable)
 {
+	
+	static UINT16 id = 1;
 	// first check to see if it has already been defined
 	if (CV_FindVar(variable->name))
 	{
@@ -1178,11 +1218,14 @@ void CV_RegisterVar(consvar_t *variable)
 	// check net variables
 	if (variable->flags & CV_NETVAR)
 	{
-		const consvar_t *netvar;
-		variable->netid = CV_ComputeNetid(variable->name);
-		netvar = CV_FindNetVar(variable->netid);
-		if (netvar)
-			I_Error("Variables %s and %s have same netid\n", variable->name, netvar->name);
+
+		/* in case of overflow... */
+		if (consvar_number_of_netids + 1 < consvar_number_of_netids)
+			I_Error("Way too many netvars");
+
+		variable->netid = ++consvar_number_of_netids;
+
+
 	}
 
 	// link the variable in
@@ -1859,7 +1902,8 @@ void CV_AddValue(consvar_t *var, INT32 increment)
 			}
 			else if (var == &cv_kartspeed)
 			{
-				max = (M_SecretUnlocked(SECRET_HARDSPEED) ? 3 : 2);
+				//expert toggle is shared with hard unlock
+				max = (M_SecretUnlocked(SECRET_HARDSPEED) ? 4 : 2);
 			}
 #ifdef PARANOIA
 			if (currentindice == -1)

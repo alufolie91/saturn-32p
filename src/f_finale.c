@@ -33,6 +33,8 @@
 #include "m_random.h"
 #include "y_inter.h"
 #include "m_cond.h"
+#include "lua_hook.h" // TitleThinker hook
+#include "lua_hud.h" // Title hud hook
 
 // Stage of animation:
 // 0 = text, 1 = art screen
@@ -66,6 +68,11 @@ static patch_t *driver[2]; // Driving character on the waiting screen
 static UINT8 *waitcolormap; // colormap for the spinning character
 
 static void F_SkyScroll(INT32 scrollspeed);
+
+#ifdef HAVE_BLUA
+static huddrawlist_h luahuddrawlist_title = NULL;
+#endif
+
 
 //
 // CUTSCENE TEXT WRITING
@@ -520,6 +527,19 @@ static const char *credits[] = {
 	"Karol \"Fooruman\" D""\x1E""browski", // Dąbrowski, <Sryder> accents in srb2 :ytho:
 	"\"Virt\"",
 	"",
+	"\1Saturn",
+	"\"Alufolie91\" aka \"Alug\"",
+	"\"Indev\"",
+	"\"Haya\"",
+	"\"NepDisk\"",
+	"\"Xyzzy\"",
+	" ",
+	"\"Sunflower\" aka \"AnimeSonic\"",
+	"\"Yuz\" aka \"Yuzler\"",
+	"\"Democrab\"",
+	"\"Expand\" aka \"Maver\"",
+	"\"Nexit\"",
+	"",
 	"\1Special Thanks",
 	"SEGA",
 	"Sonic Team",
@@ -559,10 +579,11 @@ static struct {
 	{224, 80+(216*13), "K_ITMINE", SKINCOLOR_BRONZE},
 	{224, 80+(216*14), "K_ITTHNS", SKINCOLOR_RASPBERRY},
 	{224, 80+(216*15), "K_ITINV1", SKINCOLOR_GREY},
+	{224, 80+(216*16), "K_ITSINK", SKINCOLOR_PINETREE},
 	// This Tyler52 gag is troublesome
 	// Alignment should be ((spaces+1 * 100) + (headers+1 * 38) + (lines * 15))
 	// Current max image spacing: (216*17)
-	{112, (16*100)+(19*38)+(103*15), "TYLER52", SKINCOLOR_NONE},
+	{112, (17*100)+(20*38)+(114*15), "TYLER52", SKINCOLOR_NONE},
 	{0, 0, NULL, SKINCOLOR_NONE}
 };
 
@@ -595,6 +616,7 @@ void F_StartCredits(void)
 	animtimer = 0;
 	timetonext = 2*TICRATE;
 }
+
 
 void F_CreditDrawer(void)
 {
@@ -653,7 +675,7 @@ void F_CreditDrawer(void)
 	// RR isn't any time soon as of writing, but v1.4 is expected to be the last v1 release. Let's give it a proper send off.
 	if (finalecount)
 	{
-		const char *goodbyefornow = "See you in ""\x82""Dr. Robotnik's Ring Racers""\x80""!";
+		const char *goodbyefornow = """\x82""Dr. Robotnik's Ring Racers""\x80"" is never coming out!";
 		fixed_t lpad = ((vid.width/vid.dupx) - BASEVIDWIDTH)<<FRACBITS;
 		fixed_t w = V_StringWidth(goodbyefornow, V_ALLOWLOWERCASE)<<FRACBITS;
 		fixed_t x = FixedMul(((BASEVIDWIDTH<<FRACBITS)+w+lpad), ((finalecount-1)<<FRACBITS)/(5*TICRATE)) - w - (lpad/2);
@@ -925,7 +947,6 @@ void F_GameEndTicker(void)
 		D_StartTitle();
 }
 
-
 // ==============
 //  TITLE SCREEN
 // ==============
@@ -954,6 +975,11 @@ void F_StartTitleScreen(void)
 	ttkart = W_CachePatchName("TTKART", PU_LEVEL);
 	ttcheckers = W_CachePatchName("TTCHECK", PU_LEVEL);
 	ttkflash = W_CachePatchName("TTKFLASH", PU_LEVEL);
+	
+#ifdef HAVE_BLUA
+	LUA_HUD_DestroyDrawList(luahuddrawlist_title);
+	luahuddrawlist_title = LUA_HUD_CreateDrawList();
+#endif
 }
 
 // (no longer) De-Demo'd Title Screen
@@ -972,43 +998,102 @@ void F_TitleScreenDrawer(void)
 	if (finalecount < 50)
 	{
 		V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31);
-
-		V_DrawSmallScaledPatch(84, 36, 0, ttbanner);
+#ifdef HAVE_BLUA
+			if (LUA_HudEnabled(hud_titlebanner))
+#endif
+				V_DrawSmallScaledPatch(84, 36, 0, ttbanner);
 
 		if (finalecount >= 20)
-			V_DrawSmallScaledPatch(84, 87, 0, ttkart);
+		{
+#ifdef HAVE_BLUA
+			if (LUA_HudEnabled(hud_titlelogo))
+#endif
+				V_DrawSmallScaledPatch(84, 87, 0, ttkart);
+		}
 		else if (finalecount >= 10)
-			V_DrawSciencePatch((84<<FRACBITS) - FixedDiv(180<<FRACBITS, 10<<FRACBITS)*(20-finalecount), (87<<FRACBITS), 0, ttkart, FRACUNIT/2);
+		{
+#ifdef HAVE_BLUA
+			if (LUA_HudEnabled(hud_titlelogo))
+#endif
+				V_DrawSciencePatch((84<<FRACBITS) - FixedDiv(180<<FRACBITS, 10<<FRACBITS)*(20-finalecount), (87<<FRACBITS), 0, ttkart, FRACUNIT/2);
+		}
+		
+#ifdef HAVE_BLUA
+		if (renderisnewtic)
+		{
+			LUA_HUD_ClearDrawList(luahuddrawlist_title);
+			LUAh_TitleHUD(luahuddrawlist_title);
+		}
+		LUA_HUD_DrawList(luahuddrawlist_title);
+#endif
 	}
 	else if (finalecount < 52)
 	{
 		V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 120);
-		V_DrawSmallScaledPatch(84, 36, 0, ttkflash);
+#ifdef HAVE_BLUA
+		if (LUA_HudEnabled(hud_titleflash))
+#endif
+			V_DrawSmallScaledPatch(84, 36, 0, ttkflash);
+
+#ifdef HAVE_BLUA
+		if (renderisnewtic)
+		{
+			LUA_HUD_ClearDrawList(luahuddrawlist_title);
+			LUAh_TitleHUD(luahuddrawlist_title);
+		}
+		LUA_HUD_DrawList(luahuddrawlist_title);
+#endif
+		
+
 	}
 	else
 	{
 		INT32 transval = 0;
-
+		
 		if (finalecount <= (50+(9<<1)))
 			transval = (finalecount - 50)>>1;
 
 		F_SkyScroll(titlescrollspeed);
 
-		V_DrawSciencePatch(0, 0 - FixedMul(40<<FRACBITS, FixedDiv(finalecount%70, 70)), V_SNAPTOTOP|V_SNAPTOLEFT, ttcheckers, FRACUNIT);
-		V_DrawSciencePatch(280<<FRACBITS, -(40<<FRACBITS) + FixedMul(40<<FRACBITS, FixedDiv(finalecount%70, 70)), V_SNAPTOTOP|V_SNAPTORIGHT, ttcheckers, FRACUNIT);
-
+#ifdef HAVE_BLUA
+		if (LUA_HudEnabled(hud_titlecheckl))
+#endif
+			V_DrawSciencePatch(0, 0 - FixedMul(40<<FRACBITS, FixedDiv(finalecount%70, 70)), V_SNAPTOTOP|V_SNAPTOLEFT, ttcheckers, FRACUNIT);
+#ifdef HAVE_BLUA
+		if (LUA_HudEnabled(hud_titlecheckr))
+#endif
+			V_DrawSciencePatch(280<<FRACBITS, -(40<<FRACBITS) + FixedMul(40<<FRACBITS, FixedDiv(finalecount%70, 70)), V_SNAPTOTOP|V_SNAPTORIGHT, ttcheckers, FRACUNIT);
+		
 		if (transval)
 			V_DrawFadeScreen(120, 10 - transval);
 
-		V_DrawSmallScaledPatch(84, 36, 0, ttbanner);
+#ifdef HAVE_BLUA
+		if (LUA_HudEnabled(hud_titlebanner))
+#endif
+			V_DrawSmallScaledPatch(84, 36, 0, ttbanner);
 
-		V_DrawSmallScaledPatch(84, 87, 0, ttkart);
+#ifdef HAVE_BLUA
+		if (LUA_HudEnabled(hud_titlelogo))
+#endif	
+			V_DrawSmallScaledPatch(84, 87, 0, ttkart);	
+		
+#ifdef HAVE_BLUA
+		if (renderisnewtic)
+		{
+			LUA_HUD_ClearDrawList(luahuddrawlist_title);
+			LUAh_TitleHUD(luahuddrawlist_title);
+		}
+		LUA_HUD_DrawList(luahuddrawlist_title);
+#endif	
 
 		if (!transval)
 			return;
+#ifdef HAVE_BLUA
+		if (LUA_HudEnabled(hud_titleflash))
+#endif
+			V_DrawSmallScaledPatch(84, 36, transval<<V_ALPHASHIFT, ttkflash);
 
-		V_DrawSmallScaledPatch(84, 36, transval<<V_ALPHASHIFT, ttkflash);
-	}
+	}	
 }
 
 // (no longer) De-Demo'd Title Screen
@@ -1017,7 +1102,11 @@ void F_TitleScreenTicker(boolean run)
 	if (run)
 	{
 		finalecount++;
-
+		
+#ifdef HAVE_BLUA
+		LUAh_TitleThinker();
+#endif
+		
 		if (finalecount == 10)
 		{
 			S_StartSound(NULL, sfx_s23e);
@@ -1030,6 +1119,8 @@ void F_TitleScreenTicker(boolean run)
 		}
 	}
 
+
+	
 	// don't trigger if doing anything besides idling on title
 	if (gameaction != ga_nothing || gamestate != GS_TITLESCREEN)
 		return;

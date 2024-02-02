@@ -384,7 +384,7 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 // Y_AnimatedVoteScreenCheck
 //
 // Check if the lumps exist (checking for VEXTR(N|W)xx for race and VEXTRB(N|W)xx for battle)
-void Y_AnimatedVoteScreenCheck(void)
+static void Y_AnimatedVoteScreenCheck(void)
 {
 	char tmpPrefix[] = "INTS";
 	boolean stopSearching = false;
@@ -646,29 +646,47 @@ void Y_IntermissionDrawer(void)
 						V_DrawPingNum(x+6, y+2, 0, data.match.pos[i], NULL);
 					else
 						V_DrawCenteredString(x+6, y, 0, va("%d", data.match.pos[i]));
-
-					if (data.match.color[i])
-					{
-						UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
-						if (data.match.numplayers > NUMFORNEWCOLUMN)
-							V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
-						else
-							V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
-					}
 					
-					/*if (data.match.color[i]) //need to add support sometime, for now the intermission screen just shows your "actual" skin, but since most server use lua intermission screen anyways, it doesent matter that much
-					{
+					if (data.match.color[i]) //need to add support sometime, for now the intermission screen just shows your "actual" skin, but since most server use lua intermission screen anyways, it doesent matter that much
+					{ //Seems to work fine ? oh wait nvm I see why-Nep
 						UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
 						// i fucking hate this i fucking hate this i hate this so much
 						if (!players[data.match.num[i]].skinlocal) {
 							if (!players[data.match.num[i]].localskin)
-								V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
+								if (data.match.numplayers > NUMFORNEWCOLUMN)
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
+								else
+								{
+									if (cv_highresportrait.value)
+										V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[*data.match.character[i]], colormap);
+									else
+										V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
+								}
+							
 							else
-								V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+								if (data.match.numplayers > NUMFORNEWCOLUMN)
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+								else
+								{
+									if (cv_highresportrait.value)
+										V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+									else
+										V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+								}
+							
 						} else {
-							V_DrawMappedPatch(x+16, y-4, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+							
+							if (data.match.numplayers > NUMFORNEWCOLUMN)
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+							else
+							{
+								if (cv_highresportrait.value)
+									V_DrawSmallMappedPatch(x+16, y-4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+								else
+									V_DrawMappedPatch(x+16, y-4, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+							}
 						}
-					}*/
+					}
 
 
 					if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN)
@@ -1244,7 +1262,7 @@ static void Y_UnloadData(void)
 //
 // Draw animated patch based on frame counter on vote screen
 //
-void Y_DrawAnimatedVoteScreenPatch(boolean widePatch){
+static void Y_DrawAnimatedVoteScreenPatch(boolean widePatch){
 	char tempAnimPrefix[7];
 	(widePatch) ? strcpy(tempAnimPrefix, animWidePrefix) : strcpy(tempAnimPrefix, animPrefix);
 	INT32 tempFoundAnimVoteFrames = (widePatch) ? foundAnimVoteWideFrames : foundAnimVoteFrames;
@@ -1629,7 +1647,10 @@ void Y_VoteDrawer(void)
 			if (players[i].skincolor)
 			{
 				UINT8 *colormap = R_GetTranslationColormap(players[i].skin, players[i].skincolor, GTC_CACHE);
-				V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, facerankprefix[players[i].skin], colormap);
+				if (cv_highresportrait.value)
+					V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, (players[i].skinlocal ? localfacewantprefix : facewantprefix)[((players[i].localskin) ? players[i].localskin-1 : players[i].skin)], colormap);
+				else
+					V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, (players[i].skinlocal ? localfacerankprefix : facerankprefix)[((players[i].localskin) ? players[i].localskin-1 : players[i].skin)], colormap);
 			}
 
 			if (!splitscreen && i == consoleplayer)

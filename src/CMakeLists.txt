@@ -3,7 +3,6 @@
 # Core sources
 set(SRB2_CORE_SOURCES
 	am_map.c
-	args.c
 	b_bot.c
 	command.c
 	comptime.c
@@ -53,7 +52,6 @@ set(SRB2_CORE_SOURCES
 
 set(SRB2_CORE_HEADERS
 	am_map.h
-	args.h
 	b_bot.h
 	byteptr.h
 	command.h
@@ -107,7 +105,6 @@ set(SRB2_CORE_HEADERS
 	m_swap.h
 	md5.h
 	mserv.h
-	p5prof.h
 	s_sound.h
 	screen.h
 	sounds.h
@@ -242,6 +239,7 @@ if(${SRB2_CONFIG_HAVE_BLUA})
 		lua_skinlib.c
 		lua_thinkerlib.c
 		lua_udatalib.c
+		lua_glib.c
 	)
 	set(SRB2_LUA_HEADERS
 		lua_hook.h
@@ -250,6 +248,7 @@ if(${SRB2_CONFIG_HAVE_BLUA})
 		lua_libs.h
 		lua_script.h
 		lua_udatalib.h
+		lua_glib.h
 	)
 
 	prepend_sources(SRB2_LUA_SOURCES)

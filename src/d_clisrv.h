@@ -25,7 +25,7 @@ The 'packet version' is used to distinguish packet formats.
 This version is independent of VERSION and SUBVERSION. Different
 applications may follow different packet versions.
 */
-#define PACKETVERSION 0
+#define PACKETVERSION 1
 
 // Network play related stuff.
 // There is a data struct that stores network
@@ -210,6 +210,7 @@ typedef struct
 	INT32 kartstuff[NUMKARTSTUFF]; // SRB2kart
 	angle_t frameangle; // SRB2kart
 	INT32 interpoints;
+	UINT8 mashstop; //Mash stop
 
 	// Score is resynched in the confirm resync packet
 	INT32 health;
@@ -325,7 +326,7 @@ typedef struct
 	UINT8 gamestate;
 
 	// 0xFF == not in game; else player skin num
-	UINT8 playerskins[MAXPLAYERS];
+	UINT16 playerskins[MAXPLAYERS];
 	UINT8 playercolor[MAXPLAYERS];
 
 	UINT8 gametype;
@@ -362,6 +363,7 @@ typedef struct
 	char application[MAXAPPLICATION];
 	UINT8 version; // Different versions don't work
 	UINT8 subversion; // Contains build version
+	char clientname[MAXAPPLICATION]; // Name of client
 	UINT8 localplayers;	// number of splitscreen players
 	UINT8 mode;
 } ATTRPACK clientconfig_pak;
@@ -386,6 +388,7 @@ typedef struct
 	char  application[MAXAPPLICATION];
 	UINT8 version;
 	UINT8 subversion;
+	char  clientname[MAXAPPLICATION];
 	UINT8 numberofplayer;
 	UINT8 maxplayer;
 	UINT8 gametype;
@@ -429,7 +432,7 @@ typedef struct
 	char name[MAXPLAYERNAME+1];
 	UINT8 address[4]; // sending another string would run us up against MAXPACKETLENGTH
 	UINT8 team;
-	UINT8 skin;
+	UINT16 skin;
 	UINT8 data; // Color is first four bits, hasflag, isit and issuper have one bit each, the last is unused.
 	UINT32 score;
 	UINT16 timeinserver; // In seconds.
@@ -439,7 +442,7 @@ typedef struct
 typedef struct
 {
 	char name[MAXPLAYERNAME+1];
-	UINT8 skin;
+	UINT16 skin;
 	UINT8 color;
 	UINT32 pflags;
 	UINT32 score;
@@ -516,6 +519,8 @@ extern consvar_t cv_kicktime;
 extern consvar_t cv_showjoinaddress;
 extern consvar_t cv_playbackspeed;
 
+extern consvar_t cv_shownodeip;
+
 #define BASEPACKETSIZE      offsetof(doomdata_t, u)
 #define FILETXHEADER        offsetof(filetx_pak, data)
 #define BASESERVERTICSSIZE  offsetof(doomdata_t, u.serverpak.cmds[0])
@@ -552,7 +557,7 @@ extern boolean dedicated; // For dedicated server
 extern UINT16 software_MAXPACKETLENGTH;
 extern boolean acceptnewnode;
 extern SINT8 servernode;
-extern char connectedservername[MAXSERVERNAME];
+extern char connectedservername[MAXSERVERNAME+1];
 
 void Command_Ping_f(void);
 extern tic_t connectiontimeout;

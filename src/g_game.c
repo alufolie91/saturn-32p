@@ -62,7 +62,7 @@ gamestate_t gamestate = GS_NULL;
 UINT8 ultimatemode = false;
 
 boolean botingame;
-UINT8 botskin;
+UINT16 botskin;
 UINT8 botcolor;
 
 JoyType_t Joystick;
@@ -258,7 +258,7 @@ INT32 cheats; //for multiplayer cheat commands
 
 // SRB2Kart
 // Cvars that we don't want changed mid-game
-UINT8 gamespeed; // Game's current speed (or difficulty, or cc, or etc); 0 for easy, 1 for normal, 2 for hard
+UINT8 gamespeed; // Game's current speed (or difficulty, or cc, or etc); 0 for easy, 1 for normal, 2 for hard, 3 for expert
 boolean encoremode = false; // Encore Mode currently enabled?
 boolean prevencoremode;
 boolean franticitems; // Frantic items currently enabled?
@@ -496,12 +496,11 @@ consvar_t cv_ydeadzone4 = {"joy4_ydeadzone", "0.5", CV_FLOAT|CV_SAVE, deadzone_c
 static CV_PossibleValue_t driftsparkpulse_t[] = {{0, "MIN"}, {FRACUNIT*3, "MAX"}, {0, NULL}};
 consvar_t cv_driftsparkpulse = {"driftsparkpulse", "1.4", CV_FLOAT | CV_SAVE, driftsparkpulse_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t stretchfactor_t[] = {{0, "MIN"}, {FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_gravstretch = {"gravstretch", "0", CV_FLOAT | CV_SAVE, stretchfactor_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_sloperoll = {"sloperoll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t stretchfactor_t[] = {
+	{0, "Off"}, {FRACUNIT/8, "0.125"}, {FRACUNIT/4, "0.250"}, 
+	{3*FRACUNIT/8, "0.375"}, {FRACUNIT/2, "0.500"}, {5*FRACUNIT/8, "0.625"}, 
+	{3*FRACUNIT/4, "0.750"}, {7*FRACUNIT/8, "0.875"}, {FRACUNIT, "Max"}, {0, NULL}};
+consvar_t cv_gravstretch = {"gravstretch", "0", CV_SAVE, stretchfactor_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t slamsound_t[] = {{0, "Off"}, {1, "On"}, {0, NULL}};
 consvar_t cv_slamsound = {"slamsound", "1", CV_SAVE, slamsound_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -512,18 +511,16 @@ static CV_PossibleValue_t sloperolldist_cons_t[] = {
 	{3072, "3072"},	{4096, "4096"},	{6144, "6144"},
 	{8192, "8192"},	{0, "Infinite"},	{0, NULL}};
 consvar_t cv_sloperolldist = {"sloperolldist", "Infinite", CV_SAVE, sloperolldist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t sloperoll_cons_t[] = {{0, "Off"}, {1, "Players"}, {2, "Everything"}, {0, NULL}};
+consvar_t cv_spriteroll = {"spriteroll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sloperoll = {"sloperoll", "Off", CV_SAVE|CV_CALL, sloperoll_cons_t, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sparkroll = {"sparkroll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-
-
-consvar_t cv_invincmusicfade = {"invincmusicfade", "300", CV_SAVE, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_growmusicfade = {"growmusicfade", "500", CV_SAVE, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_respawnfademusicout = {"respawnfademusicout", "1000", CV_SAVE, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_respawnfademusicback = {"respawnfademusicback", "500", CV_SAVE, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_resetspecialmusic = {"resetspecialmusic", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_resume = {"resume", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_fading = {"fading", "Off", CV_SAVE|CV_CALL, CV_OnOff, Bird_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 #if MAXPLAYERS > 32
+
 #error "please update player_name table using the new value for MAXPLAYERS"
 #endif
 
@@ -852,7 +849,8 @@ const char *G_BuildMapName(INT32 map)
 		map = G_RandMap(G_TOLFlag(cv_newgametype.value), map, false, 0, false, NULL)+1;
 	}
 
-	if (map < 100)
+
+	if (map < 100 && map >= 0) // ...but why use signed integer in first place? idk but this prevents warning (and potential buffer overflow lol)
 		sprintf(&mapname[3], "%.2d", map);
 	else
 	{
@@ -1289,6 +1287,7 @@ boolean camspin[MAXSPLITSCREENPLAYERS];
 static fixed_t forwardmove[2] = {25<<FRACBITS>>16, 50<<FRACBITS>>16};
 static fixed_t sidemove[2] = {2<<FRACBITS>>16, 4<<FRACBITS>>16};
 static fixed_t angleturn[3] = {KART_FULLTURN/2, KART_FULLTURN, KART_FULLTURN/4}; // + slow turn
+static fixed_t strafemove[2] = {25<<FRACBITS>>16, 50<<FRACBITS>>16}; // faster!
 
 void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 {
@@ -1420,15 +1419,29 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	// let movement keys cancel each other out
 	if (turnright && !(turnleft))
 	{
-		cmd->angleturn = (INT16)(cmd->angleturn - (angleturn[tspeed]));
-		cmd->driftturn = (INT16)(cmd->driftturn - (angleturn[tspeed]));
-		side += sidemove[1];
+		if (cv_spectatestrafe.value && stplyr->spectator)
+		{
+			side += strafemove[1];
+		}
+		else
+		{	
+			cmd->angleturn = (INT16)(cmd->angleturn - (angleturn[tspeed]));
+			cmd->driftturn = (INT16)(cmd->driftturn - (angleturn[tspeed]));
+			side += sidemove[1];
+		}
 	}
 	else if (turnleft && !(turnright))
 	{
-		cmd->angleturn = (INT16)(cmd->angleturn + (angleturn[tspeed]));
-		cmd->driftturn = (INT16)(cmd->driftturn + (angleturn[tspeed]));
-		side -= sidemove[1];
+		if (cv_spectatestrafe.value && stplyr->spectator)
+		{
+			side -= strafemove[1];
+		}
+		else
+		{
+			cmd->angleturn = (INT16)(cmd->angleturn + (angleturn[tspeed]));
+			cmd->driftturn = (INT16)(cmd->driftturn + (angleturn[tspeed]));
+			side -= sidemove[1];
+		}
 	}
 
 	if (analogjoystickmove && axis != 0)
@@ -1440,8 +1453,9 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	}
 
 	// Specator mouse turning
-	if (player->spectator)
+	if (player->spectator || cv_mouseturn.value)
 	{
+	//THIS WORKS WTF????????
 		cmd->angleturn = (INT16)(cmd->angleturn - ((mousex*(encoremode ? -1 : 1)*8)));
 		cmd->driftturn = (INT16)(cmd->driftturn - ((mousex*(encoremode ? -1 : 1)*8)));
 	}
@@ -1977,7 +1991,7 @@ boolean G_Responder(event_t *ev)
 				paused = true;
 				S_PauseAudio();
 			}
-			else if (paused)
+			else if ((paused) && (!cv_pausemusic.value))
 				S_PauseAudio();
 			else
 				S_ResumeAudio();
@@ -2844,7 +2858,7 @@ void G_PlayerReborn(INT32 player)
 
 	/* I'm putting this here because lol */
 
-	fade = ( cv_fading.value && P_IsLocalPlayer(p) );
+	fade = (cv_fading.value && cv_birdmusic.value && P_IsLocalPlayer(p));
 
 	if (fade)
 	{
@@ -5056,16 +5070,29 @@ void G_FreeMapSearch(mapsearchfreq_t *freq, INT32 freqc)
 INT32 G_FindMapByNameOrCode(const char *mapname, char **realmapnamep)
 {
 	boolean usemapcode = false;
-
 	INT32 newmapnum;
 
-	size_t mapnamelen;
+	size_t mapnamelen = strlen(mapname);
 
 	char *p;
-
-	mapnamelen = strlen(mapname);
-
-	if (mapnamelen == 2)/* maybe two digit code */
+	
+	if (mapnamelen == 1)
+	{
+		if (mapname[0] == '*') // current map
+			return gamemap;
+		else if (mapname[0] == '+' && mapheaderinfo[gamemap-1]) // next map
+		{
+			newmapnum = mapheaderinfo[gamemap-1]->nextlevel;
+			if (newmapnum < 1 || newmapnum > NUMMAPS)
+			{
+				CONS_Alert(CONS_ERROR, M_GetText("NextLevel (%d) is not a valid map.\n"), newmapnum);
+				return 0;
+			}
+			else
+				return newmapnum;
+		}
+	}
+	else if (mapnamelen == 2)/* maybe two digit code */
 	{
 		if (( newmapnum = M_MapNumber(mapname[0], mapname[1]) ))
 			usemapcode = true;
@@ -5394,7 +5421,7 @@ void G_ReadDemoExtraData(void)
 void G_WriteDemoExtraData(void)
 {
 	INT32 i;
-	char name[16];
+	char name[17];
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
@@ -5427,7 +5454,7 @@ void G_WriteDemoExtraData(void)
 			{
 				// Name
 				memset(name, 0, 16);
-				strncpy(name, player_names[i], 16);
+				memcpy(name, player_names[i], 15); // Keeping 1 null byte for safety, sorry players with name containing more than 15 characters
 				M_Memcpy(demo_p,name,16);
 				demo_p += 16;
 			}
@@ -6774,7 +6801,7 @@ void G_RecordMetal(void)
 void G_BeginRecording(void)
 {
 	UINT8 i, p;
-	char name[16];
+	char name[17];
 	player_t *player = &players[consoleplayer];
 
 	char *filename;
@@ -6875,7 +6902,7 @@ void G_BeginRecording(void)
 
 			// Name
 			memset(name, 0, 16);
-			strncpy(name, player_names[p], 16);
+			memcpy(name, player_names[p], 15);
 			M_Memcpy(demo_p,name,16);
 			demo_p += 16;
 
@@ -6962,7 +6989,7 @@ void G_BeginMetal(void)
 
 void G_WriteStanding(UINT8 ranking, char *name, INT32 skinnum, UINT8 color, UINT32 val)
 {
-	char temp[16];
+	char temp[17];
 
 	if (demoinfo_p && *(UINT32 *)demoinfo_p == 0)
 	{
@@ -8209,7 +8236,7 @@ void G_AddGhost(char *defdemoname)
 	count = READUINT16(p);
 	while (count--)
 	{
-		SKIPSTRING(p);
+		p += 2;
 		SKIPSTRING(p);
 		p++;
 	}

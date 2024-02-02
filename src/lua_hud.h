@@ -31,6 +31,7 @@ enum hud {
 	hud_battlecomebacktimer,	// comeback timer in battlefullscreen. separated for ease of use.
 	hud_wanted,
 	hud_speedometer,
+	hud_statdisplay,
 	hud_freeplay,
 	hud_rankings,		// Tab rankings
 
@@ -40,6 +41,12 @@ enum hud {
 	hud_interscores,
 	hud_interscoretitle,
 	hud_intertitle,
+	
+	hud_titlecheckl,
+	hud_titlecheckr	,
+	hud_titlelogo,
+	hud_titlebanner,
+	hud_titleflash,
 
 	hud_MAX
 };
@@ -52,5 +59,6 @@ void LUAh_GameHUD(player_t *stplyr, huddrawlist_h list);
 void LUAh_ScoresHUD(huddrawlist_h list);
 void LUAh_IntermissionHUD(huddrawlist_h list);
 void LUAh_VoteHUD(huddrawlist_h list);
+void LUAh_TitleHUD(huddrawlist_h list);
 
 #endif // __LUA_HUD_H__

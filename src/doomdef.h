@@ -125,10 +125,10 @@ extern char  logfilename[1024];
 // most interface strings are ignored in development mode.
 // we use comprevision and compbranch instead.
 #else
-#define VERSION    1 // Game version
-#define SUBVERSION 69 // more precise version number
-#define VERSIONSTRING "Saturn v3 - Uranus Fork v1.5"
-#define VERSIONSTRINGW L"Saturn v3 - Uranus Fork v1.5"
+#define VERSION    2 // Game version
+#define SUBVERSION 0 // more precise version number
+#define VERSIONSTRING "Neptune 1.7"
+#define VERSIONSTRINGW L"Neptune 1.7"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!
@@ -205,7 +205,7 @@ extern char  logfilename[1024];
 // NOTE: it needs more than this to increase the number of players...
 
 #define MAXPLAYERS 32
-#define MAXSKINS 255
+#define MAXSKINS 512
 #define PLAYERSMASK (MAXPLAYERS-1)
 #define MAXPLAYERNAME 21
 
@@ -736,14 +736,15 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 
 /// Sprite rotation
 #define ROTSPRITE
-#define ROTANGLES 72 // Needs to be a divisor of 360 (45, 60, 90, 120...)
+#define ROTANGLES 180 // Needs to be a divisor of 360 (45, 60, 90, 120...)
 #define ROTANGDIFF (360 / ROTANGLES)
 
 /// Hardware renderer: OpenGL
 #define GL_SHADERS
 
 #if defined (HAVE_CURL) && ! defined (NONET)
-#define MASTERSERVER
+//#define MASTERSERVER
+//#define HOLEPUNCH
 #else
 #undef UPDATE_ALERT
 #endif

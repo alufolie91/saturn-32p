@@ -47,6 +47,7 @@
 #include "k_kart.h"
 #include "s_sound.h" // sfx_syfail
 #include "m_perfstats.h"
+#include "d_main.h"
 
 #ifdef CLIENT_LOADINGSCREEN
 // cl loading screen
@@ -138,7 +139,7 @@ static UINT8 localtextcmd3[MAXTEXTCMD]; // splitscreen == 2
 static UINT8 localtextcmd4[MAXTEXTCMD]; // splitscreen == 3
 static tic_t neededtic;
 SINT8 servernode = 0; // the number of the server node
-char connectedservername[MAXSERVERNAME];
+char connectedservername[MAXSERVERNAME+1];
 /// \brief do we accept new players?
 /// \todo WORK!
 boolean acceptnewnode = true;
@@ -170,6 +171,8 @@ static textcmdtic_t *textcmds[TEXTCMD_HASH_SIZE] = {NULL};
 
 
 consvar_t cv_showjoinaddress = {"showjoinaddress", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_shownodeip = {"showipinnodelist", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t playbackspeed_cons_t[] = {{1, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_playbackspeed = {"playbackspeed", "1", 0, playbackspeed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -577,6 +580,8 @@ static inline void resynch_write_player(resynch_pak *rsp, const size_t i)
 	rsp->frameangle = (angle_t)LONG(players[i].frameangle); // SRB2kart
 	
 	rsp->interpoints = players[i].interpoints; // SRB2kart CEP
+	
+	rsp->mashstop = players[i].mashstop; // SRB2kart CEP
 
 	// Score is resynched in the rspfirm resync packet
 	rsp->health = 0; // resynched with mo health
@@ -707,6 +712,8 @@ static void resynch_read_player(resynch_pak *rsp)
 
 	players[i].frameangle = (angle_t)LONG(rsp->frameangle); // SRB2kart
 	players[i].interpoints = rsp->interpoints; // SRB2kart CEP
+	
+	players[i].mashstop = rsp->mashstop;
 
 	// Score is resynched in the rspfirm resync packet
 	players[i].health = rsp->health;
@@ -1138,7 +1145,7 @@ static void GetPackets(void);
 static cl_mode_t cl_mode = CL_SEARCHING;
 
 #ifdef HAVE_CURL
-char http_source[MAX_MIRROR_LENGTH];
+char http_source[MAX_MIRROR_LENGTH+1];
 #endif
 
 static UINT16 cl_lastcheckedfilecount = 0;	// used for full file list
@@ -1422,6 +1429,8 @@ static boolean CL_SendJoin(void)
 	netbuffer->u.clientcfg.packetversion = PACKETVERSION;
 	netbuffer->u.clientcfg.version = VERSION;
 	netbuffer->u.clientcfg.subversion = SUBVERSION;
+	strncpy(netbuffer->u.clientcfg.clientname, VERSIONSTRING,
+			sizeof netbuffer->u.clientcfg.clientname);
 	strncpy(netbuffer->u.clientcfg.application, SRB2APPLICATION,
 			sizeof netbuffer->u.clientcfg.application);
 
@@ -1506,6 +1515,8 @@ static void SV_SendServerInfo(INT32 node, tic_t servertime)
 	netbuffer->u.serverinfo.packetversion = PACKETVERSION;
 	netbuffer->u.serverinfo.version = VERSION;
 	netbuffer->u.serverinfo.subversion = SUBVERSION;
+	strncpy(netbuffer->u.serverinfo.clientname, VERSIONSTRING,
+			sizeof netbuffer->u.serverinfo.clientname);
 	strncpy(netbuffer->u.serverinfo.application, SRB2APPLICATION,
 			sizeof netbuffer->u.serverinfo.application);
 	// return back the time value so client can compute their ping
@@ -1625,7 +1636,12 @@ static void SV_SendPlayerInfo(INT32 node)
 		}
 
 		netbuffer->u.playerinfo[i].node = i;
+
+		// Can't really change this because net compatibility, but the warning is annoying
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
 		strncpy(netbuffer->u.playerinfo[i].name, (const char *)&player_names[i], MAXPLAYERNAME+1);
+#pragma GCC diagnostic pop
 		netbuffer->u.playerinfo[i].name[MAXPLAYERNAME] = '\0';
 
 		//fetch IP address
@@ -1649,7 +1665,7 @@ static void SV_SendPlayerInfo(INT32 node)
 
 		netbuffer->u.playerinfo[i].score = LONG(players[i].score);
 		netbuffer->u.playerinfo[i].timeinserver = SHORT((UINT16)(players[i].jointime / TICRATE));
-		netbuffer->u.playerinfo[i].skin = (UINT8)players[i].skin;
+		netbuffer->u.playerinfo[i].skin = (UINT16)players[i].skin;
 
 		// Extra data
 		// Kart has extra skincolors, so we can't use this
@@ -1695,7 +1711,7 @@ static boolean SV_SendServerConfig(INT32 node)
 
 	// we fill these structs with FFs so that any players not in game get sent as 0xFFFF
 	// which is nice and easy for us to detect
-	memset(netbuffer->u.servercfg.playerskins, 0xFF, sizeof(netbuffer->u.servercfg.playerskins));
+	memset(netbuffer->u.servercfg.playerskins, 0xFFFF, sizeof(netbuffer->u.servercfg.playerskins));
 	memset(netbuffer->u.servercfg.playercolor, 0xFF, sizeof(netbuffer->u.servercfg.playercolor));
 
 	memset(netbuffer->u.servercfg.adminplayers, -1, sizeof(netbuffer->u.servercfg.adminplayers));
@@ -1707,7 +1723,7 @@ static boolean SV_SendServerConfig(INT32 node)
 		if (!playeringame[i])
 			continue;
 
-		netbuffer->u.servercfg.playerskins[i] = (UINT8)players[i].skin;
+		netbuffer->u.servercfg.playerskins[i] = (UINT16)players[i].skin;
 		netbuffer->u.servercfg.playercolor[i] = (UINT8)players[i].skincolor;
 	}
 
@@ -1902,6 +1918,15 @@ static void CL_LoadReceivedSavegame(void)
 	demo.title = false;
 	automapactive = false;
 
+	if (!postautoloaded) 
+	{
+		CONS_Printf("D_AutoloadFile(): Loading autoloaded addons...\n");
+		if (W_AddAutoloadedLocalFiles(autoloadwadfilespost) == 0)
+			CONS_Printf("D_AutoloadFile(): Are you sure you put in valid files or what?\n");
+		D_CleanFile(autoloadwadfilespost);
+		postautoloaded = true;
+	}
+
 	// load a base level
 	if (P_LoadNetGame())
 	{
@@ -1942,12 +1967,13 @@ static void CL_LoadReceivedSavegame(void)
 static void SendAskInfo(INT32 node)
 {
 	tic_t asktime;
-
+	#ifdef HOLEPUNCH
 	if (node != 0 && node != BROADCASTADDR &&
 			cv_rendezvousserver.string[0])
 	{
 		I_NetRequestHolePunch(node);
 	}
+	#endif
 
 	asktime = I_GetTime();
 
@@ -2018,6 +2044,7 @@ static void SL_InsertServer(serverinfo_pak* info, SINT8 node)
 
 		if (info->subversion != SUBVERSION)
 			return; // Close, but no cigar.
+		
 
 		if (strcmp(info->application, SRB2APPLICATION))
 			return;/* that's a different mod */
@@ -3348,7 +3375,7 @@ static void Command_Nodes(void)
 		{
 			CONS_Printf("%.2u: %*s", i, (int)maxlen, player_names[i]);
 			CONS_Printf(" - %.2d", playernode[i]);
-			if (I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL)
+			if ((I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL) && (cv_shownodeip.value))
 				CONS_Printf(" - %s", address);
 
 			if (IsPlayerAdmin(i))
@@ -3360,6 +3387,94 @@ static void Command_Nodes(void)
 			CONS_Printf("\n");
 		}
 	}
+}
+
+//Screw the base game nodes lets replace with listplayers instead.
+static void Command_Listplayers(void)
+{
+	const char *address;
+	int width = 0;
+
+	boolean admin;
+	boolean spectator;
+
+	/*
+	Mode of player status for an individual player (admin, spectator).
+	1 for admin
+	2 for spectator
+	4 for both
+	*/
+	int mode = 0;
+
+	INT32 totalplayers = 0;
+
+	const char *cc;
+	const char *pcc;
+
+	INT32 i;
+	int n;
+
+	for (i = 0; i < MAXPLAYERS; ++i)
+		if (playeringame[i])
+	{
+		n = strlen(player_names[i]);
+		if (n > width)
+			width = n;
+
+		if (mode != 7)
+		{
+			admin     = IsPlayerAdmin(i);
+			spectator = players[i].spectator;
+
+			if (admin)
+				mode |= 1;
+			if (spectator)
+				mode |= 2;
+			if (admin && spectator)
+				mode |= 4;
+		}
+	}
+
+	for (i = 0; i < MAXPLAYERS; ++i)
+		if (playeringame[i])
+	{
+		admin     = IsPlayerAdmin(i);
+		spectator = players[i].spectator;
+
+		if (admin)
+			cc = "\x85";/* red */
+		else if (spectator)
+			cc = "\x86";/* gray */
+		else
+			cc = "";
+
+		pcc = HU_SkinColorToConsoleColor(players[i].skincolor);
+
+		CONS_Printf("%.2d: ""%s""%-*s""\x80", i, pcc,width, player_names[i]);
+
+			if ((I_GetNodeAddress && (address = I_GetNodeAddress(playernode[i])) != NULL) && (cv_shownodeip.value))
+				CONS_Printf(" -- %s", address);
+			else/* print spacer */
+			{
+				/* ...but not if there's a crammed status and were admin */
+				if (mode != 7 || !admin)
+					CONS_Printf(" --     ");/* -- self */
+			}
+
+		if (admin)
+			CONS_Printf(M_GetText("%s"" (admin)"),cc);
+		if (spectator)
+			CONS_Printf(M_GetText("%s"" (spectator)"),cc);
+
+		CONS_Printf("\n");
+
+		totalplayers++;
+	}
+
+	if (totalplayers == 1)
+		CONS_Printf("\nThere is 1 player in the game.\n");
+	else
+		CONS_Printf("\nThere are %d players in the game.\n", totalplayers);
 }
 
 static void Command_Ban(void)
@@ -3927,6 +4042,7 @@ void D_ClientServerInit(void)
 	COM_AddCommand("reloadbans", Command_ReloadBan);
 	COM_AddCommand("connect", Command_connect);
 	COM_AddCommand("nodes", Command_Nodes);
+	COM_AddCommand("listplayers", Command_Listplayers);
 #ifdef HAVE_CURL
 	COM_AddCommand("set_http_login", Command_set_http_login);
 	COM_AddCommand("list_http_logins", Command_list_http_logins);
@@ -4217,6 +4333,13 @@ static void Got_RemovePlayer(UINT8 **p, INT32 playernum)
 
 	pnum = READUINT8(*p);
 	reason = READUINT8(*p);
+
+	if (pnum == serverplayer)
+	{
+		CONS_Alert(CONS_WARNING, "Attempt to remove server player\n");
+
+		return;
+	}
 
 	CL_RemovePlayer(pnum, reason);
 
@@ -4804,7 +4927,7 @@ static void HandlePacketFromAwayNode(SINT8 node)
 			memset(playeringame, 0, sizeof(playeringame));
 			for (j = 0; j < MAXPLAYERS; j++)
 			{
-				if (netbuffer->u.servercfg.playerskins[j] == 0xFF
+				if (netbuffer->u.servercfg.playerskins[j] == 0xFFFF
 				 && netbuffer->u.servercfg.playercolor[j] == 0xFF)
 					continue; // not in game
 
@@ -5292,7 +5415,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 			}
 			else
 			{
-				DEBFILE(va("frame not in bound: %u\n", neededtic));
+				DEBFILE(va("frame not in bound: %u (bounds are from %u to %u)\n", neededtic, realstart, realend));
 				/*if (realend < neededtic - 2 * TICRATE || neededtic + 2 * TICRATE < realstart)
 					I_Error("Received an out of order PT_SERVERTICS packet!\n"
 							"Got tics %d-%d, needed tic %d\n\n"
@@ -6146,6 +6269,7 @@ static void UpdatePingTable(void)
 	}
 }
 
+#ifdef HOLEPUNCH
 static void RenewHolePunch(void)
 {
 	if (cv_rendezvousserver.string[0])
@@ -6161,6 +6285,7 @@ static void RenewHolePunch(void)
 		}
 	}
 }
+#endif
 
 // Handle timeouts to prevent definitive freezes from happenning
 static void HandleNodeTimeouts(void)
@@ -6194,11 +6319,14 @@ void NetKeepAlive(void)
 #ifdef MASTERSERVER
 	MasterClient_Ticker();
 #endif
-
+	
+	#ifdef HOLEPUNCH
 	if (netgame && serverrunning)
 	{
 		RenewHolePunch();
 	}
+	#endif
+
 
 	if (client)
 	{
@@ -6311,10 +6439,12 @@ void NetUpdate(void)
 	MasterClient_Ticker(); // Acking the Master Server
 #endif
 
+	#ifdef HOLEPUNCH
 	if (netgame && serverrunning)
 	{
 		RenewHolePunch();
 	}
+	#endif
 
 	if (client)
 	{

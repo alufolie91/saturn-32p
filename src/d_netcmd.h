@@ -41,6 +41,10 @@ extern consvar_t cv_splitplayers;
 extern consvar_t cv_seenames, cv_allowseenames;
 #endif
 extern consvar_t cv_usemouse;
+//WTF
+extern consvar_t cv_mouseturn;
+extern consvar_t cv_spectatestrafe;
+
 extern consvar_t cv_usejoystick;
 extern consvar_t cv_usejoystick2;
 extern consvar_t cv_usejoystick3;
@@ -111,10 +115,337 @@ extern consvar_t cv_thundershield, cv_hyudoro, cv_pogospring, cv_kitchensink;
 extern consvar_t cv_triplesneaker, cv_triplebanana, cv_decabanana;
 extern consvar_t cv_tripleorbinaut, cv_quadorbinaut, cv_dualjawz;
 
+//Sneakerextender
+extern consvar_t cv_sneakerextend;
+extern consvar_t cv_sneakerextendtype;
+//additivemt
+extern consvar_t cv_additivemt;
+
+//mini-turbo adjustment cvars
+extern consvar_t cv_bluesparktics;
+extern consvar_t cv_redsparktics;
+extern consvar_t cv_rainbowsparktics;
+
+//stacking
+extern consvar_t cv_stacking;
+extern consvar_t cv_stackingdim;
+extern consvar_t cv_stackingdimval;
+extern consvar_t cv_stackingbrakemod;
+//boosts
+extern consvar_t cv_sneakerstack;
+extern consvar_t cv_sneakerspeedeasy;
+extern consvar_t cv_sneakerspeednormal;
+extern consvar_t cv_sneakerspeedhard;
+extern consvar_t cv_sneakerspeedexpert;
+extern consvar_t cv_sneakeraccel;
+
+extern consvar_t cv_invincibilityspeed;
+extern consvar_t cv_invincibilityaccel;
+
+extern consvar_t cv_growspeed;
+extern consvar_t cv_growaccel;
+extern consvar_t cv_growmult;
+
+extern consvar_t cv_driftspeed;
+extern consvar_t cv_driftaccel;
+
+extern consvar_t cv_startspeed;
+extern consvar_t cv_startaccel;
+
+extern consvar_t cv_hyuudorospeed;
+extern consvar_t cv_hyuudoroaccel;
+
+extern consvar_t cv_speedcap;
+extern consvar_t cv_speedcapval;
+
+//ItemOdds
+extern consvar_t cv_itemodds;
+
+//Item Tables pls kill me
+extern consvar_t cv_customodds;
+
+extern consvar_t cv_cepdistvar;
+extern consvar_t cv_cepdisthalf;
+extern consvar_t cv_cepspbdistvar;
+
+extern consvar_t cv_uranusdistvar;
+
+
+//Sneaker
+extern consvar_t cv_SITBL1;
+extern consvar_t cv_SITBL2;
+extern consvar_t cv_SITBL3;
+extern consvar_t cv_SITBL4;
+extern consvar_t cv_SITBL5;
+extern consvar_t cv_SITBL6;
+extern consvar_t cv_SITBL7;
+extern consvar_t cv_SITBL8;
+extern consvar_t cv_SITBL9;
+extern consvar_t cv_SITBL10;
+
+//Rocket Sneaker
+extern consvar_t cv_RSITBL1;
+extern consvar_t cv_RSITBL2;
+extern consvar_t cv_RSITBL3;
+extern consvar_t cv_RSITBL4;
+extern consvar_t cv_RSITBL5;
+extern consvar_t cv_RSITBL6;
+extern consvar_t cv_RSITBL7;
+extern consvar_t cv_RSITBL8;
+extern consvar_t cv_RSITBL9;
+extern consvar_t cv_RSITBL10;
+
+//Invincivility
+extern consvar_t cv_INITBL1;
+extern consvar_t cv_INITBL2;
+extern consvar_t cv_INITBL3;
+extern consvar_t cv_INITBL4;
+extern consvar_t cv_INITBL5;
+extern consvar_t cv_INITBL6;
+extern consvar_t cv_INITBL7;
+extern consvar_t cv_INITBL8;
+extern consvar_t cv_INITBL9;
+extern consvar_t cv_INITBL10;
+
+//Banana
+extern consvar_t cv_BANITBL1;
+extern consvar_t cv_BANITBL2;
+extern consvar_t cv_BANITBL3;
+extern consvar_t cv_BANITBL4;
+extern consvar_t cv_BANITBL5;
+extern consvar_t cv_BANITBL6;
+extern consvar_t cv_BANITBL7;
+extern consvar_t cv_BANITBL8;
+extern consvar_t cv_BANITBL9;
+extern consvar_t cv_BANITBL10;
+
+//Eggmanbomb
+extern consvar_t cv_EGGITBL1;
+extern consvar_t cv_EGGITBL2;
+extern consvar_t cv_EGGITBL3;
+extern consvar_t cv_EGGITBL4;
+extern consvar_t cv_EGGITBL5;
+extern consvar_t cv_EGGITBL6;
+extern consvar_t cv_EGGITBL7;
+extern consvar_t cv_EGGITBL8;
+extern consvar_t cv_EGGITBL9;
+extern consvar_t cv_EGGITBL10;
+
+//Orbinaut
+extern consvar_t cv_ORBITBL1;
+extern consvar_t cv_ORBITBL2;
+extern consvar_t cv_ORBITBL3;
+extern consvar_t cv_ORBITBL4;
+extern consvar_t cv_ORBITBL5;
+extern consvar_t cv_ORBITBL6;
+extern consvar_t cv_ORBITBL7;
+extern consvar_t cv_ORBITBL8;
+extern consvar_t cv_ORBITBL9;
+extern consvar_t cv_ORBITBL10;
+
+//Jawz
+extern consvar_t cv_JAWITBL1;
+extern consvar_t cv_JAWITBL2;
+extern consvar_t cv_JAWITBL3;
+extern consvar_t cv_JAWITBL4;
+extern consvar_t cv_JAWITBL5;
+extern consvar_t cv_JAWITBL6;
+extern consvar_t cv_JAWITBL7;
+extern consvar_t cv_JAWITBL8;
+extern consvar_t cv_JAWITBL9;
+extern consvar_t cv_JAWITBL10;
+
+//MINE
+extern consvar_t cv_MINITBL1;
+extern consvar_t cv_MINITBL2;
+extern consvar_t cv_MINITBL3;
+extern consvar_t cv_MINITBL4;
+extern consvar_t cv_MINITBL5;
+extern consvar_t cv_MINITBL6;
+extern consvar_t cv_MINITBL7;
+extern consvar_t cv_MINITBL8;
+extern consvar_t cv_MINITBL9;
+extern consvar_t cv_MINITBL10;
+
+//Ball Hog
+extern consvar_t cv_BALITBL1;
+extern consvar_t cv_BALITBL2;
+extern consvar_t cv_BALITBL3;
+extern consvar_t cv_BALITBL4;
+extern consvar_t cv_BALITBL5;
+extern consvar_t cv_BALITBL6;
+extern consvar_t cv_BALITBL7;
+extern consvar_t cv_BALITBL8;
+extern consvar_t cv_BALITBL9;
+extern consvar_t cv_BALITBL10;
+
+//SPB
+extern consvar_t cv_SPBITBL1;
+extern consvar_t cv_SPBITBL2;
+extern consvar_t cv_SPBITBL3;
+extern consvar_t cv_SPBITBL4;
+extern consvar_t cv_SPBITBL5;
+extern consvar_t cv_SPBITBL6;
+extern consvar_t cv_SPBITBL7;
+extern consvar_t cv_SPBITBL8;
+extern consvar_t cv_SPBITBL9;
+extern consvar_t cv_SPBITBL10;
+
+//Grow
+extern consvar_t cv_GROITBL1;
+extern consvar_t cv_GROITBL2;
+extern consvar_t cv_GROITBL3;
+extern consvar_t cv_GROITBL4;
+extern consvar_t cv_GROITBL5;
+extern consvar_t cv_GROITBL6;
+extern consvar_t cv_GROITBL7;
+extern consvar_t cv_GROITBL8;
+extern consvar_t cv_GROITBL9;
+extern consvar_t cv_GROITBL10;
+
+//Shrink
+extern consvar_t cv_SHRITBL1;
+extern consvar_t cv_SHRITBL2;
+extern consvar_t cv_SHRITBL3;
+extern consvar_t cv_SHRITBL4;
+extern consvar_t cv_SHRITBL5;
+extern consvar_t cv_SHRITBL6;
+extern consvar_t cv_SHRITBL7;
+extern consvar_t cv_SHRITBL8;
+extern consvar_t cv_SHRITBL9;
+extern consvar_t cv_SHRITBL10;
+
+//Thundershield
+extern consvar_t cv_THUITBL1;
+extern consvar_t cv_THUITBL2;
+extern consvar_t cv_THUITBL3;
+extern consvar_t cv_THUITBL4;
+extern consvar_t cv_THUITBL5;
+extern consvar_t cv_THUITBL6;
+extern consvar_t cv_THUITBL7;
+extern consvar_t cv_THUITBL8;
+extern consvar_t cv_THUITBL9;
+extern consvar_t cv_THUITBL10;
+
+//Hyuu
+extern consvar_t cv_HYUITBL1;
+extern consvar_t cv_HYUITBL2;
+extern consvar_t cv_HYUITBL3;
+extern consvar_t cv_HYUITBL4;
+extern consvar_t cv_HYUITBL5;
+extern consvar_t cv_HYUITBL6;
+extern consvar_t cv_HYUITBL7;
+extern consvar_t cv_HYUITBL8;
+extern consvar_t cv_HYUITBL9;
+extern consvar_t cv_HYUITBL10;
+
+// Pogo spring
+extern consvar_t cv_POGITBL1;
+extern consvar_t cv_POGITBL2;
+extern consvar_t cv_POGITBL3;
+extern consvar_t cv_POGITBL4;
+extern consvar_t cv_POGITBL5;
+extern consvar_t cv_POGITBL6;
+extern consvar_t cv_POGITBL7;
+extern consvar_t cv_POGITBL8;
+extern consvar_t cv_POGITBL9;
+extern consvar_t cv_POGITBL10;
+
+//Kitchen Sink
+extern consvar_t cv_KITITBL1;
+extern consvar_t cv_KITITBL2;
+extern consvar_t cv_KITITBL3;
+extern consvar_t cv_KITITBL4;
+extern consvar_t cv_KITITBL5;
+extern consvar_t cv_KITITBL6;
+extern consvar_t cv_KITITBL7;
+extern consvar_t cv_KITITBL8;
+extern consvar_t cv_KITITBL9;
+extern consvar_t cv_KITITBL10;
+
+//Triple Sneaker
+extern consvar_t cv_TSITBL1;
+extern consvar_t cv_TSITBL2;
+extern consvar_t cv_TSITBL3;
+extern consvar_t cv_TSITBL4;
+extern consvar_t cv_TSITBL5;
+extern consvar_t cv_TSITBL6;
+extern consvar_t cv_TSITBL7;
+extern consvar_t cv_TSITBL8;
+extern consvar_t cv_TSITBL9;
+extern consvar_t cv_TSITBL10;
+
+//Triplebanana
+extern consvar_t cv_TBAITBL1;
+extern consvar_t cv_TBAITBL2;
+extern consvar_t cv_TBAITBL3;
+extern consvar_t cv_TBAITBL4;
+extern consvar_t cv_TBAITBL5;
+extern consvar_t cv_TBAITBL6;
+extern consvar_t cv_TBAITBL7;
+extern consvar_t cv_TBAITBL8;
+extern consvar_t cv_TBAITBL9;
+extern consvar_t cv_TBAITBL10;
+
+//DecaBanana
+extern consvar_t cv_TENITBL1;
+extern consvar_t cv_TENITBL2;
+extern consvar_t cv_TENITBL3;
+extern consvar_t cv_TENITBL4;
+extern consvar_t cv_TENITBL5;
+extern consvar_t cv_TENITBL6;
+extern consvar_t cv_TENITBL7;
+extern consvar_t cv_TENITBL8;
+extern consvar_t cv_TENITBL9;
+extern consvar_t cv_TENITBL10;
+
+//Triple Orbi
+extern consvar_t cv_TORITBL1;
+extern consvar_t cv_TORITBL2;
+extern consvar_t cv_TORITBL3;
+extern consvar_t cv_TORITBL4;
+extern consvar_t cv_TORITBL5;
+extern consvar_t cv_TORITBL6;
+extern consvar_t cv_TORITBL7;
+extern consvar_t cv_TORITBL8;
+extern consvar_t cv_TORITBL9;
+extern consvar_t cv_TORITBL10;
+
+//Quad orbi
+extern consvar_t cv_QUOITBL1;
+extern consvar_t cv_QUOITBL2;
+extern consvar_t cv_QUOITBL3;
+extern consvar_t cv_QUOITBL4;
+extern consvar_t cv_QUOITBL5;
+extern consvar_t cv_QUOITBL6;
+extern consvar_t cv_QUOITBL7;
+extern consvar_t cv_QUOITBL8;
+extern consvar_t cv_QUOITBL9;
+extern consvar_t cv_QUOITBL10;
+
+//Dual Jawz
+extern consvar_t cv_DJAITBL1;
+extern consvar_t cv_DJAITBL2;
+extern consvar_t cv_DJAITBL3;
+extern consvar_t cv_DJAITBL4;
+extern consvar_t cv_DJAITBL5;
+extern consvar_t cv_DJAITBL6;
+extern consvar_t cv_DJAITBL7;
+extern consvar_t cv_DJAITBL8;
+extern consvar_t cv_DJAITBL9;
+extern consvar_t cv_DJAITBL10;
+
+
+//Lastserver
+extern consvar_t cv_lastserver;
+
+
 extern consvar_t cv_kartminimap;
 extern consvar_t cv_kartcheck;
 extern consvar_t cv_kartinvinsfx;
 extern consvar_t cv_kartspeed;
+//Battle speed
+extern consvar_t cv_kartbattlespeed;
 extern consvar_t cv_kartbumpers;
 extern consvar_t cv_kartfrantic;
 extern consvar_t cv_kartcomeback;
@@ -123,6 +454,12 @@ extern consvar_t cv_kartvoterulechanges;
 extern consvar_t cv_kartgametypepreference;
 extern consvar_t cv_kartspeedometer;
 extern consvar_t cv_kartvoices;
+
+//Less encore votes and less battlevotes
+extern consvar_t cv_lessbattlevotes;
+extern consvar_t cv_encorevotes;
+
+
 
 extern consvar_t cv_karteliminatelast;
 
@@ -151,6 +488,8 @@ extern consvar_t cv_maxping;
 extern consvar_t cv_pingtimeout;
 extern consvar_t cv_showping;
 extern consvar_t cv_pingmeasurement;
+extern consvar_t cv_pingicon;
+extern consvar_t cv_pingstyle;
 
 //extern consvar_t cv_smallpos;
 extern consvar_t cv_showminimapnames;
@@ -161,6 +500,7 @@ extern consvar_t cv_showlapemblem;
 extern consvar_t cv_showviewpointtext;
 extern consvar_t cv_luaimmersion;
 extern consvar_t cv_fakelocalskin;
+extern consvar_t cv_showlocalskinmenus;
 
 extern consvar_t cv_skipmapcheck;
 
@@ -180,7 +520,8 @@ typedef enum
 {
 	SKINMENUTYPE_SCROLL = 0,
 	SKINMENUTYPE_2D,    // 1
-	SKINMENUTYPE_GRID   // 2
+	SKINMENUTYPE_GRID,   // 2
+	SKINMENUTYPE_EXTENDED	// 3
 } skinmenutype_t;
 
 typedef enum

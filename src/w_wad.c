@@ -36,11 +36,7 @@
 #define ZWAD
 
 #ifdef ZWAD
-#ifdef _WIN32_WCE
-#define AVOID_ERRNO
-#else
 #include <errno.h>
-#endif
 #include "lzf.h"
 #endif
 
@@ -70,6 +66,7 @@
 #include "p_setup.h" // P_ScanThings
 #endif
 #include "m_misc.h" // M_MapNumber
+#include "p_setup.h" // P_PartialAddFile mayb
 
 #ifdef HWRENDER
 #include "r_data.h"
@@ -145,7 +142,7 @@ static char filenamebuf[MAX_WADPATH];
 
 // This #if is copied from filesrch.c, so not sure if it is 100% suitable for
 // this
-#if defined (_WIN32) && !defined (_XBOX)
+#if defined (_WIN32)
 //#define WIN32_LEAN_AND_MEAN
 #define RPC_NO_WINDOWS_H
 #include <windows.h>
@@ -202,7 +199,7 @@ FILE *W_OpenWadFile(const char **filename, boolean useerrors)
 
 		// If findfile finds the file, the full path will be returned
 		// in filenamebuf == *filename.
-		if (findfile(filenamebuf, NULL, true))
+		if (findfile(filenamebuf, NULL, true) == FS_FOUND)
 		{
 			if ((handle = fopen_utf8(*filename, "rb")) == NULL)
 			{
@@ -719,7 +716,7 @@ static void W_ReadFileShaders(wadfile_t *wadfile)
 //
 // Can now load dehacked files (.soc)
 //
-UINT16 W_InitFile(const char *filename, const char *lumpname, UINT16 *wadnump, boolean local)
+UINT16 W_InitFile(const char *filename, boolean local)
 {
 	FILE *handle;
 	lumpinfo_t *lumpinfo = NULL;
@@ -772,13 +769,10 @@ UINT16 W_InitFile(const char *filename, const char *lumpname, UINT16 *wadnump, b
 	{
 		if (!memcmp(wadfiles[i]->md5sum, md5sum, 16))
 		{
-			if (!local) {
-				CONS_Alert(CONS_ERROR, M_GetText("%s is already loaded\n"), filename);
-				if (handle)
-					fclose(handle);
-				return INT16_MAX;
-			}
-			CONS_Alert(CONS_WARNING, M_GetText("%s is a local skin that is already loaded\n"), filename);
+			CONS_Alert(CONS_ERROR, M_GetText("%s is already loaded\n"), filename);
+			if (handle)
+				fclose(handle);
+			return INT16_MAX;
 		}
 	}
 #endif
@@ -931,7 +925,7 @@ INT32 W_InitMultipleFiles(char **filenames, boolean addons)
 			G_SetGameModified(true, false);
 
 		//CONS_Debug(DBG_SETUP, "Loading %s\n", *filenames);
-		rc = W_InitFile(*filenames, 0, 0, false);
+		rc = W_InitFile(*filenames, false);
 		if (rc == INT16_MAX)
 			CONS_Printf(M_GetText("Errors occurred while loading %s; not added.\n"), *filenames);
 		overallrc &= (rc != INT16_MAX) ? 1 : 0;
@@ -940,6 +934,28 @@ INT32 W_InitMultipleFiles(char **filenames, boolean addons)
 	if (!numwadfiles)
 		I_Error("W_InitMultipleFiles: no files found");
 
+	return overallrc;
+}
+
+INT32 W_AddAutoloadedLocalFiles(char **filenames)
+{
+	UINT16 rc = 1;
+	INT32 overallrc = 1;
+
+	// will be realloced as lumps are added
+	for (; *filenames; filenames++)
+	{
+		rc = P_PartialAddWadFile(*filenames, true);
+		if (rc == UINT16_MAX)
+			CONS_Printf(M_GetText("Errors occurred while loading %s; not added.\n"), *filenames);
+		overallrc &= (rc != UINT16_MAX) ? 1 : 0;
+	}
+
+	if (!numwadfiles)
+		I_Error("W_AddAutoloadedLocalFiles: no files found");
+
+	if (P_PartialAddGetStage() >= 0)
+		P_MultiSetupWadFiles(true);
 	return overallrc;
 }
 
@@ -1317,6 +1333,26 @@ UINT8 W_LumpExists(const char *name)
 				return true;
 	}
 	return false;
+}
+
+UINT8 W_CheckMultipleLumps(const char* lump, ...) 
+{
+	va_list lumps;
+	va_start(lumps, lump);
+	const char* lumpname = lump;
+
+	while (lumpname != NULL) 
+	{
+		if (!W_LumpExists(lumpname)) 
+		{
+			va_end(lumps);
+			return 0;
+		}
+		lumpname = va_arg(lumps, const char*);
+	}
+
+	va_end(lumps);
+	return 1;
 }
 
 size_t W_LumpLengthPwad(UINT16 wad, UINT16 lump)
@@ -2117,6 +2153,10 @@ int W_VerifyNMUSlumps(const char *filename)
 		{"MKFNT", 5}, // Kart font changes
 		{"K_", 2}, // Kart graphic changes
 		{"MUSICDEF", 8}, // Kart song definitions
+		{"SP_", 3}, // Speedometer changes do not count either.
+		{"SC_", 3}, // Colored speedometer stuff too.
+		{"SPRTINFO", 8}, // Sprite info
+		{"MUSCINFO", 8}, // Music test definitions
 
 #ifdef HWRENDER
 		{"SHADERS", 7},

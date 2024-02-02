@@ -74,15 +74,17 @@ void *hwSym(const char *funcName,void *handle)
 {
 	void *funcPointer = NULL;
 #ifdef HWRENDER
-	if (0 == strcmp("SetPalette", funcName))
+	if (0 == strcmp("SetTexturePalette", funcName))
 		funcPointer = &OglSdlSetPalette;
 
 	GETFUNC(Init);
+	GETFUNC(SetupGLInfo);
 	GETFUNC(Draw2DLine);
 	GETFUNC(DrawPolygon);
 	GETFUNC(SetBlend);
 	GETFUNC(ClearBuffer);
 	GETFUNC(SetTexture);
+	GETFUNC(UpdateTexture);
 	GETFUNC(ReadRect);
 	GETFUNC(GClipRect);
 	GETFUNC(ClearMipMapCache);
@@ -98,6 +100,7 @@ void *hwSym(const char *funcName,void *handle)
 	GETFUNC(DoScreenWipe);
 	GETFUNC(DrawIntermissionBG);
 	GETFUNC(MakeScreenTexture);
+	GETFUNC(RenderVhsEffect);
 	GETFUNC(MakeScreenFinalTexture);
 	GETFUNC(DrawScreenFinalTexture);
 	
@@ -108,14 +111,17 @@ void *hwSym(const char *funcName,void *handle)
 	GETFUNC(SetShader);
 	GETFUNC(UnSetShader);
 
+	GETFUNC(SetShaderInfo);
 	GETFUNC(LoadCustomShader);
 	GETFUNC(InitCustomShaders);
 	
 	GETFUNC(StartBatching);
 	GETFUNC(RenderBatches);
 	
-	GETFUNC(AddLightTable);
-	GETFUNC(ClearLightTableCache);
+	GETFUNC(SetPaletteLookup);
+	GETFUNC(CreateLightTable);
+	GETFUNC(ClearLightTables);
+	GETFUNC(SetScreenPalette);
 
 #else //HWRENDER
 	if (0 == strcmp("FinishUpdate", funcName))

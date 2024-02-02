@@ -239,17 +239,13 @@ void ST_doPaletteStuff(void)
 {
 	INT32 palette;
 
-	if (paused || P_AutoPause())
-		palette = 0;
-	else if (stplyr && stplyr->flashcount)
+	if (stplyr && stplyr->flashcount)
 		palette = stplyr->flashpal;
 	else
 		palette = 0;
 
-	palette = min(max(palette, 0), 13);
-
 #ifdef HWRENDER
-	if ((rendermode == render_opengl && !cv_grpaletteshader.value) || (rendermode == render_opengl && cv_grpaletteshader.value && !cv_grflashpal.value))
+	if (rendermode == render_opengl && !HWR_PalRenderFlashpal())
 		palette = 0; // No flashpals here in OpenGL
 #endif
 
@@ -258,7 +254,7 @@ void ST_doPaletteStuff(void)
 		st_palette = palette;
 
 #ifdef HWRENDER
-		if (rendermode == render_soft || (rendermode == render_opengl && cv_grpaletteshader.value && cv_grflashpal.value))
+		if (rendermode == render_soft || (rendermode == render_opengl && HWR_PalRenderFlashpal()))
 #else
 		if (rendermode != render_none)
 #endif
@@ -1975,8 +1971,8 @@ static void ST_overlayDrawer(void)
 					strlcpy(name, player_names[stplyr-players], 13);*/
 
 					// Show name of player being displayed
-					V_DrawCenteredString((BASEVIDWIDTH/2), BASEVIDHEIGHT-40, 0, M_GetText("VIEWPOINT:"));
-					V_DrawCenteredString((BASEVIDWIDTH/2), BASEVIDHEIGHT-32, V_ALLOWLOWERCASE, player_names[stplyr-players]);
+					V_DrawCenteredString((BASEVIDWIDTH/2), BASEVIDHEIGHT-40, V_HUDTRANS, M_GetText("VIEWPOINT:"));
+					V_DrawCenteredString((BASEVIDWIDTH/2), BASEVIDHEIGHT-32, V_HUDTRANS|V_ALLOWLOWERCASE, player_names[stplyr-players]);
 				}
 			}
 			else if (!demo.title)
@@ -2211,7 +2207,7 @@ void ST_Drawer(void)
 	//25/08/99: Hurdler: palette changes is done for all players,
 	//                   not only player1! That's why this part
 	//                   of code is moved somewhere else.
-	if (rendermode == render_soft || (rendermode == render_opengl && cv_grpaletteshader.value && cv_grflashpal.value))
+	if (rendermode == render_soft || (rendermode == render_opengl && HWR_PalRenderFlashpal()))
 #endif
 	if (rendermode != render_none) ST_doPaletteStuff();
 

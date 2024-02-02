@@ -555,7 +555,8 @@ static void DoSayCommand(SINT8 target, size_t usedargs, UINT8 flags)
 		const char *newmsg;
 		INT32 spc = 1; // used if nodenum[1] is a space.
 		char *nodenum = (char*) malloc(3);
-		strncpy(nodenum, msg+3, 3);
+		memcpy(nodenum, msg+3, 2);
+		nodenum[2] = '\0';
 		// check for undesirable characters in our "number"
 		if 	(((nodenum[0] < '0') || (nodenum[0] > '9')) || ((nodenum[1] < '0') || (nodenum[1] > '9')))
 		{
@@ -571,15 +572,15 @@ static void DoSayCommand(SINT8 target, size_t usedargs, UINT8 flags)
 			}
 		}
 		// I'm very bad at C, I swear I am, additional checks eww!
-			if (spc != 0)
+		if (spc != 0)
+		{
+			if (msg[5] != ' ')
 			{
-				if (msg[5] != ' ')
-				{
-					HU_AddChatText("\x82NOTICE: \x80Invalid command format. Correct format is \'/pm<node> \'.", false);
-					free(nodenum);
-					return;
-				}
+				HU_AddChatText("\x82NOTICE: \x80Invalid command format. Correct format is \'/pm<node> \'.", false);
+				free(nodenum);
+				return;
 			}
+		}
 
 		target = atoi((const char*) nodenum); // turn that into a number
 		free(nodenum);
@@ -1246,6 +1247,10 @@ void HU_Ticker(void)
 	}
 
 	if (cechotimer > 0) --cechotimer;
+	
+	// Animate the desynch dots
+	if (hu_resynching)
+		resynch_ticker++;	//tic tic tic tic tic	
 
 	HU_TickSongCredits();
 }
@@ -1333,7 +1338,8 @@ static void HU_queueChatChar(INT32 c)
 				return;
 			}
 
-			strncpy(nodenum, msg+3, 3);
+			memcpy(nodenum, msg+3, 2);
+			nodenum[2] = '\0';
 
 			// check for undesirable characters in our "number"
 			if 	(((nodenum[0] < '0') || (nodenum[0] > '9')) || ((nodenum[1] < '0') || (nodenum[1] > '9')))
@@ -2044,7 +2050,8 @@ static void HU_DrawChat(void)
 
 
 				nodenum = (char*) malloc(3);
-				strncpy(nodenum, w_chat+3, 3);
+				memcpy(nodenum, w_chat+3, 2);
+				nodenum[2] = '\0';
 				n = atoi((const char*) nodenum); // turn that into a number
 				free(nodenum);
 				// special cases:
@@ -2679,28 +2686,92 @@ void HU_drawPing(INT32 x, INT32 y, UINT32 lag, INT32 flags)
 	UINT8 *colormap = NULL;
 	INT32 measureid = cv_pingmeasurement.value ? 1 : 0;
 	INT32 gfxnum; // gfx to draw
+	
+	//SRB2/Kart v1.0 style
+	UINT8 numbars = 0; // how many ping bars do we draw?
+	UINT8 barcolor = 31; // color we use for the bars (green, yellow, red or black)
+	SINT8 i = 0;
+	SINT8 yoffset = 6;
+	//INT32 dx;
 
 	gfxnum = Ping_gfx_num(lag);
-
-	if (measureid == 1)
-		V_DrawScaledPatch(x+11 - pingmeasure[measureid]->width, y+9, flags, pingmeasure[measureid]);
-	V_DrawScaledPatch(x+2, y, flags, pinggfx[gfxnum]);
-
-	if (servermaxping && lag > servermaxping && hu_tick < 4)
+	
+	if (!cv_pingstyle.value)
 	{
-		// flash ping red if too high
-		colormap = R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_RASPBERRY, GTC_CACHE);
-	}
+		if (measureid == 1)
+			V_DrawScaledPatch(x+11 - pingmeasure[measureid]->width, y+9, flags, pingmeasure[measureid]);
+		
+		if (cv_pingicon.value)
+			V_DrawScaledPatch(x+2, y, flags, pinggfx[gfxnum]);
 
-	if (cv_pingmeasurement.value)
+		if (servermaxping && lag > servermaxping && hu_tick < 4)
+			colormap = R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_RASPBERRY, GTC_CACHE); // flash ping red if too high
+
+		if (cv_pingmeasurement.value)
+			lag = (INT32)(lag * (1000.00f / TICRATE));
+
+		x = V_DrawPingNum(x + (measureid == 1 ? 11 - pingmeasure[measureid]->width : 10), y+9, flags, lag, colormap);
+
+		if (measureid == 0)
+				V_DrawScaledPatch(x+1 - pingmeasure[measureid]->width, y+9, flags, pingmeasure[measureid]);
+	}
+	else if (cv_pingstyle.value) // old style ping
 	{
-		lag = (INT32)(lag * (1000.00f / TICRATE));
+		if (cv_pingicon.value)
+		{
+			if (lag < 4)
+			{
+				numbars = 3;
+				barcolor = 184;
+			}
+			else if (lag < 7)
+			{
+				numbars = 2;	// Apparently ternaries w/ multiple statements don't look good in C so I decided against it.
+				barcolor = 103;
+			}
+			else if (lag < 10)
+			{
+				numbars = 1;
+				barcolor = 155; // need a better red
+			}
+			else // brazil
+			{
+				numbars = 0;
+				barcolor = 31;
+			}
+		}
+
+		if (cv_pingmeasurement.value)
+			lag = (INT32)(lag * (1000.00f / TICRATE));
+
+		if (vid.width >= 640)	// how sad, we're using a shit resolution.
+		{
+			if (measureid == 1)
+			{
+				//dx = x+1 - (V_SmallStringWidth(va("%dms", lag), V_ALLOWLOWERCASE|flags)/2);
+				//V_DrawSmallString(dx, y+4, V_ALLOWLOWERCASE|flags, va("%dms", lag));
+					V_DrawRightAlignedSmallString(x+12, y+13, V_ALLOWLOWERCASE|flags, va("%dms", lag));
+			}
+			else if (measureid == 0)
+			{
+				//dx = x+1 - (V_SmallStringWidth(va("d%d", lag), flags)/2);
+				//V_DrawSmallString(dx, y+4, flags, va("d%d", lag));
+					V_DrawRightAlignedSmallString(x+12, y+13, flags, va("d%d", lag));
+			}
+		}
+
+		if (cv_pingicon.value)
+		{	
+			for (i=0; (i<3); i++) // Draw the ping bar
+			{
+				V_DrawFill(x+2 *(i-1)+7, y+8+yoffset-4, 2, 8-yoffset, 31|flags);
+				if (i < numbars)
+					V_DrawFill(x+2 *(i-1)+7, y+8+yoffset-3, 1, 8-yoffset-1, barcolor|flags);
+
+				yoffset -= 2;
+			}
+		}
 	}
-
-	x = V_DrawPingNum(x + (measureid == 1 ? 11 - pingmeasure[measureid]->width : 10), y+9, flags, lag, colormap);
-
-	if (measureid == 0)
-		V_DrawScaledPatch(x+1 - pingmeasure[measureid]->width, y+9, flags, pingmeasure[measureid]);
 }
 
 //
@@ -2788,10 +2859,16 @@ static void HU_DrawRankings(void)
 		hilicol = ((gametype == GT_RACE) ? V_SKYMAP : V_REDMAP);
 
 	// draw the current gametype in the lower right
-	if (modeattacking)
-		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, "Record Attack");
+	//if (modeattacking)
+		//V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, "Record Attack");
+	//else
+		//V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, gametype_cons_t[gametype].strvalue);
+	
+	// draw the current map in the lower right if theres none just say its unknown
+	if (!G_BuildMapTitle(gamemap))
+		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, "UNKNOWN");
 	else
-		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, gametype_cons_t[gametype].strvalue);
+		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, G_BuildMapTitle(gamemap));
 
 	if (G_GametypeHasTeams())
 	{
@@ -2958,9 +3035,15 @@ void HU_SetCEchoFlags(INT32 flags)
 
 void HU_DoCEcho(const char *msg)
 {
+	if (!cv_cechotoggle.value)
+		return
+	
 	I_OutputMsg("%s\n", msg); // print to log
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation" // This is fine, we set null byte later
 	strncpy(cechotext, msg, sizeof(cechotext));
+#pragma GCC diagnostic pop
 	strncat(cechotext, "\\", sizeof(cechotext) - strlen(cechotext) - 1);
 	cechotext[sizeof(cechotext) - 1] = '\0';
 	cechotimer = cechoduration;

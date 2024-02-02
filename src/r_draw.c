@@ -110,11 +110,12 @@ INT32 ds_y, ds_x1, ds_x2;
 lighttable_t *ds_colormap;
 fixed_t ds_xfrac, ds_yfrac, ds_xstep, ds_ystep;
 
-UINT8 *ds_source; // start of a 64*64 tile image
+UINT8 *ds_source; // points to the start of a flat
 UINT8 *ds_transmap; // one of the translucency tables
 
-pslope_t *ds_slope; // Current slope being used
-floatv3_t ds_su, ds_sv, ds_sz; // Vectors for... stuff?
+// Vectors for Software's tilted slope drawers
+floatv3_t *ds_su, *ds_sv, *ds_sz;
+floatv3_t *ds_sup, *ds_svp, *ds_szp;
 float focallengthf, zeroheight;
 
 /**	\brief Variable flat sizes
@@ -579,6 +580,33 @@ UINT8* R_GetLocalTranslationColormap(skin_t *skin, skin_t *localskin, skincolors
 		return RGetTranslationColormap(( skin - skins ), color, flags, false);
 }
 
+patch_t* R_GetSkinFaceRank(player_t* ply) 
+{
+	if (ply->skinlocal && ply->localskin)
+		return localfacerankprefix[ply->localskin - 1];
+	else if (ply->localskin)
+		return facerankprefix[ply->localskin - 1];
+	return facerankprefix[ply->skin];
+}
+
+patch_t* R_GetSkinFaceWant(player_t* ply) 
+{
+	if (ply->skinlocal && ply->localskin)
+		return localfacewantprefix[ply->localskin - 1];
+	else if (ply->localskin)
+		return facewantprefix[ply->localskin - 1];
+	return facewantprefix[ply->skin];
+}
+
+patch_t* R_GetSkinFaceMini(player_t* ply) 
+{
+	if (ply->skinlocal && ply->localskin)
+		return localfacemmapprefix[ply->localskin - 1];
+	else if (ply->localskin)
+		return facemmapprefix[ply->localskin - 1];
+	return facemmapprefix[ply->skin];
+}
+
 /**	\brief	Flushes cache of translation colormaps.
 
 	Flushes cache of translation colormaps, but doesn't actually free the
@@ -594,8 +622,8 @@ void R_FlushTranslationColormapCache(void)
 	for (i = 0; i < (INT32)(sizeof(translationtablecache) / sizeof(translationtablecache[0])); i++)
 		if (translationtablecache[i])
 			memset(translationtablecache[i], 0, MAXTRANSLATIONS * sizeof(UINT8**));
-		
-		for (i = 0; i < (INT32)(sizeof(localtranslationtablecache) / sizeof(localtranslationtablecache[0])); i++)
+
+	for (i = 0; i < (INT32)(sizeof(localtranslationtablecache) / sizeof(localtranslationtablecache[0])); i++)
 		if (localtranslationtablecache[i])
 			memset(localtranslationtablecache[i], 0, MAXTRANSLATIONS * sizeof(UINT8**));
 }
