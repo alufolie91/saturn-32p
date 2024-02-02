@@ -1262,7 +1262,6 @@ boolean I_PlaySong(boolean looping)
 #else
 		openmpt_module_ctl_set(openmpt_mhandle, "dither", "1");
 #endif
-
 		openmpt_module_set_render_param(openmpt_mhandle, OPENMPT_MODULE_RENDER_STEREOSEPARATION_PERCENT, cv_stereosep.value); //have a feeling some might like it
 
 #if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
@@ -1274,7 +1273,6 @@ boolean I_PlaySong(boolean looping)
 #if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
 		openmpt_module_ctl_set_text(openmpt_mhandle, "render.resampler.emulate_amiga_type", cv_amigatype.string);
 #endif
-
 		openmpt_module_set_render_param(openmpt_mhandle, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH, cv_modfilter.value);
 		if (looping)
 			openmpt_module_set_repeat_count(openmpt_mhandle, -1); // Always repeat
@@ -1392,7 +1390,6 @@ void I_SetMusicVolume(UINT8 volume)
 boolean I_SetSongTrack(INT32 track)
 {
 #ifdef HAVE_LIBGME
-
 	// If the specified track is within the number of tracks playing, then change it
 	if (gme)
 	{

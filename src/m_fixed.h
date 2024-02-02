@@ -35,8 +35,6 @@
 typedef INT32 fixed_t;
 typedef UINT32 ufixed_t;
 
-typedef UINT32 ufixed_t;
-
 /*!
   \brief convert fixed_t into floating number
 */
