@@ -968,7 +968,7 @@ static void D_FindAddonsToAutoload(void)
 	const char *autoloadpath;
 	boolean postload;
 
-	INT32 i;
+	INT32 i, len;
 	boolean hasprefix = false;
 	char wadsToAutoload[256] = "";
 
@@ -1371,6 +1371,11 @@ void D_SRB2Main(void)
 			{
 				const char *s = M_GetNextParm();
 
+				if (s) // Check for NULL?
+					D_AddFile(s, startuppwads);
+			}
+		}
+	}
 
 	// get map from parms
 
@@ -1505,6 +1510,9 @@ void D_SRB2Main(void)
 		}
 	}
 
+	if (!W_InitMultipleFiles(startuppwads, true))
+		CONS_Error("A PWAD file was not found or not valid.\nCheck the log to see which ones.\n");
+	D_CleanFile(startuppwads);
 
 	//
 	// search for maps... again.
@@ -1568,31 +1576,6 @@ void D_SRB2Main(void)
 	S_RegisterSoundStuff();
 
 	I_RegisterSysCommands();
-	
-	// FIND THEM
-	D_FindAddonsToAutoload();
-	
-	// add any files specified on the command line with -file wadfile
-	// to the wad list
-	if (!(M_CheckParm("-connect") && !M_CheckParm("-server")))
-	{
-		if (M_CheckParm("-file"))
-		{
-			// the parms after p are wadfile/lump names,
-			// until end of parms or another - preceded parm
-			while (M_IsNextParm())
-			{
-				const char *s = M_GetNextParm();
-
-				if (s) // Check for NULL?
-					D_AddFile(s, startuppwads);
-			}
-		}
-	}
-	
-	if (!W_InitMultipleFiles(startuppwads, true))
-		CONS_Error("A PWAD file was not found or not valid.\nCheck the log to see which ones.\n");
-	D_CleanFile(startuppwads);
 
 	//--------------------------------------------------------- CONFIG.CFG
 	M_FirstLoadConfig(); // WARNING : this do a "COM_BufExecute()"

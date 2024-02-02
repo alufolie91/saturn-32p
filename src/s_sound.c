@@ -67,7 +67,7 @@ static void AmigaType_OnChange(void);
 
 consvar_t cv_samplerate = {"samplerate", "44100", 0, CV_Unsigned, NULL, 22050, NULL, NULL, 0, 0, NULL}; //Alam: For easy hacking?
 
-static CV_PossibleValue_t audbuffersize_cons_t[] = {{1024, "1024"}, {2048, "2048"}, {4096, "4096"}, {0, NULL}};
+static CV_PossibleValue_t audbuffersize_cons_t[] = {{512, "512"}, {1024, "1024"}, {2048, "2048"}, {4096, "4096"}, {0, NULL}};
 consvar_t cv_audbuffersize = {"buffersize", "2048", CV_SAVE, audbuffersize_cons_t, BufferSize_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 // stereo reverse
@@ -1437,9 +1437,6 @@ void S_LoadMusicDefs(UINT16 wadnum)
 			}
 
 			strncpy(def->filename, wadfiles[wadnum]->filename, 256);
-			def->filename[256] = '\0';
-
-			memcpy(def->filename, wadfiles[wadnum]->filename, 256);
 			def->filename[256] = '\0';
 
 skip_lump:

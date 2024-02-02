@@ -125,9 +125,6 @@ static GLint   viewport[4];
 //			can know when the textures aren't there, as textures are always considered resident in their virtual memory
 static GLuint screenTextures[NUMSCREENTEXTURES] = {0};
 
-// Lactozilla: Set shader programs and uniforms
-static void *Shader_Load(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
-static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
 
 // shortcut for ((float)1/i)
 static const GLfloat byte2float[256] = {
@@ -697,35 +694,6 @@ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
 		"gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n" \
 	"}\0"
 
-//TODO: make this not a hacky copy of two shaders mixed together
-#define GLSL_PALETTE_WATER_FRAGMENT_SHADER \
-	GLSL_FLOOR_FUDGES \
-	"const float freq = 0.025;\n" \
-    "const float amp = 0.025;\n" \
-    "const float speed = 2.0;\n" \
-    "const float pi = 3.14159;\n" \
-    "uniform sampler2D tex;\n" \
-	"uniform sampler3D palette_lookup_tex;\n" \
-	"uniform sampler2D lighttable_tex;\n" \
-    "uniform vec4 poly_color;\n" \
-    "uniform float lighting;\n" \
-    "uniform float leveltime;\n" \
-    GLSL_DOOM_COLORMAP \
-    "void main(void) {\n" \
-		"float water_z = (gl_FragCoord.z / gl_FragCoord.w) / 2.0;\n" \
-		"float a = -pi * (water_z * freq) + (leveltime * speed);\n" \
-		"float sdistort = sin(a) * amp;\n" \
-		"float cdistort = cos(a) * amp;\n" \
-		"vec4 texel = texture2D(tex, vec2(gl_TexCoord[0].s - sdistort, gl_TexCoord[0].t - cdistort));\n" \
-		"float tex_pal_idx = texture3D(palette_lookup_tex, vec3((texel * 63.0 + 0.5) / 64.0))[0] * 255.0;\n" \
-		"float z = gl_FragCoord.z / gl_FragCoord.w;\n" \
-		"float light_y = clamp(floor(R_DoomColormap(lighting, z)), 0.0, 31.0);\n" \
-		"vec2 lighttable_coord = vec2((tex_pal_idx + 0.5) / 256.0, (light_y + 0.5) / 32.0);\n" \
-		"vec4 final_color = texture2D(lighttable_tex, lighttable_coord);\n" \
-        "final_color.a = texel.a * poly_color.a;\n" \
-        "gl_FragColor = final_color;\n" \
-    "}\0"
-
 //
 // Generic fragment shader
 //
@@ -734,7 +702,7 @@ static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
 	"uniform sampler2D tex;\n" \
 	"uniform vec4 poly_color;\n" \
 	"void main(void) {\n" \
-		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * gl_Color * poly_color;\n" \
+		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * poly_color;\n" \
 	"}\0"
 
 #endif	// GL_SHADERS
@@ -3397,9 +3365,6 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int tex, int width, int height)
 	
 	if (HWR_ShouldUsePaletteRendering())
 		pglUseProgram(gl_shaders[SHADER_PALETTE_POSTPROCESS].program); // palette postprocess shader
-
-	if (HWR_ShouldUsePaletteRendering()) // still quite hacky, but the replacement code in i_video didnt work and killed performance instead. somehow need to figure out whats up with that.
-		pglUseProgram(gl_shaderprograms[8].program); // palette postprocess shader
 
 	pglColor4ubv(white);
 
