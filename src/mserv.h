@@ -71,6 +71,8 @@ extern consvar_t cv_masterserver_nagattempts;
 extern consvar_t cv_rendezvousserver;
 #endif
 
+void AddMServCommands(void);
+
 #ifdef HAVE_THREADS
 extern int           ms_QueryId;
 extern I_mutex       ms_QueryId_mutex;
@@ -91,8 +93,6 @@ char *GetMODVersion(int id);
 
 char *GetMasterServerRules(void);
 
-void AddMServCommands(void);
-
 /* HTTP */
 void HMS_set_api (char *api);
 int  HMS_register (void);
@@ -103,6 +103,5 @@ msg_server_t * HMS_fetch_servers (msg_server_t *list, int id);
 int  HMS_compare_mod_version (char *buffer, size_t size_of_buffer);
 const char * HMS_fetch_rules (char *buffer, size_t size_of_buffer);
 
-#endif
-
+#endif //#ifdef MASTERSERVER
 #endif

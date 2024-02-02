@@ -10755,7 +10755,9 @@ static void M_DrawConnectMenu(void)
 {
 	UINT16 i;
 	INT32 numPages = (serverlistcount+(SERVERS_PER_PAGE-1))/SERVERS_PER_PAGE;
+#ifdef MASTERSERVER
 	INT32 mservflags = V_ALLOWLOWERCASE;
+#endif
 
 	for (i = FIRSTSERVERLINE; i < min(localservercount, SERVERS_PER_PAGE)+FIRSTSERVERLINE; i++)
 		MP_ConnectMenu[i].status = IT_STRING | IT_SPACE;

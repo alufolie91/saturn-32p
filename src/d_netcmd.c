@@ -3000,9 +3000,8 @@ void D_SetupVote(void)
 		//	secondgt = G_SometimesGetDifferentGametype(gt);
 		//}
 	}
-
 	else
-		{
+	{
 		secondgt = G_SometimesGetDifferentGametype(gt);
 	}
 

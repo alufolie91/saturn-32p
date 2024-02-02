@@ -6912,11 +6912,8 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		//sneakerextender
 		if (cv_sneakerextend.value)
 		{
-			
-			
-			
 			if (cv_sneakerextendtype.value == 1)
-			{	
+			{
 				if (player->kartstuff[k_driftboost])
 				{
 					player->kartstuff[k_sneakertimer] = max(player->kartstuff[k_sneakertimer]--,1);
@@ -6924,37 +6921,31 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 				else
 				{
 					player->kartstuff[k_sneakertimer]--;
-				}	
+				}
 			}
 			else if (cv_sneakerextendtype.value == 2)	
 			{
 				if (player->kartstuff[k_sneakertimer])
-				{	
+				{
 					player->kartstuff[k_sneakertimer] = max(player->kartstuff[k_sneakertimer], player->kartstuff[k_driftboost]);
 					player->kartstuff[k_sneakertimer]--;
 				}
-				
 			}
-			
-		}		
+		}	
 		else
 		{
 			player->kartstuff[k_sneakertimer]--;
-		}	
-		
+		}
 
-		
 		if (player->kartstuff[k_wipeoutslow] > 0 && player->kartstuff[k_wipeoutslow] < wipeoutslowtime+1)
 			player->kartstuff[k_wipeoutslow] = wipeoutslowtime+1;
 	}
 
 	if (player->kartstuff[k_floorboost])
 		player->kartstuff[k_floorboost]--;
-	
-	
-	
+
 	if (cv_sneakerextend.value && cv_sneakerextendtype.value == 2)
-	{				
+	{		
 		if (player->kartstuff[k_driftboost] && player->kartstuff[k_sneakertimer])
 		{	
 			player->kartstuff[k_driftboost] = player->kartstuff[k_sneakertimer];
@@ -6962,13 +6953,12 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		else if (player->kartstuff[k_driftboost] && !player->kartstuff[k_sneakertimer])
 		{
 			player->kartstuff[k_driftboost]--;
-		}	
-		
+		}
 	}
 	else
 	{
-	if (player->kartstuff[k_driftboost])
-		player->kartstuff[k_driftboost]--;
+		if (player->kartstuff[k_driftboost])
+			player->kartstuff[k_driftboost]--;
 	}
 
 	if (player->kartstuff[k_startboost])
@@ -7091,8 +7081,6 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		K_FuckalKartItemRoulette(player, cmd);
 	else
 		K_KartItemRoulette(player, cmd);
-			
-	
 
 	// Handle invincibility sfx
 	K_UpdateInvincibilitySounds(player); // Also thanks, VAda!

@@ -624,12 +624,14 @@ void LUAh_VoteThinker(void)
 void LUAh_TitleThinker(void)
 {
 	hook_p hookp;
+
 	if (!gL || !(hooksAvailable[hook_TitleThinker/8] & (1<<(hook_TitleThinker%8))))
 		return;
-	
+
 	lua_pushcfunction(gL, LUA_GetErrorMessage);
 
 	for (hookp = roothook; hookp; hookp = hookp->next)
+	{
 		if (hookp->type == hook_TitleThinker)
 		{
 			lua_pushfstring(gL, FMT_HOOKID, hookp->id);
@@ -641,8 +643,9 @@ void LUAh_TitleThinker(void)
 				hookp->error = true;
 			}
 		}
-		
-		lua_pop(gL, 1); // Pop error handler
+	}
+	
+	lua_pop(gL, 1); // Pop error handler
 }
 
 

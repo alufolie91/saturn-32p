@@ -1306,7 +1306,6 @@ void Y_VoteDrawer(void)
 	fixed_t rubyheight = 0;
 	fixed_t picscale = FRACUNIT; // GREENRES
 	fixed_t picwidth = 160;
-	boolean unevenhypot;
 
 	// CEP: scale by screen hypotenuse for extra voting rows
 	INT32 vidx = ((vid.width) / vid.dupx);
@@ -1344,11 +1343,7 @@ void Y_VoteDrawer(void)
 			picscale -= (hypoti*16);
 		else
 			picscale += (hypoti*2); // scale UP the image
-
-		unevenhypot = true;
 	}
-	else
-		unevenhypot = false;
 
 	if (rendermode == render_none)
 		return;
@@ -1433,8 +1428,6 @@ void Y_VoteDrawer(void)
 		INT32 fillscale = 800/hypotdiv;
 		INT32 hypotmod = (hypoti % 5); // hypotenuse mod 5, rescale the bounding box
 		INT32 hypotadd = ((hypotmod > 1) ? (hypotmod/4) : hypotmod); // how much do we add the bounding box by?
-		INT32 hypmod7 = ((hypoti % 7 == 0) ? ((hypoti % 4)*(FRACUNIT/8)) : 0);
-		INT32 hypmod6 = ((hypoti % 6 == 0) ? (FRACUNIT) : 0);
 
 		// integer scaling makes me want to DIE
 		if ((hypotmod == 3))
