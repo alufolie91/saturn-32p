@@ -968,7 +968,8 @@ static void D_FindAddonsToAutoload(void)
 	const char *autoloadpath;
 	boolean postload;
 
-	INT32 i;
+	INT32 i, len;
+	boolean hasprefix = false;
 	char wadsToAutoload[256] = "";
 
 	// does it exist tho
@@ -997,6 +998,36 @@ static void D_FindAddonsToAutoload(void)
 		{
 			if (wadsToAutoload[i] == '\n')
 				wadsToAutoload[i] = '\0';
+		}
+
+		len = strlen(wadsToAutoload);
+		hasprefix = false;
+
+		for (i = 0; i < len; ++i)
+		{
+			if (wadsToAutoload[i] == '_')
+			{
+				hasprefix = true;
+				break;
+			}
+		}
+
+		// Lets just hope no one adds bonuschars in autoload
+		if (hasprefix)
+		{
+			// We searching for c in prefix, which stands for "character" and doesn't work well with
+			// autoload atm, only fine for postload
+			for (i = 0; i < len; ++i)
+			{
+				if (wadsToAutoload[i] == '_') break; // Prefix end
+
+				if (wadsToAutoload[i] == 'c' || wadsToAutoload[i] == 'C')
+				{
+					CONS_Alert(CONS_WARNING, "forcing postload for %s as local skin\n", wadsToAutoload);
+					postload = true;
+					break; // Found it
+				}
+			}
 		}
 
 		// LOAD IT
@@ -1325,7 +1356,26 @@ void D_SRB2Main(void)
 	if (M_CheckParm("-password") && M_IsNextParm())
 		D_SetPassword(M_GetNextParm());
 
+	// FIND THEM
+	D_FindAddonsToAutoload();
 
+	// add any files specified on the command line with -file wadfile
+	// to the wad list
+	if (!(M_CheckParm("-connect") && !M_CheckParm("-server")))
+	{
+		if (M_CheckParm("-file"))
+		{
+			// the parms after p are wadfile/lump names,
+			// until end of parms or another - preceded parm
+			while (M_IsNextParm())
+			{
+				const char *s = M_GetNextParm();
+
+				if (s) // Check for NULL?
+					D_AddFile(s, startuppwads);
+			}
+		}
+	}
 
 	// get map from parms
 
@@ -1434,11 +1484,6 @@ void D_SRB2Main(void)
 			statdp = true;
 	}
 
-	CONS_Printf("D_AutoloadFile(): Loading autoloaded addons...\n");
-	if (W_AddAutoloadedLocalFiles(autoloadwadfiles) == 0)
-		CONS_Printf("D_AutoloadFile(): Are you sure you put in valid files or what?\n");
-	D_CleanFile(autoloadwadfiles);
-
 	//
 	// search for maps
 	//
@@ -1465,6 +1510,9 @@ void D_SRB2Main(void)
 		}
 	}
 
+	if (!W_InitMultipleFiles(startuppwads, true))
+		CONS_Error("A PWAD file was not found or not valid.\nCheck the log to see which ones.\n");
+	D_CleanFile(startuppwads);
 
 	//
 	// search for maps... again.
@@ -1511,14 +1559,6 @@ void D_SRB2Main(void)
 	HWR_AddCommands();
 #endif
 
-#ifdef HWRENDER
-	if (rendermode == render_opengl)
-	{
-		for (i = 0; i < numwadfiles; i++)
-			HWR_LoadShaders(i, (wadfiles[i]->type == RET_PK3));
-	}
-#endif
-
 	//--------------------------------------------------------- CONSOLE
 	// setup loading screen
 	SCR_Startup();
@@ -1536,31 +1576,6 @@ void D_SRB2Main(void)
 	S_RegisterSoundStuff();
 
 	I_RegisterSysCommands();
-	
-	// FIND THEM
-	D_FindAddonsToAutoload();
-	
-	// add any files specified on the command line with -file wadfile
-	// to the wad list
-	if (!(M_CheckParm("-connect") && !M_CheckParm("-server")))
-	{
-		if (M_CheckParm("-file"))
-		{
-			// the parms after p are wadfile/lump names,
-			// until end of parms or another - preceded parm
-			while (M_IsNextParm())
-			{
-				const char *s = M_GetNextParm();
-
-				if (s) // Check for NULL?
-					D_AddFile(s, startuppwads);
-			}
-		}
-	}
-	
-	if (!W_InitMultipleFiles(startuppwads, true))
-		CONS_Error("A PWAD file was not found or not valid.\nCheck the log to see which ones.\n");
-	D_CleanFile(startuppwads);
 
 	//--------------------------------------------------------- CONFIG.CFG
 	M_FirstLoadConfig(); // WARNING : this do a "COM_BufExecute()"
@@ -1661,6 +1676,11 @@ void D_SRB2Main(void)
 
 	CONS_Printf("ST_Init(): Init status bar.\n");
 	ST_Init();
+
+	CONS_Printf("D_AutoloadFile(): Loading autoloaded addons...\n");
+	if (W_AddAutoloadedLocalFiles(autoloadwadfiles) == 0)
+		CONS_Printf("D_AutoloadFile(): Are you sure you put in valid files or what?\n");
+	D_CleanFile(autoloadwadfiles);
 
 	// Set up splitscreen players before joining!
 	if (!dedicated && (M_CheckParm("-splitscreen") && M_IsNextParm()))

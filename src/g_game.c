@@ -520,7 +520,6 @@ consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, 
 consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 #if MAXPLAYERS > 32
-
 #error "please update player_name table using the new value for MAXPLAYERS"
 #endif
 

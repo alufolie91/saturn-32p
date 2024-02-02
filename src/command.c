@@ -1199,8 +1199,7 @@ static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
   */
 void CV_RegisterVar(consvar_t *variable)
 {
-	
-	static UINT16 id = 1;
+	//static UINT16 id = 1;
 	// first check to see if it has already been defined
 	if (CV_FindVar(variable->name))
 	{
@@ -1218,14 +1217,11 @@ void CV_RegisterVar(consvar_t *variable)
 	// check net variables
 	if (variable->flags & CV_NETVAR)
 	{
-
 		/* in case of overflow... */
 		if (consvar_number_of_netids + 1 < consvar_number_of_netids)
 			I_Error("Way too many netvars");
 
 		variable->netid = ++consvar_number_of_netids;
-
-
 	}
 
 	// link the variable in

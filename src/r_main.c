@@ -436,6 +436,63 @@ angle_t R_PointToAngle2(fixed_t pviewx, fixed_t pviewy, fixed_t x, fixed_t y)
 		0;
 }
 
+angle_t R_PointToAngleEx(INT32 x2, INT32 y2, INT32 x1, INT32 y1)
+{
+	INT64 dx = x1-x2;
+	INT64 dy = y1-y2;
+	if (dx < INT32_MIN || dx > INT32_MAX || dy < INT32_MIN || dy > INT32_MAX)
+	{
+		x1 = (int)(dx / 2 + x2);
+		y1 = (int)(dy / 2 + y2);
+	}
+	return (y1 -= y2, (x1 -= x2) || y1) ?
+	x1 >= 0 ?
+	y1 >= 0 ?
+		(x1 > y1) ? tantoangle[SlopeDivEx(y1,x1)] :                            // octant 0
+		ANGLE_90-tantoangle[SlopeDivEx(x1,y1)] :                               // octant 1
+		x1 > (y1 = -y1) ? 0-tantoangle[SlopeDivEx(y1,x1)] :                    // octant 8
+		ANGLE_270+tantoangle[SlopeDivEx(x1,y1)] :                              // octant 7
+		y1 >= 0 ? (x1 = -x1) > y1 ? ANGLE_180-tantoangle[SlopeDivEx(y1,x1)] :  // octant 3
+		ANGLE_90 + tantoangle[SlopeDivEx(x1,y1)] :                             // octant 2
+		(x1 = -x1) > (y1 = -y1) ? ANGLE_180+tantoangle[SlopeDivEx(y1,x1)] :    // octant 4
+		ANGLE_270-tantoangle[SlopeDivEx(x1,y1)] :                              // octant 5
+		0;
+}
+
+//
+// R_PointToPseudoAngle
+// ! Returns the pseudoangle between the line p1 to (infinity, p1.y) and the
+// line from p1 to p2. The pseudoangle has the property that the ordering of
+// points by true angle anround p1 and ordering of points by pseudoangle are the
+// same.
+//
+// For clipping exact angles are not needed. Only the ordering matters.
+// This is about as fast as the fixed point R_PointToAngle2 but without
+// the precision issues associated with that function.
+//
+
+angle_t R_PointToPseudoAngle(fixed_t x, fixed_t y)
+{
+	// Note: float won't work here as it's less precise than the BAM values being passed as parameters
+	double vecx = (double)x - viewx;
+	double vecy = (double)y - viewy;
+	double epsilon = 1e-9;
+
+	if (fabs(vecx) < epsilon && fabs(vecy) < epsilon)
+	{
+		return 0;
+	}
+	else
+	{
+		double result = vecy / (fabs(vecx) + fabs(vecy));
+		if (vecx < 0)
+		{
+			result = 2.0 - result;
+		}
+		return (angle_t)xs_CRoundToInt(result * (1 << 30));
+	}
+}
+
 fixed_t R_PointToDist2(fixed_t px2, fixed_t py2, fixed_t px1, fixed_t py1)
 {
 	return FixedHypot(px1 - px2, py1 - py2);
@@ -489,29 +546,6 @@ angle_t R_PlayerSliptideAngle(player_t *player)
 fixed_t R_PointToDist(fixed_t x, fixed_t y)
 {
 	return R_PointToDist2(viewx, viewy, x, y);
-}
-
-angle_t R_PointToAngleEx(INT32 x2, INT32 y2, INT32 x1, INT32 y1)
-{
-	INT64 dx = x1-x2;
-	INT64 dy = y1-y2;
-	if (dx < INT32_MIN || dx > INT32_MAX || dy < INT32_MIN || dy > INT32_MAX)
-	{
-		x1 = (int)(dx / 2 + x2);
-		y1 = (int)(dy / 2 + y2);
-	}
-	return (y1 -= y2, (x1 -= x2) || y1) ?
-	x1 >= 0 ?
-	y1 >= 0 ?
-		(x1 > y1) ? tantoangle[SlopeDivEx(y1,x1)] :                            // octant 0
-		ANGLE_90-tantoangle[SlopeDivEx(x1,y1)] :                               // octant 1
-		x1 > (y1 = -y1) ? 0-tantoangle[SlopeDivEx(y1,x1)] :                    // octant 8
-		ANGLE_270+tantoangle[SlopeDivEx(x1,y1)] :                              // octant 7
-		y1 >= 0 ? (x1 = -x1) > y1 ? ANGLE_180-tantoangle[SlopeDivEx(y1,x1)] :  // octant 3
-		ANGLE_90 + tantoangle[SlopeDivEx(x1,y1)] :                             // octant 2
-		(x1 = -x1) > (y1 = -y1) ? ANGLE_180+tantoangle[SlopeDivEx(y1,x1)] :    // octant 4
-		ANGLE_270-tantoangle[SlopeDivEx(x1,y1)] :                              // octant 5
-		0;
 }
 
 //
@@ -689,14 +723,8 @@ static inline void R_InitLightTables(void)
 	}
 }
 
-//#define WOUGHMP_WOUGHMP // I got a fish-eye lens - I'll make a rap video with a couple of friends
-// it's kinda laggy sometimes
-
 static struct {
 	angle_t rollangle; // pre-shifted by fineshift
-#ifdef WOUGHMP_WOUGHMP
-	fixed_t fisheye;
-#endif
 
 	fixed_t zoomneeded;
 	INT32 *scrmap;
@@ -708,9 +736,6 @@ static struct {
 	boolean use;
 } viewmorph = {
 	0,
-#ifdef WOUGHMP_WOUGHMP
-	0,
-#endif
 
 	FRACUNIT,
 	NULL,
@@ -729,39 +754,20 @@ void R_CheckViewMorph(void)
 	fixed_t temp;
 	INT32 end, vx, vy, pos, usedpos;
 	INT32 usedx, usedy, halfwidth = vid.width/2, halfheight = vid.height/2;
-#ifdef WOUGHMP_WOUGHMP
-	float fisheyemap[MAXVIDWIDTH/2 + 1];
-#endif
 
 	angle_t rollangle = players[displayplayers[0]].viewrollangle;
-#ifdef WOUGHMP_WOUGHMP
-	fixed_t fisheye = cv_cam2_turnmultiplier.value; // temporary test value
-#endif
 
 	rollangle >>= ANGLETOFINESHIFT;
 	rollangle = ((rollangle+2) & ~3) & FINEMASK; // Limit the distinct number of angles to reduce recalcs from angles changing a lot.
 
-#ifdef WOUGHMP_WOUGHMP
-	fisheye &= ~0x7FF; // Same
-#endif
 
 	if (rollangle == viewmorph.rollangle &&
-#ifdef WOUGHMP_WOUGHMP
-		fisheye == viewmorph.fisheye &&
-#endif
 		viewmorph.scrmapsize == vid.width*vid.height)
 		return; // No change
 
 	viewmorph.rollangle = rollangle;
-#ifdef WOUGHMP_WOUGHMP
-	viewmorph.fisheye = fisheye;
-#endif
 
-	if (viewmorph.rollangle == 0
-#ifdef WOUGHMP_WOUGHMP
-		 && viewmorph.fisheye == 0
-#endif
-	 )
+	if (viewmorph.rollangle == 0)
 	{
 		viewmorph.use = false;
 		viewmorph.x1 = 0;
@@ -788,22 +794,6 @@ void R_CheckViewMorph(void)
 	// Calculate maximum zoom needed
 	x1 = (vid.width*fabsf(rollcos) + vid.height*fabsf(rollsin)) / vid.width;
 	y1 = (vid.height*fabsf(rollcos) + vid.width*fabsf(rollsin)) / vid.height;
-
-#ifdef WOUGHMP_WOUGHMP
-	if (fisheye)
-	{
-		float f = FIXED_TO_FLOAT(fisheye);
-		for (vx = 0; vx <= halfwidth; vx++)
-			fisheyemap[vx] = 1.0f / cos(atan(vx * f / halfwidth));
-
-		f = cos(atan(f));
-		if (f < 1.0f)
-		{
-			x1 /= f;
-			y1 /= f;
-		}
-	}
-#endif
 
 	temp = max(x1, y1)*FRACUNIT;
 	if (temp < FRACUNIT)
@@ -832,11 +822,6 @@ void R_CheckViewMorph(void)
 	x1 = -(halfwidth * rollcos - halfheight * rollsin);
 	y1 = -(halfheight * rollcos + halfwidth * rollsin);
 
-#ifdef WOUGHMP_WOUGHMP
-	if (fisheye)
-		viewmorph.x1 = (INT32)(halfwidth - (halfwidth * fabsf(rollcos) + halfheight * fabsf(rollsin)) * fisheyemap[halfwidth]);
-	else
-#endif
 	viewmorph.x1 = (INT32)(halfwidth - (halfwidth * fabsf(rollcos) + halfheight * fabsf(rollsin)));
 	//CONS_Printf("saving %d cols\n", viewmorph.x1);
 
@@ -883,35 +868,6 @@ void R_CheckViewMorph(void)
 
 	//CONS_Printf("Top left corner is %f %f\n", x1, y1);
 
-#ifdef WOUGHMP_WOUGHMP
-	if (fisheye)
-	{
-		for (vy = 0; vy < halfheight; vy++)
-		{
-			x2 = x1;
-			y2 = y1;
-			x1 -= rollsin;
-			y1 += rollcos;
-
-			for (vx = 0; vx < vid.width; vx++)
-			{
-				usedx = halfwidth + x2*fisheyemap[(int) floorf(fabsf(y2*zoomfactor))];
-				usedy = halfheight + y2*fisheyemap[(int) floorf(fabsf(x2*zoomfactor))];
-
-				usedpos = usedx + usedy*vid.width;
-
-				viewmorph.scrmap[pos] = usedpos;
-				viewmorph.scrmap[end-pos] = end-usedpos;
-
-				x2 += rollcos;
-				y2 += rollsin;
-				pos++;
-			}
-		}
-	}
-	else
-	{
-#endif
 	x1 += halfwidth;
 	y1 += halfheight;
 
@@ -937,9 +893,6 @@ void R_CheckViewMorph(void)
 			pos++;
 		}
 	}
-#ifdef WOUGHMP_WOUGHMP
-	}
-#endif
 
 	viewmorph.use = true;
 }

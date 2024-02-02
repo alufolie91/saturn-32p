@@ -39,7 +39,6 @@ extern boolean statdp; //stat display for extended player setup
 extern boolean autoloading;
 extern boolean autoloaded;
 extern boolean postautoloaded;
-extern boolean statdp; //kartZ speedo
 
 extern char *autoloadwadfilespost[MAX_WADFILES];
 

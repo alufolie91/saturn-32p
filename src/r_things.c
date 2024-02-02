@@ -1468,11 +1468,14 @@ static void R_ProjectSprite(mobj_t *thing)
 		I_Error("R_ProjectSprite: sprframes NULL for sprite %d\n", thing->sprite);
 #endif
 
-	if (sprframe->rotate != SRF_SINGLE || papersprite)
+	if (sprframe->rotate != SRF_SINGLE || papersprite || (cv_sloperoll.value == 2 && cv_spriteroll.value))
 	{
 		ang = R_PointToAngle (interp.x, interp.y) - interp.angle;
 		camang = R_PointToAngle (interp.x, interp.y);
+	}
 
+	if (sprframe->rotate != SRF_SINGLE || papersprite)
+	{
 		if (mirrored)
 			ang = InvAngle(ang);
 		if (papersprite)
@@ -1484,7 +1487,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		// use single rotation for all views
 		rot = 0;                        //Fab: for vis->patch below
 		lump = sprframe->lumpid[0];     //Fab: see note above
-		flip = sprframe->flip; 			// Will only be 0 or 0xFFFF
+		flip = sprframe->flip; // Will only be 0x00 or 0xFF
 	}
 	else
 	{

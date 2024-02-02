@@ -99,6 +99,7 @@ These should be the same as how they are usually used in lua.
 - libupnp (Linux/OS X only)
 - libgme (Linux/OS X only)
 - libopenmpt (Linux/OS X only)
+- libbacktrace (Linux/OS X only)
 
 ## Compiling
 

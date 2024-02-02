@@ -422,7 +422,7 @@ void *I_GetSfx(sfxinfo_t *sfx)
 			zErr = inflate(&stream, Z_FINISH);
 			if (zErr == Z_STREAM_END) {
 				// Run GME on new data
-				if (!gme_open_data(inflatedData, inflatedLen, &emu, 44100))
+				if (!gme_open_data(inflatedData, inflatedLen, &emu, SAMPLERATE))
 				{
 					short *mem;
 					UINT32 len;
@@ -456,7 +456,7 @@ void *I_GetSfx(sfxinfo_t *sfx)
 #endif
 	}
 	// Try to read it as a GME sound
-	else if (!gme_open_data(lump, sfx->length, &emu, 44100))
+	else if (!gme_open_data(lump, sfx->length, &emu, SAMPLERATE))
 	{
 		short *mem;
 		UINT32 len;
@@ -1109,9 +1109,10 @@ boolean I_LoadSong(char *data, size_t len)
 		if (zErr == Z_OK) // We're good to go
 		{
 			zErr = inflate(&stream, Z_FINISH);
-			if (zErr == Z_STREAM_END) {
+			if (zErr == Z_STREAM_END)
+			{
 				// Run GME on new data
-				if (!gme_open_data(inflatedData, inflatedLen, &gme, 44100))
+				if (!gme_open_data(inflatedData, inflatedLen, &gme, SAMPLERATE))
 				{
 					Z_Free(inflatedData); // GME supposedly makes a copy for itself, so we don't need this lying around
 					return true;
@@ -1130,7 +1131,7 @@ boolean I_LoadSong(char *data, size_t len)
 		return false;
 #endif
 	}
-	else if (!gme_open_data(data, len, &gme, 44100))
+	else if (!gme_open_data(data, len, &gme, SAMPLERATE))
 		return true;
 #endif
 
@@ -1242,7 +1243,7 @@ boolean I_PlaySong(boolean looping)
 		gme_equalizer_t eq = {GME_TREBLE, GME_BASS, 0,0,0,0,0,0,0,0};
 #if defined (GME_VERSION) && GME_VERSION >= 0x000603
         gme_set_autoload_playback_limit(gme, 0);
-#endif        
+#endif
 		gme_set_equalizer(gme, &eq);
 		gme_start_track(gme, 0);
 		current_track = 0;
@@ -1255,16 +1256,22 @@ boolean I_PlaySong(boolean looping)
 	if (openmpt_mhandle)
 	{
 		openmpt_module_select_subsong(openmpt_mhandle, 0);
+
 #if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
 		openmpt_module_ctl_set_text(openmpt_mhandle, "dither", "1");
 #else
 		openmpt_module_ctl_set(openmpt_mhandle, "dither", "1");
 #endif
 		openmpt_module_set_render_param(openmpt_mhandle, OPENMPT_MODULE_RENDER_STEREOSEPARATION_PERCENT, cv_stereosep.value); //have a feeling some might like it
+
 #if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
-		openmpt_module_ctl_set_text(openmpt_mhandle, "render.resampler.emulate_amiga_type", cv_amigatype.string);
+		openmpt_module_ctl_set_boolean(openmpt_mhandle, "render.resampler.emulate_amiga", cv_amigafilter.value);
 #else
 		openmpt_module_ctl_set(openmpt_mhandle, "render.resampler.emulate_amiga", cv_amigafilter.value ? "1" : "0");
+#endif
+
+#if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
+		openmpt_module_ctl_set_text(openmpt_mhandle, "render.resampler.emulate_amiga_type", cv_amigatype.string);
 #endif
 		openmpt_module_set_render_param(openmpt_mhandle, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH, cv_modfilter.value);
 		if (looping)
@@ -1383,7 +1390,6 @@ void I_SetMusicVolume(UINT8 volume)
 boolean I_SetSongTrack(INT32 track)
 {
 #ifdef HAVE_LIBGME
-
 	// If the specified track is within the number of tracks playing, then change it
 	if (gme)
 	{

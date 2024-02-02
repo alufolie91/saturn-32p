@@ -21,6 +21,8 @@
 #include "doomdef.h"
 #include "d_main.h"
 #include "d_netcmd.h"
+#include "d_clisrv.h"
+#include "i_net.h"
 #include "console.h"
 #include "r_fps.h"
 #include "r_local.h"
@@ -93,6 +95,7 @@
 #define SLIDER_RANGE 10
 #define SLIDER_WIDTH (8*SLIDER_RANGE+6)
 #define SERVERS_PER_PAGE 11
+#define MAXSTAT 9 //Max number a stat can have
 
 typedef enum
 {
@@ -1074,7 +1077,6 @@ static menuitem_t MP_MainMenu[] =
 	{IT_GRAYEDOUT,            NULL, "Internet server browser...",NULL,                     142-24},
 	{IT_GRAYEDOUT,            NULL, "Join last server",     NULL,               	       150-24},
 	{IT_GRAYEDOUT,            NULL, "Specify IPv4 address:",     NULL,                     158-24},
-
 #endif
 	//{IT_HEADER, NULL, "Player setup", NULL, 80},
 	//{IT_STRING|IT_CALL,       NULL, "Name, character, color...", M_SetupMultiPlayer,       90},
@@ -1490,21 +1492,23 @@ static menuitem_t OP_ColorOptionsMenu[] =
 static menuitem_t OP_ExpOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
-	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",		&cv_grmaxinterpdist,		 	 35},
-	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 45},
-	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 55},
+	{IT_STRING | IT_CVAR,	NULL, "Interpolation Distance",			&cv_grmaxinterpdist,		 25},
+	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 35},
+	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 45},
 	
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_vhseffect, 		 		 75},
+	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_vhseffect, 		 		 65},
 	
-	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 95},
-	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	 105},
+	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 85},
+	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	 95},
 #ifdef HWRENDER	
 	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 85},
+
+	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		 95},
 	
-	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	106},
-	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	116},
-	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	126},
-	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		136},
+	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	115},
+	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	125},
+	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	135},
+	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		145},
 #endif	
 };
 
@@ -1519,12 +1523,12 @@ static const char* OP_ExpTooltips[] =
 	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
 #ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
-	"Fixes issues that resulted in Textures sticking from the\nground sometimes.\nThis may be CPU heavy and result in worse performance in some cases.",
+	"Change the depth of the Palette in Palette rendering mod\n 16 bits is like software looks ingame\nwhile 24 bits is how software looks in screenshots.",
+	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
 	"Fixes issues that resulted in Textures not being properly skewed\n example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result in worse performance in some cases.",
 	"Fixes issues that resulted in Textures on Floor over Floors\nZFighting heavily.",
 	"Toggle for FOF wall cutoff with slopes.",
 #endif
-
 };
 
 enum
@@ -1779,7 +1783,7 @@ static menuitem_t OP_HUDOptionsMenu[] =
 {
 	{IT_STRING | IT_CVAR, NULL, "Show HUD (F3)",			&cv_showhud,			 10},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "HUD Visibility",			&cv_translucenthud,		 20},
+	                      NULL, "HUD Visibility",			&cv_translucenthud,		 20},				  
 
 	{IT_STRING | IT_SUBMENU, NULL, "Online HUD options...",&OP_ChatOptionsDef, 	 	 35},
 	{IT_STRING | IT_CVAR, NULL, "Background Glass",			&cons_backcolor,		 45},
@@ -1790,7 +1794,7 @@ static menuitem_t OP_HUDOptionsMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Show \"CHECK\"",			&cv_kartcheck,			 80},
 
 	{IT_STRING | IT_CVAR, NULL,	"Menu Highlights",			&cons_menuhighlight,     95},
-	// highlight info - (GOOD HIGHLIGHT, WARNING HIGHLIGHT) - 105 (see M_DrawHUDOptions)
+	// highlight info - (GOOD HIGHLIGHT, WARNING HIGHLIGHT) - 110 (see M_DrawHUDOptions)
 
 	{IT_STRING | IT_CVAR, NULL,	"Console Text Size",		&cv_constextsize,		120},
 
@@ -2047,7 +2051,7 @@ static menuitem_t OP_SaturnMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Input Display outside of RA",		 	&cv_showinput, 	 			25},
 	{IT_STRING | IT_CVAR, NULL, "Speedometer Style",		 			&cv_newspeedometer, 	 	30},
 	{IT_STRING | IT_CVAR, NULL, "Stat Display",		 					&cv_showstats, 	 			35},
-	{IT_STRING | IT_CVAR, NULL, "Higher Resoultion Portraits",			&cv_highresportrait, 	 	40},
+	{IT_STRING | IT_CVAR, NULL, "Higher Resolution Portraits",			&cv_highresportrait, 	 	40},
 	{IT_STRING | IT_CVAR, NULL, "Colourized HUD",						&cv_colorizedhud,		 	45},
 	{IT_STRING | IT_CVAR, NULL, "Colourized Itembox",					&cv_colorizeditembox,		50},
 	{IT_STRING | IT_CVAR, NULL, "Colourized HUD Color",					&cv_colorizedhudcolor,		55},
@@ -2073,9 +2077,9 @@ static const char* OP_SaturnTooltips[] =
 	"Displays the input display outside of Record Attack. Also adjusts the\nposition scale to match.",
 	"Change what style the speedometer is.",
 	"Enable the stat display.",
-	"Enable the use of the higher resoultion want icons instead of rank\nfor some places.",
+	"Enable the use of the higher resolution want icons instead of rank\nfor some places.",
 	"Enable colourized hud.",
-	"Enable the colorized itembox when colourized hud is enabled.",
+	"Enable the colourized itembox when colourized hud is enabled.",
 	"The color to use instead of the player color when colourized hud is enabled.",
 	"Show the big 'LAP' text on a lap change.",
 	"Show player names on the minimap.",
@@ -2228,37 +2232,39 @@ static menuitem_t OP_HudOffsetMenu[] =
 {
 	{IT_HEADER, NULL, "Kart Hud Offsets", NULL, 0},
 
-	{IT_HEADER, NULL, "Itembox", NULL, 10},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",      		&cv_item_xoffset, 		15},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Vertical Offset",        		&cv_item_yoffset,     	20},
+	{IT_STRING | IT_CALL, NULL, "Reset all", M_ResetCvars, 5},
 
-	{IT_HEADER, NULL, "Timer", NULL, 30},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset", 		  	&cv_time_xoffset, 		35},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	      		&cv_time_yoffset,     	40},
+	{IT_HEADER, NULL, "Itembox", NULL, 15},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",			&cv_item_xoffset, 		20},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Vertical Offset",				&cv_item_yoffset,     	25},
 
-	{IT_HEADER, NULL, "Lap Count", NULL, 50},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",     		&cv_laps_xoffset, 		55},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Vertical Offset",       		&cv_laps_yoffset,     	60},
+	{IT_HEADER, NULL, "Timer", NULL, 35},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",			&cv_time_xoffset, 		40},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",				&cv_time_yoffset,     	45},
 
-	{IT_HEADER, NULL, "Speedometer", NULL, 70},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_speed_xoffset, 		75},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  			&cv_speed_yoffset,     	80},
+	{IT_HEADER, NULL, "Lap Count", NULL, 55},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",     		&cv_laps_xoffset, 		60},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Vertical Offset",       		&cv_laps_yoffset,     	65},
 
-	{IT_HEADER, NULL, "Mini Rankings", NULL, 90},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_face_xoffset, 		95},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  			&cv_face_yoffset,     	100},
+	{IT_HEADER, NULL, "Speedometer", NULL, 75},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_speed_xoffset, 		80},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  			&cv_speed_yoffset,     	85},
 
-	{IT_HEADER, NULL, "Minimap", NULL, 110},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_mini_xoffset, 		115},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	 		&cv_mini_yoffset,     	120},
+	{IT_HEADER, NULL, "Mini Rankings", NULL, 95},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_face_xoffset, 		100},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  			&cv_face_yoffset,     	105},
 
-	{IT_HEADER, NULL, "Position / R.A. Wheel", NULL, 130},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_posi_xoffset, 		135},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_posi_yoffset,     	140},
+	{IT_HEADER, NULL, "Minimap", NULL, 115},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_mini_xoffset, 		120},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	 		&cv_mini_yoffset,     	125},
 
-	{IT_HEADER, NULL, "Stat Display", NULL, 150},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_stat_xoffset, 		155},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_stat_yoffset,     	160},
+	{IT_HEADER, NULL, "Position / R.A. Wheel", NULL, 135},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_posi_xoffset, 		140},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_posi_yoffset,     	145},
+
+	{IT_HEADER, NULL, "Stat Display", NULL, 155},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_stat_xoffset, 		160},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_stat_yoffset,     	165},
 };
 
 static menuitem_t OP_SaturnCreditsMenu[] =
@@ -2448,7 +2454,7 @@ menu_t MISC_AddonsDef =
 	50, 28,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t MISC_ReplayHutDef =
@@ -2461,7 +2467,7 @@ menu_t MISC_ReplayHutDef =
 	30, 80,
 	0,
 	M_QuitReplayHut,
-	NULL
+	{NULL}
 };
 
 menu_t MISC_ReplayOptionsDef =
@@ -2474,7 +2480,7 @@ menu_t MISC_ReplayOptionsDef =
 	27, 40,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t MISC_ReplayStartDef =
@@ -2487,7 +2493,7 @@ menu_t MISC_ReplayStartDef =
 	30, 90,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t PlaybackMenuDef = {
@@ -2500,7 +2506,7 @@ menu_t PlaybackMenuDef = {
 	BASEVIDWIDTH/2 - 88, 2,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t MAPauseDef = PAUSEMENUSTYLE(MAPauseMenu, 40, 72);
@@ -2516,7 +2522,8 @@ menu_t MISC_DiscordRequestsDef = {
 	M_DrawDiscordRequests,
 	0, 0,
 	0,
-	NULL
+	NULL,
+	{NULL}
 };
 #endif
 
@@ -2612,7 +2619,7 @@ menu_t SR_PandoraDef =
 	60, 40,
 	0,
 	M_ExitPandorasBox,
-	NULL
+	{NULL}
 };
 menu_t SR_MainDef = CENTERMENUSTYLE(NULL, SR_MainMenu, &MainDef, 72);
 
@@ -2628,7 +2635,7 @@ menu_t SR_UnlockChecklistDef =
 	280, 185,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t SR_MusicTestDef =
@@ -2641,7 +2648,7 @@ menu_t SR_MusicTestDef =
 	60, 150,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t SR_EmblemHintDef =
@@ -2654,7 +2661,7 @@ menu_t SR_EmblemHintDef =
 	60, 150,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 // Single Player
@@ -2682,7 +2689,7 @@ menu_t SP_LevelStatsDef =
 	280, 185,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 static menu_t SP_TimeAttackDef =
@@ -2695,8 +2702,7 @@ static menu_t SP_TimeAttackDef =
 	34, 40,
 	0,
 	M_QuitTimeAttackMenu,
-	NULL,
-	NULL
+	{NULL}
 };
 static menu_t SP_ReplayDef =
 {
@@ -2708,8 +2714,7 @@ static menu_t SP_ReplayDef =
 	34, 40,
 	0,
 	NULL,
-	NULL,
-	NULL
+	{NULL}
 };
 static menu_t SP_GuestReplayDef =
 {
@@ -2721,8 +2726,7 @@ static menu_t SP_GuestReplayDef =
 	34, 40,
 	0,
 	NULL,
-	NULL,
-	NULL
+	{NULL}
 };
 static menu_t SP_GhostDef =
 {
@@ -2734,7 +2738,7 @@ static menu_t SP_GhostDef =
 	34, 40,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 /*static menu_t SP_NightsAttackDef =
@@ -2810,7 +2814,7 @@ menu_t MP_MainDef =
 #else
 	NULL,
 #endif
-	NULL
+	{NULL}
 };
 
 menu_t MP_OfflineServerDef = MAPICONMENUSTYLE("M_MULTI", MP_OfflineServerMenu, &MP_MainDef);
@@ -2828,7 +2832,7 @@ menu_t MP_ConnectDef =
 	27,24,
 	0,
 	M_CancelConnect,
-	NULL
+	{NULL}
 };
 #endif
 menu_t MP_PlayerSetupDef =
@@ -2841,7 +2845,7 @@ menu_t MP_PlayerSetupDef =
 	36, 14,
 	0,
 	M_QuitMultiPlayerMenu,
-	NULL
+	{NULL}
 };
 
 // Options
@@ -2855,7 +2859,7 @@ menu_t OP_MainDef =
 	60, 30,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t OP_ControlsDef = DEFAULTMENUSTYLE("M_CONTRO", OP_ControlsMenu, &OP_MainDef, 60, 30);
@@ -2876,7 +2880,7 @@ menu_t OP_JoystickSetDef =
 	50, 40,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t OP_VideoOptionsDef =
@@ -2889,7 +2893,7 @@ menu_t OP_VideoOptionsDef =
 	30, 20,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t OP_VideoModeDef =
@@ -2902,7 +2906,7 @@ menu_t OP_VideoModeDef =
 	48, 26,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t OP_ColorOptionsDef =
@@ -2928,7 +2932,7 @@ menu_t OP_SoundOptionsDef =
 	30, 20,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 
@@ -2942,7 +2946,7 @@ menu_t OP_HUDOptionsDef =
 	30, 20,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 
@@ -2969,7 +2973,7 @@ menu_t OP_MonitorToggleDef =
 	47, 30,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 #ifdef HWRENDER
@@ -3007,7 +3011,7 @@ menu_t OP_ForkedBirdDef = {
 	30, 6,
 	0,
 	NULL,
-	NULL
+	{NULL}
 };
 
 menu_t OP_LocalSkinDef = DEFAULTMENUSTYLE(NULL, OP_TiltMenu, &OP_ForkedBirdDef, 30, 60);
@@ -4581,8 +4585,6 @@ void M_Init(void)
 	}
 #endif
 
-
-	
 	if (!snw_speedo && !kartzspeedo) // why bother?
 		OP_SaturnMenu[sm_speedometer].status = IT_GRAYEDOUT;
 	
@@ -4930,11 +4932,11 @@ static void M_DrawSplitText(INT32 x, INT32 y, INT32 option, const char* str, INT
 
 	if (icopy == NULL) return;
 
-	char* token = strtok(icopy, "\n");
+	char* tok = strtok(icopy, "\n");
 
-	while (token != NULL)
+	while (tok != NULL)
 	{
-		char* line = strdup(token);
+		char* line = strdup(tok);
 
 		if (line == NULL) return;
 
@@ -4942,7 +4944,7 @@ static void M_DrawSplitText(INT32 x, INT32 y, INT32 option, const char* str, INT
 		clines[num_lines] = line;
 		num_lines++;
 
-		token = strtok(NULL, "\n");
+		tok = strtok(NULL, "\n");
 	}
 
 	free(icopy);
@@ -5140,7 +5142,6 @@ static void M_DrawGenericMenu(void)
 		}
 	}
 	
-	
 	if (currentMenu == &OP_VideoOptionsDef)
 	{
 		if (!(OP_VideoTooltips[itemOn] == NULL)) 
@@ -5170,8 +5171,6 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
-	
 	
 	if (currentMenu == &OP_ExpOptionsDef)
 	{
@@ -6251,7 +6250,7 @@ static void M_AddonsOptions(INT32 choice)
 #define LOCATIONSTRING1 "Visit \x83SRB2.ORG/MODS\x80 to get & make addons!"
 #define LOCATIONSTRING2 "Visit \x88SRB2.ORG/MODS\x80 to get & make addons!"
 
-static void M_AddonsInternal()
+static void M_AddonsInternal(void)
 {
 	const char *pathname = ".";
 
@@ -10644,8 +10643,8 @@ static void M_Connect(INT32 choice)
 	M_ClearMenus(false);
 	
 	CV_Set(&cv_lastserver, I_GetNodeAddress(serverlist[choice-FIRSTSERVERLINE + serverlistpage * SERVERS_PER_PAGE].node));
-
-	COM_BufAddText(va("connect node %d\n", serverlist[choice-FIRSTSERVERLINE + serverlistpage * SERVERS_PER_PAGE].node));
+		
+	COM_BufAddText(va("connect node %d\n", serverlist[choice-FIRSTSERVERLINE + serverlistpage * SERVERS_PER_PAGE].node));	
 }
 
 static void M_Refresh(INT32 choice)
@@ -10759,7 +10758,9 @@ static void M_DrawConnectMenu(void)
 {
 	UINT16 i;
 	INT32 numPages = (serverlistcount+(SERVERS_PER_PAGE-1))/SERVERS_PER_PAGE;
+#ifdef MASTERSERVER
 	INT32 mservflags = V_ALLOWLOWERCASE;
+#endif
 
 	for (i = FIRSTSERVERLINE; i < min(localservercount, SERVERS_PER_PAGE)+FIRSTSERVERLINE; i++)
 		MP_ConnectMenu[i].status = IT_STRING | IT_SPACE;
@@ -11551,6 +11552,7 @@ static void M_ConnectIP(INT32 choice)
 	}
 
 	M_ClearMenus(true);
+
 	CV_Set(&cv_lastserver,setupm_ip);
 	COM_BufAddText(va("connect \"%s\"\n", setupm_ip));
 
@@ -11571,7 +11573,7 @@ static void M_ConnectLastServer(INT32 choice)
 
 	if (!*cv_lastserver.string)
 	{
-		M_StartMessage("You haven't previosuly joined a server.\n", NULL, MM_NOTHING);
+		M_StartMessage("You haven't previously joined a server.\n", NULL, MM_NOTHING);
 		return;
 	}
 
@@ -11886,7 +11888,6 @@ static void M_DrawSetupMultiPlayerMenu(void)
 
 			if (statdp == true)
 			{
-				int i;
 				//Background
 				V_DrawScaledPatch(statx - 50, staty + 4, 0, W_CachePatchName("K_STATNB", PU_CACHE));
 				
@@ -12187,22 +12188,22 @@ static void M_DrawSetupMultiPlayerMenu(void)
 		INT32 j = -colwidth;
 		INT16 col = setupm_fakecolor - colwidth;
 		INT32 x = mx;
-		INT32 w = indexwidth;
-		UINT8 h;
+		INT32 cw = indexwidth;
+		UINT8 ch;
 
 		while (col < 1)
 			col += MAXSKINCOLORS-1;
 		while (j <= colwidth)
 		{
 			if (!(j++))
-				w = charw;
+				cw = charw;
 			else
-				w = indexwidth;
-			for (h = 0; h < 16; h++)
-				V_DrawFill(x, my+(cv_skinselectmenu.value?176:162)+h, w, 1, colortranslations[col][h]);
+				cw = indexwidth;
+			for (ch = 0; ch < 16; ch++)
+				V_DrawFill(x, my+(cv_skinselectmenu.value?176:162)+ch, cw, 1, colortranslations[col][ch]);
 			if (++col >= MAXSKINCOLORS)
 				col -= MAXSKINCOLORS-1;
-			x += w;
+			x += cw;
 		}
 	}
 #undef indexwidth

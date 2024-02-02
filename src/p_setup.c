@@ -553,17 +553,18 @@ levelflat_t *levelflats;
 size_t P_PrecacheLevelFlats(void)
 {
 	lumpnum_t lump;
-	size_t i, flatmemory = 0;
+	size_t i, flatmem = 0;
 
 	//SoM: 4/18/2000: New flat code to make use of levelflats.
 	for (i = 0; i < numlevelflats; i++)
 	{
 		lump = levelflats[i].lumpnum;
 		if (devparm)
-			flatmemory += W_LumpLength(lump);
+			flatmem += W_LumpLength(lump);
 		R_GetFlat(lump);
 	}
-	return flatmemory;
+
+	return flatmem;
 }
 
 // help function for P_LoadSectors, find a flat in the active wad files,
@@ -3146,16 +3147,8 @@ boolean P_SetupLevel(boolean skipprecip)
 		P_SpawnPrecipitation();
 
 #ifdef HWRENDER // not win32 only 19990829 by Kin
-	if (rendermode != render_soft && rendermode != render_none)
-	{
-		// Correct missing sidedefs & deep water trick
-		HWR_CorrectSWTricks();
-		HWR_CreatePlanePolygons((INT32)numnodes - 1);
-		
-		if (HWR_ShouldUsePaletteRendering()) //unsure if this is the right place, but seems to work since we dont have HWR_LoadLevel like srb2
-			HWR_SetMapPalette();
-	}
-
+	if (rendermode == render_opengl)
+		HWR_LoadLevel();
 #endif
 
 	// oh god I hope this helps
@@ -3362,14 +3355,6 @@ boolean P_SetupLevel(boolean skipprecip)
 	// clear special respawning que
 	iquehead = iquetail = 0;
 
-	// preload graphics
-#ifdef HWRENDER // not win32 only 19990829 by Kin
-	if (rendermode != render_soft && rendermode != render_none)
-	{
-		HWR_PrepLevelCache(numtextures);
-	}
-#endif
-
 	P_MapEnd();
 
 	// Remove the loading shit from the screen
@@ -3426,6 +3411,19 @@ boolean P_SetupLevel(boolean skipprecip)
 
 	return true;
 }
+
+#ifdef HWRENDER
+void HWR_LoadLevel(void)
+{
+	HWR_FreeMipmapCache();
+	// Correct missing sidedefs & deep water trick
+	HWR_CorrectSWTricks();
+	HWR_CreatePlanePolygons((INT32)numnodes - 1);
+
+	if (HWR_ShouldUsePaletteRendering())
+		HWR_SetMapPalette();
+}
+#endif
 
 //
 // P_RunSOC
@@ -3497,11 +3495,8 @@ UINT16 P_PartialAddWadFile(const char *wadfilename, boolean local)
 
 	if (wadfiles[wadnum]->important)
 		partadd_important = true;
-	
-	if (local)
-		wadfiles[wadnum]->localfile = true;
-	else
-		wadfiles[wadnum]->localfile = false;
+
+	wadfiles[wadnum]->localfile = local;
 
 	//
 	// search for sound replacements
