@@ -1074,6 +1074,7 @@ static boolean AddIWAD(void)
 	}
 }
 
+// extra graphic patches for saturn specific thingies
 boolean found_extra_kart;
 boolean found_extra2_kart;
 boolean found_kv_kart;
@@ -1087,7 +1088,7 @@ boolean kartzspeedo; // kartZ speedometer
 boolean statdp; // New stat
 boolean multisneaker_icon; // Extra icons for Sneakers
 boolean stackingeffect; // Booststacking effect
-
+boolean nametaggfx; // Nametag stuffs
 
 static void IdentifyVersion(void)
 {
@@ -1482,7 +1483,10 @@ void D_SRB2Main(void)
 		// BoostStack effect
 		if (W_CheckMultipleLumps("BSSSA0", "BSSSB0", "BSSSC0", "BSSSD0", "BSSSE0", NULL))
 			stackingeffect = true;
-		
+
+		// Nametag stuffs
+		if (W_CheckMultipleLumps("NTLINE", "NTLINEV", NULL)) 
+			nametaggfx = true;
 	}
 
 	//

@@ -38,6 +38,7 @@ extern boolean kartzspeedo; //kartZ speedo
 extern boolean statdp; //stat display for extended player setup
 extern boolean multisneaker_icon; // Extra icons for Sneakers
 extern boolean stackingeffect; // Booststacking effect
+extern boolean nametaggfx; // Nametag stuffs
 
 extern boolean autoloading;
 extern boolean autoloaded;
