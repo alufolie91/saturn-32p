@@ -2147,7 +2147,7 @@ static void LoadMobjThinker(actionf_p1 thinker)
 	if (diff2 & MD2_COLORIZED)
 		mobj->colorized = READUINT8(save_p);
 
-	// Saturn stuff, needs to be set, but shouldnt be synched
+	//{ Saturn stuff, needs to be set, but shouldnt be synched
 
 	// Sprite Rotation
 	mobj->rollangle = 0;
@@ -2166,11 +2166,19 @@ static void LoadMobjThinker(actionf_p1 thinker)
 	mobj->spriteyoffset = 0;
 	mobj->spritexscale = FRACUNIT;
 	mobj->spriteyscale = FRACUNIT;
+	mobj->realxscale = FRACUNIT;
+	mobj->realyscale = FRACUNIT;
 	mobj->stretchslam = 0;
+
+	mobj->stretchslam = 0;
+	mobj->slamsoundtimer = 0;
+
+	mobj->mirrored = 0;
 
 	// Timer for slam sound effect
 	mobj->slamsoundtimer = 0;
-	//
+
+	//}
 
 	if (diff & MD_REDFLAG)
 	{
