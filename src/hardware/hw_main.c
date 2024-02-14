@@ -87,10 +87,10 @@ CV_PossibleValue_t granisotropicmode_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NU
 
 consvar_t cv_grfiltermode = {"gr_filtermode", "Nearest", CV_CALL|CV_SAVE, grfiltermode_cons_t,
                              CV_filtermode_ONChange, 0, NULL, NULL, 0, 0, NULL};
-						 
+
 consvar_t cv_granisotropicmode = {"gr_anisotropicmode", "1", CV_CALL|CV_SAVE, granisotropicmode_cons_t,
                              CV_anisotropic_ONChange, 0, NULL, NULL, 0, 0, NULL};
-						 
+
 consvar_t cv_grcorrecttricks = {"gr_correcttricks", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grsolvetjoin = {"gr_solvetjoin", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -109,7 +109,7 @@ static CV_PossibleValue_t grrenderdistance_cons_t[] = {
 	{6, "12288"}, {7, "16384"}, {0, NULL}};
 consvar_t cv_grrenderdistance = {"gr_renderdistance", "Max", CV_SAVE, grrenderdistance_cons_t,
 							NULL, 0, NULL, NULL, 0, 0, NULL};
-			
+
 consvar_t cv_grportals = {"gr_portals", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_nostencil = {"nostencil", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_portalline = {"portalline", "0", 0, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -118,7 +118,7 @@ CV_PossibleValue_t secbright_cons_t[] = {{0, "MIN"}, {255, "MAX"}, {0, NULL}};
 
 consvar_t cv_secbright = {"secbright", "0", CV_SAVE, secbright_cons_t,
 							NULL, 0, NULL, NULL, 0, 0, NULL};
-			
+
 consvar_t cv_grfovchange = {"gr_fovchange", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
@@ -128,7 +128,7 @@ static float clipping_distances[] = {1024.0f, 2048.0f, 4096.0f, 6144.0f, 8192.0f
 // slightly higher than the far clipping plane to compensate for impreciseness
 static INT32 bsp_culling_distances[] = {(1024+512)*FRACUNIT, (2048+512)*FRACUNIT, (4096+512)*FRACUNIT,
 	(6144+512)*FRACUNIT, (8192+512)*FRACUNIT, (12288+512)*FRACUNIT, (16384+512)*FRACUNIT};
-	
+
 static INT32 current_bsp_culling_distance = 0;
 
 // The current screen texture implementation is inefficient and disabling it can result in significant
@@ -139,7 +139,7 @@ static INT32 current_bsp_culling_distance = 0;
 //  - full screen scaling (use native resolution or windowed mode to avoid this)
 consvar_t cv_grscreentextures = {"gr_screentextures", "On", CV_CALL|CV_SAVE, CV_OnOff,
                                  CV_screentextures_ONChange, 0, NULL, NULL, 0, 0, NULL};
-								 
+
 static CV_PossibleValue_t grshaders_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Ignore custom shaders"}, {0, NULL}};
 consvar_t cv_grshaders = {"gr_shaders", "On", CV_CALL|CV_SAVE, grshaders_cons_t, CV_grshaders_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
@@ -1123,7 +1123,7 @@ static void HWR_SplitWall(sector_t *sector, FOutVector *wallVerts, INT32 texnum,
 			{
 				if (HWR_ShouldUsePaletteRendering())
 				{
-					lightnum = pfloor->master->frontsector->lightlevel;
+					lightnum = (pfloor->master->frontsector->lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT;
 					colormap = pfloor->master->frontsector->extra_colormap;
 					lightnum = colormap ? lightnum : HWR_CalcWallLight(lightnum, v1x, v1y, v2x, v2y);
 				}else{
@@ -1135,7 +1135,7 @@ static void HWR_SplitWall(sector_t *sector, FOutVector *wallVerts, INT32 texnum,
 			{
 				if (HWR_ShouldUsePaletteRendering())
 				{
-					lightnum = *list[i].lightlevel;
+					lightnum = (*list[i].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT;
 					colormap = list[i].extra_colormap;
 					lightnum = colormap ? lightnum : HWR_CalcWallLight(lightnum, v1x, v1y, v2x, v2y);
 				}else{
@@ -1537,7 +1537,7 @@ void HWR_ProcessSeg(void) // Sort of like GLWall::Process in GZDoom
 
 	if (HWR_ShouldUsePaletteRendering())
 	{
-		lightnum = gr_frontsector->lightlevel;
+		lightnum = (gr_frontsector->lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT;
 		colormap = gr_frontsector->extra_colormap;
 		lightnum = colormap ? lightnum : HWR_CalcWallLight(lightnum, vs.x, vs.y, ve.x, ve.y);
 	}else{
@@ -2488,7 +2488,7 @@ void HWR_ProcessSeg(void) // Sort of like GLWall::Process in GZDoom
 
 					if (HWR_ShouldUsePaletteRendering())
 					{
-						lightnum = rover->master->frontsector->lightlevel;
+						lightnum = (rover->master->frontsector->lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT;
 						colormap = rover->master->frontsector->extra_colormap;
 						lightnum = colormap ? lightnum : HWR_CalcWallLight(lightnum, vs.x, vs.y, ve.x, ve.y);
 					}else{
@@ -2639,7 +2639,7 @@ void HWR_ProcessSeg(void) // Sort of like GLWall::Process in GZDoom
 
 					if (HWR_ShouldUsePaletteRendering())
 					{
-						lightnum = rover->master->frontsector->lightlevel;
+						lightnum = (rover->master->frontsector->lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT;
 						colormap = rover->master->frontsector->extra_colormap;
 						lightnum = colormap ? lightnum : HWR_CalcWallLight(lightnum, vs.x, vs.y, ve.x, ve.y);
 					}else{
@@ -2935,6 +2935,8 @@ void HWR_AddLine(seg_t *line)
 					dont_draw = true;
 			}
 		}
+		else
+			return;// dont do anything with the other side i guess?
 	}
 
 doaddline:
@@ -3476,12 +3478,12 @@ void HWR_Subsector(size_t num)
 
 		light = R_GetPlaneLight(gr_frontsector, locFloorHeight, false);
 		if (gr_frontsector->floorlightsec == -1)
-			floorlightlevel = *gr_frontsector->lightlist[light].lightlevel;
+			floorlightlevel = HWR_ShouldUsePaletteRendering() ? (*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *gr_frontsector->lightlist[light].lightlevel;
 		floorcolormap = gr_frontsector->lightlist[light].extra_colormap;
 
 		light = R_GetPlaneLight(gr_frontsector, locCeilingHeight, false);
 		if (gr_frontsector->ceilinglightsec == -1)
-			ceilinglightlevel = *gr_frontsector->lightlist[light].lightlevel;
+			ceilinglightlevel = HWR_ShouldUsePaletteRendering() ? (*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *gr_frontsector->lightlist[light].lightlevel;;
 		ceilingcolormap = gr_frontsector->lightlist[light].extra_colormap;
 	}
 
@@ -3556,13 +3558,16 @@ void HWR_Subsector(size_t num)
 
 					light = R_GetPlaneLight(gr_frontsector, centerHeight, viewz < cullHeight ? true : false);
 
-					alpha = HWR_FogBlockAlpha(*gr_frontsector->lightlist[light].lightlevel, rover->master->frontsector->extra_colormap);
+					if (HWR_ShouldUsePaletteRendering())
+						alpha = HWR_FogBlockAlpha((*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT, rover->master->frontsector->extra_colormap);
+					else
+						alpha = HWR_FogBlockAlpha(*gr_frontsector->lightlist[light].lightlevel, rover->master->frontsector->extra_colormap);
 
 					HWR_AddTransparentFloor(0,
 					                       &extrasubsectors[num],
 										   false,
 					                       *rover->bottomheight,
-					                       *gr_frontsector->lightlist[light].lightlevel,
+					                       HWR_ShouldUsePaletteRendering() ? (*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *gr_frontsector->lightlist[light].lightlevel,
 					                       alpha, rover->master->frontsector, PF_Fog|PF_NoTexture,
 										   true, rover->master->frontsector->extra_colormap);
 				}
@@ -3573,15 +3578,15 @@ void HWR_Subsector(size_t num)
 					                       &extrasubsectors[num],
 										   false,
 					                       *rover->bottomheight,
-					                       *gr_frontsector->lightlist[light].lightlevel,
-					                       rover->alpha-1 > 255 ? 255 : rover->alpha-1, rover->master->frontsector, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Translucent,
+					                       HWR_ShouldUsePaletteRendering() ? (*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *gr_frontsector->lightlist[light].lightlevel,
+					                       max(0, min(rover->alpha, 255)), rover->master->frontsector, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Translucent,
 					                       false, gr_frontsector->lightlist[light].extra_colormap);
 				}
 				else
 				{
 					HWR_GetFlat(levelflats[*rover->bottompic].lumpnum, R_NoEncore(gr_frontsector, false));
 					light = R_GetPlaneLight(gr_frontsector, centerHeight, viewz < cullHeight ? true : false);
-					HWR_RenderPlane(sub, &extrasubsectors[num], false, *rover->bottomheight, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Occlude, *gr_frontsector->lightlist[light].lightlevel, levelflats[*rover->bottompic].lumpnum,
+					HWR_RenderPlane(sub, &extrasubsectors[num], false, *rover->bottomheight, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Occlude, HWR_ShouldUsePaletteRendering() ? (*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *gr_frontsector->lightlist[light].lightlevel, levelflats[*rover->bottompic].lumpnum,
 					                rover->master->frontsector, 255, gr_frontsector->lightlist[light].extra_colormap);
 				}
 			}
@@ -3607,14 +3612,17 @@ void HWR_Subsector(size_t num)
 					UINT8 alpha;
 
 					light = R_GetPlaneLight(gr_frontsector, centerHeight, viewz < cullHeight ? true : false);
-
-					alpha = HWR_FogBlockAlpha(*gr_frontsector->lightlist[light].lightlevel, rover->master->frontsector->extra_colormap);
+					
+					if (HWR_ShouldUsePaletteRendering())
+						alpha = HWR_FogBlockAlpha((*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT, rover->master->frontsector->extra_colormap);
+					else
+						alpha = HWR_FogBlockAlpha(*gr_frontsector->lightlist[light].lightlevel, rover->master->frontsector->extra_colormap);
 
 					HWR_AddTransparentFloor(0,
 					                       &extrasubsectors[num],
 										   true,
 					                       *rover->topheight,
-					                       *gr_frontsector->lightlist[light].lightlevel,
+					                       HWR_ShouldUsePaletteRendering() ? (*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *gr_frontsector->lightlist[light].lightlevel,
 					                       alpha, rover->master->frontsector, PF_Fog|PF_NoTexture,
 										   true, rover->master->frontsector->extra_colormap);
 				}
@@ -3624,17 +3632,17 @@ void HWR_Subsector(size_t num)
 					HWR_AddTransparentFloor(levelflats[*rover->toppic].lumpnum,
 					                        &extrasubsectors[num],
 											true,
-					                        *rover->topheight,
-					                        *gr_frontsector->lightlist[light].lightlevel,
-					                        rover->alpha-1 > 255 ? 255 : rover->alpha-1, rover->master->frontsector, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Translucent,
-					                        false, gr_frontsector->lightlist[light].extra_colormap);
+											*rover->topheight,
+											HWR_ShouldUsePaletteRendering() ? (*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *gr_frontsector->lightlist[light].lightlevel,
+											max(0, min(rover->alpha, 255)), rover->master->frontsector, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Translucent,
+											false, gr_frontsector->lightlist[light].extra_colormap);
 				}
 				else
 				{
 					HWR_GetFlat(levelflats[*rover->toppic].lumpnum, R_NoEncore(gr_frontsector, true));
 					light = R_GetPlaneLight(gr_frontsector, centerHeight, viewz < cullHeight ? true : false);
-					HWR_RenderPlane(sub, &extrasubsectors[num], true, *rover->topheight, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Occlude, *gr_frontsector->lightlist[light].lightlevel, levelflats[*rover->toppic].lumpnum,
-					                  rover->master->frontsector, 255, gr_frontsector->lightlist[light].extra_colormap);
+					HWR_RenderPlane(sub, &extrasubsectors[num], true, *rover->topheight, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Occlude, HWR_ShouldUsePaletteRendering() ? (*gr_frontsector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *gr_frontsector->lightlist[light].lightlevel, levelflats[*rover->toppic].lumpnum,
+									  rover->master->frontsector, 255, gr_frontsector->lightlist[light].extra_colormap);
 				}
 			}
 		}
@@ -4064,9 +4072,9 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float t
 		swallVerts[0].t = swallVerts[1].t = gpatch->max_t;
 	}
 
-	sSurf.PolyColor.s.red = 0x00;
-	sSurf.PolyColor.s.blue = 0x00;
-	sSurf.PolyColor.s.green = 0x00;
+	sSurf.PolyColor.s.red = 0x01;
+	sSurf.PolyColor.s.blue = 0x01;
+	sSurf.PolyColor.s.green = 0x01;
 
 	// shadow is always half as translucent as the sprite itself
 	if (!cv_translucency.value) // use default translucency (main sprite won't have any translucency)
@@ -4307,7 +4315,8 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	
 
 	// Start with the lightlevel and colormap from the top of the sprite
-	lightlevel = *list[sector->numlights - 1].lightlevel;
+	lightlevel = HWR_ShouldUsePaletteRendering() ? (*list[sector->numlights - 1].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *list[sector->numlights - 1].lightlevel;
+
 	colormap = list[sector->numlights - 1].extra_colormap;
 	i = 0;
 	temp = FLOAT_TO_FIXED(realtop);
@@ -4323,7 +4332,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 		if (h <= temp)
 		{
 			if (!(spr->mobj->frame & FF_FULLBRIGHT))
-				lightlevel = *list[i-1].lightlevel > 255 ? 255 : *list[i-1].lightlevel;
+				lightlevel = *list[i-1].lightlevel > 255 ? 255 : HWR_ShouldUsePaletteRendering() ? (*list[i-1].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *list[i-1].lightlevel;
 			colormap = list[i-1].extra_colormap;
 			break;
 		}
@@ -4331,7 +4340,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 #else
 	i = R_GetPlaneLight(sector, temp, false);
 	if (!(spr->mobj->frame & FF_FULLBRIGHT))
-		lightlevel = *list[i].lightlevel > 255 ? 255 : *list[i].lightlevel;
+		lightlevel = *list[i].lightlevel > 255 ? 255 : HWR_ShouldUsePaletteRendering() ? (*list[i].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *list[i].lightlevel;
 	colormap = list[i].extra_colormap;
 #endif
 
@@ -4347,7 +4356,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 		if (!(list[i].flags & FF_NOSHADE) && (list[i].flags & FF_CUTSPRITES))
 		{
 			if (!(spr->mobj->frame & FF_FULLBRIGHT))
-				lightlevel = *list[i].lightlevel > 255 ? 255 : *list[i].lightlevel;
+				lightlevel = *list[i].lightlevel > 255 ? 255 : HWR_ShouldUsePaletteRendering() ? (*list[i].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *list[i].lightlevel;
 			colormap = list[i].extra_colormap;
 		}
 
@@ -4638,7 +4647,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 		extracolormap_t *colormap = sector->extra_colormap;
 
 		if (!(spr->mobj->frame & FF_FULLBRIGHT))
-			lightlevel = sector->lightlevel > 255 ? 255 : sector->lightlevel;
+			lightlevel = sector->lightlevel > 255 ? 255 : HWR_ShouldUsePaletteRendering() ? (sector->lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : sector->lightlevel;
 
 		HWR_Lighting(&Surf, lightlevel, colormap);
 	}
@@ -4739,7 +4748,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 			light = R_GetPlaneLight(sector, spr->mobj->z + spr->mobj->height, false); // Always use the light at the top instead of whatever I was doing before
 
 			if (!(spr->mobj->frame & FF_FULLBRIGHT))
-				lightlevel = *sector->lightlist[light].lightlevel > 255 ? 255 : *sector->lightlist[light].lightlevel;
+			lightlevel = *sector->lightlist[light].lightlevel > 255 ? 255 : HWR_ShouldUsePaletteRendering() ? (*sector->lightlist[light].lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : *sector->lightlist[light].lightlevel;
 
 			if (sector->lightlist[light].extra_colormap)
 				colormap = sector->lightlist[light].extra_colormap;
@@ -4747,7 +4756,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 		else
 		{
 			if (!(spr->mobj->frame & FF_FULLBRIGHT))
-				lightlevel = sector->lightlevel > 255 ? 255 : sector->lightlevel;
+			lightlevel = sector->lightlevel > 255 ? 255 : HWR_ShouldUsePaletteRendering() ? (sector->lightlevel >> LIGHTSEGSHIFT) << LIGHTSEGSHIFT : sector->lightlevel;
 
 			if (sector->extra_colormap)
 				colormap = sector->extra_colormap;

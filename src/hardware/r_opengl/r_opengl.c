@@ -27,11 +27,7 @@
 #include "r_opengl.h"
 #include "r_vbo.h"
 
-//#include "../../p_tick.h" // for leveltime (NOTE: THIS IS BAD, FIGURE OUT HOW TO PROPERLY IMPLEMENT gl_leveltime)
-#include "../../i_system.h" // for I_GetPreciseTime (batching time measurements)
-
 #include "../hw_main.h"
-#include "../hw_batching.h"
 
 // Eeeeh not sure is this right way, but it works < sry :c < sry again it had to go :c
 
@@ -63,7 +59,7 @@ typedef struct LTListItem LTListItem;
 static const GLubyte white[4] = { 255, 255, 255, 255 };
 
 // With OpenGL 1.1+, the first texture should be 1
-#define NOTEXTURE_NUM     0
+static GLuint NOTEXTURE_NUM = 0;
 
 #define      N_PI_DEMI               (M_PIl/2.0f) //(1.5707963268f)
 
@@ -117,10 +113,6 @@ static GLfloat modelMatrix[16];
 static GLfloat projMatrix[16];
 static GLint   viewport[4];
 
-#ifdef USE_PALETTED_TEXTURE
-	PFNGLCOLORTABLEEXTPROC  glColorTableEXT = NULL;
-	GLubyte                 palette_tex[256*3];
-#endif
 
 // Sryder:	NextTexAvail is broken for these because palette changes or changes to the texture filter or antialiasing
 //			flush all of the stored textures, leaving them unavailable at times such as between levels
@@ -489,7 +481,6 @@ static PFNglColorPointer pglColorPointer;
 #ifndef GL_TEXTURE1
 #define GL_TEXTURE1 0x84C1
 #endif
-
 #ifndef GL_TEXTURE2
 #define GL_TEXTURE2 0x84C2
 #endif
@@ -905,6 +896,8 @@ static void SetNoTexture(void)
 	// Disable texture.
 	if (tex_downloaded != NOTEXTURE_NUM)
 	{
+		if (NOTEXTURE_NUM == 0)
+			pglGenTextures(1, &NOTEXTURE_NUM);
 		pglBindTexture(GL_TEXTURE_2D, NOTEXTURE_NUM);
 		tex_downloaded = NOTEXTURE_NUM;
 	}
@@ -976,11 +969,13 @@ void SetStates(void)
 	pglEnable(GL_TEXTURE_2D);      // two-dimensional texturing
 	pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
+	pglEnable(GL_ALPHA_TEST);
 	pglAlphaFunc(GL_NOTEQUAL, 0.0f);
 	pglEnable(GL_BLEND);           // enable color blending
 
 	pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
+	pglEnable(GL_STENCIL_TEST);
 	pglEnable(GL_DEPTH_TEST);    // check the depth buffer
 	pglDepthMask(GL_TRUE);             // enable writing to depth buffer
 	pglClearDepth(1.0f);
@@ -991,7 +986,7 @@ void SetStates(void)
 	CurrentPolyFlags = 0xffffffff;
 	SetBlend(0);
 
-	//tex_downloaded = (GLuint)-1;
+	tex_downloaded = 0;
 	SetNoTexture();
 
 	pglPolygonOffset(-1.0f, -1.0f);
@@ -1000,8 +995,6 @@ void SetStates(void)
 	pglLoadIdentity();
 	pglScalef(1.0f, 1.0f, -1.0f);
 	pglGetFloatv(GL_MODELVIEW_MATRIX, modelMatrix); // added for new coronas' code (without depth buffer)
-	
-	pglEnable(GL_STENCIL_TEST);
 }
 
 // -----------------+
@@ -1150,7 +1143,7 @@ EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, f
 // -----------------+
 EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask,
                                     FBOOLEAN DepthMask,
-														FBOOLEAN StencilMask,
+									FBOOLEAN StencilMask,
                                     FRGBAFloat * ClearColor)
 {
 	//GL_DBG_Printf("ClearBuffer(%d)\n", alpha);
@@ -2020,55 +2013,6 @@ static void SkyVertex(vbo_vertex_t *vbo, int r, int c)
 	vbo->z = z;
 }
 
-/*void RevertStencilBuffer()// TODO need to add OpenGL stencil functions to function importing
-{
-	const float screenVerts[12] =
-	{
-		-1.0f, -1.0f, 1.0f,
-		-1.0f, 1.0f, 1.0f,
-		1.0f, 1.0f, 1.0f,
-		1.0f, -1.0f, 1.0f
-	};
-
-	const float screenVerts[12] =
-	{
-		-1.0f, -1.0f, 1.0f,
-		1.0f, -1.0f, 1.0f,
-		1.0f, 1.0f, 1.0f,
-		-1.0f, 1.0f, 1.0f
-	};
-
-	pglDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	pglDisable(GL_TEXTURE_2D);
-	pglDisable(GL_DEPTH_TEST);
-	pglDisable(GL_BLEND);
-	//pglColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);// TEST
-
-	//pglStencilFuncSeparate(GL_FRONT_AND_BACK, GL_EQUAL, gl_portal_stencil_level + 1, 0xFF);
-	//pglStencilFuncSeparate(GL_FRONT_AND_BACK, GL_ALWAYS, gl_portal_stencil_level + 1, 0xFF);// TEST
-	//pglStencilOpSeparate(GL_FRONT_AND_BACK, GL_KEEP, GL_DECR, GL_DECR);
-	//pglStencilOpSeparate(GL_FRONT_AND_BACK, GL_KEEP, GL_KEEP, GL_KEEP);// TEST
-
-	pglPushMatrix();
-	pglLoadIdentity();
-	pglScalef(1.0f, 1.0f, -1.0f);
-//	glMatrixMode(GL_PROJECTION
-
-	pglColor4ubv(white);
-	pglVertexPointer(3, GL_FLOAT, 0, screenVerts);
-	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-	pglPopMatrix();
-
-	pglEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	pglEnable(GL_TEXTURE_2D);
-	pglEnable(GL_DEPTH_TEST);
-	pglEnable(GL_BLEND);
-	pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-}
-*/
-
 static GLSkyVBO sky_vbo;
 
 static void gld_BuildSky(int row_count, int col_count)
@@ -2316,18 +2260,6 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 		case HWD_SET_SCREEN_TEXTURES:
 			gl_enable_screen_textures = Value;
 			break;
-			
-		case HWD_SET_DEPTH_ONLY_MODE:// for portals
-			if (Value)
-			{
-				pglClear(GL_DEPTH_BUFFER_BIT);
-				pglColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-			}
-			else
-			{
-				pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-			}
-			break;
 
 		case HWD_SET_PORTAL_MODE:
 			gl_portal_mode = Value;
@@ -2340,7 +2272,6 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 					pglEnable(GL_BLEND);
 					pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 					pglStencilFuncSeparate(GL_FRONT_AND_BACK, GL_EQUAL, gl_portal_stencil_level, 0xFF);
-					//pglStencilFuncSeparate(GL_FRONT_AND_BACK, GL_GEQUAL, 0, 0xFF);
 					pglStencilOpSeparate(GL_FRONT_AND_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
 					pglDepthMask(GL_TRUE);
 					break;
@@ -2366,8 +2297,6 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 					break;
 				case HWD_PORTAL_DEPTH_SEGS:
 					// draw only to depth, only to current level of stencil
-					// also revert last stencil buffer write at this point
-					//RevertStencilBuffer();
 					pglDisable(GL_TEXTURE_2D);
 					pglEnable(GL_DEPTH_TEST);
 					pglDisable(GL_BLEND);
