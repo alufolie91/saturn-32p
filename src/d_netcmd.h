@@ -92,6 +92,8 @@ extern consvar_t cv_netstat;
 extern consvar_t cv_splats;
 #endif
 
+extern consvar_t cv_stackingboostflamecolor;
+
 extern consvar_t cv_countdowntime;
 extern consvar_t cv_runscripts;
 extern consvar_t cv_mute;

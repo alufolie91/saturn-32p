@@ -1267,6 +1267,9 @@ void D_RegisterClientCommands(void)
 #ifdef WALLSPLATS
 	CV_RegisterVar(&cv_splats);
 #endif
+	
+	// stacking boostflame color
+	CV_RegisterVar(&cv_stackingboostflamecolor);
 
 	// register these so it is saved to config
 	CV_RegisterVar(&cv_playername);

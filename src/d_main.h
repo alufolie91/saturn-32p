@@ -28,6 +28,7 @@ extern char srb2path[256]; //Alam: SRB2's Home
 extern boolean found_extra_kart; // for use in k_kart.c
 extern boolean found_extra2_kart; // for use in k_kart.c
 extern boolean found_kv_kart; // for use in k_kart.c
+extern boolean found_neptune_kart; // for use in k_kart.c
 
 extern boolean snw_speedo; // snowy speedometer check
 extern boolean clr_hud; // colour hud check
@@ -35,6 +36,8 @@ extern boolean big_lap; // bigger lap counter
 extern boolean big_lap_color; //bigger lap counter but colour
 extern boolean kartzspeedo; //kartZ speedo
 extern boolean statdp; //stat display for extended player setup
+extern boolean multisneaker_icon; // Extra icons for Sneakers
+extern boolean stackingeffect; // Booststacking effect
 
 extern boolean autoloading;
 extern boolean autoloaded;

@@ -34,6 +34,8 @@
 #include "b_bot.h"
 #include "p_slopes.h"
 
+#include "d_main.h" // stacking effect AAAAAAAAAAAAAAA
+
 #include "k_kart.h"
 
 // protos.
@@ -42,6 +44,8 @@
 #ifdef WALLSPLATS
 consvar_t cv_splats = {"splats", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
+
+consvar_t cv_stackingboostflamecolor = {"stacking_boostflamecolor", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 actioncache_t actioncachehead;
 
@@ -8149,7 +8153,7 @@ void P_MobjThinker(mobj_t *mobj)
 				P_RemoveMobj(mobj);
 				return;
 			}
-
+			
 			mobj->angle = mobj->target->angle;
 			P_MoveOrigin(mobj, mobj->target->x + P_ReturnThrustX(mobj, mobj->angle+ANGLE_180, mobj->target->radius),
 				mobj->target->y + P_ReturnThrustY(mobj, mobj->angle+ANGLE_180, mobj->target->radius), mobj->target->z);
@@ -8167,6 +8171,40 @@ void P_MobjThinker(mobj_t *mobj)
 					if (p->kartstuff[k_sneakertimer] > mobj->movecount)
 						P_SetMobjState(mobj, S_BOOSTFLAME);
 					mobj->movecount = p->kartstuff[k_sneakertimer];
+					
+					if (cv_stacking.value)
+					{
+						mobj->colorized = true; 
+						
+						if (cv_stackingboostflamecolor.value) // When stacking is on colorize effect based on stack count
+						{
+							switch(p->kartstuff[k_sneakerstack])
+							{
+								case 0:
+								case 1:
+									mobj->color = SKINCOLOR_FLAME;
+									break;
+								case 2:
+									mobj->color = SKINCOLOR_BLUEBERRY;
+									break;
+								case 3:
+									mobj->color = SKINCOLOR_PURPLE;
+									break;
+								case 4:
+									mobj->color = SKINCOLOR_MOONSLAM;
+									break;
+								case 5:
+									mobj->color = SKINCOLOR_WHITE;
+									break;
+								default:
+									mobj->color = SKINCOLOR_WHITE;
+									break;
+								
+							}
+						}
+						
+					}
+					
 				}
 			}
 
@@ -8185,6 +8223,21 @@ void P_MobjThinker(mobj_t *mobj)
 				P_Thrust(smoke, mobj->angle+FixedAngle(P_RandomRange(135, 225)<<FRACBITS), P_RandomRange(0, 8) * mobj->target->scale);
 			}
 			break;
+		case MT_BOOSTSTACK:	
+			if (!mobj->target || !mobj->target->health || (mobj->target->player && !mobj->target->player->kartstuff[k_totalstacks]))
+			{
+				P_RemoveMobj(mobj);
+				return;
+			}
+			// Thx 1ndev! (taken and modified from BoostStack)
+			P_MoveOrigin(mobj, mobj->target->x + FixedMul(cos(mobj->target->angle), FixedMul(30*FRACUNIT, mapobjectscale)), mobj->target->y + FixedMul(sin(mobj->target->angle), FixedMul(30*FRACUNIT, mapobjectscale)), mobj->target->z + mobj->target->spriteyoffset);
+			// visibility (usually for hyudoro)
+			mobj->flags2 = (mobj->flags2 & ~MF2_DONTDRAW)|(mobj->target->flags2 & MF2_DONTDRAW);
+			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP1)|(mobj->target->eflags & MFE_DRAWONLYFORP1);
+			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP2)|(mobj->target->eflags & MFE_DRAWONLYFORP2);
+			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP3)|(mobj->target->eflags & MFE_DRAWONLYFORP3);
+			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP4)|(mobj->target->eflags & MFE_DRAWONLYFORP4);
+			break;	
 		case MT_SPARKLETRAIL:
 			if (!mobj->target)
 			{
@@ -9330,7 +9383,7 @@ for (i = ((mobj->flags2 & MF2_STRONGBOX) ? strongboxamt : weakboxamt); i; --i) s
 
 						P_RemoveMobj(mobj);
 						return;
-					}
+					}			
 				default:
 					P_SetMobjState(mobj, mobj->info->xdeathstate); // will remove the mobj if S_NULL.
 					break;

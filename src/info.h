@@ -787,9 +787,12 @@ typedef enum sprite
 	// Xmas-specific sprites that don't fit aboxe
 	SPR_XMS4,
 	SPR_XMS5,
-
+	
 	// First person view sprites; this is a sprite so that it can be replaced by a specialized MD2 draw later
 	SPR_VIEW,
+	
+	// Booststackinh
+	SPR_BSSS, // Booststack
 
 	SPR_FIRSTFREESLOT,
 	SPR_LASTFREESLOT = SPR_FIRSTFREESLOT + NUMSPRITEFREESLOTS - 1,
@@ -4074,6 +4077,9 @@ typedef enum state
 	S_OPAQUESMOKE3,
 	S_OPAQUESMOKE4,
 	S_OPAQUESMOKE5,
+	
+	// Booststack
+	S_BOOSTSTACK,
 
 #ifdef SEENAMES
 	S_NAMECHECK,
@@ -4885,6 +4891,9 @@ typedef enum mobj_type
 	MT_TUMBLECOIN,
 
 	MT_KARMAFIREWORK,
+	
+	// Booststacking
+	MT_BOOSTSTACK, // Booststack
 
 #ifdef SEENAMES
 	MT_NAMECHECK,

@@ -78,6 +78,14 @@ consvar_t cv_darkitembox = {"darkitembox", "On", CV_SAVE, CV_OnOff, NULL, 0, NUL
 
 consvar_t cv_biglaps = {"biglaphud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //here for ppl who dont want to make 2 more patches for their custom hud
 
+consvar_t cv_multisneakericon = {"multisneakericon", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_stackingeffect = {"stacking_stackingeffect", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_stackingeffectscaling = {"stacking_stackingeffectscaling", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_coloredsneakertrail = {"sneakertrailcolor", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
 // gamespeed is cc (0 for easy, 1 for normal, 2 for hard, 3 for expert)
 // franticitems is Frantic Mode items, bool
@@ -1368,6 +1376,15 @@ CV_RegisterVar(&cv_DJAITBL10);
 	CV_RegisterVar(&cv_mouseturn);
 	CV_RegisterVar(&cv_spectatestrafe);
 	
+	//multisneakericon
+	CV_RegisterVar(&cv_multisneakericon);
+	
+	//Stackingeffect
+	CV_RegisterVar(&cv_stackingeffect);
+	CV_RegisterVar(&cv_stackingeffectscaling);
+	
+	//Colored trails
+	CV_RegisterVar(&cv_coloredsneakertrail);
 }
 
 //}
@@ -3395,14 +3412,11 @@ void K_MomentumToFacing(player_t *player)
 }
 
 
-//Rescale oh boy
+//Rescale oh boy based on old version of blib
 static fixed_t K_BoostRescale(fixed_t value,fixed_t oldmin,fixed_t oldmax,fixed_t newmin,fixed_t newmax)
 {
 		return newmin +  FixedMul(FixedDiv( value-oldmin , oldmax-oldmin), newmax-newmin);
 }
-
-
-
 
 // sets k_boostpower, k_speedboost, and k_accelboost to whatever we need it to be
 static void K_GetKartBoostPower(player_t *player)
@@ -3412,6 +3426,7 @@ static void K_GetKartBoostPower(player_t *player)
 	
 	fixed_t sneakeraccelboost = 0;
 	fixed_t sneakerspeedboost = 0;
+	INT32 sneakerstack = player->kartstuff[k_sneakerstack];
 		
 	fixed_t invincibilityaccelboost = 0;
 	fixed_t invincibilityspeedboost = 0;
@@ -3437,8 +3452,6 @@ static void K_GetKartBoostPower(player_t *player)
 	fixed_t intermediate = 0;
 	
 	fixed_t harddiminish = 0;
-	
-	
 		
 	int s;
 	fixed_t speedtablesum = 0;
@@ -3448,6 +3461,7 @@ static void K_GetKartBoostPower(player_t *player)
 	fixed_t cmpfunc (const void * a, const void * b) {
    		return ( *(fixed_t*)a - *(fixed_t*)b );
 	}
+	
 	
 	
 	
@@ -3487,128 +3501,131 @@ static void K_GetKartBoostPower(player_t *player)
 			switch (gamespeed)
 			{
 				case 0:
-					sneakerspeedboost = max(speedboost, cv_sneakerspeedeasy.value)* player->kartstuff[k_sneakerstack];
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedeasy.value)* (sneakerstack ? sneakerstack : 1);
 					break;
 				case 2:
-					sneakerspeedboost = max(speedboost, cv_sneakerspeedhard.value)* player->kartstuff[k_sneakerstack]; 
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedhard.value)* (sneakerstack ? sneakerstack : 1); 
 					break;
 				case 3:
-					sneakerspeedboost = max(speedboost, cv_sneakerspeedexpert.value)* player->kartstuff[k_sneakerstack]; 
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedexpert.value)* (sneakerstack ? sneakerstack : 1); 
 					break;
 				default:
-					sneakerspeedboost = max(speedboost, cv_sneakerspeednormal.value) * player->kartstuff[k_sneakerstack];
+					sneakerspeedboost = max(speedboost, cv_sneakerspeednormal.value) * (sneakerstack ? sneakerstack : 1);
 					break;
 			}
-				sneakeraccelboost = accelboost + max(accelboost, cv_sneakeraccel.value); // + 800%  524288
-				
-			
+				sneakeraccelboost = max(accelboost, cv_sneakeraccel.value); // + 800%  524288
 		}
-			if (player->kartstuff[k_invincibilitytimer]) // Invincibility
-			{
-				invincibilityspeedboost = max(speedboost, cv_invincibilityspeed.value); // + 37.5% 24576
-				invincibilityaccelboost = max(accelboost, cv_invincibilityaccel.value); // + 300% 196608 
-				player->kartstuff[k_invincibilitystack] = 1;
-			}
-			else
-			{
-				player->kartstuff[k_invincibilitystack] = 0;
-			}
-
-			if (player->kartstuff[k_growshrinktimer] > 0) // Grow plus blib buffs
-			{
-				growspeedboost = max(speedboost, cv_growspeed.value);
-				growaccelboost = max(accelboost, cv_growaccel.value);
-				growboostmult = max(boostmult, cv_growmult.value);
-				//boostmult = growboostmult;
-			}
-			else
-			{
-				growboostmult = 0;
-			}
-
-			if (player->kartstuff[k_driftboost]) // Drift Boost
-			{
-
-				driftspeedboost = max(speedboost, cv_driftspeed.value); // + 25% 16384
-				driftaccelboost = max(accelboost, cv_driftaccel.value); // + 400% 262144
-				player->kartstuff[k_driftstack] = 1;
-			}										
-			else
-			{
-				player->kartstuff[k_driftstack] = 0;
-			}
-
-			if (player->kartstuff[k_startboost]) // Startup Boost
-			{
-				startspeedboost = max(speedboost, cv_startspeed.value); // + 25% 16384
-				startaccelboost = max(accelboost, cv_startaccel.value); // + 300% 393216 
-				player->kartstuff[k_startstack] = 1;
-			}
-			else
-			{
-				player->kartstuff[k_startstack] = 0;
-			}
+		else
+		{
+			player->kartstuff[k_sneakerstack] = 0;
+		}
 			
-			if (player->kartstuff[k_hyudorotimer])
-			{
-				hyudorospeedboost = max(speedboost, cv_hyuudorospeed.value);
-				hyudoroaccelboost = max(accelboost, cv_hyuudoroaccel.value);
-			}
-			
-			if (player->kartstuff[k_ssspeedboost] || player->kartstuff[k_ssaccelboost])
-			{
-				player->kartstuff[k_ssstack] = 1;
-			}
-			else
-			{
-				player->kartstuff[k_ssstack] = 0;
-			}
-		
-			if (player->kartstuff[k_trickspeedboost] || player->kartstuff[k_trickaccelboost])
-			{
-				player->kartstuff[k_trickstack] = 1;
-			}
-			else
-			{
-				player->kartstuff[k_trickstack] = 0;
-			}
-		
-		
-				fixed_t speedtable[] = { hyudorospeedboost, player->kartstuff[k_slopespeedboost] ,player->kartstuff[k_ssspeedboost],startspeedboost, driftspeedboost,player->kartstuff[k_trickspeedboost], growspeedboost, sneakerspeedboost, invincibilityspeedboost };
-				fixed_t acceltable[] = { hyudoroaccelboost, player->kartstuff[k_slopeaccelboost] ,player->kartstuff[k_ssaccelboost],growaccelboost, startaccelboost,player->kartstuff[k_trickaccelboost], invincibilityaccelboost, driftaccelboost, sneakeraccelboost };
-				fixed_t speedsize = sizeof(speedtable) / sizeof(speedtable[0]);
-				fixed_t accelsize = sizeof(speedtable) / sizeof(speedtable[0]);
-					
-				qsort(speedtable, speedsize, sizeof(fixed_t), cmpfunc);
-				qsort(acceltable, accelsize, sizeof(fixed_t), cmpfunc);
-				
-				for( s = 0 ; s <  speedsize; s++ )
-				{
-					speedtablesum += speedtable[s];
-				}
-		
-		
-				for( a = 0 ; a <  accelsize; a++ )
-				{
-					acceltablesum += acceltable[a];
-				}
-				
-				finalboostmult = boostmultbase - growboostmult;
-				
-				speedboost = speedtablesum;
-				accelboost = acceltablesum;
-				boostmult = finalboostmult;
-				player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack] + player->kartstuff[k_trickstack];
-				
-				//speedboost = startspeedboost + driftspeedboost + growspeedboost + sneakerspeedboost + invincibilityspeedboost;
-				//accelboost = growaccelboost + startaccelboost + invincibilityaccelboost + driftaccelboost + sneakeraccelboost;
-				
-				//boostmult = max(boostmult, growboostmult)
-				
-				
-			
+		if (player->kartstuff[k_invincibilitytimer]) // Invincibility
+		{
+			invincibilityspeedboost = max(speedboost, cv_invincibilityspeed.value); // + 37.5% 24576
+			invincibilityaccelboost = max(accelboost, cv_invincibilityaccel.value); // + 300% 196608 
+			player->kartstuff[k_invincibilitystack] = 1;
+		}
+		else
+		{
+			player->kartstuff[k_invincibilitystack] = 0;
+		}
+
+		if (player->kartstuff[k_growshrinktimer] > 0) // Grow plus blib buffs
+		{
+			growspeedboost = max(speedboost, cv_growspeed.value);
+			growaccelboost = max(accelboost, cv_growaccel.value);
+			growboostmult = max(boostmult, cv_growmult.value);
+			//boostmult = growboostmult;
+		}
+		else
+		{
+			growboostmult = 0;
+		}
+
+		if (player->kartstuff[k_driftboost]) // Drift Boost
+		{
+
+			driftspeedboost = max(speedboost, cv_driftspeed.value); // + 25% 16384
+			driftaccelboost = max(accelboost, cv_driftaccel.value); // + 400% 262144
+			player->kartstuff[k_driftstack] = 1;
+		}										
+		else
+		{
+			player->kartstuff[k_driftstack] = 0;
+		}
+
+		if (player->kartstuff[k_startboost]) // Startup Boost
+		{
+			startspeedboost = max(speedboost, cv_startspeed.value); // + 25% 16384
+			startaccelboost = max(accelboost, cv_startaccel.value); // + 300% 393216 
+			player->kartstuff[k_startstack] = 1;
+		}
+		else
+		{
+			player->kartstuff[k_startstack] = 0;
 		}
 		
+		if (player->kartstuff[k_hyudorotimer])
+		{
+			hyudorospeedboost = max(speedboost, cv_hyuudorospeed.value);
+			hyudoroaccelboost = max(accelboost, cv_hyuudoroaccel.value);
+		}
+		
+		if (player->kartstuff[k_ssspeedboost] || player->kartstuff[k_ssaccelboost])
+		{
+			player->kartstuff[k_ssstack] = 1;
+		}
+		else
+		{
+			player->kartstuff[k_ssstack] = 0;
+		}
+		
+		if (player->kartstuff[k_trickspeedboost] || player->kartstuff[k_trickaccelboost])
+		{
+			player->kartstuff[k_trickstack] = 1;
+		}
+		else
+		{
+			player->kartstuff[k_trickstack] = 0;
+		}
+		
+		
+		// The idea here is to get every boost, put it in a table, sort by strengeth and then add them all together.
+		fixed_t speedtable[] = { hyudorospeedboost, player->kartstuff[k_slopespeedboost] ,player->kartstuff[k_ssspeedboost],startspeedboost, driftspeedboost,player->kartstuff[k_trickspeedboost], growspeedboost, sneakerspeedboost, invincibilityspeedboost };
+		fixed_t acceltable[] = { hyudoroaccelboost, player->kartstuff[k_slopeaccelboost] ,player->kartstuff[k_ssaccelboost],growaccelboost, startaccelboost,player->kartstuff[k_trickaccelboost], invincibilityaccelboost, driftaccelboost, sneakeraccelboost };
+		fixed_t speedsize = sizeof(speedtable) / sizeof(speedtable[0]);
+		fixed_t accelsize = sizeof(speedtable) / sizeof(speedtable[0]);
+			
+		qsort(speedtable, speedsize, sizeof(fixed_t), cmpfunc);
+		qsort(acceltable, accelsize, sizeof(fixed_t), cmpfunc);
+		
+		for( s = 0 ; s <  speedsize; s++ )
+		{
+			speedtablesum += speedtable[s];
+		}
+		
+		
+		for( a = 0 ; a <  accelsize; a++ )
+		{
+			acceltablesum += acceltable[a];
+		}
+		
+		finalboostmult = boostmultbase - growboostmult;
+		
+		speedboost = speedtablesum;
+		accelboost = acceltablesum;
+		boostmult = finalboostmult;
+		player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack] + player->kartstuff[k_trickstack];
+		
+		//speedboost = startspeedboost + driftspeedboost + growspeedboost + sneakerspeedboost + invincibilityspeedboost;
+		//accelboost = growaccelboost + startaccelboost + invincibilityaccelboost + driftaccelboost + sneakeraccelboost;
+		
+		//boostmult = max(boostmult, growboostmult)
+			
+			
+			
+	}
 	//Vanilla speed stuff	
 	else
 	{
@@ -3664,13 +3681,12 @@ static void K_GetKartBoostPower(player_t *player)
 	// just take the highest we want instead
 
 	
-		player->kartstuff[k_boostpower] = boostpower;
+	player->kartstuff[k_boostpower] = boostpower;
 	if (cv_stacking.value)
 	{
 		
 		//This here is the boostmult, its implemented as an adjustment to boostpower
 		player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost]);
-		//player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost])
 		
 		if (speedboost > 0 && player->kartspeed < 6) {
 			//Apply a bonus top speed to lower speeds only while boosting
@@ -3680,7 +3696,7 @@ static void K_GetKartBoostPower(player_t *player)
 			}
 			else
 			{
-				boostincrease = 7 - player->kartspeed	;
+				boostincrease = 7 - player->kartspeed;
 				player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + ((FRACUNIT*boostincrease)/100);
 			}
 
@@ -3688,15 +3704,8 @@ static void K_GetKartBoostPower(player_t *player)
 	}
 
 	
-			//Stacking
-		if (cv_stacking.value)
-		{
-			if (!player->kartstuff[k_sneakertimer])
-			{
-				player->kartstuff[k_sneakerstack] = 0;
-			}
-		}
-	
+
+	//Diminish based on old version of blib diminsh calcs.
 	if (cv_stacking.value && cv_stackingdim.value)
 	{	
 		if (gamespeed <= 1 && speedboost > FRACUNIT/2)
@@ -3722,7 +3731,7 @@ static void K_GetKartBoostPower(player_t *player)
 		if (speedboost > player->kartstuff[k_speedboost])
 			player->kartstuff[k_speedboost] = speedboost;
 	
-		//brakemod. slowdown on braking or sliptide
+		//brakemod. slowdown on braking or sliptide (based on version from booststack)
 		else if (cv_stacking.value && cv_stackingbrakemod.value && ((player->kartstuff[k_aizdriftstrat] && abs(player->kartstuff[k_drift]) < 5) || (player->cmd.buttons & BT_BRAKE)))
         	player->kartstuff[k_speedboost] = max(speedboost - cv_stackingbrakemod.value, min(player->kartstuff[k_speedboost], 3*FRACUNIT/8));
 		else
@@ -5040,6 +5049,13 @@ void K_SpawnBoostTrail(player_t *player)
 		flame->angle = travelangle;
 		flame->fuse = TICRATE*2;
 		flame->destscale = player->mo->scale;
+		
+		if (cv_coloredsneakertrail.value)
+		{
+			flame->colorized = true;
+			flame->color = player->skincolor;
+		}
+		
 		P_SetScale(flame, player->mo->scale);
 		// not K_MatchGenericExtraFlags so that a stolen sneaker can be seen
 		K_FlipFromObject(flame, player->mo);
@@ -6781,6 +6797,29 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		fast->momz = 3*player->mo->momz/4;
 		P_SetTarget(&fast->target, player->mo); // easier lua access
 		K_MatchGenericExtraFlags(fast, player->mo);
+	}
+	
+	// Stacking Effect
+	if (stackingeffect && cv_stacking.value && cv_stackingeffect.value && player->kartstuff[k_totalstacks] > 1)
+	{
+		//Thanks to 1ndev for code used for booststack->scale and boosttack->frame! (taken and modified from BoostStack)
+		mobj_t  *booststack;
+		
+		booststack = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_BOOSTSTACK);
+		booststack->old_x = player->mo->old_x;
+		booststack->old_y = player->mo->old_y;
+		booststack->old_z = player->mo->old_z;
+		P_SetTarget(&booststack->target, player->mo);
+		booststack->frame = states[S_BOOSTSTACK].frame + (leveltime / 3) % 5; //Leveltime based animation
+		
+		if (cv_stackingeffectscaling.value) //scale based on stack amount
+			booststack->scale = FixedMul(FRACUNIT + FixedMul(2*FRACUNIT - FRACUNIT, FixedDiv(min(player->kartstuff[k_totalstacks],4)*FRACUNIT, 4*FRACUNIT)), mapobjectscale);
+		else
+			booststack->scale = FixedMul(FRACUNIT + FixedMul(2*FRACUNIT - FRACUNIT, FixedDiv(2*FRACUNIT, 4*FRACUNIT)), mapobjectscale);
+
+		booststack->angle = player->mo->angle + ANGLE_90;
+		booststack->color = player->mo->color;
+		
 	}
 
 	if (player->playerstate == PST_DEAD || player->kartstuff[k_respawn] > 1) // Ensure these are set correctly here
@@ -8797,6 +8836,7 @@ static patch_t *kp_itemmulsticker[2];
 static patch_t *kp_itemx;
 
 static patch_t *kp_sneaker[2];
+static patch_t *kp_multsneaker[2];
 static patch_t *kp_rocketsneaker[2];
 static patch_t *kp_invincibility[13];
 static patch_t *kp_banana[2];
@@ -9004,6 +9044,13 @@ void K_LoadKartHUDGraphics(void)
 	kp_itemx = 					W_CachePatchName("K_ITX", PU_HUDGFX);
 
 	kp_sneaker[0] =				W_CachePatchName("K_ITSHOE", PU_HUDGFX);
+	
+	if (multisneaker_icon) // Multisneaker icon
+	{
+		kp_multsneaker[0] = W_CachePatchName("K_ITSHO2", PU_HUDGFX);
+		kp_multsneaker[1] = W_CachePatchName("K_ITSHO3", PU_HUDGFX);
+	}
+	
 	kp_rocketsneaker[0] =		W_CachePatchName("K_ITRSHE", PU_HUDGFX);
 
 	sprintf(buffer, "K_ITINVx");
