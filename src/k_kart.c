@@ -4814,8 +4814,8 @@ static void K_StretchPlayerGravity(player_t *p)
 	fixed_t rzsDiv = 1;
 	fixed_t slamDiv = 1;
 
-    fixed_t dxs = p->mo->realxscale;
-    fixed_t dys = p->mo->realyscale;
+    fixed_t dxs = p->mo->scale;
+    fixed_t dys = p->mo->scale;
     //boolean gravSlamming = false;
     //fixed_t impactFactor = 0;
 	stretchScaleFactor = FixedDiv(FRACUNIT*60, cv_gravstretch.value);
@@ -8294,10 +8294,7 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
 	if (cv_gravstretch.value > 13107)
 		K_StretchPlayerGravity(player);
 	else
-	{
-		player->mo->spritexscale = player->mo->realxscale;
-		player->mo->spriteyscale = player->mo->realyscale;
-	}
+		player->mo->spritexscale = player->mo->spriteyscale = player->mo->scale;
 
 	boolean usedist = false;
 
