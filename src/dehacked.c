@@ -6916,6 +6916,9 @@ static const char *const STATE_LIST[] = { // array length left dynamic for sanit
 	"S_OPAQUESMOKE3",
 	"S_OPAQUESMOKE4",
 	"S_OPAQUESMOKE5",
+	
+	//Booststack
+	"S_BOOSTSTACK",
 
 #ifdef SEENAMES
 	"S_NAMECHECK",
@@ -7710,6 +7713,9 @@ static const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for s
 	"MT_TUMBLECOIN",
 
 	"MT_KARMAFIREWORK",
+	
+	//Booststack effect
+	"MT_BOOSTSTACK",
 
 #ifdef SEENAMES
 	"MT_NAMECHECK",
