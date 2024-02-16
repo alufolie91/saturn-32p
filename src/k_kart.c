@@ -3790,7 +3790,7 @@ static void K_ChainOffroadNerf(player_t *player)
 	}
 	
 	if (player->kartstuff[k_spinouttimer] > 0)
-		player->kartstuff[k_timerstore] = 0
+		player->kartstuff[k_timerstore] = 0;
 	
 	//CONS_Printf(M_GetText("offroadtimerstore: %d\n"), player->kartstuff[k_timerstore]);
 		
