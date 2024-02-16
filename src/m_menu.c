@@ -2120,24 +2120,25 @@ static menuitem_t OP_NeptuneMenu[] =
 	//{IT_HEADER, NULL, "Sneaker", NULL, 10},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension", 			&cv_sneakerextend, 	 	10},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension Type", 		&cv_sneakerextendtype, 	15},
-	{IT_STRING | IT_CVAR, NULL, "Sneaker Stack", 				&cv_sneakerstack,		20},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Chain Offroad", 		&cv_chainoffroad,	 	20},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Stack", 				&cv_sneakerstack,		25},
 	
 	//{IT_HEADER, NULL, "Mini-Turbo", NULL, 30},
-	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	30},
-	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	35},
-	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	40},
-	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	45},
+	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	35},
+	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	40},
+	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	45},
+	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	50},
 	
 	//{IT_HEADER, NULL, "Stacking", NULL, 55},
-	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	55},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		60},
+	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	60},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		65},
 	
-	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			70},
-	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		75},
+	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			75},
+	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		80},
 	
 	//{IT_HEADER, NULL, "Items", NULL, 70},
-	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			85},
-	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			90},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			90},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			95},
 	
 
 
@@ -2149,6 +2150,7 @@ static const char* OP_NeptuneTooltips[] =
 	//NULL,
 	"Allow sneakers be extended by mini-turbos.",
 	"How should sneaker extentension be treated?\nBS holds the sneaker until mini-turbo is over.\nZBL ties mini-turbo and sneakers together.",
+	"Should extended sneakers past regular duration allow to mow offroad?",
 	"Number of times sneakers stack together.",
 	//NULL,
 	"Allow mini-turbos to add together",

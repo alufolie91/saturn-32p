@@ -388,6 +388,7 @@ consvar_t cv_dualjawz = 			{"dualjawz", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, N
 static CV_PossibleValue_t extensiontype_cons_t[] = {{1, "bs"}, {2, "zbl"}, {0, NULL}};
 consvar_t cv_sneakerextend = 				{"sneakerextend", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sneakerextendtype = {"sneakerextendtype", "zbl", CV_NETVAR|CV_CHEAT, extensiontype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_chainoffroad  = {"sneakerchainoffroad", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
 //additiveminiturbos
@@ -414,7 +415,6 @@ consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, s
 
 static CV_PossibleValue_t stackingbrakemod_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
 consvar_t cv_stackingbrakemod = {"stackingbrakemod", "0.05", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingbrakemod_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
 
 //Speed of boosts
 static CV_PossibleValue_t speed_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
