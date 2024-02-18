@@ -1485,7 +1485,8 @@ void D_SRB2Main(void)
 			stackingeffect = true;
 
 		// Nametag stuffs
-		if (W_CheckMultipleLumps("NTLINE", "NTLINEV","NTSP","NTWH", NULL)) 
+		// Remove HP if you plan to use for vanilla-compat client
+		if (W_CheckMultipleLumps("NTLINE","NTLINEV","NTHP","NTSP","NTWH", NULL)) 
 			nametaggfx = true;
 	}
 
