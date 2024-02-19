@@ -508,6 +508,20 @@ extern consvar_t cv_skipmapcheck;
 
 extern consvar_t cv_sleep;
 
+extern consvar_t cv_nametag;
+extern consvar_t cv_nametagtrans;
+extern consvar_t cv_nametagfacerank;
+extern consvar_t cv_nametagmaxplayers;
+extern consvar_t cv_nametagmaxlenght;
+//extern consvar_t cv_nametagscaling;
+extern consvar_t cv_nametagdist;
+extern consvar_t cv_showownnametag;
+extern consvar_t cv_smallnametags;
+extern consvar_t cv_nametagrestat;
+extern consvar_t cv_nametaghop;
+extern consvar_t cv_nametagscore;
+extern consvar_t cv_nametaghealth;
+
 #define SKINSELECTSPIN_PAIN 25
 extern consvar_t cv_skinselectspin;
 

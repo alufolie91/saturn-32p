@@ -362,11 +362,16 @@ menu_t OP_NeptuneTwoDef;
 
 // Bird
 menu_t OP_BirdDef;
+
 // Stuff, yknow.
 menu_t OP_ForkedBirdDef;
 menu_t OP_LocalSkinDef;
 menu_t OP_TiltDef;
 menu_t OP_AdvancedBirdDef;
+
+// Chaotic
+menu_t OP_NametagDef;
+//menu_t OP_OGLShadowsDef;
 
 #define numaddonsshown 4
 
@@ -464,6 +469,7 @@ static CV_PossibleValue_t map_cons_t[] = {
 	{0, NULL}
 };
 consvar_t cv_nextmap = {"nextmap", "1", CV_HIDEN|CV_CALL, map_cons_t, Nextmap_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nextmapaddon = {"nextmapaddon", "1", CV_HIDEN|CV_CALL, NULL, Nextmap_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t skins_cons_t[MAXSKINS+1] = {{1, DEFAULTSKIN}};
 consvar_t cv_chooseskin = {"chooseskin", DEFAULTSKIN, CV_HIDEN|CV_CALL, skins_cons_t, Nextmap_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -1157,7 +1163,7 @@ enum
 // Prefix: OP_
 static menuitem_t OP_MainMenu[] =
 {
-	{IT_SUBMENU|IT_STRING,		NULL, "Control Setup...",		&OP_ControlsDef,			 0},
+	{IT_SUBMENU|IT_STRING,		NULL, "Control Setup...",		&OP_ControlsDef,			  0},
 
 	{IT_SUBMENU|IT_STRING,		NULL, "Video Options...",		&OP_VideoOptionsDef,		 20},
 	{IT_SUBMENU|IT_STRING,		NULL, "Sound Options...",		&OP_SoundOptionsDef,		 30},
@@ -1166,15 +1172,15 @@ static menuitem_t OP_MainMenu[] =
 	{IT_SUBMENU|IT_STRING,		NULL, "Gameplay Options...",	&OP_GameOptionsDef,			 60},
 	{IT_SUBMENU|IT_STRING,		NULL, "Server Options...",		&OP_ServerOptionsDef,		 70},
 
-	{IT_SUBMENU|IT_STRING,		NULL, "Data Options...",		&OP_DataOptionsDef,			90},
+	{IT_SUBMENU|IT_STRING,		NULL, "Data Options...",		&OP_DataOptionsDef,			 90},
 
 	{IT_CALL|IT_STRING,			NULL, "Tricks & Secrets (F1)",	M_Manual,					110},
 	{IT_CALL|IT_STRING,			NULL, "Play Credits",			M_Credits,					120},
 
 	{IT_SUBMENU|IT_STRING,		NULL, "Saturn Options...",		&OP_SaturnDef,				140},
 
-	{IT_SUBMENU|IT_STRING,		NULL, "Bird",	&OP_BirdDef,	150},
-	{IT_CALL|IT_STRING,		NULL, "Local Skin Options...",	M_LocalSkinMenu,	160},
+	{IT_SUBMENU|IT_STRING,		NULL, "Bird",	&OP_BirdDef,								150},
+	{IT_CALL|IT_STRING,			NULL, "Local Skin Options...",	M_LocalSkinMenu,			160},
 };
 
 static menuitem_t OP_ControlsMenu[] =
@@ -2068,13 +2074,15 @@ static menuitem_t OP_SaturnMenu[] =
 	
 	{IT_STRING | IT_CVAR, NULL, "Show Cecho Messages", 					&cv_cechotoggle, 			90},
 	{IT_STRING | IT_CVAR, NULL, "Show Localskin Menus", 				&cv_showlocalskinmenus, 	95},
-	
-	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		 	105},
+	{IT_STRING | IT_SUBMENU, NULL, "Nametags...", 						&OP_NametagDef, 			100},
+	{IT_STRING | IT_CVAR, NULL, "Native keyboard layout", 				&cv_nativekeyboard, 		110},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Sprite Distortion...", 			&OP_PlayerDistortDef,	 	115},
-	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		 	120},
+	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		 	120},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,		130}, // uwu
+	{IT_SUBMENU|IT_STRING,	NULL,	"Sprite Distortion...", 			&OP_PlayerDistortDef,	 	130},
+	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		 	135},
+
+	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,		145}, // uwu
 };
 
 static const char* OP_SaturnTooltips[] =
@@ -2095,6 +2103,8 @@ static const char* OP_SaturnTooltips[] =
 	"Minimize the player icons on the minimap.",
 	"Show the big Cecho Messages.",
 	"Show Localskin Menus.",
+	"Nametag Options.",
+	"Use your native Keyboard Layout.",
 	"Disables the flicker effect on Midnight Channel.",
 	"Options for sprite distortion effects.",
 	"Move position of HUD elements.",
@@ -2117,6 +2127,10 @@ enum
 	sm_lapemblem,
 	sm_mapnames,
 	sm_smallmap,
+	sm_cechotogle,
+	sm_showlocalskin,
+	sm_nametagmen,
+	sm_nativkey,
 	sm_pisschannel,
 	sm_distortionmenu,
 	sm_hudoffsets,
@@ -2428,6 +2442,57 @@ static menuitem_t OP_ForkedBirdMenu[] =
 	{IT_STRING | IT_CALL, NULL, "Apply to Yourself", M_LocalSkinChange, 160},
 	{IT_STRING | IT_CVAR, NULL, "Lua Immersion", &cv_luaimmersion, 170},
 };
+
+static menuitem_t OP_NametagMenu[] =
+{
+	{IT_HEADER, NULL, "Nametag", NULL, 0},
+	{IT_STRING | IT_CVAR, NULL, "Nametag", &cv_nametag, 10},
+	{IT_STRING | IT_CVAR, NULL, "Show Char image in Nametag", &cv_nametagfacerank, 20},
+	{IT_STRING | IT_CVAR, NULL, "Show Own Nametag", &cv_showownnametag, 30},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Max distance", &cv_nametagdist, 40},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Max Display Players", &cv_nametagmaxplayers, 50},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Transparency", &cv_nametagtrans, 60},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Score", &cv_nametagscore, 70},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Restat", &cv_nametagrestat, 80},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Health", &cv_nametaghealth, 90},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Hop", &cv_nametaghop, 100},
+	{IT_STRING | IT_CVAR, NULL, "Small Nametags", &cv_smallnametags, 110},
+	//{IT_STRING | IT_CVAR, NULL, "Nametag Scaling", &cv_nametagscaling, 70}
+};
+
+static const char* OP_NametagTooltips[] =
+{
+	NULL,
+	"Enable nametags in game.",
+	"Show character icon in nametag.",
+	"Show your own nametag in game.",
+	"Distance nametags are visible.",
+	"Maximum amount of nametags on screen.",
+	"Transparency of nametags.",
+	"Show player score in nametag.",
+	"Show stats in nametags.",
+	"Show health in nametags if used by script.",
+	"Enable Saltyhop support for nametags.",
+	"Alternative smaller nametags.",
+};
+
+enum
+{
+	nt_header,
+	nt_nametag,
+	nt_ntchar,
+	nt_owntag,
+	nt_maxdist,
+	nt_maxplayer,
+	nt_nttrans,
+	nt_ntpscore,
+	nt_ntrestat,
+	nt_nthealth,
+	nt_nthop,
+	nt_smol,
+};
+
+
 
 static menuitem_t OP_TiltMenu[] =
 {
@@ -3052,6 +3117,8 @@ menu_t OP_HudOffsetDef = DEFAULTSCROLLSTYLE(NULL, OP_HudOffsetMenu, &OP_SaturnDe
 menu_t OP_SaturnCreditsDef = DEFAULTMENUSTYLE(NULL, OP_SaturnCreditsMenu, &OP_SaturnDef, 30, 10);
 
 menu_t OP_BirdDef = DEFAULTMENUSTYLE(NULL, OP_BirdMenu, &OP_MainDef, 30, 30);
+menu_t OP_NametagDef = DEFAULTMENUSTYLE(NULL, OP_NametagMenu, &OP_SaturnDef, 30, 60);
+
 menu_t OP_TiltDef = DEFAULTMENUSTYLE(NULL, OP_TiltMenu, &OP_BirdDef, 30, 60);
 menu_t OP_AdvancedBirdDef = DEFAULTMENUSTYLE(NULL, OP_AdvancedBirdMenu, &OP_BirdDef, 30, 60);
 
@@ -3391,6 +3458,12 @@ void Saturn_menu_Onchange(void)
 	
 	OP_SaturnMenu[sm_coloritem].status = status;
 	OP_SaturnMenu[sm_colorhud_customcolor].status = status;
+}
+
+void Nametag_menu_Onchange(void) 
+{
+	if (cv_smallnametags.value || (!nametaggfx))
+		OP_NametagMenu[nt_ntchar].status = IT_GRAYEDOUT;
 }
 
 // ==========================================================================
@@ -4647,6 +4720,9 @@ void M_Init(void)
 		OP_SaturnMenu[sm_coloritem].status = IT_GRAYEDOUT;
 		OP_SaturnMenu[sm_colorhud_customcolor].status = IT_GRAYEDOUT;
 	}
+	
+	if (!nametaggfx)
+		OP_NametagMenu[nt_ntchar].status = IT_GRAYEDOUT;
 
 	if (!multisneaker_icon){
 		OP_NeptuneTwoMenu[pmt_multisneaker].status = IT_GRAYEDOUT;
@@ -5173,11 +5249,9 @@ static void M_DrawGenericMenu(void)
 			W_CachePatchName("M_CURSOR", PU_CACHE));
 		V_DrawString(currentMenu->x, cursory, lowercase|highlightflags, currentMenu->menuitems[itemOn].text);
 	}
-	
-	
+
 	// dumb hack
 	// tooltips
-	
 	if (currentMenu == &OP_ControlsDef)
 	{
 		if (!(OP_ControlsTooltips[itemOn] == NULL)) 
@@ -5187,7 +5261,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_MouseOptionsDef)
 	{
 		if (!(OP_MouseTooltips[itemOn] == NULL)) 
@@ -5197,7 +5271,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_VideoOptionsDef)
 	{
 		if (!(OP_VideoTooltips[itemOn] == NULL)) 
@@ -5207,7 +5281,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_SoundOptionsDef)
 	{
 		if (!(OP_SoundTooltips[itemOn] == NULL)) 
@@ -5217,7 +5291,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_SoundAdvancedDef)
 	{
 		if (!(OP_SoundAdvancedTooltips[itemOn] == NULL)) 
@@ -5227,7 +5301,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_ExpOptionsDef)
 	{
 		if (!(OP_ExpTooltips[itemOn] == NULL)) 
@@ -5237,7 +5311,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_ChatOptionsDef)
 	{
 		if (!(OP_ChatOptionsTooltips[itemOn] == NULL)) 
@@ -5248,8 +5322,6 @@ static void M_DrawGenericMenu(void)
 		}
 	}
 	
-	
-		
 	if (currentMenu == &OP_GameOptionsDef)
 	{
 		if (!(OP_GameTooltips[itemOn] == NULL)) 
@@ -5259,8 +5331,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
-	
+
 	if (currentMenu == &OP_ServerOptionsDef)
 	{
 		if (!(OP_ServerOptionsTooltips[itemOn] == NULL)) 
@@ -5270,8 +5341,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
-	
+
 	if (currentMenu == &OP_AdvServerOptionsDef)
 	{
 		if (!(OP_AdvServerOptionsTooltips[itemOn] == NULL)) 
@@ -5282,9 +5352,6 @@ static void M_DrawGenericMenu(void)
 		}
 	}
 	
-	
-	
-		
 	if (currentMenu == &OP_PlayerDistortDef)
 	{
 		if (!(OP_PlayerDistortTooltips[itemOn] == NULL)) 
@@ -5294,10 +5361,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
-	
-	
-	
+
 	if (currentMenu == &OP_SaturnCreditsDef) // C:
 	{
 		if (!(OP_CreditTooltips[itemOn] == NULL)) 
@@ -5307,7 +5371,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_BirdDef)
 	{
 		if (!(OP_BirdTooltips[itemOn] == NULL)) 
@@ -5317,7 +5381,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_TiltDef)
 	{
 		if (!(OP_TiltTooltips[itemOn] == NULL)) 
@@ -5327,7 +5391,7 @@ static void M_DrawGenericMenu(void)
 				coolalphatimer--;
 		}
 	}
-	
+
 	if (currentMenu == &OP_AdvancedBirdDef)
 	{
 		if (!(OP_AdvancedBirdTooltips[itemOn] == NULL)) 
@@ -5338,7 +5402,15 @@ static void M_DrawGenericMenu(void)
 		}
 	}
 	
-	
+	if (currentMenu == &OP_NametagDef)
+	{
+		if (!(OP_NametagTooltips[itemOn] == NULL)) 
+		{
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_NametagTooltips[itemOn], coolalphatimer);
+			if (coolalphatimer > 0 && interpTimerHackAllow)
+				coolalphatimer--;
+		}
+	}
 }
 
 static void M_DrawGenericBackgroundMenu(void)
@@ -5348,8 +5420,6 @@ static void M_DrawGenericBackgroundMenu(void)
 }
 
 #define scrollareaheight 72
-
-
 
 // note that alphakey is multiplied by 2 for scrolling menus to allow greater usage in UINT8 range.
 static void M_DrawGenericScrollMenu(void)
@@ -5495,8 +5565,6 @@ static void M_DrawGenericScrollMenu(void)
 		}
 	}
 #endif
-	
-	
 	
 	if (currentMenu == &OP_SaturnDef)
 	{

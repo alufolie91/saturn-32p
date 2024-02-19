@@ -5,16 +5,27 @@
 ///        All of the SRB2kart-unique stuff.
 
 #include "doomdef.h"
+#include "doomstat.h"
+#include "doomtype.h"
+#include "command.h"
+#include "d_netcmd.h"
+#include "d_player.h"
 #include "hu_stuff.h"
 #include "g_game.h"
+#include "m_fixed.h"
 #include "m_random.h"
 #include "m_menu.h" // ffdhidshfuisduifigergho9igj89dgodhfih AAAAAAAAAA
 #include "p_local.h"
 #include "p_slopes.h"
+#include "r_defs.h"
 #include "r_draw.h"
 #include "r_local.h"
+#include "r_state.h"
+#include "r_things.h"
 #include "s_sound.h"
+#include "screen.h"
 #include "st_stuff.h"
+#include "tables.h"
 #include "v_video.h"
 #include "z_zone.h"
 #include "m_misc.h"
@@ -24,6 +35,12 @@
 #include "lua_hud.h"	// For Lua hud checks
 #include "lua_hook.h"	// For MobjDamage and ShouldDamage
 #include "d_main.h"		// found_extra_kart
+
+#include "i_video.h"
+
+#ifdef HWRENDER
+#include "hardware/hw_main.h"
+#endif
 
 // Hud offset cvars
 #define IMPL_HUD_OFFSET_X(name)\
@@ -6873,6 +6890,9 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		booststack->color = player->mo->color;
 		
 	}
+	
+	//hacky hpmod thing
+	player->kartstuff[k_hphealth] = 0;
 
 	if (player->playerstate == PST_DEAD || player->kartstuff[k_respawn] > 1) // Ensure these are set correctly here
 	{
@@ -8929,6 +8949,13 @@ static patch_t *kp_lapanim_number[10][3];
 static patch_t *kp_lapanim_emblem[2];
 static patch_t *kp_lapanim_hand[3];
 
+static patch_t *nametagpic;
+static patch_t *nametagline;
+static patch_t *nametagspeed;
+static patch_t *nametagweight;
+// Remove Health if you plan to use for vanilla-compat client
+static patch_t *nametaghealth;
+
 static patch_t *kp_yougotem;
 
 static patch_t *skp_smallsticker;
@@ -8960,7 +8987,7 @@ void K_LoadKartHUDGraphics(void)
 			kp_lapstickerbig2 = 		W_CachePatchName("K_STLA2B", PU_HUDGFX);
 	}
 
-	//Colourized hud
+	// Colourized hud
 	if (clr_hud)
 	{
 		kp_timestickerclr = 			W_CachePatchName("K_SCTIME", PU_HUDGFX);
@@ -8986,7 +9013,7 @@ void K_LoadKartHUDGraphics(void)
 			skp_smallstickerclr = 	  	W_CachePatchName("SC_SMSTC", PU_HUDGFX);
 	}
 
-	//KartZ speedo
+	// KartZ speedo
 	if (kartzspeedo)
 	{
 		kp_kartzspeedo[0] = 				W_CachePatchName("K_KZSP1", PU_HUDGFX);
@@ -9015,7 +9042,19 @@ void K_LoadKartHUDGraphics(void)
 		kp_kartzspeedo[23] = 				W_CachePatchName("K_KZSP24", PU_HUDGFX);
 		kp_kartzspeedo[24] = 				W_CachePatchName("K_KZSP25", PU_HUDGFX);
 	}
-	
+
+	// Nametags
+	// Remove Health if you plan to use for vanilla-compat client
+	if (nametaggfx){
+		
+		nametagpic = W_CachePatchName("NTLINE", PU_HUDGFX);
+		nametagline = W_CachePatchName("NTLINEV", PU_HUDGFX);
+		nametagspeed = W_CachePatchName("NTSP", PU_HUDGFX);
+		nametagweight = W_CachePatchName("NTWH", PU_HUDGFX);
+		nametaghealth = W_CachePatchName("NTHP", PU_HUDGFX);
+		
+	}
+
 	// Starting countdown
 	kp_startcountdown[0] = 		W_CachePatchName("K_CNT3A", PU_HUDGFX);
 	kp_startcountdown[1] = 		W_CachePatchName("K_CNT2A", PU_HUDGFX);
@@ -10818,6 +10857,372 @@ static void K_drawKartBumpersOrKarma(void)
 	}
 }
 
+// converts mobj coordinates into screen coordinates
+// NOTE: use with V_NOSCALESTART!
+// Code updated in Lua by GenericHeroGuy for libSG
+// Badly ported to C by NepDisk and acutally made to work and fixed by Indev!(Thanks so much!)
+// original code by Lat'
+static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, fixed_t mx, fixed_t my, fixed_t mz)
+{
+	fixed_t camx, camy, camz;
+    angle_t camangle, camaiming;
+	fixed_t distfact;
+	fixed_t dist;
+	fixed_t xres;
+	fixed_t yres;
+	fixed_t fov;
+	fixed_t fovratio;
+	fixed_t offset;
+	boolean srcflip;
+	long y;
+	long x;
+
+    // In case of early return we can check if those are negative
+    vec->x = -1;
+    vec->y = -1;
+
+	if (player->awayviewtics) {
+		camx = player->awayviewmobj->x;
+		camy = player->awayviewmobj->y;
+		camz = player->awayviewmobj->z;
+		camangle = player->awayviewmobj->angle;
+		camaiming = player->awayviewaiming;
+	}
+	else if (came->chase) {
+		camx = came->x;
+		camy = came->y;
+		camz = came->z + (player->mo->eflags & MFE_VERTICALFLIP && came->height);
+		camangle = came->angle;
+		camaiming = came->aiming;
+	}
+	else {
+		camx = player->mo->x;
+		camy = player->mo->y;
+		camz = player->viewz;
+		camangle = player->mo->angle;
+		camaiming = player->aiming;
+	}
+
+	xres = vid.width<<(FRACBITS-1);
+	yres = vid.height<<(FRACBITS-1);
+	fov = FixedDiv(xres, FINETANGENT(((FixedAngle(cv_fov.value/2)+ANGLE_90)>>ANGLETOFINESHIFT) & 4095));
+
+	// X coordinate
+	// get difference between camangle and angle towards target
+	x = (INT32)camangle - (INT32)R_PointToAngle2(camx, camy, mx, my);
+
+	distfact = FINECOSINE((x>>ANGLETOFINESHIFT) & FINEMASK);
+    if (!distfact) distfact = 1;
+
+	if (encoremode)
+		x = -x;
+	if (x < (fixed_t)ANGLE_270 || x > (fixed_t)ANGLE_90)
+		return;
+
+	// flipping
+	srcflip = player->pflags & PF_FLIPCAM && player->mo->eflags & MFE_VERTICALFLIP;
+
+	// Y coordinate
+	// getting the angle difference here is a bit more involved...
+	// start by getting the height difference between the camera and target
+	y = camz - mz;
+
+	// then get the distance between camera and target
+	dist = R_PointToDist2(camx, camy, mx, my);
+
+#ifdef HWRENDER
+	// NOW we can get the angle differnce
+	if (rendermode == render_opengl && cv_grshearing.value == 0)
+	{
+		angle_t yang = R_PointToAngle2(0, 0, dist, y); // not perspective
+		x = FixedMul(x, FINECOSINE((yang>>ANGLETOFINESHIFT) & FINEMASK)); // perspective
+		y = -camaiming - FixedDiv(yang, distfact);
+
+		//if ((fixed_t)y < ANGLE_270 || (fixed_t)y > ANGLE_90) // clip points behind the camera
+		//	return;
+		if (splitscreen == 1) // multiply by 1.25 for 2P splitscreen
+			y = y + (y/4) ;
+		if (srcflip) // flipcam
+			y = -y;
+
+		y = FixedMul(FINETANGENT((((angle_t)(-y)+ANGLE_90)>>ANGLETOFINESHIFT) & 4095), fov) + yres; // project the angle to get our final Y coordinate
+	}
+	else
+#endif
+	{
+		fovratio = FixedDiv(90*FRACUNIT, 180*FRACUNIT - FixedMul(cv_fov.value, 4*FRACUNIT/3)-FRACUNIT*-30);
+
+		y = FixedDiv(y, FixedMul(dist, distfact));
+		if (srcflip)
+			y = -y; // flipcam
+		if (y != INT32_MIN) // I_Error(): FixedDiv: divide by zero
+			y = FixedMul(FixedDiv(y, fovratio), xres) + yres;
+		//else print("NOPE!")
+
+		offset = FixedMul(FINETANGENT(((camaiming+ANGLE_90)>>ANGLETOFINESHIFT) & 4095), xres);
+		// this isn't fovtan... what am i even doing anymore
+		if (splitscreen == 1)
+			offset = 17*offset/10;
+		// OpenGL with software perspective is miscentered on non-16:10 resolutions
+#ifdef HWRENDER
+		if (rendermode == render_opengl)
+			offset = FixedMul(offset, FixedDiv(104857, FixedDiv(xres, yres)));
+#endif
+		// thanks fickle
+		offset = FixedDiv(offset, fovratio);
+		y = y + offset;
+	}
+
+	// project the angle to get our final X coordinate
+	x = FixedMul(FINETANGENT(((x+ANGLE_90)>>ANGLETOFINESHIFT) & 4095), fov);
+	x = x + xres;
+
+	vec->y = y;
+	vec->x = x;
+}
+
+//Slighty fixed by Alug and further rewritten by NepDisk
+//Decided to port and highly modify sunflower version for the main nametag drawing with additions by NepDisk. My previous one was broken anyway due to the changed screencoords and noscalestart
+static void K_drawNameTags(void)
+{
+	UINT8 i,j;
+	INT32 trans = 0;
+	vector2_t pos = {0};
+	fixed_t tagwidth;
+	fixed_t tagwidthsmall;
+	fixed_t namex,namey;
+	int dup = 0;
+	int tagcolor = 0;
+	int vflags = 0;
+	int flipped = 0;
+	int tagsdisplayed = 0;
+	char *tag;
+	patch_t *icon;
+
+	if (!stplyr->mo || stplyr->spectator || splitscreen)
+		return;
+
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		UINT8 *cm;
+		fixed_t distance = 0;
+		fixed_t maxdistance = (10*cv_nametagdist.value)* mapobjectscale;
+		angle_t an;
+		
+		if (i > PLAYERSMASK)
+			continue;
+		if (!players[i].mo || P_MobjWasRemoved(players[i].mo) || players[i].spectator || !playeringame[i])
+			continue;
+		if (i == displayplayers[0] && !cv_showownnametag.value && !(leveltime < 130))
+			continue;
+		if (!(i == displayplayers[0]) && leveltime < starttime)
+			continue;
+		if (players[i].kartstuff[k_hyudorotimer]) // player is invisible
+			continue;
+		distance = R_PointToDist(players[i].mo->x, players[i].mo->y);
+		if (distance > maxdistance)
+			continue;
+		an = R_PointToAngle2(camera[0].x, camera[0].y, players[i].mo->x, players[i].mo->y) - camera[0].angle;
+		if (an > ANGLE_90 && an < ANGLE_270)
+			continue; // behind back
+		if (!P_CheckSight(stplyr->mo, players[i].mo))
+			continue;
+		
+		tagsdisplayed += 1;
+			
+		if (tagsdisplayed > cv_nametagmaxplayers.value)
+			break;
+
+		switch (cv_nametagtrans.value)
+		{
+			case 0:
+				trans = 0;
+				break;
+			case 1:
+				if (distance > (maxdistance*3/4))
+					trans = V_60TRANS;
+				else
+					trans = 0;
+				break;
+			case 2:
+				if (distance > (maxdistance*3/1))
+					trans = V_90TRANS;
+				else if (distance > (maxdistance*3/2))
+					trans = V_80TRANS;
+				else if (distance > (maxdistance*3/3))
+					trans = V_60TRANS;
+				else if (distance > (maxdistance*3/4))
+					trans = V_40TRANS;
+				else if (distance > (maxdistance*3/5))
+					trans = V_20TRANS;
+				else 
+					trans = 0;
+				break;
+			case 3:
+				trans =  V_40TRANS;
+				break;
+			case 4:
+				trans = V_HUDTRANS;
+				break;
+			default:
+				break;
+		}
+
+		dup = vid.dupx;
+		
+		K_GetScreenCoords(&pos, stplyr, camera, players[i].mo->x, players[i].mo->y, players[i].mo->z + players[i].mo->height);
+		
+		//Flipcam off
+		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
+			pos.y += players[i].mo->height; 
+		
+		//Flipcam on
+		if (players[i].mo->eflags & MFE_VERTICALFLIP && (players[i].pflags & PF_FLIPCAM))
+			pos.y -= ((30*dup)<<FRACBITS); 
+		
+		//Flipcam off
+		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
+			flipped = players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM);
+		
+		//Saltyhop hehe
+		if (cv_saltyhop.value && cv_nametaghop.value)
+			pos.y -= flipped ? -players[i].mo->spriteyoffset : players[i].mo->spriteyoffset;
+		
+		namex = pos.x>>FRACBITS;
+		namey = pos.y>>FRACBITS;
+		
+		tag = va("%s%s ", HU_SkinColorToConsoleColor(players[i].mo->color),player_names[i]);
+		icon = R_GetSkinFaceMini(players[i].mo->player);
+		
+		cm = R_GetTranslationColormap(players[i].skin, players[i].mo->color, GTC_CACHE);
+		tagcolor = colortranslations[players[i].mo->color][7];
+		vflags = trans | V_NOSCALESTART;
+		tagwidth = cv_smallnametags.value ? dup*V_SmallStringWidth(player_names[i], V_ALLOWLOWERCASE) : dup*V_ThinStringWidth(player_names[i], V_ALLOWLOWERCASE);
+		tagwidthsmall = cv_smallnametags.value ? V_SmallStringWidth(player_names[i], V_ALLOWLOWERCASE) : V_ThinStringWidth(player_names[i], V_ALLOWLOWERCASE);
+		
+		if (cv_smallnametags.value == 2 || cv_smallnametags.value == 1 || !nametaggfx)
+		{
+			
+			if (flipped)
+				namey += dup*5;
+			else // small offset
+				namey -= dup*3;
+			
+			if (nametaggfx && cv_smallnametags.value == 1)
+			{
+				if (cv_nametagfacerank.value)
+					tagwidthsmall += icon->width - dup;
+				
+				// Have to draw the nametag using patches here since drawfill can't draw at this scale...
+				if (!flipped)
+					V_DrawFixedPatch(namex<<FRACBITS, namey<<FRACBITS, FRACUNIT/2, vflags, nametagline, cm);
+				V_DrawStretchyFixedPatch(((namex+dup*3)<<FRACBITS), namey<<FRACBITS,
+					tagwidthsmall<<FRACBITS, FRACUNIT/2, vflags, nametagpic, cm);
+				
+				namex += dup*2;
+				namey -= dup*4;
+			}
+			
+			if (cv_nametagfacerank.value)
+			{
+					V_DrawFixedPatch(namex<<FRACBITS, (namey - icon->height/2)<<FRACBITS, FRACUNIT/2, vflags, icon,  cm);
+					namex += dup*(1+icon->width/2); // add offset to other stuff
+			}
+		
+			//Name
+			V_DrawSmallString(namex, namey, V_ALLOWLOWERCASE | vflags, tag);
+				
+			// If you take this for a vanilla-compat client remove hpmod stuff.
+			if (cv_nametaghealth.value && players[i].kartstuff[k_hphealth])
+					V_DrawSmallString(namex, namey - dup*5, vflags, va("\x8D%d ", players[i].kartstuff[k_hphealth]));
+				
+			//If you take this for a vanilla-compat client remove the hp check.
+			if (((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2) && !(cv_nametaghealth.value && players[i].kartstuff[k_hphealth]))
+			{
+				V_DrawSmallString(namex, namey - dup*5, vflags, va("\x84S%d ", players[i].kartspeed));
+				V_DrawSmallString(namex + dup*10, namey - dup*5, vflags, va("\x87W%d ", players[i].kartweight));
+			}
+			
+			//If you take this for a vanilla-compat client remove the hp check.
+			if (cv_nametagscore.value)
+			{
+				if ((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2 || (cv_nametaghealth.value && players[i].kartstuff[k_hphealth]))
+			 		V_DrawSmallString(namex, namey - dup*10, V_ALLOWLOWERCASE | vflags, va("\x8A%d ", players[i].score));
+				else
+					V_DrawSmallString(namex, namey - dup*5, V_ALLOWLOWERCASE | vflags, va("\x8A%d ", players[i].score));
+			}
+			
+		}
+		else
+		{
+			if (cv_nametagfacerank.value)
+				tagwidth += dup*(icon->width+1);
+			
+			if (flipped)
+			{
+				for	(j = 0; j < 4; j++)
+				{
+					V_DrawFill(namex, namey, dup*3, dup*4, 31 | vflags);
+					V_DrawFill(namex+dup, namey, dup, dup*4, tagcolor | vflags);
+					namey += dup*4;
+					namex += dup;
+				}
+				namey -= dup*3;
+				V_DrawFill(namex, namey+dup*2, dup, dup, 31 | vflags); // a single black pixel
+				V_DrawFill(namex+dup, namey, tagwidth, dup*3, 31 | vflags);
+				V_DrawFill(namex+dup, namey+dup, tagwidth - dup, dup, tagcolor | vflags);
+				namex += dup*2;
+			}
+			else
+			{
+				for	(j = 0; j < 4; j++)
+				{
+					namey -= dup*4;
+					V_DrawFill(namex, namey, dup*3, dup*4, 31 | vflags);
+					V_DrawFill(namex+dup, namey, dup, dup*4, tagcolor | vflags);
+					namex += dup;
+				}
+					V_DrawFill(namex, namey, dup, dup, 31 | vflags);
+					V_DrawFill(namex+dup, namey, tagwidth - dup*2, dup*3, 31 | vflags);
+					V_DrawFill(namex+dup, namey+dup, tagwidth - dup*3, dup, tagcolor | vflags);
+			}
+			
+			if (cv_nametagfacerank.value)
+			{	
+				V_DrawMappedPatch(namex, namey - dup*(icon->height+1), vflags, icon, cm);
+				namex += dup*(icon->height+1); // add offset to other stuff
+			}
+			
+			V_DrawThinString(namex, namey - dup*10, V_ALLOWLOWERCASE | vflags, tag);
+			
+			// If you take this for a vanilla-compat client remove hpmod stuff.
+			if (cv_nametaghealth.value && players[i].kartstuff[k_hphealth])
+			{
+				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametaghealth);
+				V_DrawString(namex + dup*10, namey - dup*19, vflags, va("\x8D%d ", players[i].kartstuff[k_hphealth]));
+			}
+			
+			//If you take this for a vanilla-compat client remove the hp check.
+			if (((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2) && !(cv_nametaghealth.value && players[i].kartstuff[k_hphealth]))
+			{
+				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametagspeed);
+				V_DrawScaledPatch(namex + dup*18, namey - dup*20, vflags, nametagweight);
+				V_DrawString(namex + dup*9, namey - dup*19, V_ALLOWLOWERCASE | vflags, va("\x84%d ", players[i].kartspeed));
+				V_DrawString(namex + dup*27, namey - dup*19, V_ALLOWLOWERCASE | vflags, va("\x87%d ", players[i].kartweight));
+			}
+			
+			//If you take this for a vanilla-compat client remove the hp check.
+			if (cv_nametagscore.value)
+			{
+				if ((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2 || (cv_nametaghealth.value && players[i].kartstuff[k_hphealth]))
+			 		V_DrawSmallString(namex, namey - dup*25, V_ALLOWLOWERCASE | vflags, va("\x8A%d ", players[i].score));
+				else
+					V_DrawSmallString(namex, namey - dup*15, V_ALLOWLOWERCASE | vflags, va("\x8A%d ", players[i].score));
+			}
+		}
+	}
+}
+
 static fixed_t K_FindCheckX(fixed_t px, fixed_t py, angle_t ang, fixed_t mx, fixed_t my)
 {
 	fixed_t dist, x;
@@ -11928,6 +12333,9 @@ void K_drawKartHUD(void)
 	if (LUA_HudEnabled(hud_item) && !freecam)
 #endif
 		K_drawKartItem();
+		
+	if (cv_nametag.value)
+		K_drawNameTags();
 
 	// If not splitscreen, draw...
 	if (!splitscreen && !demo.title)
