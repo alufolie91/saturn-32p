@@ -358,6 +358,7 @@ menu_t OP_SaturnCreditsDef;
 
 //Neptune
 menu_t OP_NeptuneDef;
+menu_t OP_NeptuneTwoDef;
 
 // Bird
 menu_t OP_BirdDef;
@@ -1158,22 +1159,24 @@ static menuitem_t OP_MainMenu[] =
 {
 	{IT_SUBMENU|IT_STRING,		NULL, "Control Setup...",		&OP_ControlsDef,			 0},
 
-	{IT_SUBMENU|IT_STRING,		NULL, "Video Options...",		&OP_VideoOptionsDef,		 20},
-	{IT_SUBMENU|IT_STRING,		NULL, "Sound Options...",		&OP_SoundOptionsDef,		 30},
+	{IT_SUBMENU|IT_STRING,		NULL, "Video Options...",		&OP_VideoOptionsDef,		 10},
+	{IT_SUBMENU|IT_STRING,		NULL, "Sound Options...",		&OP_SoundOptionsDef,		 15},
 
-	{IT_SUBMENU|IT_STRING,		NULL, "HUD Options...",			&OP_HUDOptionsDef,			 50},
-	{IT_SUBMENU|IT_STRING,		NULL, "Gameplay Options...",	&OP_GameOptionsDef,			 60},
-	{IT_SUBMENU|IT_STRING,		NULL, "Server Options...",		&OP_ServerOptionsDef,		 70},
+	{IT_SUBMENU|IT_STRING,		NULL, "HUD Options...",			&OP_HUDOptionsDef,			 25},
+	{IT_SUBMENU|IT_STRING,		NULL, "Gameplay Options...",	&OP_GameOptionsDef,			 30},
+	{IT_SUBMENU|IT_STRING,		NULL, "Server Options...",		&OP_ServerOptionsDef,		 35},
 
-	{IT_SUBMENU|IT_STRING,		NULL, "Data Options...",		&OP_DataOptionsDef,			90},
+	{IT_SUBMENU|IT_STRING,		NULL, "Data Options...",		&OP_DataOptionsDef,			45},
 
-	{IT_CALL|IT_STRING,			NULL, "Tricks & Secrets (F1)",	M_Manual,					110},
-	{IT_CALL|IT_STRING,			NULL, "Play Credits",			M_Credits,					120},
+	{IT_CALL|IT_STRING,			NULL, "Tricks & Secrets (F1)",	M_Manual,					55},
+	{IT_CALL|IT_STRING,			NULL, "Play Credits",			M_Credits,					60},
 
-	{IT_SUBMENU|IT_STRING,		NULL, "Saturn Options...",		&OP_SaturnDef,				140},
+	{IT_SUBMENU|IT_STRING,		NULL, "Saturn Options...",		&OP_SaturnDef,				70},
+	{IT_SUBMENU|IT_STRING,		NULL, "Neptune Options...",		&OP_NeptuneTwoDef,			75},
+	
 
-	{IT_SUBMENU|IT_STRING,		NULL, "Bird",	&OP_BirdDef,	150},
-	{IT_CALL|IT_STRING,		NULL, "Local Skin Options...",	M_LocalSkinMenu,	160},
+	{IT_SUBMENU|IT_STRING,		NULL, "Bird...",	&OP_BirdDef,	85},
+	{IT_CALL|IT_STRING,		NULL, "Local Skin Options...",	M_LocalSkinMenu,	90},
 };
 
 static menuitem_t OP_ControlsMenu[] =
@@ -2115,7 +2118,7 @@ enum
 
 static menuitem_t OP_NeptuneMenu[] =
 {
-	{IT_HEADER, NULL, "Neptune Options", NULL, 0},
+	{IT_HEADER, NULL, "Neptune Gameplay Options", NULL, 0},
 	
 	//{IT_HEADER, NULL, "Sneaker", NULL, 10},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension", 			&cv_sneakerextend, 	 	10},
@@ -2173,6 +2176,8 @@ enum
 	pm_header,
 	pm_sneakere,
 	pm_sneakeret,
+	pm_sneakerco,
+	pm_sneakerst,
 	pm_additivemt,
 	pm_bst,
 	pm_rst,
@@ -2181,6 +2186,44 @@ enum
 	pm_stcksdim,
 	pm_itemodds,
 	pm_customitemtable,
+};
+
+static menuitem_t OP_NeptuneTwoMenu[] =
+{
+	{IT_HEADER, NULL, "Neptune Options", NULL, 0},
+	
+	//{IT_HEADER, NULL, "Stacking", NULL, 10},
+	{IT_STRING | IT_CVAR, NULL, "Multi-Sneaker icon", 			&cv_multisneakericon, 	 	10},
+	{IT_STRING | IT_CVAR, NULL, "Player-Colored Sneaker Fire", 		&cv_coloredsneakertrail, 	15},
+	
+	{IT_STRING | IT_CVAR, NULL, "Stacking Effect", 		&cv_stackingeffect,	 	25},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Effect Scaling", 			&cv_stackingeffectscaling,	30},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Boostflame color", 		&cv_stackingboostflamecolor,35},
+
+
+};
+
+static const char* OP_NeptuneTwoTooltips[] =
+{
+	NULL,
+	//NULL,
+	"Use new graphics for double and triple sneaker.",
+	"Changes sneaker fire color to match player.",
+	
+	"Effect that is shown when a stack is active.",
+	"Scaling for stacking effect.",
+	"Change boostflame color based on sneaker stack count.",
+
+};
+
+enum
+{
+	pmt_header,
+	pmt_multisneaker,
+	pmt_pcsneakerf,
+	pmt_stackefx,
+	pmt_stackefxsc,
+	pmt_stackbfc,
 };
 
 
@@ -2851,18 +2894,7 @@ menu_t MP_PlayerSetupDef =
 };
 
 // Options
-menu_t OP_MainDef =
-{
-	"M_OPTTTL",
-	sizeof (OP_MainMenu)/sizeof (menuitem_t),
-	&MainDef,
-	OP_MainMenu,
-	M_DrawGenericMenu,
-	60, 30,
-	0,
-	NULL,
-	{NULL}
-};
+menu_t OP_MainDef = DEFAULTSCROLLSTYLE("M_OPTTTL",OP_MainMenu,&MainDef,60, 30);
 
 menu_t OP_ControlsDef = DEFAULTMENUSTYLE("M_CONTRO", OP_ControlsMenu, &OP_MainDef, 60, 30);
 //WTF
@@ -2996,6 +3028,7 @@ menu_t OP_EraseDataDef = DEFAULTMENUSTYLE("M_DATA", OP_EraseDataMenu, &OP_DataOp
 menu_t OP_SaturnDef = DEFAULTSCROLLSTYLE(NULL, OP_SaturnMenu, &OP_MainDef, 30, 30);
 //Neptune
 menu_t OP_NeptuneDef = DEFAULTSCROLLSTYLE(NULL, OP_NeptuneMenu, &OP_GameOptionsDef, 30, 30);
+menu_t OP_NeptuneTwoDef = DEFAULTSCROLLSTYLE(NULL, OP_NeptuneTwoMenu, &OP_MainDef, 30, 30);
 menu_t OP_PlayerDistortDef = DEFAULTMENUSTYLE("M_VIDEO", OP_PlayerDistortMenu, &OP_SaturnDef, 30, 30);
 menu_t OP_HudOffsetDef = DEFAULTSCROLLSTYLE(NULL, OP_HudOffsetMenu, &OP_SaturnDef, 30, 30);
 menu_t OP_SaturnCreditsDef = DEFAULTMENUSTYLE(NULL, OP_SaturnCreditsMenu, &OP_SaturnDef, 30, 10);
@@ -5460,6 +5493,16 @@ static void M_DrawGenericScrollMenu(void)
 		if (!(OP_NeptuneTooltips[itemOn] == NULL)) 
 		{
 			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_NeptuneTooltips[itemOn], coolalphatimer);
+			if (coolalphatimer > 0 && interpTimerHackAllow)
+				coolalphatimer--;
+		}
+	}
+	
+	if (currentMenu == &OP_NeptuneTwoDef)
+	{
+		if (!(OP_NeptuneTwoTooltips[itemOn] == NULL)) 
+		{
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_NeptuneTwoTooltips[itemOn], coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
