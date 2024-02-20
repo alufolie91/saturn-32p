@@ -110,6 +110,9 @@ This makes this dramitcally easier then doing it all by hand.
 - k_slopeaccelboost Used to pass through slopeboost accelboost to internal stacking system
 - k_trickspeedboost Used to pass through trickmod speedboost to internal stacking system
 - k_trickaccelboost Used to pass through trickmod accelboost to internal stacking system
+- k_realsneakertimer Used to tell the game a sneaker is real and not extended with chainoffroad disabled
+- k_timerstore Used to store current sneaker timer when mowing offroad with chainoffroad disabled
+- k_hphealth Used to pass through HPmod health to internal nametags
 
 
 ## New lua functions
