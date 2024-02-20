@@ -2152,8 +2152,9 @@ static const char* OP_NeptuneTwoTooltips[] =
 	NULL,
 	//NULL,
 	"Use new graphics for double and triple sneaker.",
-	"Changes sneaker fire color to match player.",
 	"Always show number of items on items such as Orbinauts.",
+	"Changes sneaker fire color to match player.",
+	
 	
 	"Effect that is shown when a stack is active.",
 	"Scaling for stacking effect.",
