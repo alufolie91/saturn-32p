@@ -2165,7 +2165,7 @@ enum
 {
 	pmt_header,
 	pmt_multisneaker,
-	pmt_itemstack
+	pmt_itemstack,
 	pmt_pcsneakerf,
 	pmt_stackefx,
 	pmt_stackefxsc,
