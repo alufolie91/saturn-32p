@@ -103,6 +103,8 @@ consvar_t cv_stackingeffectscaling = {"stacking_stackingeffectscaling", "On", CV
 
 consvar_t cv_coloredsneakertrail = {"sneakertrailcolor", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_alwaysshowitemstacks = {"alwaysshowitemstacks", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
 // gamespeed is cc (0 for easy, 1 for normal, 2 for hard, 3 for expert)
 // franticitems is Frantic Mode items, bool
@@ -1396,6 +1398,8 @@ CV_RegisterVar(&cv_DJAITBL10);
 	
 	//multisneakericon
 	CV_RegisterVar(&cv_multisneakericon);
+	
+	CV_RegisterVar(&cv_alwaysshowitemstacks);
 	
 	//Stackingeffect
 	CV_RegisterVar(&cv_stackingeffect);
@@ -9679,7 +9683,7 @@ static void K_drawKartItem(void)
 	patch_t *localinv = ((offset) ? kp_invincibility[((leveltime % (6*3)) / 3) + 7] : kp_invincibility[(leveltime % (7*3)) / 3]);
 	INT32 fx = 0, fy = 0, fflags = 0;	// final coords for hud and flags...
 	//INT32 splitflags = K_calcSplitFlags(V_SNAPTOTOP|V_SNAPTOLEFT);
-	const INT32 numberdisplaymin = ((!offset && stplyr->kartstuff[k_itemtype] == KITEM_ORBINAUT) ? 5 : 2);
+	INT32 numberdisplaymin = 2; // No longer a constant so other things can modify this value
 	INT32 itembar = 0;
 	INT32 maxl = 0; // itembar's normal highest value
 	const INT32 barlength = (splitscreen > 1 ? 12 : 26);
@@ -9828,60 +9832,112 @@ static void K_drawKartItem(void)
 			switch(stplyr->kartstuff[k_itemtype])
 			{
 				case KITEM_SNEAKER:
-					localpatch = kp_sneaker[offset];
+					if (multisneaker_icon && cv_multisneakericon.value)
+					{
+						if (offset)
+						{
+							numberdisplaymin = 2;
+							localpatch = kp_sneaker[offset];
+						}
+						else
+						{
+							numberdisplaymin = 4;						
+							switch(stplyr->kartstuff[k_itemamount])
+							{
+								case 1:
+									localpatch = kp_sneaker[offset];
+									break;
+								case 2:
+									localpatch = kp_multsneaker[0];
+									break;
+								case 3:
+									localpatch = kp_multsneaker[1];
+									break;
+								default:
+									localpatch = kp_multsneaker[1];
+									break;
+							}
+						}
+
+					}
+					else
+					{
+						numberdisplaymin = 2;
+						localpatch = kp_sneaker[offset];
+					}
 					break;
 				case KITEM_ROCKETSNEAKER:
+					numberdisplaymin = 2;
 					localpatch = kp_rocketsneaker[offset];
 					break;
 				case KITEM_INVINCIBILITY:
+					numberdisplaymin = 2;
 					localpatch = localinv;
 					if (cv_darkitembox.value)
 						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
 					break;
 				case KITEM_BANANA:
+					numberdisplaymin = 2;
 					localpatch = kp_banana[offset];
 					break;
 				case KITEM_EGGMAN:
+					numberdisplaymin = 2;
 					localpatch = kp_eggman[offset];
 					break;
 				case KITEM_ORBINAUT:
+					if (offset)
+						numberdisplaymin = 2;
+					else
+						numberdisplaymin = 5;
+					
 					localpatch = kp_orbinaut[(offset ? 4 : min(stplyr->kartstuff[k_itemamount]-1, 3))];
 					break;
 				case KITEM_JAWZ:
+					numberdisplaymin = 2;
 					localpatch = kp_jawz[offset];
 					break;
 				case KITEM_MINE:
+					numberdisplaymin = 2;
 					localpatch = kp_mine[offset];
 					break;
 				case KITEM_BALLHOG:
+					numberdisplaymin = 2;
 					localpatch = kp_ballhog[offset];
 					break;
 				case KITEM_SPB:
+					numberdisplaymin = 2;
 					localpatch = kp_selfpropelledbomb[offset];
 					if (cv_darkitembox.value)
 						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
 					break;
 				case KITEM_GROW:
+					numberdisplaymin = 2;
 					localpatch = kp_grow[offset];
 					break;
 				case KITEM_SHRINK:
+					numberdisplaymin = 2;
 					localpatch = kp_shrink[offset];
 					break;
 				case KITEM_THUNDERSHIELD:
+					numberdisplaymin = 2;
 					localpatch = kp_thundershield[offset];
 					if (cv_darkitembox.value)
 						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
 					break;
 				case KITEM_HYUDORO:
+					numberdisplaymin = 2;
 					localpatch = kp_hyudoro[offset];
 					break;
 				case KITEM_POGOSPRING:
+					numberdisplaymin = 2;
 					localpatch = kp_pogospring[offset];
 					break;
 				case KITEM_KITCHENSINK:
+					numberdisplaymin = 2;
 					localpatch = kp_kitchensink[offset];
 					break;
 				case KITEM_SAD:
+					numberdisplaymin = 2;
 					localpatch = kp_sadface[offset];
 					break;
 				default:
