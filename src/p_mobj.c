@@ -10424,6 +10424,12 @@ void P_RemoveMobj(mobj_t *mobj)
 			P_SetTarget(&mobj->hprev, NULL);
 		}
 	}
+	
+	// clear the reference from the mapthing
+	if (mobj->spawnpoint)
+		mobj->spawnpoint->mobj = NULL;
+
+	R_RemoveMobjInterpolator(mobj);
 
 	// free block
 	// DBG: set everything in mobj_t to 0xFF instead of leaving it. debug memory error.
@@ -10456,8 +10462,6 @@ void P_RemoveMobj(mobj_t *mobj)
 #endif
 		P_RemoveThinker((thinker_t *)mobj);
 	}
-
-	R_RemoveMobjInterpolator(mobj);
 }
 
 // This does not need to be added to Lua.
