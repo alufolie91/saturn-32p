@@ -522,6 +522,11 @@ extern consvar_t cv_nametaghop;
 extern consvar_t cv_nametagscore;
 extern consvar_t cv_nametaghealth;
 
+extern consvar_t cv_driftgauge;
+extern consvar_t cv_driftgaugeofs;
+extern consvar_t cv_driftgaugetrans;
+extern consvar_t cv_driftgaugestyle;
+
 #define SKINSELECTSPIN_PAIN 25
 extern consvar_t cv_skinselectspin;
 

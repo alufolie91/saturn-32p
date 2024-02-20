@@ -1083,6 +1083,7 @@ boolean statdp; // New stat
 boolean multisneaker_icon; // Extra icons for Sneakers
 boolean stackingeffect; // Booststacking effect
 boolean nametaggfx; // Nametag stuffs
+boolean driftgaugegfx;
 
 static void IdentifyVersion(void)
 {
@@ -1482,6 +1483,9 @@ void D_SRB2Main(void)
 		// Remove HP if you plan to use for vanilla-compat client
 		if (W_CheckMultipleLumps("NTLINE","NTLINEV","NTHP","NTSP","NTWH", NULL)) 
 			nametaggfx = true;
+		
+		if (W_CheckMultipleLumps("K_DGAU","K_DCAU","K_DGSU","K_DCSU", NULL)) 
+			driftgaugegfx = true;
 	}
 
 	//
