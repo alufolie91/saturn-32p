@@ -11036,9 +11036,6 @@ static void K_drawNameTags(void)
 		distance = R_PointToDist(players[i].mo->x, players[i].mo->y);
 		if (distance > maxdistance)
 			continue;
-		an = R_PointToAngle2(camera[0].x, camera[0].y, players[i].mo->x, players[i].mo->y) - camera[0].angle;
-		if (an > ANGLE_90 && an < ANGLE_270)
-			continue; // behind back
 		if (!P_CheckSight(stplyr->mo, players[i].mo))
 			continue;
 		
@@ -11085,6 +11082,10 @@ static void K_drawNameTags(void)
 		dup = vid.dupx;
 		
 		K_GetScreenCoords(&pos, stplyr, camera, players[i].mo->x, players[i].mo->y, players[i].mo->z + players[i].mo->height);
+		
+		//Check for negative screencoords
+		if (pos.x == -1 || pos.y == -1)
+			continue;
 		
 		//Flipcam off
 		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
