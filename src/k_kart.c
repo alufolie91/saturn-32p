@@ -9943,6 +9943,9 @@ static void K_drawKartItem(void)
 				default:
 					return;
 			}
+			
+			if (cv_alwaysshowitemstacks.value)
+				numberdisplaymin = 2;
 
 			if (stplyr->kartstuff[k_itemheld] && !(leveltime & 1))
 				localpatch = kp_nodraw;
