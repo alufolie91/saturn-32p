@@ -33,6 +33,7 @@ extern consvar_t cv_multisneakericon;
 extern consvar_t cv_stackingeffect;
 extern consvar_t cv_stackingeffectscaling;
 extern consvar_t cv_coloredsneakertrail;
+extern consvar_t cv_alwaysshowitemstacks;
 
 boolean K_IsPlayerLosing(player_t *player);
 boolean K_IsPlayerWanted(player_t *player);
