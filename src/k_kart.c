@@ -1520,10 +1520,12 @@ static void K_KartGetItemResult(player_t *player, SINT8 getitem)
 	if (getitem == KITEM_SPB || getitem == KITEM_SHRINK) // Indirect items
 		indirectitemcooldown = 20*TICRATE;
 	if (getitem == KITEM_HYUDORO) // Hyudoro cooldown
+	{
 		if (cv_itemodds.value == 2)
 			hyubgone = 20*TICRATE;
 		else
 			hyubgone = 5*TICRATE;
+	}
 		
 		
 
@@ -3476,8 +3478,8 @@ static void K_GetKartBoostPower(player_t *player)
 	int a;
 	fixed_t acceltablesum = 0;
 	
-	fixed_t cmpfunc (const void * a, const void * b) {
-   		return ( *(fixed_t*)a - *(fixed_t*)b );
+	fixed_t sort (const void * sort1, const void * sort2) {
+   		return ( *(const fixed_t*)sort1 - *(const fixed_t*)sort2);
 	}
 	
 	
@@ -3624,8 +3626,8 @@ static void K_GetKartBoostPower(player_t *player)
 		fixed_t speedsize = sizeof(speedtable) / sizeof(speedtable[0]);
 		fixed_t accelsize = sizeof(speedtable) / sizeof(speedtable[0]);
 			
-		qsort(speedtable, speedsize, sizeof(fixed_t), cmpfunc);
-		qsort(acceltable, accelsize, sizeof(fixed_t), cmpfunc);
+		qsort(speedtable, speedsize, sizeof(fixed_t), sort);
+		qsort(acceltable, accelsize, sizeof(fixed_t), sort);
 		
 		for( s = 0 ; s <  speedsize; s++ )
 		{
@@ -5813,7 +5815,7 @@ void K_DoSneaker(player_t *player, INT32 type)
 		//Stacks
 		if (cv_stacking.value && player->kartstuff[k_sneakertimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
 		{	
-			player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack]++,cv_sneakerstack.value);
+			player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
 		}
 	
 		
@@ -7027,7 +7029,7 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 			{
 				if (player->kartstuff[k_driftboost])
 				{
-					player->kartstuff[k_sneakertimer] = max(player->kartstuff[k_sneakertimer]--,1);
+					player->kartstuff[k_sneakertimer] = max(player->kartstuff[k_sneakertimer] - 1,1);
 				}
 				else
 				{
