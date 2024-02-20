@@ -21,6 +21,7 @@
 
 extern consvar_t cv_fpscap;
 extern consvar_t cv_precipinterp;
+extern consvar_t cv_mobjssector;
 
 UINT32 R_GetFramerateCap(void);
 boolean R_UsingFrameInterpolation(void);
@@ -65,6 +66,8 @@ typedef struct {
 	fixed_t spriteyscale;
 	fixed_t spritexoffset;
 	fixed_t spriteyoffset;
+	angle_t pitch, roll;
+	angle_t sloperoll, slopepitch;
 } interpmobjstate_t;
 
 // Level interpolators

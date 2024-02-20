@@ -35,7 +35,6 @@
 #include "p_spec.h"
 #include "m_cheat.h"
 #include "d_clisrv.h"
-#include "v_video.h"
 #include "d_main.h"
 #include "m_random.h"
 #include "f_finale.h"
@@ -389,6 +388,7 @@ consvar_t cv_dualjawz = 			{"dualjawz", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, N
 static CV_PossibleValue_t extensiontype_cons_t[] = {{1, "bs"}, {2, "zbl"}, {0, NULL}};
 consvar_t cv_sneakerextend = 				{"sneakerextend", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sneakerextendtype = {"sneakerextendtype", "zbl", CV_NETVAR|CV_CHEAT, extensiontype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_chainoffroad  = {"sneakerchainoffroad", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
 //additiveminiturbos
@@ -415,7 +415,6 @@ consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, s
 
 static CV_PossibleValue_t stackingbrakemod_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
 consvar_t cv_stackingbrakemod = {"stackingbrakemod", "0.05", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingbrakemod_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
 
 //Speed of boosts
 static CV_PossibleValue_t speed_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
@@ -815,7 +814,7 @@ static CV_PossibleValue_t basenumlaps_cons_t[] = {{1, "MIN"}, {50, "MAX"}, {0, "
 consvar_t cv_basenumlaps = {"basenumlaps", "Map default", CV_NETVAR|CV_CALL|CV_CHEAT, basenumlaps_cons_t, BaseNumLaps_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_forceskin = {"forceskin", "Off", CV_NETVAR|CV_CALL|CV_CHEAT, Forceskin_cons_t, ForceSkin_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_fakelocalskin = {"fakelocalskin", "None", CV_SAVE, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_fakelocalskin = {"fakelocalskin", "None", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_downloading = {"downloading", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_allowexitlevel = {"allowexitlevel", "No", CV_NETVAR, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -876,6 +875,45 @@ consvar_t cv_lessbattlevotes = {"lessbattlevotes", "No", CV_SAVE, CV_YesNo, NULL
 
 static CV_PossibleValue_t encorevotes_cons_t[] = {{0, "One"}, {1, "Except One"}, {0, NULL}};
 consvar_t cv_encorevotes = {"encorevotes", "One", CV_SAVE, encorevotes_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t nametagtrans_cons_t[] = {
+	{0, "Never"}, {1, "Far only"}, {2, "Dynamic"}, {3, "Always"}, {4, "HUD Trans."}, {0, NULL}};
+/*static CV_PossibleValue_t nametagscaling_cons_t[] = {
+	{0, "MIN"},  {320, "MAX"}, {0, NULL}};*/
+static CV_PossibleValue_t nametagdistance_cons_t[] = {
+	{0, "MIN"},  {640, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t nametagsize_cons_t[] = {
+	{0, "Off"}, {1, "Small"}, {2, "Minimal"}, {0, NULL}};
+static CV_PossibleValue_t nametagrestat_cons_t[] = {
+	{0, "Off"}, {1, "Restat"}, {2, "Always"}, {0, NULL}};
+static CV_PossibleValue_t nametagmaxplayer_cons_t[] = {
+	{1, "MIN"}, {MAXPLAYERS, "MAX"}, {0, NULL}};
+
+
+consvar_t cv_nametag = {"kartnametag", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagtrans = {"nametagtransparency", "Dynamic", CV_SAVE, nametagtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagfacerank = {"nametagfacerank", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagrestat = {"nametagrestat", "Restat", CV_SAVE, nametagrestat_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagdist = {"nametagdist", "320", CV_SAVE, nametagdistance_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagmaxplayers = {"nametagmaxplayers", "3", CV_SAVE, nametagmaxplayer_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagmaxlenght = {"nametagmaxlenght", "12", CV_SAVE, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+//consvar_t cv_nametagscaling = {"nametagscaling", "160", CV_SAVE, nametagscaling_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_showownnametag = {"nametagshowown", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_smallnametags = {"nametagsmall", "Off", CV_SAVE, nametagsize_cons_t, Nametag_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametaghop = {"nametaghop", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagscore = {"nametagscore", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametaghealth = {"nametaghealth", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t driftgaugeoffset_cons_t[] = {
+	{-FRACUNIT*128, "MIN"}, {FRACUNIT*128, "MAX"}, {0, NULL}};
+
+static CV_PossibleValue_t driftgaugestyle_cons_t[] = {
+	{1, "Default"}, {2, "Small"}, {3, "Big Numbers"}, {4, "Numbers Only"}, {0, NULL}};
+
+consvar_t cv_driftgauge = {"kartdriftgauge", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftgaugeofs = {"driftgaugeoffset", "-20", CV_FLOAT|CV_SAVE, driftgaugeoffset_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftgaugetrans = {"driftgaugetransparency", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftgaugestyle = {"driftgaugestyle", "Default", CV_SAVE, driftgaugestyle_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t skinselectspin_cons_t[] = {
 	{0, "Off"}, {1, "Slow"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}, {7, "7"}, {8, "8"}, {9, "9"}, {10, "Fast"}, {SKINSELECTSPIN_PAIN, "Pain"}, {0, NULL}};
@@ -1163,8 +1201,6 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_pingtimeout);
 	CV_RegisterVar(&cv_showping);
 	CV_RegisterVar(&cv_pingmeasurement);
-	CV_RegisterVar(&cv_pingicon);
-	CV_RegisterVar(&cv_pingstyle);
 
 #ifdef SEENAMES
 	CV_RegisterVar(&cv_allowseenames);
@@ -1188,7 +1224,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
 	
-	CV_RegisterVar(&cv_cechotoggle);
+	CV_RegisterVar(&cv_nativekeyboard);
 }
 
 // =========================================================================
@@ -1267,6 +1303,9 @@ void D_RegisterClientCommands(void)
 #ifdef WALLSPLATS
 	CV_RegisterVar(&cv_splats);
 #endif
+	
+	// stacking boostflame color
+	CV_RegisterVar(&cv_stackingboostflamecolor);
 
 	// register these so it is saved to config
 	CV_RegisterVar(&cv_playername);
@@ -1306,6 +1345,11 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_timetic);
 	CV_RegisterVar(&cv_itemfinder);
 
+	CV_RegisterVar(&cv_pingicon);
+	CV_RegisterVar(&cv_pingstyle);
+
+	CV_RegisterVar(&cv_cechotoggle);
+
 	// time attack ghost options are also saved to config
 	CV_RegisterVar(&cv_ghost_besttime);
 	CV_RegisterVar(&cv_ghost_bestlap);
@@ -1314,20 +1358,8 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_ghost_staff);
 
 	COM_AddCommand("displayplayer", Command_Displayplayer_f);
-	
-	CV_RegisterVar(&cv_audbuffersize); 
-	
-#ifdef HAVE_OPENMPT
-	CV_RegisterVar(&cv_modfilter);
-	CV_RegisterVar(&cv_stereosep);
-	CV_RegisterVar(&cv_amigafilter);
-#if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
-	CV_RegisterVar(&cv_amigatype);
-#endif
-#endif
 
-	// FIXME: not to be here.. but needs be done for config loading
-	CV_RegisterVar(&cv_usegamma);
+	CV_RegisterVar(&cv_audbuffersize); 
 
 	// m_menu.c
 	//CV_RegisterVar(&cv_compactscoreboard);
@@ -1340,16 +1372,18 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_chatbacktint);
 	CV_RegisterVar(&cv_songcredits);
 	CV_RegisterVar(&cv_showfreeplay);	
+	CV_RegisterVar(&cv_skinselectspin);
+	CV_RegisterVar(&cv_showallmaps);
 	
 	CV_RegisterVar(&cv_growmusic);
 	CV_RegisterVar(&cv_supermusic);
-			
+
 	CV_RegisterVar(&cv_showtrackaddon);
 	CV_RegisterVar(&cv_showviewpointtext);
-	
+
 	CV_RegisterVar(&cv_luaimmersion);
 	CV_RegisterVar(&cv_fakelocalskin);
-	
+
 	CV_RegisterVar(&cv_showlocalskinmenus);
 
 	//CV_RegisterVar(&cv_crosshair);
@@ -1463,6 +1497,15 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_midimusicvolume);
 #endif
 	CV_RegisterVar(&cv_numChannels);
+	
+#ifdef HAVE_OPENMPT
+	CV_RegisterVar(&cv_modfilter);
+	CV_RegisterVar(&cv_stereosep);
+	CV_RegisterVar(&cv_amigafilter);
+#if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
+	CV_RegisterVar(&cv_amigatype);
+#endif
+#endif
 
 	// screen.c
 	CV_RegisterVar(&cv_fullscreen);
@@ -1475,21 +1518,36 @@ void D_RegisterClientCommands(void)
 
 	CV_RegisterVar(&cv_soundtest);
 	
-	CV_RegisterVar(&cv_skinselectspin);
+	CV_RegisterVar(&cv_nametag);
+	CV_RegisterVar(&cv_nametagtrans);
+	CV_RegisterVar(&cv_nametagfacerank);
+	CV_RegisterVar(&cv_nametagmaxplayers);
+	CV_RegisterVar(&cv_nametagmaxlenght);
+	//CV_RegisterVar(&cv_nametagscaling);
+	CV_RegisterVar(&cv_nametagdist);
+	CV_RegisterVar(&cv_showownnametag);
+	CV_RegisterVar(&cv_smallnametags);
+	CV_RegisterVar(&cv_nametagrestat);
+	CV_RegisterVar(&cv_nametaghop);
+	CV_RegisterVar(&cv_nametagscore);
+	// If you take this for a vanilla-compat client remove hpmod stuff.
+	CV_RegisterVar(&cv_nametaghealth);
+	
+	CV_RegisterVar(&cv_driftgauge);
+	CV_RegisterVar(&cv_driftgaugeofs);
+	CV_RegisterVar(&cv_driftgaugetrans);
+	CV_RegisterVar(&cv_driftgaugestyle);
+	
 
 	CV_RegisterVar(&cv_perfstats);
 	CV_RegisterVar(&cv_ps_thinkframe_page);
 	CV_RegisterVar(&cv_ps_samplesize);
 	CV_RegisterVar(&cv_ps_descriptor);
-	
 
 	//Value used to store last server player has joined
 	CV_RegisterVar(&cv_lastserver);
-	
-	//Showallmaps in map selector including hell
-	CV_RegisterVar(&cv_showallmaps);
-	CV_RegisterVar(&cv_showmusicfilename);
 
+	CV_RegisterVar(&cv_showmusicfilename);
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
@@ -1497,8 +1555,8 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_speed);
 	CV_RegisterVar(&cv_opflags);
 	CV_RegisterVar(&cv_mapthingnum);
-//	CV_RegisterVar(&cv_grid);
-//	CV_RegisterVar(&cv_snapto);
+	//CV_RegisterVar(&cv_grid);
+	//CV_RegisterVar(&cv_snapto);
 
 	// add cheat commands
 	COM_AddCommand("noclip", Command_CheatNoClip_f);
@@ -2981,9 +3039,8 @@ void D_SetupVote(void)
 		//	secondgt = G_SometimesGetDifferentGametype(gt);
 		//}
 	}
-
 	else
-		{
+	{
 		secondgt = G_SometimesGetDifferentGametype(gt);
 	}
 

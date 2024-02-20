@@ -139,7 +139,7 @@ static UINT8 localtextcmd3[MAXTEXTCMD]; // splitscreen == 2
 static UINT8 localtextcmd4[MAXTEXTCMD]; // splitscreen == 3
 static tic_t neededtic;
 SINT8 servernode = 0; // the number of the server node
-char connectedservername[MAXSERVERNAME];
+char connectedservername[MAXSERVERNAME+1];
 /// \brief do we accept new players?
 /// \todo WORK!
 boolean acceptnewnode = true;
@@ -1145,7 +1145,7 @@ static void GetPackets(void);
 static cl_mode_t cl_mode = CL_SEARCHING;
 
 #ifdef HAVE_CURL
-char http_source[MAX_MIRROR_LENGTH];
+char http_source[MAX_MIRROR_LENGTH+1];
 #endif
 
 static UINT16 cl_lastcheckedfilecount = 0;	// used for full file list
@@ -1506,9 +1506,6 @@ static void SV_SendServerInfo(INT32 node, tic_t servertime)
 	UINT8 *p;
 	size_t mirror_length;
 	const char *httpurl = cv_httpsource.string;
-	UINT8 gt = (cv_kartgametypepreference.value == -1)
-		? gametype
-		: cv_kartgametypepreference.value;
 
 	netbuffer->packettype = PT_SERVERINFO;
 	netbuffer->u.serverinfo._255 = 255;
@@ -1525,10 +1522,7 @@ static void SV_SendServerInfo(INT32 node, tic_t servertime)
 
 	netbuffer->u.serverinfo.numberofplayer = (UINT8)D_NumPlayers();
 	netbuffer->u.serverinfo.maxplayer = (UINT8)(min((dedicated ? MAXPLAYERS-1 : MAXPLAYERS), cv_maxplayers.value));
-
-	// SRB2Kart: Vanilla's gametype constants for MS support
-	netbuffer->u.serverinfo.gametype = (UINT8)((gt == GT_MATCH) ? VANILLA_GT_MATCH : VANILLA_GT_RACE);
-
+	netbuffer->u.serverinfo.gametype = (UINT8)(G_BattleGametype() ? VANILLA_GT_MATCH : VANILLA_GT_RACE); // SRB2Kart: Vanilla's gametype constants for MS support
 	netbuffer->u.serverinfo.modifiedgame = (UINT8)modifiedgame;
 	netbuffer->u.serverinfo.cheatsenabled = CV_CheatsEnabled();
 
@@ -1636,7 +1630,12 @@ static void SV_SendPlayerInfo(INT32 node)
 		}
 
 		netbuffer->u.playerinfo[i].node = i;
+
+		// Can't really change this because net compatibility, but the warning is annoying
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
 		strncpy(netbuffer->u.playerinfo[i].name, (const char *)&player_names[i], MAXPLAYERNAME+1);
+#pragma GCC diagnostic pop
 		netbuffer->u.playerinfo[i].name[MAXPLAYERNAME] = '\0';
 
 		//fetch IP address

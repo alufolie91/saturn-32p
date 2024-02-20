@@ -66,8 +66,8 @@ typedef struct
 static lighttable_t **spritelights;
 
 // constant arrays used for psprite clipping and initializing clipping
-INT16 negonearray[MAXVIDWIDTH];
-INT16 screenheightarray[MAXVIDWIDTH];
+INT16 *negonearray;
+INT16 *screenheightarray;
 
 spriteinfo_t spriteinfo[NUMSPRITES];
 
@@ -140,11 +140,11 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 
 // rotsprite
 #ifdef ROTSPRITE
-		for (r = 0; r < 16; r++)
-		{
-			sprtemp[frame].rotated[0][r] = NULL;
-			sprtemp[frame].rotated[1][r] = NULL;
-		}
+	for (r = 0; r < 16; r++)
+	{
+		sprtemp[frame].rotated[0][r] = NULL;
+		sprtemp[frame].rotated[1][r] = NULL;
+	}
 #endif/*ROTSPRITE*/
 
 
@@ -631,11 +631,6 @@ void R_InitSprites(void)
 	float fa;
 #endif
 
-	for (i = 0; i < MAXVIDWIDTH; i++)
-	{
-		negonearray[i] = -1;
-	}
-
 #ifdef ROTSPRITE
 	for (angle = 1; angle < ROTANGLES; angle++)
 	{
@@ -692,6 +687,34 @@ void R_ClearSprites(void)
 	visspritecount = numvisiblesprites = clippedvissprites = 0;
 }
 
+static INT16 *vissprite_clipbot[MAXVISSPRITES >> VISSPRITECHUNKBITS];
+static INT16 *vissprite_cliptop[MAXVISSPRITES >> VISSPRITECHUNKBITS];
+
+static void R_AllocVisSpriteChunkMemory(UINT32 chunk)
+{
+	vissprite_clipbot[chunk] = Z_Realloc(vissprite_clipbot[chunk], sizeof(INT16) * (VISSPRITESPERCHUNK * viewwidth), PU_STATIC, NULL);
+	vissprite_cliptop[chunk] = Z_Realloc(vissprite_cliptop[chunk], sizeof(INT16) * (VISSPRITESPERCHUNK * viewwidth), PU_STATIC, NULL);
+
+	for (unsigned i = 0; i < VISSPRITESPERCHUNK; i++)
+	{
+		vissprite_t *sprite = visspritechunks[chunk] + i;
+
+		sprite->clipbot = vissprite_clipbot[chunk] + (viewwidth * i);
+		sprite->cliptop = vissprite_cliptop[chunk] + (viewwidth * i);
+	}
+}
+
+void R_AllocVisSpriteMemory(void)
+{
+	unsigned numchunks = MAXVISSPRITES >> VISSPRITECHUNKBITS;
+
+	for (unsigned i = 0; i < numchunks; i++)
+	{
+		if (visspritechunks[i])
+			R_AllocVisSpriteChunkMemory(i);
+	}
+}
+
 //
 // R_NewVisSprite
 //
@@ -699,13 +722,16 @@ static vissprite_t overflowsprite;
 
 static vissprite_t *R_GetVisSprite(UINT32 num)
 {
-		UINT32 chunk = num >> VISSPRITECHUNKBITS;
+	UINT32 chunk = num >> VISSPRITECHUNKBITS;
 
-		// Allocate chunk if necessary
-		if (!visspritechunks[chunk])
-			Z_Malloc(sizeof(vissprite_t) * VISSPRITESPERCHUNK, PU_LEVEL, &visspritechunks[chunk]);
+	// Allocate chunk if necessary
+	if (!visspritechunks[chunk])
+	{
+		Z_Malloc(sizeof(vissprite_t) * VISSPRITESPERCHUNK, PU_LEVEL, &visspritechunks[chunk]);
+		R_AllocVisSpriteChunkMemory(chunk);
+	}
 
-		return visspritechunks[chunk] + (num & VISSPRITEINDEXMASK);
+	return visspritechunks[chunk] + (num & VISSPRITEINDEXMASK);
 }
 
 static vissprite_t *R_NewVisSprite(void)
@@ -774,13 +800,7 @@ void R_DrawMaskedColumn(column_t *column)
 		{
 			dc_source = (UINT8 *)column + 3;
 			dc_texturemid = basetexturemid - (topdelta<<FRACBITS);
-
-			// Drawn by R_DrawColumn.
-			// This stuff is a likely cause of the splitscreen water crash bug.
-			// FIXTHIS: Figure out what "something more proper" is and do it.
-			// quick fix... something more proper should be done!!!
-			if (ylookup[dc_yl])
-				colfunc();
+			colfunc();
 		}
 		column = (column_t *)((UINT8 *)column + column->length + 4);
 	}
@@ -837,10 +857,7 @@ static void R_DrawFlippedMaskedColumn(column_t *column, INT32 texheight)
 			for (s = (UINT8 *)column+2+column->length, d = dc_source; d < dc_source+column->length; --s)
 				*d++ = *s;
 			dc_texturemid = basetexturemid - (topdelta<<FRACBITS);
-
-			// Still drawn by R_DrawColumn.
-			if (ylookup[dc_yl])
-				colfunc();
+			colfunc();
 			Z_Free(dc_source);
 		}
 		column = (column_t *)((UINT8 *)column + column->length + 4);
@@ -1036,8 +1053,6 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	}
 
 	colfunc = basecolfunc;
-	dc_hires = 0;
-
 	vis->x1 = x1;
 	vis->x2 = x2;
 }
@@ -1108,17 +1123,13 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 
 //
 // R_SplitSprite
-// runs through a sector's lightlist and
+// runs through a sector's lightlist and splits the sprite according to the heights
+//
 static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 {
-	INT32 i, lightnum, lindex;
-	INT16 cutfrac;
-	sector_t *sector;
-	vissprite_t *newsprite;
+	sector_t *sector = sprite->sector;
 
-	sector = sprite->sector;
-
-	for (i = 1; i < sector->numlights; i++)
+	for (INT32 i = 1; i < sector->numlights; i++)
 	{
 		fixed_t testheight = sector->lightlist[i].height;
 
@@ -1133,7 +1144,7 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 		if (testheight <= sprite->gz)
 			return;
 
-		cutfrac = (INT16)((centeryfrac - FixedMul(testheight - viewz, sprite->sortscale))>>FRACBITS);
+		INT16 cutfrac = (INT16)((centeryfrac - FixedMul(testheight - viewz, sprite->sortscale))>>FRACBITS);
 		if (cutfrac < 0)
 			continue;
 		if (cutfrac > viewheight)
@@ -1141,7 +1152,16 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 
 		// Found a split! Make a new sprite, copy the old sprite to it, and
 		// adjust the heights.
-		newsprite = M_Memcpy(R_NewVisSprite(), sprite, sizeof (vissprite_t));
+		vissprite_t *newsprite = R_NewVisSprite();
+
+		// Needs to keep the new sprite's clipping tables
+		INT16 *cliptop = newsprite->cliptop;
+		INT16 *clipbot = newsprite->clipbot;
+
+		M_Memcpy(newsprite, sprite, sizeof (vissprite_t));
+
+		newsprite->cliptop = cliptop;
+		newsprite->clipbot = clipbot;
 
 		sprite->cut |= SC_BOTTOM;
 		sprite->gz = testheight;
@@ -1164,7 +1184,7 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 		newsprite->cut |= SC_TOP;
 		if (!(sector->lightlist[i].caster->flags & FF_NOSHADE))
 		{
-			lightnum = (*sector->lightlist[i].lightlevel >> LIGHTSEGSHIFT);
+			INT32 lightnum = (*sector->lightlist[i].lightlevel >> LIGHTSEGSHIFT);
 
 			if (lightnum < 0)
 				spritelights = scalelight[0];
@@ -1185,7 +1205,7 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 			if (!((thing->frame & (FF_FULLBRIGHT|FF_TRANSMASK) || thing->flags2 & MF2_SHADOW)
 				&& (!newsprite->extra_colormap || !(newsprite->extra_colormap->fog & 1))))
 			{
-				lindex = FixedMul(sprite->xscale, LIGHTRESOLUTIONFIX)>>(LIGHTSCALESHIFT);
+				INT32 lindex = FixedMul(sprite->xscale, LIGHTRESOLUTIONFIX)>>(LIGHTSCALESHIFT);
 
 				if (lindex >= MAXLIGHTSCALE)
 					lindex = MAXLIGHTSCALE-1;
@@ -1341,17 +1361,16 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	UINT8 flip;
 	/*boolean vflip = (!(thing->eflags & MFE_VERTICALFLIP) != !R_ThingVerticallyFlipped(thing));*/
-	
+
 	boolean mirrored = thing->mirrored;
 	boolean hflip = (!(thing->frame & FF_HORIZONTALFLIP) != !mirrored);
 
 	INT32 lindex;
 
 	vissprite_t *vis;
-	
-	spritecut_e cut = SC_NONE;
 
 	angle_t ang = 0; // gcc 4.6 and lower fix
+	angle_t camang = 0;
 	fixed_t iscale;
 	fixed_t scalestep; // toast '16
 	fixed_t offset, offset2;
@@ -1371,6 +1390,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	patch_t *rotsprite = NULL;
 	INT32 rollangle = 0;
 	angle_t rollsum = 0;
+	angle_t pitchnroll = 0;
 	angle_t sliptiderollangle = 0;
 #endif
 
@@ -1468,9 +1488,14 @@ static void R_ProjectSprite(mobj_t *thing)
 		I_Error("R_ProjectSprite: sprframes NULL for sprite %d\n", thing->sprite);
 #endif
 
-	if (sprframe->rotate != SRF_SINGLE || papersprite)
+	if (sprframe->rotate != SRF_SINGLE || papersprite || (cv_sloperoll.value == 2 && cv_spriteroll.value))
 	{
 		ang = R_PointToAngle (interp.x, interp.y) - interp.angle;
+		camang = R_PointToAngle (interp.x, interp.y);
+	}
+
+	if (sprframe->rotate != SRF_SINGLE || papersprite)
+	{
 		if (mirrored)
 			ang = InvAngle(ang);
 		if (papersprite)
@@ -1482,7 +1507,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		// use single rotation for all views
 		rot = 0;                        //Fab: for vis->patch below
 		lump = sprframe->lumpid[0];     //Fab: see note above
-		flip = sprframe->flip; 			// Will only be 0 or 0xFFFF
+		flip = sprframe->flip; // Will only be 0x00 or 0xFF
 	}
 	else
 	{
@@ -1519,29 +1544,63 @@ static void R_ProjectSprite(mobj_t *thing)
 	spr_topoffset = spritecachedinfo[lump].topoffset;
 
 #ifdef ROTSPRITE
-	if ((thing->rollangle)||(thing->sloperoll)||(thing->player && thing->player->sliproll))
+    pitchnroll = 0;  // set this to 0, non-paper sprites will affect this value
+	
+	if (cv_spriteroll.value)
 	{
-		if (thing->player)
+		if (papersprite)
 		{
-			sliptiderollangle = cv_sliptideroll.value ? thing->player->sliproll*(thing->player->sliptidemem) : 0;
-			rollsum = (thing->rollangle)+(thing->sloperoll)+FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), sliptiderollangle);
+			if (ang >= ANGLE_180)
+			{
+				// Makes Software act much more sane like OpenGL
+				rollangle = InvAngle(thing->rollangle);
+			}
+			else
+			{
+				rollangle = thing->rollangle;
+			}
 		}
 		else
-			rollsum = (thing->rollangle)+(thing->sloperoll);
-
-		rollangle = R_GetRollAngle(rollsum);
-		rotsprite = Patch_GetRotatedSprite(sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
-
-		if (rotsprite != NULL)
 		{
-			spr_width = rotsprite->width << FRACBITS;
-			spr_height = rotsprite->height << FRACBITS;
-			spr_offset = rotsprite->leftoffset << FRACBITS;
-			spr_topoffset = rotsprite->topoffset << FRACBITS;
-			spr_topoffset += FEETADJUST;
+			// this is very messy, but it on-the-fly calculates rotations for all the
+			// pitch and roll variables
+			pitchnroll = FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), interp.roll) +
+						 FixedMul(FINESINE((ang) >> ANGLETOFINESHIFT), interp.pitch) +
+						 FixedMul(FINECOSINE((camang) >> ANGLETOFINESHIFT), interp.sloperoll) +
+						 FixedMul(FINESINE((camang) >> ANGLETOFINESHIFT), interp.slopepitch);
 
-			// flip -> rotate, not rotate -> flip
-			flip = 0;
+			rollangle = thing->rollangle;
+		}
+
+		if ((rollangle) || (pitchnroll) || (thing->player && thing->player->sliproll))
+		{
+			rollsum = pitchnroll;
+
+			if (thing->player)
+			{
+				sliptiderollangle =
+					cv_sliptideroll.value ? thing->player->sliproll * (thing->player->sliptidemem) : 0;
+				rollsum += thing->rollangle +
+						   FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), sliptiderollangle);
+			}
+			else
+				rollsum += thing->rollangle;
+
+			rollangle = R_GetRollAngle(rollsum);
+			rotsprite = Patch_GetRotatedSprite(
+				sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
+
+			if (rotsprite != NULL)
+			{
+				spr_width = rotsprite->width << FRACBITS;
+				spr_height = rotsprite->height << FRACBITS;
+				spr_offset = rotsprite->leftoffset << FRACBITS;
+				spr_topoffset = rotsprite->topoffset << FRACBITS;
+				spr_topoffset += FEETADJUST;
+
+				// flip -> rotate, not rotate -> flip
+				flip = 0;
+			}
 		}
 	}
 #endif
@@ -1794,7 +1853,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	//Fab: lumppat is the lump number of the patch to use, this is different
 	//     than lumpid for sprites-in-pwad : the graphics are patched
 #ifdef ROTSPRITE
-	if (rotsprite != NULL)
+	if ((rotsprite != NULL) && (cv_spriteroll.value))
 		vis->patch = rotsprite;
 	else
 #endif
@@ -2661,7 +2720,7 @@ static boolean R_CheckSpriteVisible(vissprite_t *spr, INT32 x1, INT32 x2)
 
 // R_ClipVisSprite
 // Clips vissprites without drawing, so that portals can work. -Red
-void R_ClipVisSprite(vissprite_t *spr, INT32 x1, INT32 x2)
+static void R_ClipVisSprite(vissprite_t *spr, INT32 x1, INT32 x2)
 {
 	drawseg_t *ds;
 	INT32		x;
@@ -3574,22 +3633,25 @@ void R_AddSkins(UINT16 wadnum, boolean local)
 			else if (!stricmp(stoken, "sprite"))
 			{
 				strupr(value);
-				strncpy(skin->sprite, value, sizeof skin->sprite);
+				memcpy(skin->sprite, value, sizeof skin->sprite);
 			}
 			else if (!stricmp(stoken, "facerank"))
 			{
 				strupr(value);
-				strncpy(skin->facerank, value, sizeof skin->facerank);
+				memcpy(skin->facerank, value, sizeof(skin->facerank)-1);
+				skin->facerank[sizeof(skin->facerank)-1] = '\0';
 			}
 			else if (!stricmp(stoken, "facewant"))
 			{
 				strupr(value);
-				strncpy(skin->facewant, value, sizeof skin->facewant);
+				memcpy(skin->facewant, value, sizeof(skin->facewant)-1);
+				skin->facewant[sizeof(skin->facewant)-1] = '\0';
 			}
 			else if (!stricmp(stoken, "facemmap"))
 			{
 				strupr(value);
-				strncpy(skin->facemmap, value, sizeof skin->facemmap);
+				strncpy(skin->facemmap, value, sizeof(skin->facemmap)-1);
+				skin->facemmap[sizeof(skin->facemmap)-1] = '\0';
 			}
 
 #define FULLPROCESS(field) else if (!stricmp(stoken, #field)) skin->field = get_number(value);
@@ -3644,7 +3706,6 @@ next_token:
 		free(buf2);
 
 		lump++; // if no sprite defined use spirte just after this one
-		INT32 sprnum;
 		if (skin->sprite[0] == '\0')
 		{
 			const char *csprname = W_CheckNameForNumPwad(wadnum, lump);
@@ -3655,9 +3716,6 @@ next_token:
 				lastlump++;
 			// allocate (or replace) sprite frames, and set spritedef
 			R_AddSingleSpriteDef(csprname, &skin->spritedef, wadnum, lump, lastlump);
-
-			// i feel like generally most skin authors just use PLAY here, so just assume PLAY
-			sprnum = SPR_PLAY;
 		}
 		else
 		{
@@ -3704,8 +3762,6 @@ next_token:
 
 				R_AddSingleSpriteDef(sprname, &skin->spritedef, wadnum, lstart, lend);
 			}
-
-			sprnum = numspritelumps - 1;
 
 			// I don't particularly care about skipping to the end of the used frames.
 			// We could be using frames from ANYWHERE in the current WAD file, including

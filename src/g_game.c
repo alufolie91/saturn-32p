@@ -496,16 +496,11 @@ consvar_t cv_ydeadzone4 = {"joy4_ydeadzone", "0.5", CV_FLOAT|CV_SAVE, deadzone_c
 static CV_PossibleValue_t driftsparkpulse_t[] = {{0, "MIN"}, {FRACUNIT*3, "MAX"}, {0, NULL}};
 consvar_t cv_driftsparkpulse = {"driftsparkpulse", "1.4", CV_FLOAT | CV_SAVE, driftsparkpulse_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-
 static CV_PossibleValue_t stretchfactor_t[] = {
 	{0, "Off"}, {FRACUNIT/8, "0.125"}, {FRACUNIT/4, "0.250"}, 
 	{3*FRACUNIT/8, "0.375"}, {FRACUNIT/2, "0.500"}, {5*FRACUNIT/8, "0.625"}, 
 	{3*FRACUNIT/4, "0.750"}, {7*FRACUNIT/8, "0.875"}, {FRACUNIT, "Max"}, {0, NULL}};
 consvar_t cv_gravstretch = {"gravstretch", "0", CV_SAVE, stretchfactor_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_sloperoll = {"sloperoll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t slamsound_t[] = {{0, "Off"}, {1, "On"}, {0, NULL}};
 consvar_t cv_slamsound = {"slamsound", "1", CV_SAVE, slamsound_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -516,11 +511,15 @@ static CV_PossibleValue_t sloperolldist_cons_t[] = {
 	{3072, "3072"},	{4096, "4096"},	{6144, "6144"},
 	{8192, "8192"},	{0, "Infinite"},	{0, NULL}};
 consvar_t cv_sloperolldist = {"sloperolldist", "Infinite", CV_SAVE, sloperolldist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t sloperoll_cons_t[] = {{0, "Off"}, {1, "Players"}, {2, "Everything"}, {0, NULL}};
+consvar_t cv_spriteroll = {"spriteroll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sloperoll = {"sloperoll", "Off", CV_SAVE|CV_CALL, sloperoll_cons_t, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sparkroll = {"sparkroll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 #if MAXPLAYERS > 32
-
 #error "please update player_name table using the new value for MAXPLAYERS"
 #endif
 
@@ -849,7 +848,8 @@ const char *G_BuildMapName(INT32 map)
 		map = G_RandMap(G_TOLFlag(cv_newgametype.value), map, false, 0, false, NULL)+1;
 	}
 
-	if (map < 100)
+
+	if (map < 100 && map >= 0) // ...but why use signed integer in first place? idk but this prevents warning (and potential buffer overflow lol)
 		sprintf(&mapname[3], "%.2d", map);
 	else
 	{
@@ -5311,7 +5311,6 @@ void G_ReadDemoExtraData(void)
 			kartspeed = READUINT8(demo_p);
 			kartweight = READUINT8(demo_p);
 
-
 			if (stricmp(skins[players[p].skin].name, name) != 0)
 				FindClosestSkinForStats(p, kartspeed, kartweight);
 
@@ -5420,7 +5419,7 @@ void G_ReadDemoExtraData(void)
 void G_WriteDemoExtraData(void)
 {
 	INT32 i;
-	char name[16];
+	char name[17];
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
@@ -5453,7 +5452,7 @@ void G_WriteDemoExtraData(void)
 			{
 				// Name
 				memset(name, 0, 16);
-				strncpy(name, player_names[i], 16);
+				memcpy(name, player_names[i], 15); // Keeping 1 null byte for safety, sorry players with name containing more than 15 characters
 				M_Memcpy(demo_p,name,16);
 				demo_p += 16;
 			}
@@ -6800,7 +6799,7 @@ void G_RecordMetal(void)
 void G_BeginRecording(void)
 {
 	UINT8 i, p;
-	char name[16];
+	char name[17];
 	player_t *player = &players[consoleplayer];
 
 	char *filename;
@@ -6901,7 +6900,7 @@ void G_BeginRecording(void)
 
 			// Name
 			memset(name, 0, 16);
-			strncpy(name, player_names[p], 16);
+			memcpy(name, player_names[p], 15);
 			M_Memcpy(demo_p,name,16);
 			demo_p += 16;
 
@@ -6988,7 +6987,7 @@ void G_BeginMetal(void)
 
 void G_WriteStanding(UINT8 ranking, char *name, INT32 skinnum, UINT8 color, UINT32 val)
 {
-	char temp[16];
+	char temp[17];
 
 	if (demoinfo_p && *(UINT32 *)demoinfo_p == 0)
 	{

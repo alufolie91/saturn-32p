@@ -276,6 +276,9 @@ void Bird_menu_Onchange(void);
 // Saturn menu updating
 void Saturn_menu_Onchange(void);
 
+// Nametags Menu updating
+void Nametag_menu_Onchange(void);
+
 void M_ReplayHut(INT32 choice);
 void M_SetPlaybackMenuPointer(void);
 
@@ -300,7 +303,7 @@ void M_PopupMasterServerConnectError(void);
 	x, y,\
 	0,\
 	NULL,\
-	NULL\
+	{NULL}\
 }
 
 #define DEFAULTSCROLLSTYLE(header, source, prev, x, y)\
@@ -313,7 +316,7 @@ void M_PopupMasterServerConnectError(void);
 	x, y,\
 	0,\
 	NULL,\
-	NULL\
+	{NULL}\
 }
 
 #define PAUSEMENUSTYLE(source, x, y)\
@@ -326,7 +329,7 @@ void M_PopupMasterServerConnectError(void);
 	x, y,\
 	0,\
 	NULL,\
-	NULL\
+	{NULL}\
 }
 
 #define CENTERMENUSTYLE(header, source, prev, y)\
@@ -339,7 +342,7 @@ void M_PopupMasterServerConnectError(void);
 	BASEVIDWIDTH/2, y,\
 	0,\
 	NULL,\
-	NULL\
+	{NULL}\
 }
 
 #define MAPICONMENUSTYLE(header, source, prev)\
@@ -352,7 +355,7 @@ void M_PopupMasterServerConnectError(void);
 	24,40,\
 	0,\
 	NULL,\
-	NULL\
+	{NULL}\
 }
 
 #define CONTROLMENUSTYLE(source, prev)\
@@ -365,7 +368,7 @@ void M_PopupMasterServerConnectError(void);
 	26, 40,\
 	0,\
 	NULL,\
-	NULL\
+	{NULL}\
 }
 
 #define IMAGEDEF(source)\
@@ -378,7 +381,7 @@ void M_PopupMasterServerConnectError(void);
 	0, 0,\
 	0,\
 	NULL,\
-	NULL\
+	{NULL}\
 }
 
 #endif //__X_MENU__

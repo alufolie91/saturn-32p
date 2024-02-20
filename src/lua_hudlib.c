@@ -11,6 +11,7 @@
 /// \brief custom HUD rendering library for Lua scripting
 
 #include "doomdef.h"
+#include "fastcmp.h"
 #ifdef HAVE_BLUA
 #include "r_defs.h"
 #include "r_local.h"
@@ -64,6 +65,13 @@ static const char *const hud_disable_options[] = {
 	"interscores", // Player scores
 	"interscoretitle", // "RANK", "TIME", etc. Good for custom rank names
 	"intertitle", // Level title and "TOTAL RANKINGS" text
+	
+	"titlecheckl",
+	"titlecheckr",
+	"titlelogo",
+	"titlebanner",
+	"titleflash",
+	
 	NULL};
 
 enum hudinfo {
@@ -96,12 +104,14 @@ enum hudhook {
 	hudhook_scores = 1,
 	hudhook_intermission = 2,
 	hudhook_vote = 3,
+	hudhook_title = 4,
 };
 static const char *const hudhook_opt[] = {
 	"game",
 	"scores",
 	"intermission",
 	"vote",
+	"title",
 	NULL};
 
 // alignment types for v.drawString
@@ -351,6 +361,118 @@ static int libd_cachePatch(lua_State *L)
 	HUDONLY
 	LUA_PushUserdata(L, W_CachePatchName(luaL_checkstring(L, 1), PU_STATIC), META_PATCH);
 	return 1;
+}
+
+// this is structured like getSprite2Patch in vanilla 2.2
+// v.getSpritePatch(skin, sprite, [frame, [angle, [rollangle]]])
+static int libd_getSpritePatch(lua_State *L)
+{
+	UINT32 i; // sprite prefix
+	INT32 skn = -1; // skin number
+	UINT32 frame = 0; // 'A'
+	UINT8 angle = 0;
+	spritedef_t *sprdef;
+	spriteframe_t *sprframe;
+#ifdef ROTSPRITE
+	spriteinfo_t *sprinfo;
+#endif
+	HUDONLY
+
+	// mashing together the stuff from getSprite2Patch:
+	// get skin first!
+	if (!lua_isnoneornil(L, 1)) // ONLY do this if we have a skin
+	{
+		if (lua_isnumber(L, 1)) // find skin by number
+		{
+			skn = lua_tonumber(L, 1);
+			if (skn < 0 || skn >= MAXSKINS)
+				return luaL_error(L, "skin number %d out of range (0 - %d)", skn, MAXSKINS-1);
+			if (skn >= numskins)
+				return 0;
+		}
+		else // find skin by name
+		{
+			const char *name = luaL_checkstring(L, 1);
+			for (skn = 0; skn < numskins; skn++)
+				if (fastcmp(skins[skn].name, name))
+					break;
+			if (skn >= numskins)
+				return 0;
+		}
+	}
+
+	lua_remove(L, 1); // remove skin now
+
+	if (lua_isnumber(L, 1)) // sprite number given, e.g. SPR_THOK
+	{
+		i = lua_tonumber(L, 1);
+		if (i >= NUMSPRITES)
+			return 0;
+	}
+	else if (lua_isstring(L, 1)) // sprite prefix name given, e.g. "THOK"
+	{
+		const char *name = lua_tostring(L, 1);
+		for (i = 0; i < NUMSPRITES; i++)
+			if (fastcmp(name, sprnames[i]))
+				break;
+		if (i >= NUMSPRITES)
+			return 0;
+	}
+	else
+		return 0;
+
+	// get outta dodge if we're a playersprite and have no skin
+	if ((i == SPR_PLAY) && (skn < 0))
+		return luaL_error(L, "You must provide a skin for player sprites!");
+
+	if (skn < 0) // standard sprite
+	{
+		sprdef = &sprites[i];
+		sprinfo = &spriteinfo[i];
+	}
+	else // player skin
+	{
+		sprdef = &skins[skn].spritedef;
+		sprinfo = &skins[skn].sprinfo;
+	}
+
+	// set frame number
+	frame = luaL_optinteger(L, 2, 0);
+	frame &= FF_FRAMEMASK; // ignore any bits that are not the actual frame, just in case
+	if (frame >= sprdef->numframes)
+		return 0;
+	// set angle number
+	sprframe = &sprdef->spriteframes[frame];
+	angle = luaL_optinteger(L, 3, 1);
+
+	// convert WAD editor angle numbers (1-8) to internal angle numbers (0-7)
+	// keep 0 the same since we'll make it default to angle 1 (which is internally 0)
+	// in case somebody didn't know that angle 0 really just maps all 8 angles to the same patch
+	if (angle != 0)
+		angle--;
+	
+	if (angle >= ((sprframe->rotate & SRF_3DGE) ? 16 : 8)) // out of range?
+		angle = (angle & ((sprframe->rotate & SRF_3DGE) ? 15 : 7)); // modulus angle by 8*/
+
+	// rotsprite?????
+	if (lua_isnumber(L, 4) && (cv_spriteroll.value))
+	{
+		angle_t rollangle = luaL_checkangle(L, 4);
+		INT32 rot = R_GetRollAngle(rollangle);
+
+		if (rot) {
+			patch_t *rotsprite = Patch_GetRotatedSprite(sprframe, frame, angle, sprframe->flip & (1<<angle), false, sprinfo, rot);
+			LUA_PushUserdata(L, rotsprite, META_PATCH);
+			lua_pushboolean(L, false);
+			lua_pushboolean(L, true);
+			return 3;
+		}
+	}
+
+	// push both the patch and its "flip" value
+	LUA_PushUserdata(L, W_CachePatchNum(sprframe->lumppat[angle], PU_STATIC), META_PATCH);
+	lua_pushboolean(L, (sprframe->flip & (1<<angle)) != 0);
+	return 2;
 }
 
 static int libd_draw(lua_State *L)
@@ -961,6 +1083,7 @@ static luaL_Reg lib_draw[] = {
 	{"drawPaddedNum", libd_drawPaddedNum},
 	{"drawPingNum", libd_drawPingNum},
 	{"drawFill", libd_drawFill},
+	{"getSpritePatch",libd_getSpritePatch},
 	{"fadeScreen", libd_fadeScreen},
 	{"drawString", libd_drawString},
 	{"drawKartString", libd_drawKartString},
@@ -1096,6 +1219,9 @@ int LUA_HudLib(lua_State *L)
 
 		lua_newtable(L);
 		lua_rawseti(L, -2, 5); // HUD[5] = vote rendering functions array
+	
+		lua_newtable(L);
+		lua_rawseti(L, -2, 6); // HUD[5] = title rendering functions array
 	lua_setfield(L, LUA_REGISTRYINDEX, "HUD");
 
 	luaL_newmetatable(L, META_HUDINFO);
@@ -1305,5 +1431,40 @@ void LUAh_VoteHUD(huddrawlist_h list)
 	lua_pushlightuserdata(gL, NULL);
 	lua_setfield(gL, LUA_REGISTRYINDEX, "HUD_DRAW_LIST");
 }
+
+void LUAh_TitleHUD(huddrawlist_h list)
+{
+	if (!gL || !(hudAvailable & (1<<hudhook_title)))
+		return;
+	
+	lua_pushlightuserdata(gL, list);
+	lua_setfield(gL, LUA_REGISTRYINDEX, "HUD_DRAW_LIST");
+
+	hud_running = true;
+	lua_settop(gL, 0);
+	
+	lua_pushcfunction(gL, LUA_GetErrorMessage);
+
+	lua_getfield(gL, LUA_REGISTRYINDEX, "HUD");
+	I_Assert(lua_istable(gL, -1));
+	lua_rawgeti(gL, -1, hudhook_title+2); // HUD[5] = rendering funcs
+	I_Assert(lua_istable(gL, -1));
+
+	lua_rawgeti(gL, -2, 1); // HUD[1] = lib_draw
+	I_Assert(lua_istable(gL, -1));
+	lua_remove(gL, -3); // pop HUD
+	lua_pushnil(gL);
+	while (lua_next(gL, -3) != 0) {
+		lua_pushvalue(gL, -3); // graphics library (HUD[1])
+		LUA_Call(gL, 1, 0, 1);
+	}
+	lua_settop(gL, 0);
+	hud_running = false;
+
+	lua_pushlightuserdata(gL, NULL);
+	lua_setfield(gL, LUA_REGISTRYINDEX, "HUD_DRAW_LIST");
+}
+
+
 
 #endif

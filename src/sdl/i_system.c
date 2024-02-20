@@ -205,6 +205,21 @@ static char returnWadPath[256];
 // TODO - move this to some header file instead
 extern struct backtrace_state *bt_state;
 
+typedef struct bt_crash_reason_s {
+	enum {
+		BTCRASH_SIGNAL,
+		BTCRASH_ERRORMSG,
+	} type;
+
+	union {
+		INT32 signal;
+		const char *errormsg;
+	} value;
+} bt_crash_reason_t;
+
+#define BT_CRASH_REASON_SIGNAL(num) (bt_crash_reason_t){ .type = BTCRASH_SIGNAL, .value = { .signal = num } }
+#define BT_CRASH_REASON_ERRORMSG(msg) (bt_crash_reason_t){ .type = BTCRASH_ERRORMSG, .value = { .errormsg = msg } }
+
 static void printsignal(FILE *fp, INT32 num)
 {
 	switch (num)
@@ -295,7 +310,7 @@ static void bt_error_cb(void *data, const char *msg, int errnum)
 		buf->error = true;
 }
 
-static void write_backtrace(INT32 num)
+static void write_backtrace(bt_crash_reason_t reason)
 {
 	FILE *out = fopen(va("%s" PATHSEP "%s", srb2home, "srb2kart-crash-log.txt"), "a");
 
@@ -331,7 +346,17 @@ static void write_backtrace(INT32 num)
 	fprintf(out, "Time of crash: %s\n", asctime(timeinfo));
 
 	fprintf(out, "Caused by: ");
-	printsignal(out, num);
+
+	switch (reason.type)
+	{
+		case BTCRASH_SIGNAL:
+			printsignal(out, reason.value.signal);
+		break;
+
+		case BTCRASH_ERRORMSG:
+			fprintf(out, "%s", reason.value.errormsg);
+		break;
+	}
 
 	fprintf(out, "\nBacktrace:\n");
 
@@ -420,7 +445,7 @@ static void I_ReportSignal(int num, int coredumped)
 {
 	//static char msg[] = "oh no! back to reality!\r\n";
 	const char *      sigmsg;
-	char msg[128];
+	char msg[256];
 
 	switch (num)
 	{
@@ -459,15 +484,23 @@ static void I_ReportSignal(int num, int coredumped)
 			sprintf(msg, "%s (core dumped)", sigmsg);
 		else
 			strcat(msg, " (core dumped)");
-
-		sigmsg = msg;
 	}
+	else
+	{
+		sprintf(msg, "%s", sigmsg);
+	}
+
+#ifdef HAVE_LIBBACKTRACE
+	strncat(msg, "\n\nCrash report has been saved into srb2kart-crash-log.txt", 255);
+#elif defined(_WIN32) && !defined(__MINGW64__)
+	strncat(msg, "\n\nCrash report has been saved into srb2kart.rpt", 255);
+#endif
 
 	I_OutputMsg("\nProcess killed by signal: %s\n\n", sigmsg);
 
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
 		"Process killed by signal",
-		sigmsg, NULL);
+		msg, NULL);
 }
 
 #ifndef NEWSIGNALHANDLER
@@ -476,7 +509,7 @@ FUNCNORETURN static ATTRNORETURN void signal_handler(INT32 num)
 	D_QuitNetGame(); // Fix server freezes
 
 #ifdef HAVE_LIBBACKTRACE
-	write_backtrace(num);
+	write_backtrace(BT_CRASH_REASON_SIGNAL(num));
 #endif
 
 	I_ReportSignal(num, 0);
@@ -875,7 +908,7 @@ static void signal_handler_child(INT32 num)
 {
 
 #ifdef HAVE_LIBBACKTRACE
-	write_backtrace(num);
+	write_backtrace(BT_CRASH_REASON_SIGNAL(num));
 #endif
 
 	signal(num, SIG_DFL);               //default signal action
@@ -2605,7 +2638,7 @@ INT32 I_NumJoys(void)
 	return numjoy;
 }
 
-static char joyname[255]; // MAX_PATH; joystick name is straight from the driver
+static char joyname[256]; // MAX_PATH; joystick name is straight from the driver
 
 const char *I_GetJoyName(INT32 joyindex)
 {
@@ -2616,7 +2649,10 @@ const char *I_GetJoyName(INT32 joyindex)
 	{
 		tempname = SDL_JoystickNameForIndex(joyindex);
 		if (tempname)
-			strncpy(joyname, tempname, 255);
+		{
+			memcpy(joyname, tempname, 255);
+			joyname[255] = '\0';
+		}
 	}
 	return joyname;
 }
@@ -3151,12 +3187,24 @@ static Uint64 timer_frequency;
 
 precise_t I_GetPreciseTime(void)
 {
+#if defined(_WIN32)
+	LARGE_INTEGER counter;
+	QueryPerformanceCounter(&counter);
+	 return counter.QuadPart;
+#else
 	return SDL_GetPerformanceCounter();
+#endif
 }
 
 UINT64 I_GetPrecisePrecision(void)
 {
+#if defined(_WIN32)
+	LARGE_INTEGER frequency;
+	QueryPerformanceFrequency(&frequency);
+	return frequency.QuadPart;
+#else
 	return SDL_GetPerformanceFrequency();
+#endif
 }
 
 static UINT32 frame_rate;
@@ -3183,14 +3231,24 @@ static void I_InitFrameTime(const UINT64 now, const UINT32 cap)
 }
 
 double I_GetFrameTime(void)
-{
+{	
+#if defined(_WIN32)
+	LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    const UINT64 nowValue = now.QuadPart;
+#else
 	const UINT64 now = SDL_GetPerformanceCounter();
+#endif
 	const UINT32 cap = R_GetFramerateCap();
 
 	if (cap != frame_rate)
 	{
 		// Maybe do this in a OnChange function for cv_fpscap?
+#if defined(_WIN32)
+		I_InitFrameTime(nowValue, cap);
+#else
 		I_InitFrameTime(now, cap);
+#endif	
 	}
 
 	if (frame_rate == 0)
@@ -3200,10 +3258,17 @@ double I_GetFrameTime(void)
 	}
 	else
 	{
+#if defined(_WIN32)
+		elapsed_frames += (nowValue - frame_epoch) / frame_frequency;
+#else
 		elapsed_frames += (now - frame_epoch) / frame_frequency;
+#endif
 	}
-
-	frame_epoch = now; // moving epoch
+#if defined(_WIN32)
+		frame_epoch = nowValue; // moving epoch
+#else
+		frame_epoch = now; // moving epoch
+#endif
 	return elapsed_frames;
 }
 
@@ -3212,8 +3277,13 @@ double I_GetFrameTime(void)
 //
 void I_StartupTimer(void)
 {
-	timer_frequency = SDL_GetPerformanceFrequency();
-
+#if defined(_WIN32)
+		LARGE_INTEGER frequency;
+		QueryPerformanceFrequency(&frequency);
+		timer_frequency = frequency.QuadPart;
+#else
+		timer_frequency = SDL_GetPerformanceFrequency();
+#endif
 	I_InitFrameTime(0, R_GetFramerateCap());
 	elapsed_frames  = 0.0;
 }
@@ -3500,6 +3570,11 @@ void I_Error(const char *error, ...)
 	vsprintf(buffer, error, argptr);
 	va_end(argptr);
 	I_OutputMsg("\nI_Error(): %s\n", buffer);
+
+#ifdef HAVE_LIBBACKTRACE
+	write_backtrace(BT_CRASH_REASON_ERRORMSG(buffer));
+#endif
+
 	// ---
 
 	I_ShutdownConsole();

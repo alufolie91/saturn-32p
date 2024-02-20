@@ -1,4 +1,4 @@
-# SRB2Kart: Uranus - Neptune fork
+# SRB2Kart: Neptune fork
 
 [SRB2Kart](https://srb2.org/mods/) is a kart racing mod based on the 3D Sonic the Hedgehog fangame [Sonic Robo Blast 2](https://srb2.org/), based on a modified version of [Doom Legacy](http://doomlegacy.sourceforge.net/).
 
@@ -6,18 +6,25 @@
 A fork of a fork. This hardcodes many features that I personally enjoy using or I thought would be good customization.
 
 ## Features (Neptune)
-- Sneaker Extension with mini-turbos (Choose between two types bs and zbl)
+- All stuff from Saturn
+- 32 Players
+- Existing lua features from other custom clients such as interpoints, mashstop, PlayerItemUse, KartHyudoro, KartStealBumper, MobjScaleChange and KartSneaker
+- Sneaker Extension with mini-turbos (Choose between two types bs and zbl. Chainoffroad is also toggleable)
 - Additive Mini-turbos
 - Customizable mini-turbo boost time
 - Colorized HUD(With the ability to choose its color or to use your own skin color)
-- BoostStacking(This is a big one!)
+- BoostStacking(This is a big one! It now also has effects!)
 - Being able to change what speed battle is in
 - Expert Speed
 - CEP Item Odd system(based on conga calc)
 - Customizable itemtable
 - Fixed NetID conflicts
 - 16-angle support for sprites 
-- 512 skins support (everything skinnum releated was made UINT16)
+- 512 skins support (everything skin num releated was made UINT16)
+- Title Screen Thinker and HUD Hook
+- Colored sneakertrails
+- Double and triple sneaker icons
+- Hardcoded Namtags and Driftgauge
 - More to come!
 - All added features are toggable via convars
 
@@ -55,11 +62,34 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - stacking_speedcap Default value: On
 - stacking_speedcapval Default value: 128.0
 - kartbattlespeed Default value: Normal
-- customodds Default value: on
+- customodds Default value: On
 - itemoddsystem Default value: CEP
 - lastserver Default value: ""
-- pingicon Default value: on
-- highresportait Default value: off
+- pingicon Default value: On
+- highresportait Default value: Off
+- multisneakericon Default value: Off
+- stacking_boostflamecolor Default value; On
+- stacking_stackingeffect Default value: On
+- stacking_stackingeffectscaling On
+- sneakertrailcolor Default value: On
+- alwaysshowitemstacks Default value: Off
+- kartnametag Default value: On
+- nametagtransparency Default value: Dynamic
+- nametagfacerank Default value: Off
+- nametagrestat Default value: Restat
+- nametagdist Default value: 320
+- nametagmaxplayers Default value:3
+- nametagmaxlenght Default value: 12
+- nametagshowown Default value: Off
+- nametagsmall Default value: Off
+- nametaghop Default value: On
+- nametagscore Default value: Off
+- nametaghealth Default value: On
+- kartdriftgauge Default value: On
+- driftgaugeoffset Default value: -20
+- driftgaugetransparency Default value: On
+- driftgaugestyle Default value: Default
+- sneakerchainoffroad Default value: On
 
 ## Item odds customization
 Please use the cfg script located at ServerScripts/itemodds.cfg if you are going to host a server that will use custom odds.
@@ -96,6 +126,7 @@ These should be the same as how they are usually used in lua.
 - libupnp (Linux/OS X only)
 - libgme (Linux/OS X only)
 - libopenmpt (Linux/OS X only)
+- libbacktrace (Linux/OS X only)
 
 ## Compiling
 

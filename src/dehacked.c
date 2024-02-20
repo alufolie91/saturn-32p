@@ -458,10 +458,7 @@ static void readPlayer(MYFILE *f, INT32 num)
 					goto done;
 				PlayerMenu[num].status = IT_CALL;
 
-				// A friendly neighborhood alias for brevity's sake
-#define NOTE_SIZE sizeof(description[num].notes)
-
-				for (i = 0; i < (INT32)(MAXLINELEN-NOTE_SIZE-3); i++)
+				for (i = 0; i < MAXLINELEN-3; i++)
 				{
 					if (s[i] == '=')
 					{
@@ -471,9 +468,8 @@ static void readPlayer(MYFILE *f, INT32 num)
 				}
 				if (playertext)
 				{
-					strlcpy(description[num].notes, playertext, NOTE_SIZE);
-					strlcat(description[num].notes,
-						myhashfgets(playertext, NOTE_SIZE, f), NOTE_SIZE);
+					strcpy(description[num].notes, playertext);
+					strcat(description[num].notes, myhashfgets(playertext, sizeof (description[num].notes), f));
 				}
 				else
 					strcpy(description[num].notes, "");
@@ -482,7 +478,7 @@ static void readPlayer(MYFILE *f, INT32 num)
 				// It works down here, though.
 				{
 					INT32 numline = 0;
-					for (i = 0; (size_t)i < NOTE_SIZE-1; i++)
+					for (i = 0; i < MAXLINELEN-1; i++)
 					{
 						if (numline < 20 && description[num].notes[i] == '\n')
 							numline++;
@@ -493,7 +489,6 @@ static void readPlayer(MYFILE *f, INT32 num)
 				}
 				description[num].notes[strlen(description[num].notes)-1] = '\0';
 				description[num].notes[i] = '\0';
-#undef NOTE_SIZE
 				continue;
 			}
 
@@ -1096,7 +1091,7 @@ static void readlevelheader(MYFILE *f, INT32 num, INT32 wadnum)
 				if (i && i <= 1035)
 					snprintf(mapheaderinfo[num-1]->musname, 7, "%sM", G_BuildMapName(i));
 				else if (i && i <= 1050)
-					strncpy(mapheaderinfo[num-1]->musname, compat_special_music_slots[i - 1036], 7);
+					strncpy(mapheaderinfo[num-1]->musname, compat_special_music_slots[i - 1036], 6);
 				else
 					mapheaderinfo[num-1]->musname[0] = 0; // becomes empty string
 				mapheaderinfo[num-1]->musname[6] = 0;
@@ -1121,7 +1116,7 @@ static void readlevelheader(MYFILE *f, INT32 num, INT32 wadnum)
 			else if (fastcmp(word, "SKYNUM"))
 				mapheaderinfo[num-1]->skynum = (INT16)i;
 			else if (fastcmp(word, "INTERSCREEN"))
-				strncpy(mapheaderinfo[num-1]->interscreen, word2, 8);
+				memcpy(mapheaderinfo[num-1]->interscreen, word2, 8);
 			else if (fastcmp(word, "PRECUTSCENENUM"))
 				mapheaderinfo[num-1]->precutscenenum = (UINT8)i;
 			else if (fastcmp(word, "CUTSCENENUM"))
@@ -2949,7 +2944,7 @@ static void readmaincfg(MYFILE *f)
 				// Also save a time attack folder
 				filenamelen = strlen(gamedatafilename)-4;  // Strip off the extension
 				filenamelen = min(filenamelen, sizeof (timeattackfolder));
-				strncpy(timeattackfolder, gamedatafilename, filenamelen);
+				memcpy(timeattackfolder, gamedatafilename, filenamelen);
 				timeattackfolder[min(filenamelen, sizeof (timeattackfolder) - 1)] = '\0';
 
 				strcpy(savegamename, timeattackfolder);
@@ -3190,10 +3185,24 @@ static void DEH_LoadDehackedFile(MYFILE *f, UINT16 wad)
 	dbg_line = -1; // start at -1 so the first line is 0.
 	while (!myfeof(f))
 	{
+		char origpos[128];
+		INT32 size = 0;
+		char *traverse;
 
 		myfgets(s, MAXLINELEN, f);
 		if (s[0] == '\n' || s[0] == '#')
 			continue;
+
+		traverse = s;
+
+		while (traverse[0] != '\n')
+		{
+			traverse++;
+			size++;
+		}
+
+		strncpy(origpos, s, size);
+		origpos[size] = '\0';
 
 		if (NULL != (word = strtok(s, " "))) {
 			strupr(word);
@@ -6907,6 +6916,9 @@ static const char *const STATE_LIST[] = { // array length left dynamic for sanit
 	"S_OPAQUESMOKE3",
 	"S_OPAQUESMOKE4",
 	"S_OPAQUESMOKE5",
+	
+	//Booststack
+	"S_BOOSTSTACK",
 
 #ifdef SEENAMES
 	"S_NAMECHECK",
@@ -7701,6 +7713,9 @@ static const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for s
 	"MT_TUMBLECOIN",
 
 	"MT_KARMAFIREWORK",
+	
+	//Booststack effect
+	"MT_BOOSTSTACK",
 
 #ifdef SEENAMES
 	"MT_NAMECHECK",
@@ -8303,7 +8318,10 @@ static const char *const KARTSTUFF_LIST[] = {
 	"SLOPESPEEDBOOST",
 	"SLOPEACCELBOOST",
 	"TRICKSPEEDBOOST",
-	"TRICKACCELBOOST"
+	"TRICKACCELBOOST",
+	"REALSNEAKERTIMER",
+	"TIMERSTORE",
+	"HPHEALTH"
 	
 };
 #endif
@@ -8850,6 +8868,7 @@ struct {
 	// Custom client features exposed to lua
 	{"FEATURE_INTERMISSIONHUD",1},
 	{"FEATURE_VOTEHUD",1},
+	{"FEATURE_TITLEHUD",1},
 #endif
 
 	{NULL,0}
@@ -9406,8 +9425,7 @@ static inline int lib_getenum(lua_State *L)
 	const int UV_MATHLIB = lua_upvalueindex(1);
 	const int GLIB_PROXY = lua_upvalueindex(2);
 
-	const char *word, *p;
-	fixed_t i;
+	const char *word;
 	boolean mathlib = lua_toboolean(L, UV_MATHLIB);
 	if (lua_type(L,2) != LUA_TSTRING)
 		return 0;
@@ -9655,6 +9673,8 @@ static int lua_enumlib_power_get(lua_State *L)
 	{
 		return luaL_error(L, "power '%s' could not be found.\n", lua_tostring(L, 1));
 	}
+
+	return 0;
 }
 
 static int lua_enumlib_kartstuff_get(lua_State *L)
@@ -9676,6 +9696,8 @@ static int lua_enumlib_kartstuff_get(lua_State *L)
 	{
 		return luaL_error(L, "kartstuff '%s' could not be found.\n", lua_tostring(L, 1));
 	}
+
+	return 0;
 }
 
 static int lua_enumlib_action_get(lua_State *L)
@@ -10048,34 +10070,34 @@ int LUA_EnumLib(lua_State *L)
 	PUSHGETTER(gamemap, i16);
 	PUSHGETTER(maptol, i16);
 	PUSHGETTER(ultimatemode, b8);
-	PUSHGETTER(circuitmap, b32);
-	PUSHGETTER(netgame, b32);
-	PUSHGETTER(multiplayer, b32);
+	PUSHGETTER(circuitmap, bool);
+	PUSHGETTER(netgame, bool);
+	PUSHGETTER(multiplayer, bool);
 	PUSHGETTER(modeattacking, b8);
 	PUSHGETTER(splitscreen, u8);
-	PUSHGETTER(gamecomplete, b32);
-	PUSHGETTER(devparm, b32);
-	PUSHGETTER(majormods, b32);
-	PUSHGETTER(menuactive, b32);
+	PUSHGETTER(gamecomplete, bool);
+	PUSHGETTER(devparm, bool);
+	PUSHGETTER(majormods, bool);
+	PUSHGETTER(menuactive, bool);
 	PUSHGETTER(paused, b8);
 	PUSHGETTER(gametype, i16);
 	PUSHGETTER(leveltime, u32);
 	PUSHGETTER(curWeather, i32);
-	PUSHGETTER(globalweather, i8);
+	PUSHGETTER(globalweather, u8);
 	PUSHGETTER(levelskynum, i32);
 	PUSHGETTER(globallevelskynum, i32);
-	PUSHGETTER(mapmusname, str);
+	PUSHGETTER((*mapmusname), str);
 	PUSHGETTER(mapmusflags, u16);
 	PUSHGETTER(mapmusposition, u32);
 	PUSHGETTER(gravity, fxp);
 	PUSHGETTER(gamespeed, u8);
-	PUSHGETTER(encoremode, b32);
-	PUSHGETTER(franticitems, b32);
-	PUSHGETTER(comeback, b32);
+	PUSHGETTER(encoremode, bool);
+	PUSHGETTER(franticitems, bool);
+	PUSHGETTER(comeback, bool);
 	PUSHGETTER(wantedcalcdelay, u32);
 	PUSHGETTER(indirectitemcooldown, u32);
 	PUSHGETTER(hyubgone, u32);
-	PUSHGETTER(thwompsactive, b32);
+	PUSHGETTER(thwompsactive, bool);
 	PUSHGETTER(spbplace, i8);
 	PUSHGETTER(mapobjectscale, fxp);
 	PUSHGETTER(racecountdown, u32);
@@ -10113,12 +10135,12 @@ int LUA_EnumLib(lua_State *L)
 
 	lua_pushcfunction(L, lua_glib_new_getter);
 	lua_pushliteral(L, "isserver");
-	lua_glib_push_b32_getter(L, &server);
+	lua_glib_push_bool_getter(L, &server);
 	lua_call(L, 2, 0);
 
 	lua_pushcfunction(L, lua_glib_new_getter);
 	lua_pushliteral(L, "isdedicatedserver");
-	lua_glib_push_b32_getter(L, &dedicated);
+	lua_glib_push_bool_getter(L, &dedicated);
 	lua_call(L, 2, 0);
 
 	lua_pushcfunction(L, lua_glib_new_getter);
@@ -10128,7 +10150,7 @@ int LUA_EnumLib(lua_State *L)
 
 	lua_pushcfunction(L, lua_glib_new_getter);
 	lua_pushliteral(L, "replayplayback");
-	lua_glib_push_b32_getter(L, &demo.playback);
+	lua_glib_push_bool_getter(L, &demo.playback);
 	lua_call(L, 2, 0);
 
 	if (!mathlib)

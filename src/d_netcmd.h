@@ -92,6 +92,8 @@ extern consvar_t cv_netstat;
 extern consvar_t cv_splats;
 #endif
 
+extern consvar_t cv_stackingboostflamecolor;
+
 extern consvar_t cv_countdowntime;
 extern consvar_t cv_runscripts;
 extern consvar_t cv_mute;
@@ -118,6 +120,7 @@ extern consvar_t cv_tripleorbinaut, cv_quadorbinaut, cv_dualjawz;
 //Sneakerextender
 extern consvar_t cv_sneakerextend;
 extern consvar_t cv_sneakerextendtype;
+extern consvar_t cv_chainoffroad;
 //additivemt
 extern consvar_t cv_additivemt;
 
@@ -439,7 +442,6 @@ extern consvar_t cv_DJAITBL10;
 //Lastserver
 extern consvar_t cv_lastserver;
 
-
 extern consvar_t cv_kartminimap;
 extern consvar_t cv_kartcheck;
 extern consvar_t cv_kartinvinsfx;
@@ -505,6 +507,25 @@ extern consvar_t cv_showlocalskinmenus;
 extern consvar_t cv_skipmapcheck;
 
 extern consvar_t cv_sleep;
+
+extern consvar_t cv_nametag;
+extern consvar_t cv_nametagtrans;
+extern consvar_t cv_nametagfacerank;
+extern consvar_t cv_nametagmaxplayers;
+extern consvar_t cv_nametagmaxlenght;
+//extern consvar_t cv_nametagscaling;
+extern consvar_t cv_nametagdist;
+extern consvar_t cv_showownnametag;
+extern consvar_t cv_smallnametags;
+extern consvar_t cv_nametagrestat;
+extern consvar_t cv_nametaghop;
+extern consvar_t cv_nametagscore;
+extern consvar_t cv_nametaghealth;
+
+extern consvar_t cv_driftgauge;
+extern consvar_t cv_driftgaugeofs;
+extern consvar_t cv_driftgaugetrans;
+extern consvar_t cv_driftgaugestyle;
 
 #define SKINSELECTSPIN_PAIN 25
 extern consvar_t cv_skinselectspin;

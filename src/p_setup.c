@@ -553,17 +553,18 @@ levelflat_t *levelflats;
 size_t P_PrecacheLevelFlats(void)
 {
 	lumpnum_t lump;
-	size_t i, flatmemory = 0;
+	size_t i, flatmem = 0;
 
 	//SoM: 4/18/2000: New flat code to make use of levelflats.
 	for (i = 0; i < numlevelflats; i++)
 	{
 		lump = levelflats[i].lumpnum;
 		if (devparm)
-			flatmemory += W_LumpLength(lump);
+			flatmem += W_LumpLength(lump);
 		R_GetFlat(lump);
 	}
-	return flatmemory;
+
+	return flatmem;
 }
 
 // help function for P_LoadSectors, find a flat in the active wad files,
@@ -2937,7 +2938,9 @@ boolean P_SetupLevel(boolean skipprecip)
 
 	// Make sure all sounds are stopped before Z_FreeTags.
 	S_StopSounds();
-	S_ClearSfx();
+
+	if (!S_PrecacheSound())
+		S_ClearSfx();
 
 	// As oddly named as this is, this handles music only.
 	// We should be fine starting it here.
@@ -3145,22 +3148,7 @@ boolean P_SetupLevel(boolean skipprecip)
 
 #ifdef HWRENDER // not win32 only 19990829 by Kin
 	if (rendermode == render_opengl)
-	{
-		// Lactozilla (December 8, 2019)
-		// Level setup used to free EVERY mipmap from memory.
-		// Even mipmaps that aren't related to level textures.
-		// Presumably, the hardware render code used to store textures as level data.
-		// Meaning, they had memory allocated and marked with the PU_LEVEL tag.
-		// Level textures are only reloaded after R_LoadTextures, which is
-		// when the texture list is loaded.
-
-		// Sal: Unfortunately, NOT freeing them causes the dreaded Color Bug.
-		HWR_FreeMipmapCache();
-		
-		// Correct missing sidedefs & deep water trick
-		HWR_CorrectSWTricks();
-		HWR_CreatePlanePolygons((INT32)numnodes - 1);
-	}
+		HWR_LoadLevel();
 #endif
 
 	// oh god I hope this helps
@@ -3424,6 +3412,19 @@ boolean P_SetupLevel(boolean skipprecip)
 	return true;
 }
 
+#ifdef HWRENDER
+void HWR_LoadLevel(void)
+{
+	HWR_FreeMipmapCache();
+	// Correct missing sidedefs & deep water trick
+	HWR_CorrectSWTricks();
+	HWR_CreatePlanePolygons((INT32)numnodes - 1);
+
+	if (HWR_ShouldUsePaletteRendering())
+		HWR_SetMapPalette();
+}
+#endif
+
 //
 // P_RunSOC
 //
@@ -3484,7 +3485,7 @@ UINT16 P_PartialAddWadFile(const char *wadfilename, boolean local)
 	boolean mapsadded = false;
 	lumpinfo_t *lumpinfo;
 
-	if ((numlumps = W_InitFile(wadfilename, 0, &wadnum, local)) == INT16_MAX)
+	if ((numlumps = W_InitFile(wadfilename, local)) == INT16_MAX)
 	{
 		refreshdirmenu |= REFRESHDIR_NOTLOADED;
 		CONS_Printf(M_GetText("Errors occurred while loading %s; not added.\n"), wadfilename);
@@ -3494,11 +3495,8 @@ UINT16 P_PartialAddWadFile(const char *wadfilename, boolean local)
 
 	if (wadfiles[wadnum]->important)
 		partadd_important = true;
-	
-	if (local)
-		wadfiles[wadnum]->localfile = true;
-	else
-		wadfiles[wadnum]->localfile = false;
+
+	wadfiles[wadnum]->localfile = local;
 
 	//
 	// search for sound replacements
@@ -3507,17 +3505,22 @@ UINT16 P_PartialAddWadFile(const char *wadfilename, boolean local)
 	for (i = 0; i < numlumps; i++, lumpinfo++)
 	{
 		name = lumpinfo->name;
+		lumpnum_t lumpnum = i|(wadnum<<16);
 		if (name[0] == 'D')
 		{
 			if (name[1] == 'S') for (j = 1; j < NUMSFX; j++)
 			{
-				if (S_sfx[j].name && !strnicmp(S_sfx[j].name, name + 2, 6))
+				if (S_sfx[j].name && !strnicmp(S_sfx[j].name, name + 2, 6) && S_sfx[j].lumpnum != lumpnum && S_sfx[j].lumpnum != LUMPERROR)
 				{
 					// the sound will be reloaded when needed,
 					// since sfx->data will be NULL
 					CONS_Debug(DBG_SETUP, "Sound %.8s replaced\n", name);
 
 					I_FreeSfx(&S_sfx[j]);
+
+					// Re-cache it
+					if (S_PrecacheSound())
+						S_sfx[j].data = I_GetSfx(&S_sfx[j]);
 
 					sreplaces++;
 				}

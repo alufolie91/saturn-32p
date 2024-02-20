@@ -34,6 +34,8 @@
 #include "b_bot.h"
 #include "p_slopes.h"
 
+#include "d_main.h" // stacking effect AAAAAAAAAAAAAAA
+
 #include "k_kart.h"
 
 // protos.
@@ -42,6 +44,8 @@
 #ifdef WALLSPLATS
 consvar_t cv_splats = {"splats", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
+
+consvar_t cv_stackingboostflamecolor = {"stacking_boostflamecolor", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 actioncache_t actioncachehead;
 
@@ -791,7 +795,7 @@ fixed_t P_MobjFloorZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed_t
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -867,7 +871,7 @@ fixed_t P_MobjCeilingZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -944,7 +948,7 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -1020,7 +1024,7 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -6257,6 +6261,87 @@ static void P_KoopaThinker(mobj_t *koopa)
 }
 
 //
+// P_RollPitchMobj
+// Assigns slopepitch and sloperoll to objects, and resets said values when slope-rolling
+// is turned off completely.
+//
+void P_RollPitchMobj(mobj_t* mobj)
+{
+    boolean usedist = false;
+
+    if (cv_sloperolldist.value > 0)
+        usedist = true;
+
+    if ((cv_spriteroll.value) && (cv_sloperoll.value == 2))
+    {
+        K_RollMobjBySlopes(mobj, usedist);
+    }
+    else
+    {
+        mobj->sloperoll = FixedAngle(0);
+        mobj->slopepitch = FixedAngle(0);
+    }
+}
+
+angle_t P_MobjPitchAndRoll(mobj_t *mobj)
+{
+    spritedef_t *sprdef;
+    spriteframe_t *sprframe;
+    angle_t ang = 0;
+	angle_t camang = 0;
+	angle_t return_angle = 0;
+	
+	if (!cv_spriteroll.value)
+		return 0;
+
+    if (P_MobjWasRemoved(mobj))
+        return 0;
+
+    size_t rot = mobj->frame & FF_FRAMEMASK;
+    boolean papersprite = (mobj->frame & FF_PAPERSPRITE);
+
+	if (mobj->skin && mobj->sprite == SPR_PLAY)
+	{
+		sprdef = &((skin_t *)mobj->skin)->spritedef;
+
+		if (rot >= sprdef->numframes)
+			sprdef = &sprites[mobj->sprite];
+	}
+	else
+	{
+		sprdef = &sprites[mobj->sprite];
+	}
+
+	if (rot >= sprdef->numframes)
+	{
+		sprdef = &sprites[states[S_UNKNOWN].sprite];
+		rot = states[S_UNKNOWN].frame&FF_FRAMEMASK;
+	}
+
+	sprframe = &sprdef->spriteframes[rot];
+
+	// No sprite frame? I guess it is possible
+	if (!sprframe) return 0;
+
+	if (sprframe->rotate != SRF_SINGLE || papersprite)
+	{
+		ang = R_PointToAngle(mobj->x, mobj->y) - mobj->angle;
+		camang = R_PointToAngle(mobj->x, mobj->y);
+	}
+
+	return_angle = FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), mobj->roll) 
+			        + FixedMul(FINESINE((ang) >> ANGLETOFINESHIFT), mobj->pitch);
+
+	if (cv_sloperoll.value)
+	{
+		return_angle += FixedMul(FINECOSINE((camang) >> ANGLETOFINESHIFT), mobj->sloperoll) 
+						+ FixedMul(FINESINE((camang) >> ANGLETOFINESHIFT), mobj->slopepitch);
+	}
+
+	return return_angle;
+}
+
+//
 // P_MobjThinker
 //
 void P_MobjThinker(mobj_t *mobj)
@@ -6398,6 +6483,12 @@ void P_MobjThinker(mobj_t *mobj)
 					return;
 				}
 
+				if (mobj->state == &states[S_PLAY_SIGN]) // hack to make the player sign icon roll with the sign itself
+				{
+					mobj->slopepitch = mobj->target->slopepitch;
+					mobj->sloperoll = mobj->target->sloperoll;
+				}
+
 				P_AddOverlay(mobj);
 				break;
 			case MT_SHADOW:
@@ -6406,7 +6497,12 @@ void P_MobjThinker(mobj_t *mobj)
 					P_RemoveMobj(mobj);
 					return;
 				}
-
+				
+				if (mobj->state == &states[S_SHADOW] && cv_sloperoll.value == 2)
+				{
+					mobj->slopepitch = mobj->target->slopepitch;
+					mobj->sloperoll = mobj->target->sloperoll;
+				}
 				P_AddShadow(mobj);
 				break;
 			/*case MT_BLACKORB:
@@ -6433,6 +6529,7 @@ void P_MobjThinker(mobj_t *mobj)
 					P_RemoveMobj(mobj);
 					return;
 				}
+				P_RollPitchMobj(mobj);
 				break;
 			case MT_SMOLDERING:
 				if (leveltime % 2 == 0)
@@ -7861,6 +7958,7 @@ void P_MobjThinker(mobj_t *mobj)
 			fixed_t distbarrier = 512*mapobjectscale;
 			fixed_t distaway;
 
+			P_RollPitchMobj(mobj);
 			P_SpawnGhostMobj(mobj);
 
 			if (mobj->threshold > 0)
@@ -7929,6 +8027,7 @@ void P_MobjThinker(mobj_t *mobj)
 			}
 			else
 			{
+				P_RollPitchMobj(mobj);
 				P_SpawnGhostMobj(mobj);
 				mobj->angle = R_PointToAngle2(0, 0, mobj->momx, mobj->momy);
 				P_InstaThrust(mobj, mobj->angle, mobj->movefactor);
@@ -7962,6 +8061,9 @@ void P_MobjThinker(mobj_t *mobj)
 				mobj->momx = mobj->momy = 0;
 				mobj->health = 1;
 			}
+
+			P_RollPitchMobj(mobj);
+
 			if (mobj->threshold > 0)
 				mobj->threshold--;
 			break;
@@ -8009,6 +8111,8 @@ void P_MobjThinker(mobj_t *mobj)
 				|| (mobj->state >= &states[S_SSMINE_DEPLOY8] && mobj->state <= &states[S_SSMINE_DEPLOY13]))
 				A_GrenadeRing(mobj);
 
+			P_RollPitchMobj(mobj);
+
 			if (mobj->threshold > 0)
 				mobj->threshold--;
 			break;
@@ -8049,7 +8153,7 @@ void P_MobjThinker(mobj_t *mobj)
 				P_RemoveMobj(mobj);
 				return;
 			}
-
+			
 			mobj->angle = mobj->target->angle;
 			P_MoveOrigin(mobj, mobj->target->x + P_ReturnThrustX(mobj, mobj->angle+ANGLE_180, mobj->target->radius),
 				mobj->target->y + P_ReturnThrustY(mobj, mobj->angle+ANGLE_180, mobj->target->radius), mobj->target->z);
@@ -8067,6 +8171,40 @@ void P_MobjThinker(mobj_t *mobj)
 					if (p->kartstuff[k_sneakertimer] > mobj->movecount)
 						P_SetMobjState(mobj, S_BOOSTFLAME);
 					mobj->movecount = p->kartstuff[k_sneakertimer];
+					
+					if (cv_stacking.value)
+					{
+						mobj->colorized = true; 
+						
+						if (cv_stackingboostflamecolor.value) // When stacking is on colorize effect based on stack count
+						{
+							switch(p->kartstuff[k_sneakerstack])
+							{
+								case 0:
+								case 1:
+									mobj->color = SKINCOLOR_FLAME;
+									break;
+								case 2:
+									mobj->color = SKINCOLOR_BLUEBERRY;
+									break;
+								case 3:
+									mobj->color = SKINCOLOR_PURPLE;
+									break;
+								case 4:
+									mobj->color = SKINCOLOR_MOONSLAM;
+									break;
+								case 5:
+									mobj->color = SKINCOLOR_WHITE;
+									break;
+								default:
+									mobj->color = SKINCOLOR_WHITE;
+									break;
+								
+							}
+						}
+						
+					}
+					
 				}
 			}
 
@@ -8085,6 +8223,21 @@ void P_MobjThinker(mobj_t *mobj)
 				P_Thrust(smoke, mobj->angle+FixedAngle(P_RandomRange(135, 225)<<FRACBITS), P_RandomRange(0, 8) * mobj->target->scale);
 			}
 			break;
+		case MT_BOOSTSTACK:	
+			if (!mobj->target || !mobj->target->health || (mobj->target->player && !mobj->target->player->kartstuff[k_totalstacks]))
+			{
+				P_RemoveMobj(mobj);
+				return;
+			}
+			// Thx 1ndev! (taken and modified from BoostStack)
+			P_MoveOrigin(mobj, mobj->target->x + FixedMul(cos(mobj->target->angle), FixedMul(30*FRACUNIT, mapobjectscale)), mobj->target->y + FixedMul(sin(mobj->target->angle), FixedMul(30*FRACUNIT, mapobjectscale)), mobj->target->z + mobj->target->spriteyoffset);
+			// visibility (usually for hyudoro)
+			mobj->flags2 = (mobj->flags2 & ~MF2_DONTDRAW)|(mobj->target->flags2 & MF2_DONTDRAW);
+			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP1)|(mobj->target->eflags & MFE_DRAWONLYFORP1);
+			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP2)|(mobj->target->eflags & MFE_DRAWONLYFORP2);
+			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP3)|(mobj->target->eflags & MFE_DRAWONLYFORP3);
+			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP4)|(mobj->target->eflags & MFE_DRAWONLYFORP4);
+			break;	
 		case MT_SPARKLETRAIL:
 			if (!mobj->target)
 			{
@@ -8219,6 +8372,8 @@ void P_MobjThinker(mobj_t *mobj)
 			}
 
 			P_MoveOrigin(mobj, destx, desty, mobj->target->z);
+			mobj->spriteyoffset = mobj->target->spriteyoffset;
+			mobj->spritexoffset = mobj->target->spritexoffset;
 			break;
 		}
 		case MT_ROCKETSNEAKER:
@@ -8361,6 +8516,10 @@ void P_MobjThinker(mobj_t *mobj)
 					}
 				}
 			}
+
+			// fancy sign rotation
+			P_RollPitchMobj(mobj);
+
 			break;
 		case MT_CDUFO:
 			if (!mobj->spawnpoint || mobj->fuse)
@@ -9224,7 +9383,7 @@ for (i = ((mobj->flags2 & MF2_STRONGBOX) ? strongboxamt : weakboxamt); i; --i) s
 
 						P_RemoveMobj(mobj);
 						return;
-					}
+					}			
 				default:
 					P_SetMobjState(mobj, mobj->info->xdeathstate); // will remove the mobj if S_NULL.
 					break;
@@ -9541,6 +9700,10 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	mobj->height = info->height;
 	mobj->flags = info->flags;
 	mobj->sloperoll = 0;
+	mobj->slopepitch = 0;
+
+	mobj->pitch_sprite = 0;
+	mobj->roll_sprite = 0;
 
 	mobj->health = info->spawnhealth;
 
@@ -10261,6 +10424,12 @@ void P_RemoveMobj(mobj_t *mobj)
 			P_SetTarget(&mobj->hprev, NULL);
 		}
 	}
+	
+	// clear the reference from the mapthing
+	if (mobj->spawnpoint)
+		mobj->spawnpoint->mobj = NULL;
+
+	R_RemoveMobjInterpolator(mobj);
 
 	// free block
 	// DBG: set everything in mobj_t to 0xFF instead of leaving it. debug memory error.
@@ -10293,8 +10462,6 @@ void P_RemoveMobj(mobj_t *mobj)
 #endif
 		P_RemoveThinker((thinker_t *)mobj);
 	}
-
-	R_RemoveMobjInterpolator(mobj);
 }
 
 // This does not need to be added to Lua.
@@ -11410,7 +11577,7 @@ void P_SpawnMapThing(mapthing_t *mthing)
 	mobj = P_SpawnMobj(x, y, z, i);
 
 	if (!mobj || P_MobjWasRemoved(mobj)) {
-		CONS_Alert(CONS_WARNING, "Failed to spawn map thing #%d at %d, %d\n", mthing->type, x>>FRACBITS, y>>FRACBITS);
+		CONS_Alert(CONS_ERROR, "Failed to spawn map thing #%d at %d, %d. This will crash vanilla clients!\n", mthing->type, x>>FRACBITS, y>>FRACBITS);
 		return;
 	}
 
