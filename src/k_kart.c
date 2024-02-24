@@ -9057,13 +9057,11 @@ void K_LoadKartHUDGraphics(void)
 	// Nametags
 	// Remove Health if you plan to use for vanilla-compat client
 	if (nametaggfx){
-		
 		nametagpic = W_CachePatchName("NTLINE", PU_HUDGFX);
 		nametagline = W_CachePatchName("NTLINEV", PU_HUDGFX);
 		nametagspeed = W_CachePatchName("NTSP", PU_HUDGFX);
 		nametagweight = W_CachePatchName("NTWH", PU_HUDGFX);
-		nametaghealth = W_CachePatchName("NTHP", PU_HUDGFX);
-		
+		nametaghealth = W_CachePatchName("NTHP", PU_HUDGFX);		
 	}
 	
 	if (driftgaugegfx){
@@ -11043,8 +11041,8 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 		x = FixedMul(x, FINECOSINE((yang>>ANGLETOFINESHIFT) & FINEMASK)); // perspective
 		y = -camaiming - FixedDiv(yang, distfact);
 
-		//if ((fixed_t)y < ANGLE_270 || (fixed_t)y > ANGLE_90) // clip points behind the camera
-		//	return;
+		if (y < (fixed_t)ANGLE_270 || y > (fixed_t)ANGLE_90) // clip points behind the camera
+			return;
 		if (splitscreen == 1) // multiply by 1.25 for 2P splitscreen
 			y = y + (y/4) ;
 		if (srcflip) // flipcam
@@ -11112,7 +11110,7 @@ static void K_drawNameTags(void)
 		UINT8 *cm;
 		fixed_t distance = 0;
 		fixed_t maxdistance = (10*cv_nametagdist.value)* mapobjectscale;
-		
+
 		if (i > PLAYERSMASK)
 			continue;
 		if (!players[i].mo || P_MobjWasRemoved(players[i].mo) || players[i].spectator || !playeringame[i])
@@ -11130,7 +11128,7 @@ static void K_drawNameTags(void)
 			continue;
 		
 		tagsdisplayed += 1;
-			
+
 		if (tagsdisplayed > cv_nametagmaxplayers.value)
 			break;
 
@@ -11170,35 +11168,35 @@ static void K_drawNameTags(void)
 		}
 
 		dup = vid.dupx;
-		
+
 		K_GetScreenCoords(&pos, stplyr, camera, players[i].mo->x, players[i].mo->y, players[i].mo->z + players[i].mo->height);
-		
+
 		//Check for negative screencoords
 		if (pos.x == -1 || pos.y == -1)
 			continue;
-		
+
 		//Flipcam off
 		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
 			pos.y += players[i].mo->height; 
-		
+
 		//Flipcam on
 		if (players[i].mo->eflags & MFE_VERTICALFLIP && (players[i].pflags & PF_FLIPCAM))
 			pos.y -= ((30*dup)<<FRACBITS); 
-		
+
 		//Flipcam off
 		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
 			flipped = players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM);
-		
+
 		//Saltyhop hehe
 		if (cv_saltyhop.value && cv_nametaghop.value)
 			pos.y -= flipped ? -players[i].mo->spriteyoffset : players[i].mo->spriteyoffset;
-		
+
 		namex = pos.x>>FRACBITS;
 		namey = pos.y>>FRACBITS;
-		
+
 		tag = va("%s%s ", HU_SkinColorToConsoleColor(players[i].mo->color),player_names[i]);
 		icon = R_GetSkinFaceMini(players[i].mo->player);
-		
+
 		cm = R_GetTranslationColormap(players[i].skin, players[i].mo->color, GTC_CACHE);
 		tagcolor = colortranslations[players[i].mo->color][7];
 		vflags = trans | V_NOSCALESTART;
@@ -11207,17 +11205,16 @@ static void K_drawNameTags(void)
 		
 		if (cv_smallnametags.value == 2 || cv_smallnametags.value == 1 || !nametaggfx)
 		{
-			
 			if (flipped)
 				namey += dup*5;
 			else // small offset
 				namey -= dup*3;
-			
+
 			if (nametaggfx && cv_smallnametags.value == 1)
 			{
 				if (cv_nametagfacerank.value)
 					tagwidthsmall += icon->width - dup;
-				
+
 				// Have to draw the nametag using patches here since drawfill can't draw at this scale...
 				if (!flipped)
 					V_DrawFixedPatch(namex<<FRACBITS, namey<<FRACBITS, FRACUNIT/2, vflags, nametagline, cm);
@@ -11256,7 +11253,6 @@ static void K_drawNameTags(void)
 				else
 					V_DrawSmallString(namex, namey - dup*5, V_ALLOWLOWERCASE | vflags, va("\x8A%d ", players[i].score));
 			}
-			
 		}
 		else
 		{
@@ -11297,18 +11293,10 @@ static void K_drawNameTags(void)
 				V_DrawMappedPatch(namex, namey - dup*(icon->height+1), vflags, icon, cm);
 				namex += dup*(icon->height+1); // add offset to other stuff
 			}
-			
+
 			V_DrawThinString(namex, namey - dup*10, V_ALLOWLOWERCASE | vflags, tag);
-			
-			// If you take this for a vanilla-compat client remove hpmod stuff.
-			if (cv_nametaghealth.value && players[i].kartstuff[k_hphealth])
-			{
-				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametaghealth);
-				V_DrawString(namex + dup*10, namey - dup*19, vflags, va("\x8D%d ", players[i].kartstuff[k_hphealth]));
-			}
-			
-			//If you take this for a vanilla-compat client remove the hp check.
-			if (((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2) && !(cv_nametaghealth.value && players[i].kartstuff[k_hphealth]))
+
+			if ((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2)
 			{
 				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametagspeed);
 				V_DrawScaledPatch(namex + dup*18, namey - dup*20, vflags, nametagweight);
@@ -11357,27 +11345,26 @@ static void K_drawDriftGauge(void)
 
 	if (!stplyr->kartstuff[k_drift])
 		return;
-		
-		
+
 	K_GetScreenCoords(&pos, stplyr, camera, stplyr->mo->x, stplyr->mo->y, stplyr->mo->z+FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale));
-	
+
 	//Flipcam on
 	if (stplyr->mo->eflags & MFE_VERTICALFLIP && (stplyr->pflags & PF_FLIPCAM))
 		pos.y += ((25*dup)<<FRACBITS); 
-	
+
 	basex = pos.x>>FRACBITS; 
 	basey = pos.y>>FRACBITS;
 	
 	fixed_t barx;
 	fixed_t bary;
 	INT32 BAR_WIDTH;
-	
+
 	if (cv_driftgaugetrans.value)
 		drifttrans = V_HUDTRANS;
 	else
 		drifttrans = 0;
-	
-	switch(cv_driftgaugestyle.value)
+
+	switch (cv_driftgaugestyle.value)
 	{
 		case 1:
 		case 2:
@@ -11387,7 +11374,6 @@ static void K_drawDriftGauge(void)
 				if (cv_driftgaugestyle.value == 1 || cv_driftgaugestyle.value == 3)
 				{
 					barx = basex - dup*23;
-
 					BAR_WIDTH = dup*47;
 				}
 				else
@@ -11410,7 +11396,6 @@ static void K_drawDriftGauge(void)
 					UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
 					V_DrawMappedPatch(cv_driftgaugestyle.value == 2 ? basex + dup*11 : basex, basey, V_NOSCALESTART|V_OFFSET|drifttrans, cv_driftgaugestyle.value == 2 ? driftgaugesmallcolor : driftgaugecolor, colormap);
 				}
-
 
 				if (driftcharge >= driftval*4) // rainbow sparks
 				{
@@ -11441,12 +11426,11 @@ static void K_drawDriftGauge(void)
 			}
 
 			break;
-			
 		case 4:	
 			V_DrawPaddedTallNum(basex + (dup*16), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, 3);
 			break;
-			
-		
+		default:
+			break;
 	}
 }
 
@@ -12564,8 +12548,7 @@ void K_drawKartHUD(void)
 #endif
 		K_drawKartItem();
 		
-	
-	if (cv_driftgauge.value)
+	if (cv_driftgauge.value && !modeattacking)
 		K_drawDriftGauge();
 	
 	if (cv_nametag.value)

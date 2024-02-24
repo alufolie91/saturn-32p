@@ -1482,7 +1482,6 @@ void D_SRB2Main(void)
 		// Nametag stuffs
 		// Remove HP if you plan to use for vanilla-compat client
 		if (W_CheckMultipleLumps("NTLINE","NTLINEV","NTHP","NTSP","NTWH", NULL)) 
-			nametaggfx = true;
 		
 		if (W_CheckMultipleLumps("K_DGAU","K_DCAU","K_DGSU","K_DCSU", NULL)) 
 			driftgaugegfx = true;
