@@ -11111,7 +11111,7 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 //Decided to port and highly modify sunflower version for the main nametag drawing with additions by NepDisk. My previous one was broken anyway due to the changed screencoords and noscalestart
 static void K_drawNameTags(void)
 {
-	UINT8 i,j,k;
+	UINT8 i,j;
 	INT32 trans = 0;
 	vector2_t pos = {0};
 	fixed_t tagwidth;
