@@ -6195,7 +6195,7 @@ static void P_MovePlayer(player_t *player)
 	////////////////////////////
 
 	// SRB2kart - Drifting smoke and fire
-	if (player->kartstuff[k_sneakertimer] > 0 && onground && (leveltime & 1))
+	if (cv_sneakerfire.value && player->kartstuff[k_sneakertimer] > 0 && onground && (leveltime & 1))
 		K_SpawnBoostTrail(player);
 
 	if (player->kartstuff[k_invincibilitytimer] > 0)

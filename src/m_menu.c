@@ -2139,10 +2139,11 @@ static menuitem_t OP_NeptuneTwoMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Multi-Sneaker icon", 			&cv_multisneakericon, 	 	10},
 	{IT_STRING | IT_CVAR, NULL, "Always Show Item Stack Number",&cv_alwaysshowitemstacks, 	 15},
 	{IT_STRING | IT_CVAR, NULL, "Player-Colored Sneaker Fire", 		&cv_coloredsneakertrail, 20},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Fire", 		&cv_sneakerfire,25},
 	
-	{IT_STRING | IT_CVAR, NULL, "Stacking Effect", 		&cv_stackingeffect,	 	25},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Effect Scaling", 			&cv_stackingeffectscaling,	30},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Boostflame color", 		&cv_stackingboostflamecolor,35},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Effect", 		&cv_stackingeffect,	 	30},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Effect Scaling", 			&cv_stackingeffectscaling,	35},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Boostflame color", 		&cv_stackingboostflamecolor,40},
 
 
 };
@@ -2154,7 +2155,7 @@ static const char* OP_NeptuneTwoTooltips[] =
 	"Use new graphics for double and triple sneaker.",
 	"Always show number of items on items such as Orbinauts.",
 	"Changes sneaker fire color to match player.",
-	
+	"Toggle Sneaker fire trail in game.",
 	
 	"Effect that is shown when a stack is active.",
 	"Scaling for stacking effect.",
@@ -2168,6 +2169,7 @@ enum
 	pmt_multisneaker,
 	pmt_itemstack,
 	pmt_pcsneakerf,
+	pmt_sneakerf,
 	pmt_stackefx,
 	pmt_stackefxsc,
 	pmt_stackbfc,

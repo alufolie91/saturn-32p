@@ -527,6 +527,8 @@ extern consvar_t cv_driftgaugeofs;
 extern consvar_t cv_driftgaugetrans;
 extern consvar_t cv_driftgaugestyle;
 
+extern consvar_t cv_sneakerfire;
+
 #define SKINSELECTSPIN_PAIN 25
 extern consvar_t cv_skinselectspin;
 
