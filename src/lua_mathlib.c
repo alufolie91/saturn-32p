@@ -185,6 +185,18 @@ static int lib_all7emeralds(lua_State *L)
 	return 1;
 }
 
+static int lib_votechoose(lua_State *L)
+{
+	int a = luaL_checkinteger(L, 1);
+	int b = luaL_checkinteger(L, 2);
+	
+	if (votes[a] == -1)
+		votes[a] = b;
+	
+	lua_pushinteger(L, b);
+	return 1;
+}
+
 // Whee, special Lua-exclusive function for making use of Color_Opposite[] without needing *2 or +1
 // Returns both color and frame numbers!
 static int lib_coloropposite(lua_State *L)
@@ -220,6 +232,7 @@ static luaL_Reg lib[] = {
 	{"GetSecSpecial", lib_getsecspecial},
 	{"All7Emeralds", lib_all7emeralds},
 	{"ColorOpposite", lib_coloropposite},
+	{"Y_VoteChoose", lib_votechoose},
 	{NULL, NULL}
 };
 

@@ -2376,6 +2376,114 @@ static int lib_gBuildMapName(lua_State *L)
 	return 1;
 }
 
+// Bot adding function!
+// Partly lifted from Got_AddPlayer
+static int lib_gAddPlayer(lua_State *L)
+{
+	INT16 i, newplayernum, botcount = 1;
+	player_t *newplayer;
+	UINT16 skinnum = 0;
+	//SINT8 skinnum = 0, bot;
+
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		if (!playeringame[i])
+			break;
+
+		if (players[i].bot)
+			botcount++; // How many of us are there already?
+	}
+	if (i >= MAXPLAYERS)
+	{
+		lua_pushnil(L);
+		return 1;
+	}
+
+
+	newplayernum = i;
+
+	CL_ClearPlayer(newplayernum);
+
+	playeringame[newplayernum] = true;
+	G_AddPlayer(newplayernum);
+	newplayer = &players[newplayernum];
+
+	newplayer->jointime = 0;
+	//newplayer->quittime = 0;
+
+	// Set the bot name (defaults to Bot #)
+	strcpy(player_names[newplayernum], va("Bot %d", botcount));
+
+	// Read the skin argument (defaults to Sonic)
+	if (!lua_isnoneornil(L, 1))
+	{
+		skinnum = R_SkinAvailable(luaL_checkstring(L, 1));
+		skinnum = (R_SkinAvailable(luaL_checkstring(L, 1)) ? skinnum : 0);
+	}
+
+	// Read the color (defaults to skin prefcolor)
+	if (!lua_isnoneornil(L, 2))
+		newplayer->skincolor = K_GetKartColorByName(luaL_checkstring(L, 2));
+	else
+		newplayer->skincolor = skins[newplayer->skin].prefcolor;
+
+	// Read the bot name, if given
+	if (!lua_isnoneornil(L, 3))
+		strlcpy(player_names[newplayernum], luaL_checkstring(L, 3), sizeof(*player_names));
+
+	//bot = luaL_optinteger(L, 4, 3);
+	newplayer->bot = 0;
+	newplayer->splitscreenindex = 4;
+	//Fixing Spawn of bot after join in game
+	newplayer->playerstate = PST_REBORN;
+
+	// If our bot is a 2P type, we'll need to set its leader so it can spawn
+	//if (newplayer->bot == BOT_2PAI || newplayer->bot == BOT_2PHUMAN)
+		//B_UpdateBotleader(newplayer);
+
+	// Set the skin (can't do this until AFTER bot type is set!)
+	SetPlayerSkinByNum(newplayernum, skinnum);
+
+
+	if (netgame)
+	{
+		char joinmsg[256];
+
+		strcpy(joinmsg, M_GetText("\x82*Bot %s has joined the game (player %d)"));
+		strcpy(joinmsg, va(joinmsg, player_names[newplayernum], newplayernum));
+		HU_AddChatText(joinmsg, false);
+	}
+
+	LUA_PushUserdata(L, newplayer, META_PLAYER);
+	return 1;
+}
+
+// Bot removing function
+static int lib_gRemovePlayer(lua_State *L)
+{
+	UINT8 pnum = -1;
+	if (!lua_isnoneornil(L, 1))
+		pnum = luaL_checkinteger(L, 1);
+	else // No argument
+		return luaL_error(L, "argument #1 not given (expected number)");
+	if (pnum >= MAXPLAYERS) // Out of range
+		return luaL_error(L, "playernum %d out of range (0 - %d)", pnum, MAXPLAYERS-1);
+	if (playeringame[pnum]) // Found player
+	{
+		if (playernode[pnum] != UINT8_MAX) // Can't remove clients.
+			return luaL_error(L, "G_RemovePlayer can only be used on players with a bot value other than BOT_NONE.");
+		else
+		{
+			CL_ClearPlayer(pnum);
+			playeringame[pnum] = false;
+			lua_pushboolean(L, true);
+			return 1;
+		}
+	}
+	// Fell through. Invalid player
+	return LUA_ErrInvalid(L, "player_t");
+}
+
 static int lib_gDoReborn(lua_State *L)
 {
 	INT32 playernum = luaL_checkinteger(L, 1);
@@ -3188,6 +3296,8 @@ static luaL_Reg lib[] = {
 
 	// g_game
 	{"G_BuildMapName",lib_gBuildMapName},
+	{"G_AddPlayer", lib_gAddPlayer},
+	{"G_RemovePlayer", lib_gRemovePlayer},
 	{"G_DoReborn",lib_gDoReborn},
 	{"G_SetCustomExitVars",lib_gSetCustomExitVars},
 	{"G_ExitLevel",lib_gExitLevel},
