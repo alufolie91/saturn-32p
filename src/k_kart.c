@@ -11124,8 +11124,9 @@ static void K_drawNameTags(void)
 	int tagsdisplayed = 0;
 	char *tag;
 	patch_t *icon;
+	INT32 hudtransflag = V_LocalTransFlag();
 
-	if (!stplyr->mo || stplyr->spectator || splitscreen)
+	if (!stplyr->mo || (stplyr->spectator && !cv_shownametagspectator.value) || splitscreen || (stplyr->exiting && !cv_shownametagfinish.value))
 		return;
 
 	for (i = 0; i < MAXPLAYERS; i++)
@@ -11179,7 +11180,7 @@ static void K_drawNameTags(void)
 				trans =  V_40TRANS;
 				break;
 			case 4:
-				trans = V_HUDTRANS;
+				trans = hudtransflag;
 				break;
 			default:
 				break;
@@ -11312,7 +11313,7 @@ static void K_drawNameTags(void)
 			}
 			
 			if (cv_nametagfacerank.value)
-			{	
+			{
 				V_DrawMappedPatch(namex, namey - dup*(icon->height+1), vflags, icon, cm);
 				namex += dup*(icon->height+1); // add offset to other stuff
 			}

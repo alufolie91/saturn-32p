@@ -371,7 +371,6 @@ menu_t OP_AdvancedBirdDef;
 
 // Chaotic
 menu_t OP_NametagDef;
-//menu_t OP_OGLShadowsDef;
 
 //Driftgauge
 menu_t OP_DriftGaugeDef;
@@ -2385,6 +2384,8 @@ static menuitem_t OP_NametagMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Nametag Health", &cv_nametaghealth, 90},
 	{IT_STRING | IT_CVAR, NULL, "Nametag Hop", &cv_nametaghop, 100},
 	{IT_STRING | IT_CVAR, NULL, "Small Nametags", &cv_smallnametags, 110},
+	{IT_STRING | IT_CVAR, NULL, "Show Nametags after Race finish", &cv_shownametagfinish, 120},
+	{IT_STRING | IT_CVAR, NULL, "Show Nametags in Spectator Mode", &cv_shownametagspectator, 130},
 	//{IT_STRING | IT_CVAR, NULL, "Nametag Scaling", &cv_nametagscaling, 70}
 };
 
@@ -2403,6 +2404,8 @@ static const char* OP_NametagTooltips[] =
 	"Show health in nametags if used by script.",
 	"Enable Saltyhop support for nametags.",
 	"Alternative smaller nametags.",
+	"Show Nametags after Race finish.",
+	"Show Nametags when you are spectating.",
 };
 
 enum
@@ -2419,6 +2422,8 @@ enum
 	nt_nthealth,
 	nt_nthop,
 	nt_smol,
+	nt_finish,
+	nt_spec,
 };
 
 
