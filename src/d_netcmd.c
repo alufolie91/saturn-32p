@@ -911,7 +911,7 @@ static CV_PossibleValue_t driftgaugeoffset_cons_t[] = {
 static CV_PossibleValue_t driftgaugestyle_cons_t[] = {
 	{1, "Default"}, {2, "Small"}, {3, "Big Numbers"}, {4, "Numbers Only"}, {0, NULL}};
 
-consvar_t cv_driftgauge = {"kartdriftgauge", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftgauge = {"kartdriftgauge", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftgaugeofs = {"kartdriftgaugeoffset", "-20", CV_FLOAT|CV_SAVE, driftgaugeoffset_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftgaugetrans = {"kartdriftgaugetransparency", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftgaugestyle = {"kartdriftgaugestyle", "1", CV_SAVE, driftgaugestyle_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1534,6 +1534,7 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_nametagrestat);
 	CV_RegisterVar(&cv_nametaghop);
 	CV_RegisterVar(&cv_nametagscore);
+	
 	// If you take this for a vanilla-compat client remove hpmod stuff.
 	CV_RegisterVar(&cv_nametaghealth);
 	CV_RegisterVar(&cv_shownametagfinish);

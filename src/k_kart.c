@@ -11193,7 +11193,6 @@ static void K_drawNameTags(void)
 		//Check for negative screencoords
 		if (pos.x == -1 || pos.y == -1)
 			continue;
-		
 		tagsdisplayed += 1;
 
 		if (tagsdisplayed > cv_nametagmaxplayers.value)
@@ -11348,6 +11347,7 @@ static void K_drawDriftGauge(void)
 	vector2_t pos = {0};
 	fixed_t basex,basey;
 	INT32 drifttrans = 0;
+	INT32 hudtransflag = V_LocalTransFlag();
 	int dup = vid.dupx;
 	int i,j;
 
@@ -11369,8 +11369,6 @@ static void K_drawDriftGauge(void)
 
 	if (!stplyr->mo || !stplyr->kartstuff[k_drift] || (!splitscreen && !camera->chase))
 		return;
-	
-	
 	if (!splitscreen)
 		K_GetScreenCoords(&pos, stplyr, camera, stplyr->mo->x, stplyr->mo->y, stplyr->mo->z+FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale));
 	else
@@ -11379,7 +11377,6 @@ static void K_drawDriftGauge(void)
 		for (j = 0; j <= stplyrnum; j++)
 			K_GetScreenCoords(&pos, stplyr, &camera[j], stplyr->mo->x, stplyr->mo->y, stplyr->mo->z+FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale));
 	}
-	
 	//Check for negative screencoords
 	if (pos.x == -1 || pos.y == -1)
 		return;
@@ -11390,13 +11387,13 @@ static void K_drawDriftGauge(void)
 
 	basex = pos.x>>FRACBITS; 
 	basey = pos.y>>FRACBITS;
-	
+
 	fixed_t barx;
 	fixed_t bary;
 	INT32 BAR_WIDTH;
 
 	if (cv_driftgaugetrans.value)
-		drifttrans = V_HUDTRANS;
+		drifttrans = hudtransflag;
 	else
 		drifttrans = 0;
 
@@ -11461,15 +11458,17 @@ static void K_drawDriftGauge(void)
 					V_DrawPingNum(cv_driftgaugestyle.value == 2 ? basex + (dup*22) : basex + (dup*32), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, cmap);
 			}
 			break;
-		case 4:	
-			UINT8 *cmap;
-			INT32 level = min(driftcharge / driftval, 2);
-			if (driftcharge >= driftval*4)
-				cmap = R_GetTranslationColormap(TC_RAINBOW, 1 + leveltime % (MAXSKINCOLORS-1),GTC_CACHE);
-			else
-				cmap =  R_GetTranslationColormap(TC_RAINBOW, driftskins[level],GTC_CACHE);
-			
-			V_DrawPaddedTallColorNum(basex + (dup*16), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, 3, cmap);
+		case 4:
+			{
+				UINT8 *cmap;
+				INT32 level = min(driftcharge / driftval, 2);
+				if (driftcharge >= driftval*4)
+					cmap = R_GetTranslationColormap(TC_RAINBOW, 1 + leveltime % (MAXSKINCOLORS-1),GTC_CACHE);
+				else
+					cmap =  R_GetTranslationColormap(TC_RAINBOW, driftskins[level],GTC_CACHE);
+
+				V_DrawPaddedTallColorNum(basex + (dup*16), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, 3, cmap);
+			}
 			break;
 		default:
 			break;
@@ -12591,8 +12590,13 @@ void K_drawKartHUD(void)
 		K_drawKartItem();
 		
 	if (cv_driftgauge.value && !modeattacking)
+	{
+#ifdef HAVE_BLUA
+	if (LUA_HudEnabled(hud_driftgauge))
+#endif
 		K_drawDriftGauge();
-	
+	}
+
 	if (cv_nametag.value)
 	{
 #ifdef HAVE_BLUA
