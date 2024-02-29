@@ -1197,7 +1197,7 @@ static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
   * \return A new unique identifier.
   * \sa CV_FindNetVar
   */
-static inline unsigned long CV_ComputeNetidDJB2(const char *str)
+static inline UINT64 CV_ComputeNetidDJB2(const char *str)
 {
         static unsigned long hash = 5381;
         int c;
@@ -1498,7 +1498,7 @@ static boolean serverloading = false;
 static void Got_NetVar(UINT8 **p, INT32 playernum)
 {
 	consvar_t *cvar;
-	unsigned long netid;
+	UINT64 netid;
 	char *svalue;
 	UINT8 stealth = false;
 
@@ -1517,7 +1517,7 @@ static void Got_NetVar(UINT8 **p, INT32 playernum)
 		}
 		return;
 	}
-	netid = READULONG(*p);
+	netid = READUINT64(*p);
 	cvar = CV_FindNetVar(netid);
 	svalue = (char *)*p;
 	SKIPSTRING(*p);
@@ -1545,7 +1545,7 @@ void CV_SaveNetVars(UINT8 **p, boolean isdemorecording)
 	for (cvar = consvar_vars; cvar; cvar = cvar->next)
 		if (((cvar->flags & CV_NETVAR) && !CV_IsSetToDefault(cvar)) || (isdemorecording && cvar->netid == cv_numlaps.netid))
 		{
-			WRITEULONG(*p, cvar->netid);
+			WRITEUINT64(*p, cvar->netid);
 
 			// UGLY HACK: Save proper lap count in net replays
 			if (isdemorecording && cvar->netid == cv_numlaps.netid)
@@ -1674,7 +1674,7 @@ static void CV_SetCVar(consvar_t *var, const char *value, boolean stealth)
 		// Only add to netcmd buffer if in a netgame, otherwise, just change it.
 		if (netgame || multiplayer)
 		{
-			WRITEULONG(p, var->netid);
+			WRITEUINT64(p, var->netid);
 			WRITESTRING(p, value);
 			WRITEUINT8(p, stealth);
 
