@@ -7445,7 +7445,7 @@ void G_LoadDemoInfo(menudemo_t *pdemo)
 		UINT64 netid;
 		char *svalue;
 
-		netid = READUINT16(info_p);
+		netid = READUINT64(info_p);
 		svalue = (char *)info_p;
 		SKIPSTRING(info_p);
 		info_p++; // stealth
