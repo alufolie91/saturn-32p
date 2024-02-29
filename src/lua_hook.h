@@ -10,8 +10,6 @@
 /// \file  lua_hook.h
 /// \brief hooks for Lua scripting
 
-#ifdef HAVE_BLUA
-
 #include "r_defs.h"
 #include "d_player.h"
 
@@ -128,4 +126,3 @@ boolean LUAh_KartStealBumper(player_t *player, player_t *target, boolean *force)
 boolean LUAh_MobjScaleChange(mobj_t *target, fixed_t newscale, fixed_t oldscale); // SRB2Kart: Hook for P_SetScale.
 boolean LUAh_KartSneaker(player_t *player, int type); // SRB2Kart: Hook for K_DoSneaker.
 
-#endif

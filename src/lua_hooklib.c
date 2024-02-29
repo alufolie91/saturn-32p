@@ -11,7 +11,6 @@
 /// \brief hooks for Lua scripting
 
 #include "doomdef.h"
-#ifdef HAVE_BLUA
 #include "doomstat.h"
 #include "p_mobj.h"
 #include "g_game.h"
@@ -2038,5 +2037,3 @@ boolean LUAh_MobjScaleChange(mobj_t *target, fixed_t newscale, fixed_t oldscale)
 	lua_settop(gL, 0);
 	return hooked;
 }
-
-#endif

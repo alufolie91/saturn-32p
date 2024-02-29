@@ -67,9 +67,8 @@ void P_RunCachedActions(void)
 	{
 		var1 = states[ac->statenum].var1;
 		var2 = states[ac->statenum].var2;
-#ifdef HAVE_BLUA
 		astate = &states[ac->statenum];
-#endif
+
 		if (ac->mobj && !P_MobjWasRemoved(ac->mobj)) // just in case...
 			states[ac->statenum].action.acp1(ac->mobj);
 		next = ac->next;
@@ -218,9 +217,8 @@ boolean P_SetPlayerMobjState(mobj_t *mobj, statenum_t state)
 		{
 			var1 = st->var1;
 			var2 = st->var2;
-#ifdef HAVE_BLUA
 			astate = st;
-#endif
+
 			st->action.acp1(mobj);
 
 			// woah. a player was removed by an action.
@@ -289,9 +287,8 @@ boolean P_SetMobjState(mobj_t *mobj, statenum_t state)
 		{
 			var1 = st->var1;
 			var2 = st->var2;
-#ifdef HAVE_BLUA
 			astate = st;
-#endif
+
 			st->action.acp1(mobj);
 			if (P_MobjWasRemoved(mobj))
 				return false;
@@ -6129,12 +6126,12 @@ void P_MobjThinker(mobj_t *mobj)
 	// Special thinker for scenery objects
 	if (mobj->flags & MF_SCENERY)
 	{
-#ifdef HAVE_BLUA
 		if (LUAh_MobjThinker(mobj))
 			return;
+
 		if (P_MobjWasRemoved(mobj))
 			return;
-#endif
+
 		switch (mobj->type)
 		{
 			case MT_HOOP:
@@ -6826,10 +6823,8 @@ void P_MobjThinker(mobj_t *mobj)
 					mobj->fuse--;
 					if (!mobj->fuse)
 					{
-#ifdef HAVE_BLUA
 						if (!LUAh_MobjFuse(mobj))
-#endif
-						P_RemoveMobj(mobj);
+							P_RemoveMobj(mobj);
 						return;
 					}
 				}
@@ -6840,7 +6835,6 @@ void P_MobjThinker(mobj_t *mobj)
 		return;
 	}
 
-#ifdef HAVE_BLUA
 	// Check for a Lua thinker first
 	if (!mobj->player)
 	{
@@ -6854,7 +6848,7 @@ void P_MobjThinker(mobj_t *mobj)
 		if (P_MobjWasRemoved(mobj))
 			return;
 	}
-#endif
+
 	// if it's pushable, or if it would be pushable other than temporary disablement, use the
 	// separate thinker
 	if (mobj->flags & MF_PUSHABLE || (mobj->info->flags & MF_PUSHABLE && mobj->fuse))
@@ -6872,7 +6866,6 @@ void P_MobjThinker(mobj_t *mobj)
 	}
 	else if (mobj->flags & MF_BOSS)
 	{
-#ifdef HAVE_BLUA
 		if (LUAh_BossThinker(mobj))
 		{
 			if (P_MobjWasRemoved(mobj))
@@ -6881,23 +6874,13 @@ void P_MobjThinker(mobj_t *mobj)
 		else if (P_MobjWasRemoved(mobj))
 			return;
 		else
-#endif
 		switch (mobj->type)
 		{
 			case MT_EGGMOBILE:
 				if (mobj->health < mobj->info->damage+1 && leveltime & 1 && mobj->health > 0)
 					P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_SMOKE);
 				if (mobj->flags2 & MF2_SKULLFLY)
-#if 1
 					P_SpawnGhostMobj(mobj);
-#else
-				{
-					mobj_t *spawnmobj;
-					spawnmobj = P_SpawnMobj(mobj->x, mobj->y, mobj->z, mobj->info->painchance);
-					P_SetTarget(&spawnmobj->target, mobj);
-					spawnmobj->color = SKINCOLOR_GREY;
-				}
-#endif
 				P_Boss1Thinker(mobj);
 				break;
 			case MT_EGGMOBILE2:
@@ -8892,9 +8875,7 @@ void P_MobjThinker(mobj_t *mobj)
 			fixed_t x, y, z;
 			mobj_t *flagmo, *newmobj;
 
-#ifdef HAVE_BLUA
 			if (!LUAh_MobjFuse(mobj) && !P_MobjWasRemoved(mobj))
-#endif
 			switch (mobj->type)
 			{
 				// gargoyle and snowman handled in P_PushableThinker, not here
@@ -9481,7 +9462,6 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 
 	mobj->colorized = false;
 
-#ifdef HAVE_BLUA
 	// DANGER! This can cause P_SpawnMobj to return NULL!
 	// Avoid using P_RemoveMobj on the newly created mobj in "MobjSpawn" Lua hooks!
 	if (LUAh_MobjSpawn(mobj))
@@ -9492,7 +9472,6 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	else if (P_MobjWasRemoved(mobj))
 		return NULL;
 	else
-#endif
 	switch (mobj->type)
 	{
 		case MT_CYBRAKDEMON_NAPALM_BOMB_LARGE:
@@ -9814,9 +9793,8 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 		{
 			var1 = st->var1;
 			var2 = st->var2;
-#ifdef HAVE_BLUA
 			astate = st;
-#endif
+
 			st->action.acp1(mobj);
 			// DANGER! This can cause P_SpawnMobj to return NULL!
 			// Avoid using MF_RUNSPAWNFUNC on mobjs whose spawn state expects target or tracer to already be set!
@@ -9929,9 +9907,8 @@ mobj_t *P_SpawnShadowMobj(mobj_t * caster)
 		{
 			var1 = st->var1;
 			var2 = st->var2;
-#ifdef HAVE_BLUA
 			astate = st;
-#endif
+
 			st->action.acp1(mobj);
 			// DANGER! This is the ONLY way for P_SpawnMobj to return NULL!
 			// Avoid using MF_RUNSPAWNFUNC on mobjs whose spawn state expects target or tracer to already be set!
@@ -10028,16 +10005,13 @@ size_t iquehead, iquetail;
 void P_RemoveMobj(mobj_t *mobj)
 {
 	I_Assert(mobj != NULL);
-#ifdef HAVE_BLUA
+
 	if (P_MobjWasRemoved(mobj))
 		return; // something already removing this mobj.
 
 	mobj->thinker.function.acp1 = (actionf_p1)P_RemoveThinkerDelayed; // shh. no recursing.
 	LUAh_MobjRemoved(mobj);
 	mobj->thinker.function.acp1 = (actionf_p1)P_MobjThinker; // needed for P_UnsetThingPosition, etc. to work.
-#else
-	I_Assert(!P_MobjWasRemoved(mobj));
-#endif
 
 	// Rings only, please!
 	if (mobj->spawnpoint &&
