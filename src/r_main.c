@@ -1106,7 +1106,6 @@ boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y)
 	return passes % 2;
 }
 
-
 //
 // R_PointInSubsector
 //
