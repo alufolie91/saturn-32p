@@ -6853,7 +6853,7 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 	}
 	
 	// Stacking Effect
-	if (stackingeffect && cv_stacking.value && cv_stackingeffect.value && player->kartstuff[k_totalstacks] > 1)
+	if (stackingeffect && cv_stacking.value && player->kartstuff[k_totalstacks] > 1)
 	{
 		//Thanks to 1ndev for code used for booststack->scale and boosttack->frame! (taken and modified from BoostStack)
 		mobj_t  *booststack;

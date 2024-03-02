@@ -7906,14 +7906,22 @@ void P_MobjThinker(mobj_t *mobj)
 				P_RemoveMobj(mobj);
 				return;
 			}
+			
+			
 			// Thx 1ndev! (taken and modified from BoostStack)
 			P_MoveOrigin(mobj, mobj->target->x + FixedMul(cos(mobj->target->angle), FixedMul(30*FRACUNIT, mapobjectscale)), mobj->target->y + FixedMul(sin(mobj->target->angle), FixedMul(30*FRACUNIT, mapobjectscale)), mobj->target->z + mobj->target->spriteyoffset);
-			// visibility (usually for hyudoro)
-			mobj->flags2 = (mobj->flags2 & ~MF2_DONTDRAW)|(mobj->target->flags2 & MF2_DONTDRAW);
-			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP1)|(mobj->target->eflags & MFE_DRAWONLYFORP1);
-			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP2)|(mobj->target->eflags & MFE_DRAWONLYFORP2);
-			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP3)|(mobj->target->eflags & MFE_DRAWONLYFORP3);
-			mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP4)|(mobj->target->eflags & MFE_DRAWONLYFORP4);
+
+			if (!cv_stackingeffect.value)
+				mobj->flags2 |= MF2_DONTDRAW;
+			else
+			{
+				// visibility (usually for hyudoro)
+				mobj->flags2 = (mobj->flags2 & ~MF2_DONTDRAW)|(mobj->target->flags2 & MF2_DONTDRAW);
+				mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP1)|(mobj->target->eflags & MFE_DRAWONLYFORP1);
+				mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP2)|(mobj->target->eflags & MFE_DRAWONLYFORP2);
+				mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP3)|(mobj->target->eflags & MFE_DRAWONLYFORP3);
+				mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP4)|(mobj->target->eflags & MFE_DRAWONLYFORP4);
+			}
 			break;	
 		case MT_SPARKLETRAIL:
 			if (!mobj->target)
