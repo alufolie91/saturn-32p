@@ -84,6 +84,31 @@ end
 
 New lua hooks to enable/disable new hud element.
 
+## P_IsLocalPlayer
+
+Checks if player is a local player and returns true if valid
+
+
+
+## P_ResetCamera
+
+Resets players current camera.
+
+
+## M_MapNumber
+
+Returns mapnumber.
+
+
+## P_ButteredSlope
+
+Makes mobj go down slope as if it was made of butter.
+
+
+## R_PointInSubsector
+
+Used to check if slope is in subsector.
+
 # Stuff from Uranus
 
 ## Interpoints (p.interpoints)
