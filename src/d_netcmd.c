@@ -910,7 +910,6 @@ consvar_t cv_driftgaugestyle = {"kartdriftgaugestyle", "1", CV_SAVE, driftgauges
 
 consvar_t cv_sneakerfire = {"kartsneakerfire", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-
 static CV_PossibleValue_t skinselectspin_cons_t[] = {
 	{0, "Off"}, {1, "Slow"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}, {7, "7"}, {8, "8"}, {9, "9"}, {10, "Fast"}, {SKINSELECTSPIN_PAIN, "Pain"}, {0, NULL}};
 consvar_t cv_skinselectspin = {"skinselectspin", "5", CV_SAVE, skinselectspin_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1512,7 +1511,7 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_driftgaugeofs);
 	CV_RegisterVar(&cv_driftgaugetrans);
 	CV_RegisterVar(&cv_driftgaugestyle);
-	
+
 	CV_RegisterVar(&cv_sneakerfire);
 
 	CV_RegisterVar(&cv_perfstats);

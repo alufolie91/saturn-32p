@@ -11036,6 +11036,8 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 #endif
 		// thanks fickle
 		offset = FixedDiv(offset, fovratio);
+		if (srcflip)
+			offset = -offset; // flipcam
 		y = y + offset;
 	}
 
@@ -11063,8 +11065,6 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 		if (splitindex >= 2)
 			y = y + yres;
 	}
-	
-	
 
 	vec->y = y;
 	vec->x = x;
@@ -11088,16 +11088,22 @@ static void K_drawNameTags(void)
 	char *tag;
 	patch_t *icon;
 	INT32 hudtransflag = V_LocalTransFlag();
+	boolean flipcam;
 
 	if (!stplyr->mo || (stplyr->spectator && !cv_shownametagspectator.value) || splitscreen || (stplyr->exiting && !cv_shownametagfinish.value))
 		return;
+
+	// True if currently viewed player is flipped and has flipcam on
+	flipcam = (stplyr->pflags & PF_FLIPCAM) && (stplyr->mo->eflags & MFE_VERTICALFLIP);
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
 		UINT8 *cm;
 		fixed_t distance = 0;
 		fixed_t maxdistance = (10*cv_nametagdist.value)* mapobjectscale;
-
+		flipped = 0;
+		fixed_t z;
+		
 		if (i > PLAYERSMASK)
 			continue;
 		if (!players[i].mo || P_MobjWasRemoved(players[i].mo) || players[i].spectator || !playeringame[i])
@@ -11150,9 +11156,25 @@ static void K_drawNameTags(void)
 		}
 
 		dup = vid.dupx;
-		
-		K_GetScreenCoords(&pos, stplyr, camera, players[i].mo->x, players[i].mo->y, players[i].mo->z + players[i].mo->height);
-		
+
+		// If flipcam is on, other player is flipped relative to us when we have different
+		// verticalflip flag value. Otherwise, they are simply flipped when verticalflip flag says
+		// so
+		if (flipcam)
+			flipped = (players[i].mo->eflags & MFE_VERTICALFLIP) != (stplyr->mo->eflags & MFE_VERTICALFLIP);
+		else
+			flipped = players[i].mo->eflags & MFE_VERTICALFLIP;
+
+		z = players[i].mo->z;
+
+		z += (players[i].mo->eflags & MFE_VERTICALFLIP) ? -players[i].mo->height/2 : players[i].mo->height;
+
+		//Saltyhop hehe
+		if (cv_saltyhop.value && cv_nametaghop.value)
+			z += (players[i].mo->eflags & MFE_VERTICALFLIP) ? -players[i].mo->spriteyoffset : players[i].mo->spriteyoffset;
+
+		K_GetScreenCoords(&pos, stplyr, camera, players[i].mo->x, players[i].mo->y, z);
+
 		//Check for negative screencoords
 		if (pos.x == -1 || pos.y == -1)
 			continue;
@@ -11160,22 +11182,6 @@ static void K_drawNameTags(void)
 
 		if (tagsdisplayed > cv_nametagmaxplayers.value)
 			break;
-
-		//Flipcam off
-		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
-			pos.y += players[i].mo->height;
-
-		//Flipcam on
-		if (players[i].mo->eflags & MFE_VERTICALFLIP && (players[i].pflags & PF_FLIPCAM))
-			pos.y -= ((30*dup)<<FRACBITS);
-
-		//Flipcam off
-		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
-			flipped = players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM);
-
-		//Saltyhop hehe
-		if (cv_saltyhop.value && cv_nametaghop.value)
-			pos.y -= flipped ? -players[i].mo->spriteyoffset : players[i].mo->spriteyoffset;
 
 		namex = pos.x>>FRACBITS;
 		namey = pos.y>>FRACBITS;
@@ -11313,6 +11319,7 @@ static void K_drawDriftGauge(void)
 	INT32 hudtransflag = V_LocalTransFlag();
 	int dup = vid.dupx;
 	int i,j;
+	fixed_t z;
 
 	UINT8 driftcolors[3][4] = {
 		{0, 0, 10, 16},       // no drift
@@ -11332,21 +11339,24 @@ static void K_drawDriftGauge(void)
 
 	if (!stplyr->mo || !stplyr->kartstuff[k_drift] || (!splitscreen && !camera->chase))
 		return;
+	
+	z = stplyr->mo->z;
+	
+	//vertical flip
+	if (stplyr->mo->eflags & MFE_VERTICALFLIP)
+		z += stplyr->mo->height*2;
+
 	if (!splitscreen)
-		K_GetScreenCoords(&pos, stplyr, camera, stplyr->mo->x, stplyr->mo->y, stplyr->mo->z+FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale));
+		K_GetScreenCoords(&pos, stplyr, camera, stplyr->mo->x, stplyr->mo->y, z+FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale));
 	else
 	{
 		//Loop through each player camera for splitscreen.
 		for (j = 0; j <= stplyrnum; j++)
-			K_GetScreenCoords(&pos, stplyr, &camera[j], stplyr->mo->x, stplyr->mo->y, stplyr->mo->z+FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale));
+			K_GetScreenCoords(&pos, stplyr, &camera[j], stplyr->mo->x, stplyr->mo->y, z+FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale));
 	}
 	//Check for negative screencoords
 	if (pos.x == -1 || pos.y == -1)
 		return;
-
-	//Flipcam on
-	if (stplyr->mo->eflags & MFE_VERTICALFLIP && (stplyr->pflags & PF_FLIPCAM))
-		pos.y += ((25*dup)<<FRACBITS); 
 
 	basex = pos.x>>FRACBITS; 
 	basey = pos.y>>FRACBITS;
@@ -12541,8 +12551,8 @@ void K_drawKartHUD(void)
 
 	// Draw the item window
 	if (LUA_HudEnabled(hud_item) && !freecam)
-		K_drawKartItem();
-		
+		K_drawKartItem();	
+
 	if (cv_driftgauge.value && !modeattacking)
 	{
 		if (LUA_HudEnabled(hud_driftgauge))
