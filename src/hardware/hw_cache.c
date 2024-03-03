@@ -502,6 +502,9 @@ static void FreeMipmapColormap(INT32 patchnum, void *patch)
 
 		// Set the first colormap to the one that comes after it.
 		next = pat->mipmap->nextcolormap;
+		if (!next)
+			break;
+
 		pat->mipmap->nextcolormap = next->nextcolormap;
 
 		// Free image data from memory.
@@ -562,7 +565,7 @@ void HWR_LoadTextures(size_t pnumtextures)
 GLMapTexture_t *HWR_GetTexture(INT32 tex, boolean noencore)
 {
 	GLMapTexture_t *grtex;
-	
+
 	if (tex < 0 || tex >= (signed)gr_numtextures)
 	{
 #ifdef PARANOIA
@@ -571,7 +574,6 @@ GLMapTexture_t *HWR_GetTexture(INT32 tex, boolean noencore)
 		tex = 0;
 #endif
 	}
-
 	grtex = &gr_textures[tex*2 + (encoremap && !noencore ? 0 : 1)];
 
 	if (!grtex->mipmap.data && !grtex->mipmap.downloaded)
@@ -580,7 +582,7 @@ GLMapTexture_t *HWR_GetTexture(INT32 tex, boolean noencore)
 	// If hardware does not have the texture, then call pfnSetTexture to upload it
 	if (!grtex->mipmap.downloaded)
 		HWD.pfnSetTexture(&grtex->mipmap);
-	
+
 	HWR_SetCurrentTexture(&grtex->mipmap);
 
 	// The system-memory data can be purged now.
@@ -589,7 +591,6 @@ GLMapTexture_t *HWR_GetTexture(INT32 tex, boolean noencore)
 	return grtex;
 }
 
-
 static void HWR_CacheFlat(GLMipmap_t *grMipmap, lumpnum_t flatlumpnum)
 {
 #ifdef GLENCORE
@@ -597,7 +598,6 @@ static void HWR_CacheFlat(GLMipmap_t *grMipmap, lumpnum_t flatlumpnum)
 	size_t steppy;
 #endif
 	size_t size, pflatsize;
-
 
 	// setup the texture info
 	grMipmap->format = GL_TEXFMT_P_8;
@@ -644,11 +644,13 @@ static void HWR_CacheFlat(GLMipmap_t *grMipmap, lumpnum_t flatlumpnum)
 #endif
 }
 
-
 // Download a Doom 'flat' to the hardware cache and make it ready for use
 void HWR_GetFlat(lumpnum_t flatlumpnum, boolean noencoremap)
 {
 	GLMipmap_t *grmip;
+	
+	if (flatlumpnum == LUMPERROR)
+		return;
 
 	grmip = HWR_GetCachedGLPatch(flatlumpnum)->mipmap;
 
@@ -665,7 +667,6 @@ void HWR_GetFlat(lumpnum_t flatlumpnum, boolean noencoremap)
 	// If hardware does not have the texture, then call pfnSetTexture to upload it
 	if (!grmip->downloaded)
 		HWD.pfnSetTexture(grmip);
-	
 	HWR_SetCurrentTexture(grmip);
 
 	// The system-memory data can be purged now.
@@ -1088,8 +1089,7 @@ UINT32 HWR_GetLightTableID(extracolormap_t *colormap)
 // call become invalid and must not be used.
 void HWR_ClearLightTables(void)
 {
-	//if (vid.glstate == VID_GL_LIBRARY_LOADED) // we have pfnInit which is essentially the same, but it doesent work here for whatever reason, since this should not be done in software renderer ever!
-	if (rendermode == render_opengl)
+	if (vid.glstate == VID_GL_LIBRARY_LOADED)
 		HWD.pfnClearLightTables();
 }
 

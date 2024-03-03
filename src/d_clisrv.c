@@ -1762,7 +1762,7 @@ static boolean SV_SendServerConfig(INT32 node)
 }
 
 #ifdef JOININGAME
-#define SAVEGAMESIZE (768*1024)
+#define SAVEGAMESIZE (1024*1024)
 
 static void SV_SendSaveGame(INT32 node)
 {
@@ -2602,7 +2602,7 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 
 		key = I_GetKey();
 		// Only ESC and non-keyboard keys abort connection
-		if (!modeattacking && (key == KEY_ESCAPE || key >= KEY_MOUSE1 || cl_mode == CL_ABORTED))
+		if (!modeattacking && (key == KEY_ESCAPE || key == KEY_JOY1+1 || cl_mode == CL_ABORTED))
 		{
 			CONS_Printf(M_GetText("Network game synchronization aborted.\n"));
 			D_QuitNetGame();
@@ -3197,11 +3197,7 @@ void CL_RemovePlayer(INT32 playernum, INT32 reason)
 		}
 	}
 
-#ifdef HAVE_BLUA
 	LUAh_PlayerQuit(&players[playernum], reason); // Lua hook for player quitting
-#else
-	(void)reason;
-#endif
 
 	// Reset player data
 	CL_ClearPlayer(playernum);
@@ -3225,13 +3221,9 @@ void CL_RemovePlayer(INT32 playernum, INT32 reason)
 	if (playernum == displayplayers[0] && !demo.playback)
 		displayplayers[0] = consoleplayer; // don't look through someone's view who isn't there
 
-#ifdef HAVE_BLUA
 	LUA_InvalidatePlayer(&players[playernum]);
-#endif
 
-	/*if (G_TagGametype()) //Check if you still have a game. Location flexible. =P
-		P_CheckSurvivors();
-	else*/ if (G_BattleGametype()) // SRB2Kart
+	if (G_BattleGametype()) // SRB2Kart
 		K_CheckBumpers();
 	else if (G_RaceGametype())
 		P_CheckRacers();
@@ -3970,6 +3962,8 @@ consvar_t cv_netticbuffer = {"netticbuffer", "1", CV_SAVE, netticbuffer_cons_t, 
 
 static void Joinable_OnChange(void);
 
+consvar_t cv_joinrefusemessage = {"joinrefusemessage", "The server is not accepting joins for the moment.", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 consvar_t cv_allownewplayer = {"allowjoin", "On", CV_SAVE|CV_CALL, CV_OnOff, Joinable_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 #ifdef VANILLAJOINNEXTROUND
@@ -4108,9 +4102,7 @@ void SV_ResetServer(void)
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-#ifdef HAVE_BLUA
 		LUA_InvalidatePlayer(&players[i]);
-#endif
 		playeringame[i] = false;
 		playernode[i] = UINT8_MAX;
 		sprintf(player_names[i], "Player %d", i + 1);
@@ -4296,9 +4288,7 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 	if (server && multiplayer && motd[0] != '\0')
 		COM_BufAddText(va("sayto %d %s\n", newplayernum, motd));
 
-#ifdef HAVE_BLUA
 	LUAh_PlayerJoin(newplayernum);
-#endif
 
 #ifdef HAVE_DISCORDRPC
 	DRPC_UpdatePresence();
@@ -4597,7 +4587,7 @@ static void HandleConnect(SINT8 node)
 	}
 	else if (!cv_allownewplayer.value && node)
 	{
-		SV_SendRefuse(node, M_GetText("The server is not accepting\njoins for the moment."));
+		SV_SendRefuse(node, M_GetText(cv_joinrefusemessage.string));
 	}
 	else if (connectedplayers >= maxplayers)
 	{
@@ -4998,11 +4988,11 @@ static void HandlePacketFromAwayNode(SINT8 node)
   * \sa HandlePacketFromPlayer
   *
   */
-static boolean CheckForSpeedHacks(UINT8 p)
+static boolean CheckForSpeedHacks(UINT8 p, tic_t faketic)
 {
-	if (netcmds[maketic%TICQUEUE][p].forwardmove > MAXPLMOVE || netcmds[maketic%TICQUEUE][p].forwardmove < -MAXPLMOVE
-		|| netcmds[maketic%TICQUEUE][p].sidemove > MAXPLMOVE || netcmds[maketic%TICQUEUE][p].sidemove < -MAXPLMOVE
-		|| netcmds[maketic%TICQUEUE][p].driftturn > KART_FULLTURN || netcmds[maketic%TICQUEUE][p].driftturn < -KART_FULLTURN)
+	if (netcmds[faketic%TICQUEUE][p].forwardmove > MAXPLMOVE || netcmds[faketic%TICQUEUE][p].forwardmove < -MAXPLMOVE
+		|| netcmds[faketic%TICQUEUE][p].sidemove > MAXPLMOVE || netcmds[faketic%TICQUEUE][p].sidemove < -MAXPLMOVE
+		|| netcmds[faketic%TICQUEUE][p].driftturn > KART_FULLTURN || netcmds[faketic%TICQUEUE][p].driftturn < -KART_FULLTURN)
 	{
 		char buf[2];
 		CONS_Alert(CONS_WARNING, M_GetText("Illegal movement value received from node %d\n"), playernode[p]);
@@ -5100,6 +5090,12 @@ static void HandlePacketFromPlayer(SINT8 node)
 			// As long as clients send valid ticcmds, the server can keep running, so reset the timeout
 			/// \todo Use a separate cvar for that kind of timeout?
 			freezetimeout[node] = I_GetTime() + connectiontimeout;
+			
+			// If we've alredy received a ticcmd for this tic, just submit it for the next one.
+			tic_t faketic = maketic;
+			if ((!!(netcmds[maketic % TICQUEUE][netconsole].angleturn & TICCMD_RECEIVED))
+				&& (maketic - firstticstosend < TICQUEUE))
+				faketic++;
 
 			// Don't do anything for packets of type NODEKEEPALIVE?
 			// Sryder 2018/07/01: Update the freezetimeout still!
@@ -5108,10 +5104,10 @@ static void HandlePacketFromPlayer(SINT8 node)
 				break;
 
 			// Copy ticcmd
-			G_MoveTiccmd(&netcmds[maketic%TICQUEUE][netconsole], &netbuffer->u.clientpak.cmd, 1);
+			G_MoveTiccmd(&netcmds[faketic%TICQUEUE][netconsole], &netbuffer->u.clientpak.cmd, 1);
 
 			// Check ticcmd for "speed hacks"
-			if (CheckForSpeedHacks((UINT8)netconsole))
+			if (CheckForSpeedHacks((UINT8)netconsole, faketic))
 				break;
 
 			// Splitscreen cmd
@@ -5120,10 +5116,10 @@ static void HandlePacketFromPlayer(SINT8 node)
 				|| (netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS))
 				&& (nodetoplayer2[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[maketic%TICQUEUE][(UINT8)nodetoplayer2[node]],
+				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer2[node]],
 					&netbuffer->u.client2pak.cmd2, 1);
 
-				if (CheckForSpeedHacks((UINT8)nodetoplayer2[node]))
+				if (CheckForSpeedHacks((UINT8)nodetoplayer2[node], faketic))
 					break;
 			}
 
@@ -5131,20 +5127,20 @@ static void HandlePacketFromPlayer(SINT8 node)
 				|| (netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS))
 				&& (nodetoplayer3[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[maketic%TICQUEUE][(UINT8)nodetoplayer3[node]],
+				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer3[node]],
 					&netbuffer->u.client3pak.cmd3, 1);
 
-				if (CheckForSpeedHacks((UINT8)nodetoplayer3[node]))
+				if (CheckForSpeedHacks((UINT8)nodetoplayer3[node], faketic))
 					break;
 			}
 
 			if ((netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS)
 				&& (nodetoplayer4[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[maketic%TICQUEUE][(UINT8)nodetoplayer4[node]],
+				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer4[node]],
 					&netbuffer->u.client4pak.cmd4, 1);
 
-				if (CheckForSpeedHacks((UINT8)nodetoplayer4[node]))
+				if (CheckForSpeedHacks((UINT8)nodetoplayer4[node], faketic))
 					break;
 			}
 

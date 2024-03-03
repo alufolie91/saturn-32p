@@ -61,7 +61,6 @@ consvar_t *CV_FindVar(const char *name);
 static const char *CV_StringValue(const char *var_name);
 
 static consvar_t *consvar_vars; // list of registered console variables
-static UINT16     consvar_number_of_netids = 0;
 
 
 static char com_token[1024];
@@ -463,13 +462,11 @@ void COM_AddCommand(const char *name, com_func_t func)
 	{
 		if (!stricmp(name, cmd->name)) //case insensitive now that we have lower and uppercase!
 		{
-#ifdef HAVE_BLUA
 			// don't I_Error for Lua commands
 			// Lua commands can replace game commands, and they have priority.
 			// BUT, if for some reason we screwed up and made two console commands with the same name,
 			// it's good to have this here so we find out.
 			if (cmd->function != COM_Lua_f)
-#endif
 				I_Error("Command %s already exists\n", name);
 
 			return;
@@ -483,7 +480,6 @@ void COM_AddCommand(const char *name, com_func_t func)
 	com_commands = cmd;
 }
 
-#ifdef HAVE_BLUA
 /** Adds a console command for Lua.
   * No I_Errors allowed; return a negative code instead.
   *
@@ -516,7 +512,6 @@ int COM_AddLuaCommand(const char *name)
 	com_commands = cmd;
 	return 0;
 }
-#endif
 
 /** Tests if a command exists.
   *
@@ -1175,23 +1170,39 @@ consvar_t *CV_FindVar(const char *name)
   * \param netid The variable's identifier number.
   * \return A pointer to the variable itself if found, or NULL.
 */
-static consvar_t *CV_FindNetVar(UINT16 netid)
+static consvar_t *CV_FindNetVar(unsigned long netid)
 {
 	consvar_t *cvar;
-	
-	if (netid > consvar_number_of_netids)
-		return NULL;
-
 
 	for (cvar = consvar_vars; cvar; cvar = cvar->next)
 		if (cvar->netid == netid)
 			return cvar;
 
-
 	return NULL;
 }
 
 static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
+
+
+
+/** Builds a unique Net Variable identifier number, which is used
+  * in network packets instead of the full name.
+  * Replacment of previous system with DJB2
+  *
+  * \param s Name of the variable.
+  * \return A new unique identifier.
+  * \sa CV_FindNetVar
+  */
+static inline UINT64 CV_ComputeNetidDJB2(const char *str)
+{
+        static unsigned long hash = 5381;
+        int c;
+
+        while ((c = *str++))
+            hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+        return hash;
+}
 
 /** Registers a variable for later use from the console.
   *
@@ -1199,7 +1210,6 @@ static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
   */
 void CV_RegisterVar(consvar_t *variable)
 {
-	//static UINT16 id = 1;
 	// first check to see if it has already been defined
 	if (CV_FindVar(variable->name))
 	{
@@ -1217,11 +1227,12 @@ void CV_RegisterVar(consvar_t *variable)
 	// check net variables
 	if (variable->flags & CV_NETVAR)
 	{
-		/* in case of overflow... */
-		if (consvar_number_of_netids + 1 < consvar_number_of_netids)
-			I_Error("Way too many netvars");
+		const consvar_t *netvar;
+		variable->netid = CV_ComputeNetidDJB2(variable->name);
+		netvar = CV_FindNetVar(variable->netid);
+		if (netvar)
+			I_Error("Variables %s and %s have same netid\n", variable->name, netvar->name);
 
-		variable->netid = ++consvar_number_of_netids;
 	}
 
 	// link the variable in
@@ -1431,17 +1442,6 @@ found:
 		var->value = atoi(var->string);
 
 finish:
-	// See the note above.
-/* 	if (var->flags & CV_CHEAT)
-	{
-		boolean newcheats = CV_CheatsEnabled();
-
-		if (!prevcheats && newcheats)
-			CONS_Printf(M_GetText("Cheats have been enabled.\n"));
-		else if (prevcheats && !newcheats)
-			CONS_Printf(M_GetText("Cheats have been disabled.\n"));
-	} */
-
 	if (var->flags & CV_SHOWMODIFONETIME || var->flags & CV_SHOWMODIF)
 	{
 		CONS_Printf(M_GetText("%s set to %s\n"), var->name, var->string);
@@ -1452,10 +1452,10 @@ finish:
 		DEBFILE(va("%s set to %s\n", var->name, var->string));
 	}
 	var->flags |= CV_MODIFIED;
+
 	// raise 'on change' code
-#ifdef HAVE_BLUA
 	LUA_CVarChanged(var->name); // let consolelib know what cvar this is.
-#endif
+
 	if (var->flags & CV_CALL && !stealth)
 		var->func();
 
@@ -1483,7 +1483,7 @@ static boolean serverloading = false;
 static void Got_NetVar(UINT8 **p, INT32 playernum)
 {
 	consvar_t *cvar;
-	UINT16 netid;
+	UINT64 netid;
 	char *svalue;
 	UINT8 stealth = false;
 
@@ -1502,7 +1502,7 @@ static void Got_NetVar(UINT8 **p, INT32 playernum)
 		}
 		return;
 	}
-	netid = READUINT16(*p);
+	netid = READUINT64(*p);
 	cvar = CV_FindNetVar(netid);
 	svalue = (char *)*p;
 	SKIPSTRING(*p);
@@ -1510,10 +1510,10 @@ static void Got_NetVar(UINT8 **p, INT32 playernum)
 
 	if (!cvar)
 	{
-		CONS_Alert(CONS_WARNING, "Netvar not found with netid %hu\n", netid);
+		CONS_Alert(CONS_WARNING, "Netvar not found with netid %lu\n", netid);
 		return;
 	}
-	DEBFILE(va("Netvar received: %s [netid=%d] value %s\n", cvar->name, netid, svalue));
+	DEBFILE(va("Netvar received: %s [netid=%lu] value %s\n", cvar->name, netid, svalue));
 
 	Setvalue(cvar, svalue, stealth);
 }
@@ -1530,7 +1530,7 @@ void CV_SaveNetVars(UINT8 **p, boolean isdemorecording)
 	for (cvar = consvar_vars; cvar; cvar = cvar->next)
 		if (((cvar->flags & CV_NETVAR) && !CV_IsSetToDefault(cvar)) || (isdemorecording && cvar->netid == cv_numlaps.netid))
 		{
-			WRITEUINT16(*p, cvar->netid);
+			WRITEUINT64(*p, cvar->netid);
 
 			// UGLY HACK: Save proper lap count in net replays
 			if (isdemorecording && cvar->netid == cv_numlaps.netid)
@@ -1659,7 +1659,7 @@ static void CV_SetCVar(consvar_t *var, const char *value, boolean stealth)
 		// Only add to netcmd buffer if in a netgame, otherwise, just change it.
 		if (netgame || multiplayer)
 		{
-			WRITEUINT16(p, var->netid);
+			WRITEUINT64(p, var->netid);
 			WRITESTRING(p, value);
 			WRITEUINT8(p, stealth);
 

@@ -521,14 +521,23 @@ extern consvar_t cv_nametagrestat;
 extern consvar_t cv_nametaghop;
 extern consvar_t cv_nametagscore;
 extern consvar_t cv_nametaghealth;
+extern consvar_t cv_shownametagfinish;
+extern consvar_t cv_shownametagspectator;
 
 extern consvar_t cv_driftgauge;
 extern consvar_t cv_driftgaugeofs;
 extern consvar_t cv_driftgaugetrans;
 extern consvar_t cv_driftgaugestyle;
 
+extern consvar_t cv_sneakerfire;
+
 #define SKINSELECTSPIN_PAIN 25
 extern consvar_t cv_skinselectspin;
+
+extern consvar_t cv_driftgauge;
+extern consvar_t cv_driftgaugeofs;
+extern consvar_t cv_driftgaugetrans;
+extern consvar_t cv_driftgaugestyle;
 
 extern consvar_t cv_perfstats;
 extern consvar_t cv_ps_thinkframe_page;
@@ -587,10 +596,8 @@ typedef enum
 	XD_PICKVOTE,    // 24
 	XD_REMOVEPLAYER,// 25
 	XD_DISCORD,     // 26
-#ifdef HAVE_BLUA
 	XD_LUACMD,      // 27
 	XD_LUAVAR,      // 28
-#endif
 	MAXNETXCMD
 } netxcmd_t;
 

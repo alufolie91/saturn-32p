@@ -371,7 +371,6 @@ menu_t OP_AdvancedBirdDef;
 
 // Chaotic
 menu_t OP_NametagDef;
-//menu_t OP_OGLShadowsDef;
 
 //Driftgauge
 menu_t OP_DriftGaugeDef;
@@ -1431,6 +1430,8 @@ static menuitem_t OP_ExpOptionsMenu[] =
 	
 	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_vhseffect, 		 		 75},
 	
+	{IT_STRING | IT_CVAR, 	NULL, "Clipping R_PointToAngle Version", &cv_pointoangleexor64, 	 85},
+	
 	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 95},
 	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	105},
 #ifdef HWRENDER	
@@ -1442,6 +1443,7 @@ static menuitem_t OP_ExpOptionsMenu[] =
 	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	135},
 	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	145},
 	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		155},
+	
 #endif	
 };
 
@@ -1453,6 +1455,7 @@ static const char* OP_ExpTooltips[] =
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
 	"Show a VHS-like effect when the game is paused\n or youre rewinding replays.",
+	"Which version of R_PointToAngle should\nbe used for Sector Clipping?\n64 may fix rendering issues on larger maps\nat the cost of performance.",
 	"Hides 3DFloors which are not visible\npotentially resulting in a performance boost.",
 	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
 #ifdef HWRENDER
@@ -1473,6 +1476,7 @@ enum
 	op_exp_precipinter,
 	op_exp_lessprecip,
 	op_exp_vhs,
+	op_exp_angleshit,
 	op_exp_ffclip,
 	op_exp_sprclip,
 #ifdef HWRENDER
@@ -1529,13 +1533,13 @@ static const char* OP_OpenGLTooltips[] =
 
 static menuitem_t OP_SoundOptionsMenu[] =
 {
-	{IT_STRING|IT_CVAR|IT_CV_NOPRINT,			NULL, "SFX",					&cv_gamesounds,			 10},
+	{IT_STRING|IT_CVAR|IT_CV_NOPRINT,			NULL, "SFX",							&cv_gamesounds,			 	10},
 	{IT_STRING|IT_CVAR|IT_CV_SLIDER,
-								NULL, "SFX Volume",				&cv_soundvolume,		 18},
+												NULL, "SFX Volume",						&cv_soundvolume,		 	18},
 
-	{IT_STRING|IT_CVAR|IT_CV_NOPRINT,			NULL, "Music",					&cv_gamedigimusic,		 30},
+	{IT_STRING|IT_CVAR|IT_CV_NOPRINT,			NULL, "Music",							&cv_gamedigimusic,		 	30},
 	{IT_STRING|IT_CVAR|IT_CV_SLIDER,
-								NULL, "Music Volume",			&cv_digmusicvolume,		 38},
+												NULL, "Music Volume",					&cv_digmusicvolume,		 	38},
 
 /* -- :nonnathisshit:
 	{IT_STRING|IT_CVAR,			NULL, "MIDI",					&cv_gamemidimusic,		 50},
@@ -1545,19 +1549,19 @@ static menuitem_t OP_SoundOptionsMenu[] =
 
 	//{IT_STRING|IT_CALL,			NULL, "Restart Audio System",	M_RestartAudio,			 50},
 
-	{IT_STRING|IT_CVAR,			NULL, "Reverse L/R Channels",	&stereoreverse,			 50},
-	{IT_STRING|IT_CVAR,			NULL, "Surround Sound",			&surround,			 60},
+	{IT_STRING|IT_CVAR,							NULL, "Reverse L/R Channels",			&stereoreverse,			 	50},
+	{IT_STRING|IT_CVAR,							NULL, "Surround Sound",					&surround,			 	 	60},
 
-	{IT_STRING|IT_CVAR,			NULL, "Chat Notifications",		&cv_chatnotifications,	 75},
-	{IT_STRING|IT_CVAR,			NULL, "Character voices",		&cv_kartvoices,			 85},
-	{IT_STRING|IT_CVAR,			NULL, "Powerup Warning",		&cv_kartinvinsfx,		 95},
+	{IT_STRING|IT_CVAR,							NULL, "Chat Notifications",				&cv_chatnotifications,	 	75},
+	{IT_STRING|IT_CVAR,							NULL, "Character voices",				&cv_kartvoices,			 	85},
+	{IT_STRING|IT_CVAR,							NULL, "Powerup Warning",				&cv_kartinvinsfx,		 	95},
 	
-	{IT_KEYHANDLER|IT_STRING,	NULL, "Sound Test",				M_HandleSoundTest,		105},
-	{IT_STRING|IT_CALL,	NULL, "Music Test",				M_MusicTest,		115},
+	{IT_KEYHANDLER|IT_STRING,					NULL, "Sound Test",						M_HandleSoundTest,			105},
+	{IT_STRING|IT_CALL,							NULL, "Music Test",						M_MusicTest,				115},
 
-	{IT_STRING|IT_CVAR,        NULL, "Play Music While Unfocused", &cv_playmusicifunfocused, 125},
-	{IT_STRING|IT_CVAR,        NULL, "Play SFX While Unfocused", &cv_playsoundifunfocused, 135},
-	{IT_STRING|IT_SUBMENU, 		NULL, "Advanced Settings...", 		&OP_SoundAdvancedDef, 155}
+	{IT_STRING|IT_CVAR,        					NULL, "Play Music While Unfocused", 	&cv_playmusicifunfocused, 	125},
+	{IT_STRING|IT_CVAR,        					NULL, "Play SFX While Unfocused", 		&cv_playsoundifunfocused, 	135},
+	{IT_STRING|IT_SUBMENU, 						NULL, "Advanced Settings...", 			&OP_SoundAdvancedDef, 		155}
 };
 
 static const char* OP_SoundTooltips[] =
@@ -1584,17 +1588,17 @@ static menuitem_t OP_SoundAdvancedMenu[] =
 #ifdef HAVE_OPENMPT
 	{IT_HEADER, NULL, "Tracker Module Options", NULL, 10},
 
-	{IT_STRING | IT_CVAR, NULL, "Instrument Filter", &cv_modfilter, 22},
-	{IT_STRING | IT_CVAR, NULL, "Amiga Resampler", &cv_amigafilter, 42},
+	{IT_STRING | IT_CVAR, 	NULL, "Instrument Filter", 			&cv_modfilter, 		 22},
+	{IT_STRING | IT_CVAR,	NULL, "Amiga Resampler", 			&cv_amigafilter, 	 42},
 #if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
-	{IT_STRING | IT_CVAR, NULL, "Amiga Type", &cv_amigatype, 62},
+	{IT_STRING | IT_CVAR, 	NULL, "Amiga Type", 				&cv_amigatype, 		 62},
 #endif
-	{IT_STRING | IT_CVAR, NULL, "Stereo Seperation", &cv_stereosep, 82},
+	{IT_STRING | IT_CVAR, 	NULL, "Stereo Seperation", 			&cv_stereosep, 		 82},
 #endif
-	{IT_HEADER, NULL, "Misc", NULL, 105},
+	{IT_HEADER, 			NULL, "Misc", 						NULL, 				105},
 
-	{IT_STRING | IT_CVAR, NULL, "Grow Music", &cv_growmusic, 117},
-	{IT_STRING | IT_CVAR, NULL, "Invulnerability Music", &cv_supermusic, 137},
+	{IT_STRING | IT_CVAR, 	NULL, "Grow Music", 				&cv_growmusic, 		117},
+	{IT_STRING | IT_CVAR, 	NULL, "Invulnerability Music", 		&cv_supermusic, 	137},
 };
 
 static const char* OP_SoundAdvancedTooltips[] =
@@ -1617,11 +1621,10 @@ static const char* OP_SoundAdvancedTooltips[] =
 
 static menuitem_t OP_DataOptionsMenu[] =
 {
-
 	{IT_STRING | IT_CALL,		NULL, "Screenshot Options...",	M_ScreenshotOptions,	 10},
 	{IT_STRING | IT_CALL,		NULL, "Addon Options...",		M_AddonsOptions,		 20},
 	{IT_STRING | IT_SUBMENU,	NULL, "Replay Options...",		&MISC_ReplayOptionsDef,	 30},
-	{IT_STRING | IT_SUBMENU,	NULL, "Protocol options...",		&OP_ProtocolDef,	40},
+	{IT_STRING | IT_SUBMENU,	NULL, "Protocol options...",	&OP_ProtocolDef,		 40},
 #ifdef HAVE_DISCORDRPC
 	{IT_STRING | IT_SUBMENU,	NULL, "Discord Options...",		&OP_DiscordOptionsDef,	 50},
 
@@ -1637,21 +1640,21 @@ static menuitem_t OP_ScreenshotOptionsMenu[] =
 	{IT_STRING|IT_CVAR|IT_CV_STRING, NULL, "Custom Folder", &cv_screenshot_folder, 20},
 
 	{IT_HEADER, NULL, "Screenshots (F8)", NULL, 50},
-	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memory,      60},
-	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_level,       70},
-	{IT_STRING|IT_CVAR, NULL, "Strategy",          &cv_zlib_strategy,    80},
-	{IT_STRING|IT_CVAR, NULL, "Window Size",       &cv_zlib_window_bits, 90},
+	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memory,      	 60},
+	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_level,       	 70},
+	{IT_STRING|IT_CVAR, NULL, "Strategy",          &cv_zlib_strategy,    	 80},
+	{IT_STRING|IT_CVAR, NULL, "Window Size",       &cv_zlib_window_bits, 	 90},
 
 	{IT_HEADER, NULL, "Movie Mode (F9)", NULL, 105},
-	{IT_STRING|IT_CVAR, NULL, "Capture Mode", &cv_moviemode, 115},
+	{IT_STRING|IT_CVAR, NULL, "Capture Mode",	   &cv_moviemode, 			115},
 
-	{IT_STRING|IT_CVAR, NULL, "Region Optimizing", &cv_gif_optimize,  125},
-	{IT_STRING|IT_CVAR, NULL, "Downscaling",       &cv_gif_downscale, 135},
+	{IT_STRING|IT_CVAR, NULL, "Region Optimizing", &cv_gif_optimize,  		125},
+	{IT_STRING|IT_CVAR, NULL, "Downscaling",       &cv_gif_downscale, 		135},
 
-	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memorya,      125},
-	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_levela,       135},
-	{IT_STRING|IT_CVAR, NULL, "Strategy",          &cv_zlib_strategya,    145},
-	{IT_STRING|IT_CVAR, NULL, "Window Size",       &cv_zlib_window_bitsa, 155},
+	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memorya,      	125},
+	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_levela,       	135},
+	{IT_STRING|IT_CVAR, NULL, "Strategy",          &cv_zlib_strategya,    	145},
+	{IT_STRING|IT_CVAR, NULL, "Window Size",       &cv_zlib_window_bitsa, 	155},
 };
 
 enum
@@ -2139,10 +2142,11 @@ static menuitem_t OP_NeptuneTwoMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Multi-Sneaker icon", 			&cv_multisneakericon, 	 	10},
 	{IT_STRING | IT_CVAR, NULL, "Always Show Item Stack Number",&cv_alwaysshowitemstacks, 	 15},
 	{IT_STRING | IT_CVAR, NULL, "Player-Colored Sneaker Fire", 		&cv_coloredsneakertrail, 20},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Fire", 		&cv_sneakerfire,25},
 	
-	{IT_STRING | IT_CVAR, NULL, "Stacking Effect", 		&cv_stackingeffect,	 	25},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Effect Scaling", 			&cv_stackingeffectscaling,	30},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Boostflame color", 		&cv_stackingboostflamecolor,35},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Effect", 		&cv_stackingeffect,	 	30},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Effect Scaling", 			&cv_stackingeffectscaling,	35},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Boostflame color", 		&cv_stackingboostflamecolor,40},
 
 
 };
@@ -2154,7 +2158,7 @@ static const char* OP_NeptuneTwoTooltips[] =
 	"Use new graphics for double and triple sneaker.",
 	"Always show number of items on items such as Orbinauts.",
 	"Changes sneaker fire color to match player.",
-	
+	"Toggle Sneaker fire trail in game.",
 	
 	"Effect that is shown when a stack is active.",
 	"Scaling for stacking effect.",
@@ -2168,6 +2172,7 @@ enum
 	pmt_multisneaker,
 	pmt_itemstack,
 	pmt_pcsneakerf,
+	pmt_sneakerf,
 	pmt_stackefx,
 	pmt_stackefxsc,
 	pmt_stackbfc,
@@ -2372,17 +2377,20 @@ static menuitem_t OP_ForkedBirdMenu[] =
 static menuitem_t OP_NametagMenu[] =
 {
 	{IT_HEADER, NULL, "Nametag", NULL, 0},
-	{IT_STRING | IT_CVAR, NULL, "Nametag", &cv_nametag, 10},
-	{IT_STRING | IT_CVAR, NULL, "Show Char image in Nametag", &cv_nametagfacerank, 20},
-	{IT_STRING | IT_CVAR, NULL, "Show Own Nametag", &cv_showownnametag, 30},
-	{IT_STRING | IT_CVAR, NULL, "Nametag Max distance", &cv_nametagdist, 40},
-	{IT_STRING | IT_CVAR, NULL, "Nametag Max Display Players", &cv_nametagmaxplayers, 50},
-	{IT_STRING | IT_CVAR, NULL, "Nametag Transparency", &cv_nametagtrans, 60},
-	{IT_STRING | IT_CVAR, NULL, "Nametag Score", &cv_nametagscore, 70},
-	{IT_STRING | IT_CVAR, NULL, "Nametag Restat", &cv_nametagrestat, 80},
-	{IT_STRING | IT_CVAR, NULL, "Nametag Health", &cv_nametaghealth, 90},
-	{IT_STRING | IT_CVAR, NULL, "Nametag Hop", &cv_nametaghop, 100},
-	{IT_STRING | IT_CVAR, NULL, "Small Nametags", &cv_smallnametags, 110},
+
+	{IT_STRING | IT_CVAR, NULL, "Nametag", &cv_nametag, 20},
+	{IT_STRING | IT_CVAR, NULL, "Show Char image in Nametag", &cv_nametagfacerank, 30},
+	{IT_STRING | IT_CVAR, NULL, "Show Own Nametag", &cv_showownnametag, 40},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Max distance", &cv_nametagdist, 50},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Max Display Players", &cv_nametagmaxplayers, 60},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Transparency", &cv_nametagtrans, 70},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Score", &cv_nametagscore, 80},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Restat", &cv_nametagrestat, 90},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Health", &cv_nametaghealth, 100},
+	{IT_STRING | IT_CVAR, NULL, "Nametag Hop", &cv_nametaghop, 110},
+	{IT_STRING | IT_CVAR, NULL, "Small Nametags", &cv_smallnametags, 120},
+	{IT_STRING | IT_CVAR, NULL, "Show Nametags after Race finish", &cv_shownametagfinish, 130},
+	{IT_STRING | IT_CVAR, NULL, "Show Nametags in Spectator Mode", &cv_shownametagspectator, 140},
 	//{IT_STRING | IT_CVAR, NULL, "Nametag Scaling", &cv_nametagscaling, 70}
 };
 
@@ -2401,6 +2409,8 @@ static const char* OP_NametagTooltips[] =
 	"Show health in nametags if used by script.",
 	"Enable Saltyhop support for nametags.",
 	"Alternative smaller nametags.",
+	"Show Nametags after Race finish.",
+	"Show Nametags when you are spectating.",
 };
 
 enum
@@ -2417,16 +2427,18 @@ enum
 	nt_nthealth,
 	nt_nthop,
 	nt_smol,
+	nt_finish,
+	nt_spec,
 };
 
 
 static menuitem_t OP_DriftGaugeMenu[] =
 {
 	{IT_HEADER, NULL, "Driftgauge", NULL, 0},
-	{IT_STRING | IT_CVAR, NULL, "Driftgauge", &cv_driftgauge, 10},
-	{IT_STRING | IT_CVAR, NULL, "Driftgauge Transparency", &cv_driftgaugetrans, 20},
-	{IT_STRING | IT_CVAR, NULL, "Driftgauge Offset", &cv_driftgaugeofs, 30},
-	{IT_STRING | IT_CVAR, NULL, "Driftgauge Style", &cv_driftgaugestyle, 40},
+	{IT_STRING | IT_CVAR, NULL, "Driftgauge", &cv_driftgauge, 20},
+	{IT_STRING | IT_CVAR, NULL, "Driftgauge Transparency", &cv_driftgaugetrans, 30},
+	{IT_STRING | IT_CVAR, NULL, "Driftgauge Offset", &cv_driftgaugeofs, 40},
+	{IT_STRING | IT_CVAR, NULL, "Driftgauge Style", &cv_driftgaugestyle, 50},
 };
 
 static const char* OP_DriftGaugeTooltips[] =
@@ -3001,7 +3013,7 @@ menu_t OP_HudOffsetDef = DEFAULTSCROLLSTYLE(NULL, OP_HudOffsetMenu, &OP_SaturnDe
 menu_t OP_SaturnCreditsDef = DEFAULTMENUSTYLE(NULL, OP_SaturnCreditsMenu, &OP_SaturnDef, 30, 10);
 
 menu_t OP_BirdDef = DEFAULTMENUSTYLE(NULL, OP_BirdMenu, &OP_MainDef, 30, 30);
-menu_t OP_NametagDef = DEFAULTMENUSTYLE(NULL, OP_NametagMenu, &OP_SaturnDef, 30, 60);
+menu_t OP_NametagDef = DEFAULTMENUSTYLE(NULL, OP_NametagMenu, &OP_SaturnDef, 30, 40);
 
 menu_t OP_DriftGaugeDef = DEFAULTMENUSTYLE(NULL, OP_DriftGaugeMenu, &OP_SaturnDef, 30, 60);
 
@@ -3344,12 +3356,6 @@ void Saturn_menu_Onchange(void)
 	
 	OP_SaturnMenu[sm_coloritem].status = status;
 	OP_SaturnMenu[sm_colorhud_customcolor].status = status;
-}
-
-void Nametag_menu_Onchange(void) 
-{
-	if (!nametaggfx)
-		OP_NametagMenu[nt_ntchar].status = IT_GRAYEDOUT;
 }
 
 // ==========================================================================
@@ -6739,13 +6745,8 @@ static void M_HandleAddons(INT32 choice)
 						case EXT_CFG:
 							M_AddonExec(KEY_ENTER);
 							break;
-						case EXT_LUA:
-#ifndef HAVE_BLUA
-							S_StartSound(NULL, sfx_s26d);
-							M_StartMessage(va("%c%s\x80\nThis version of SRB2Kart does not\nhave support for .lua files.\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),NULL,MM_NOTHING);
-							break;
-#endif
 						// else intentional fallthrough
+						case EXT_LUA:
 						case EXT_SOC:
 						case EXT_WAD:
 #ifdef USE_KART

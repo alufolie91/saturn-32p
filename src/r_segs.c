@@ -622,62 +622,8 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 
 				// draw the texture
 				col = (column_t *)((UINT8 *)R_GetColumn(texnum, maskedtexturecol[dc_x]) - 3);
-
-//#ifdef POLYOBJECTS_PLANES
-#if 0 // Disabling this allows inside edges to render below the planes, for until the clipping is fixed to work right when POs are near the camera. -Red
-				if (curline->dontrenderme && curline->polyseg && (curline->polyseg->flags & POF_RENDERPLANES))
-				{
-					fixed_t my_topscreen;
-					fixed_t my_bottomscreen;
-					fixed_t my_yl, my_yh;
-
-					my_topscreen = sprtopscreen + spryscale*col->topdelta;
-					my_bottomscreen = sprbotscreen == INT32_MAX ? my_topscreen + spryscale*col->length
-					                                         : sprbotscreen + spryscale*col->length;
-
-					my_yl = (my_topscreen+FRACUNIT-1)>>FRACBITS;
-					my_yh = (my_bottomscreen-1)>>FRACBITS;
-	//				CONS_Debug(DBG_RENDER, "my_topscreen: %d\nmy_bottomscreen: %d\nmy_yl: %d\nmy_yh: %d\n", my_topscreen, my_bottomscreen, my_yl, my_yh);
-
-					if (numffloors)
-					{
-						INT32 top = my_yl;
-						INT32 bottom = my_yh;
-
-						for (i = 0; i < numffloors; i++)
-						{
-							if (!ffloor[i].polyobj || ffloor[i].polyobj != curline->polyseg)
-								continue;
-
-							if (ffloor[i].height < viewz)
-							{
-								INT32 top_w = ffloor[i].plane->top[dc_x];
-
-	//							CONS_Debug(DBG_RENDER, "Leveltime : %d\n", leveltime);
-	//							CONS_Debug(DBG_RENDER, "Top is %d, top_w is %d\n", top, top_w);
-								if (top_w < top)
-								{
-									ffloor[i].plane->top[dc_x] = (INT16)top;
-									ffloor[i].plane->picnum = 0;
-								}
-	//							CONS_Debug(DBG_RENDER, "top_w is now %d\n", ffloor[i].plane->top[dc_x]);
-							}
-							else if (ffloor[i].height > viewz)
-							{
-								INT32 bottom_w = ffloor[i].plane->bottom[dc_x];
-
-								if (bottom_w > bottom)
-								{
-									ffloor[i].plane->bottom[dc_x] = (INT16)bottom;
-									ffloor[i].plane->picnum = 0;
-								}
-							}
-						}
-					}
-				}
-				else
-#endif
-					colfunc_2s(col);
+				
+				colfunc_2s(col);
 			}
 			spryscale += rw_scalestep;
 		}
@@ -1229,6 +1175,19 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 #undef CLAMPMIN
 }
 
+// R_ExpandPlaneY
+//
+// A simple function to modify a visplane's top and bottom for a particular column
+// Sort of like R_ExpandPlane in r_plane.c, except this is vertical expansion
+static inline void R_ExpandPlaneY(visplane_t *pl, INT32 x, INT16 top, INT16 bottom)
+{
+	// Expand the plane, don't shrink it!
+	// note: top and bottom default to 0xFFFF and 0x0000 respectively, which is totally compatible with this
+	if (pl->top[x] > top)       pl->top[x] = top;
+	if (pl->bottom[x] < bottom) pl->bottom[x] = bottom;
+}
+
+
 // R_FFloorCanClip
 //
 // Returns true if a fake floor can clip a column away.
@@ -1603,7 +1562,7 @@ static void R_RenderSegLoop (void)
 				floorclip[rw_x] = bottomclip;
 		}
 		
-		if ((markceiling || markfloor) && (floorclip[rw_x] <= ceilingclip[rw_x] + 1))
+		if (floorclip[rw_x] <= ceilingclip[rw_x] + 1)
 		{
 			solidcol[rw_x] = 1;
 			didsolidcol = true;
@@ -1653,6 +1612,77 @@ static void R_RenderSegLoop (void)
 	}
 	
 	colfunc = wallcolfunc;
+}
+
+
+static void R_MarkSegBounds(void)
+{
+	INT32 top, bottom;
+	INT16 topclip, bottomclip;
+
+	for (; rw_x < rw_stopx; rw_x++)
+	{
+		// mark floor / ceiling areas
+		INT32 yl = (topfrac+HEIGHTUNIT-1)>>HEIGHTBITS;
+		INT32 yh = bottomfrac>>HEIGHTBITS;
+
+		// Mark ceiling
+		top = ceilingclip[rw_x]+1;
+
+		// no space above wall?
+		if (yl < top)
+			yl = top;
+
+		if (markceiling)
+		{
+			if (yl > floorclip[rw_x])
+				bottom = floorclip[rw_x] - 1;
+			else
+				bottom = yl - 1;
+
+			if (ceilingplane && top <= bottom)
+				R_ExpandPlaneY(ceilingplane, rw_x, top, bottom);
+		}
+
+		// Mark floor
+		bottom = floorclip[rw_x]-1;
+
+		// no space below floor?
+		if (yh > bottom)
+			yh = bottom;
+
+		if (markfloor)
+		{
+			if (yh < ceilingclip[rw_x])
+				top = ceilingclip[rw_x] + 1;
+			else
+				top = yh + 1;
+
+			if (floorplane && top <= bottom)
+				R_ExpandPlaneY(floorplane, rw_x, top, bottom);
+		}
+
+		frontscale[rw_x] = rw_scale;
+
+		topclip = (yl >= 0) ? ((yl > viewheight) ? (INT16)viewheight : (INT16)((INT16)yl - 1)) : -1;
+		bottomclip = (yh < viewheight) ? ((yh < -1) ? -1 : (INT16)((INT16)yh + 1)) : (INT16)viewheight;
+
+		if (markceiling) // no top wall
+			ceilingclip[rw_x] = topclip;
+
+		if (markfloor) // no bottom wall
+			floorclip[rw_x] = bottomclip;
+
+		if (floorclip[rw_x] <= ceilingclip[rw_x] + 1)
+		{
+			solidcol[rw_x] = 1;
+			didsolidcol = true;
+		}
+
+		rw_scale += rw_scalestep;
+		topfrac += topstep;
+		bottomfrac += bottomstep;
+	}
 }
 
 // Uses precalculated seg->length
@@ -2670,13 +2700,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			}
 			else
 			{
-#ifdef ESLOPE
 				ffloor[i].f_frac = (centeryfrac>>4) - FixedMul(ffloor[i].f_pos, rw_scale);
 				ffloor[i].f_step = ((centeryfrac>>4) - FixedMul(ffloor[i].f_pos_slope, ds_p->scale2) - ffloor[i].f_frac)/(range);
-#else
-				ffloor[i].f_step = FixedMul(-rw_scalestep, ffloor[i].f_pos);
-				ffloor[i].f_frac = (centeryfrac>>4) - FixedMul(ffloor[i].f_pos, rw_scale);
-#endif
 			}
 		}
 	}
@@ -2923,11 +2948,29 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		}
 	}
 	
-	rw_silhouette = &(ds_p->silhouette);
-	rw_tsilheight = &(ds_p->tsilheight);
-	rw_bsilheight = &(ds_p->bsilheight);
-	
 	didsolidcol = false;
+
+	if (!segtextured && !numffloors)
+	{
+		if (markfloor || markceiling)
+			R_MarkSegBounds();
+		else
+		{
+			for (; rw_x < rw_stopx; rw_x++)
+			{
+				frontscale[rw_x] = rw_scale;
+				rw_scale += rw_scalestep;
+			}
+		}
+	}
+	else
+	{
+		rw_silhouette = &ds_p->silhouette;
+		rw_tsilheight = &ds_p->tsilheight;
+		rw_bsilheight = &ds_p->bsilheight;
+
+		R_RenderSegLoop();
+	}
 
 #ifdef WALLSPLATS
 	if (linedef->splats && cv_splats.value)
@@ -2942,13 +2985,28 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	}
 	else
 #endif
-		R_RenderSegLoop();
+		//R_RenderSegLoop();
 	//colfunc = wallcolfunc;
 
 	if (portalline) // if curline is a portal, set portalrender for drawseg
 		ds_p->portalpass = portalrender+1;
 	else
 		ds_p->portalpass = 0;
+	
+	// cph - if a column was made solid by this wall, we _must_ save full clipping info
+	if (backsector && didsolidcol)
+	{
+		if (!(ds_p->silhouette & SIL_BOTTOM))
+		{
+			ds_p->silhouette |= SIL_BOTTOM;
+			ds_p->bsilheight = backsector->f_slope ? INT32_MAX : backsector->floorheight;
+		}
+		if (!(ds_p->silhouette & SIL_TOP))
+		{
+			ds_p->silhouette |= SIL_TOP;
+			ds_p->tsilheight = backsector->c_slope ? INT32_MIN : backsector->ceilingheight;
+		}
+	}
 	
 	// cph - if a column was made solid by this wall, we _must_ save full clipping info
 	if (backsector && didsolidcol)

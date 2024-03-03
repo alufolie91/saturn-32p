@@ -108,4 +108,5 @@ const char *HWR_GetShaderName(INT32 shader);
 
 extern customshaderxlat_t shaderxlat[];
 
+
 #endif //_HW_GLOB_

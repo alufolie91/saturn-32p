@@ -11,7 +11,6 @@
 /// \brief basic functions for Lua scripting
 
 #include "doomdef.h"
-#ifdef HAVE_BLUA
 #include "p_local.h"
 #include "p_setup.h" // So we can have P_SetupLevelSky
 #include "p_slopes.h" // P_GetZAt
@@ -25,6 +24,7 @@
 #include "console.h"
 #include "k_kart.h" // SRB2Kart
 #include "d_netcmd.h" // IsPlayerAdmin
+#include "m_misc.h" // M_MapNumber
 
 #include "lua_script.h"
 #include "lua_libs.h"
@@ -151,6 +151,23 @@ static int lib_isPlayerAdmin(lua_State *L)
 	if (!player)
 		return LUA_ErrInvalid(L, "player_t");
 	lua_pushboolean(L, IsPlayerAdmin(player-players));
+	return 1;
+}
+
+// M_MISC
+//////////////
+
+static int lib_mMapNumber(lua_State *L)
+{
+	const char *arg = luaL_checkstring(L, 1);
+	size_t len = strlen(arg);
+	if (len == 2 || len == 5) {
+		char first = arg[len-2];
+		char second = arg[len-1];
+		lua_pushinteger(L, M_MapNumber(first, second));
+	} else {
+		lua_pushinteger(L, 0);
+	}
 	return 1;
 }
 
@@ -781,6 +798,17 @@ static int lib_pSetObjectMomZ(lua_State *L)
 	return 0;
 }
 
+static int lib_pIsLocalPlayer(lua_State *L)
+{
+	player_t *player = *((player_t **)luaL_checkudata(L, 1, META_PLAYER));
+	//NOHUD
+	//INLEVEL
+	if (!player)
+		return LUA_ErrInvalid(L, "player_t");
+	lua_pushboolean(L, P_IsLocalPlayer(player));
+	return 1;
+}
+
 static int lib_pRestoreMusic(lua_State *L)
 {
 	player_t *player = *((player_t **)luaL_checkudata(L, 1, META_PLAYER));
@@ -955,6 +983,19 @@ static int lib_pHomingAttack(lua_State *L)
 	if (!source || !enemy)
 		return LUA_ErrInvalid(L, "mobj_t");
 	P_HomingAttack(source, enemy);
+	return 0;
+}
+
+static int lib_pResetCamera(lua_State *L)
+{
+	player_t *player = *((player_t **)luaL_checkudata(L, 1, META_PLAYER));
+	camera_t *cam = *((camera_t **)luaL_checkudata(L, 2, META_CAMERA));
+
+	if (!player)
+		return LUA_ErrInvalid(L, "player_t");
+	if (!cam)
+		return LUA_ErrInvalid(L, "camera_t");
+	P_ResetCamera(player, cam);
 	return 0;
 }
 
@@ -1635,6 +1676,17 @@ static int lib_pGetZAt(lua_State *L)
 	return 1;
 }
 
+static int lib_pButteredSlope(lua_State *L)
+{
+	mobj_t *mobj = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
+	NOHUD
+	//INLEVEL
+	if (!mobj)
+		return LUA_ErrInvalid(L, "mobj_t");
+	P_ButteredSlope(mobj);
+	return 0;
+}
+
 // R_DEFS
 ////////////
 
@@ -1684,6 +1736,20 @@ static int lib_rPointInSubsector(lua_State *L)
 	fixed_t y = luaL_checkfixed(L, 2);
 	//HUDSAFE
 	LUA_PushUserdata(L, R_PointInSubsector(x, y), META_SUBSECTOR);
+	return 1;
+}
+
+static int lib_rIsPointInSubsector(lua_State *L)
+{
+	fixed_t x = luaL_checkfixed(L, 1);
+	fixed_t y = luaL_checkfixed(L, 2);
+	subsector_t *sub = R_IsPointInSubsector(x, y);
+	//HUDSAFE
+	//INLEVEL
+	if (sub)
+		LUA_PushUserdata(L, sub, META_SUBSECTOR);
+	else
+		lua_pushnil(L);
 	return 1;
 }
 
@@ -2376,6 +2442,114 @@ static int lib_gBuildMapName(lua_State *L)
 	return 1;
 }
 
+// Bot adding function!
+// Partly lifted from Got_AddPlayer
+static int lib_gAddPlayer(lua_State *L)
+{
+	INT16 i, newplayernum, botcount = 1;
+	player_t *newplayer;
+	UINT16 skinnum = 0;
+	//SINT8 skinnum = 0, bot;
+
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		if (!playeringame[i])
+			break;
+
+		if (players[i].bot)
+			botcount++; // How many of us are there already?
+	}
+	if (i >= MAXPLAYERS)
+	{
+		lua_pushnil(L);
+		return 1;
+	}
+
+
+	newplayernum = i;
+
+	CL_ClearPlayer(newplayernum);
+
+	playeringame[newplayernum] = true;
+	G_AddPlayer(newplayernum);
+	newplayer = &players[newplayernum];
+
+	newplayer->jointime = 0;
+	//newplayer->quittime = 0;
+
+	// Set the bot name (defaults to Bot #)
+	strcpy(player_names[newplayernum], va("Bot %d", botcount));
+
+	// Read the skin argument (defaults to Sonic)
+	if (!lua_isnoneornil(L, 1))
+	{
+		skinnum = R_SkinAvailable(luaL_checkstring(L, 1));
+		skinnum = (R_SkinAvailable(luaL_checkstring(L, 1)) ? skinnum : 0);
+	}
+
+	// Read the color (defaults to skin prefcolor)
+	if (!lua_isnoneornil(L, 2))
+		newplayer->skincolor = K_GetKartColorByName(luaL_checkstring(L, 2));
+	else
+		newplayer->skincolor = skins[newplayer->skin].prefcolor;
+
+	// Read the bot name, if given
+	if (!lua_isnoneornil(L, 3))
+		strlcpy(player_names[newplayernum], luaL_checkstring(L, 3), sizeof(*player_names));
+
+	//bot = luaL_optinteger(L, 4, 3);
+	newplayer->bot = 0;
+	newplayer->splitscreenindex = 4;
+	//Fixing Spawn of bot after join in game
+	newplayer->playerstate = PST_REBORN;
+
+	// If our bot is a 2P type, we'll need to set its leader so it can spawn
+	//if (newplayer->bot == BOT_2PAI || newplayer->bot == BOT_2PHUMAN)
+		//B_UpdateBotleader(newplayer);
+
+	// Set the skin (can't do this until AFTER bot type is set!)
+	SetPlayerSkinByNum(newplayernum, skinnum);
+
+
+	if (netgame)
+	{
+		char joinmsg[256];
+
+		strcpy(joinmsg, M_GetText("\x82*Bot %s has joined the game (player %d)"));
+		strcpy(joinmsg, va(joinmsg, player_names[newplayernum], newplayernum));
+		HU_AddChatText(joinmsg, false);
+	}
+
+	LUA_PushUserdata(L, newplayer, META_PLAYER);
+	return 1;
+}
+
+// Bot removing function
+static int lib_gRemovePlayer(lua_State *L)
+{
+	UINT8 pnum = -1;
+	if (!lua_isnoneornil(L, 1))
+		pnum = luaL_checkinteger(L, 1);
+	else // No argument
+		return luaL_error(L, "argument #1 not given (expected number)");
+	if (pnum >= MAXPLAYERS) // Out of range
+		return luaL_error(L, "playernum %d out of range (0 - %d)", pnum, MAXPLAYERS-1);
+	if (playeringame[pnum]) // Found player
+	{
+		if (playernode[pnum] != UINT8_MAX) // Can't remove clients.
+			return luaL_error(L, "G_RemovePlayer can only be used on players with a bot value other than BOT_NONE.");
+		else
+		{
+			CL_ClearPlayer(pnum);
+			playeringame[pnum] = false;
+			lua_pushboolean(L, true);
+			return 1;
+		}
+	}
+	// Fell through. Invalid player
+	return LUA_ErrInvalid(L, "player_t");
+}
+
 static int lib_gDoReborn(lua_State *L)
 {
 	INT32 playernum = luaL_checkinteger(L, 1);
@@ -3008,6 +3182,9 @@ static luaL_Reg lib[] = {
 	{"EvalMath", lib_evalMath},
 	{"IsPlayerAdmin", lib_isPlayerAdmin},
 
+	// m_misc
+	{"M_MapNumber",lib_mMapNumber},
+
 	// m_random
 	{"P_RandomFixed",lib_pRandomFixed},
 	{"P_RandomByte",lib_pRandomByte},
@@ -3068,6 +3245,7 @@ static luaL_Reg lib[] = {
 	{"P_InSpaceSector",lib_pInSpaceSector},
 	{"P_InQuicksand",lib_pInQuicksand},
 	{"P_SetObjectMomZ",lib_pSetObjectMomZ},
+	{"P_IsLocalPlayer",lib_pIsLocalPlayer},
 	{"P_RestoreMusic",lib_pRestoreMusic},
 	{"P_SpawnShieldOrb",lib_pSpawnShieldOrb},
 	{"P_SpawnGhostMobj",lib_pSpawnGhostMobj},
@@ -3084,6 +3262,7 @@ static luaL_Reg lib[] = {
 	{"P_LookForEnemies",lib_pLookForEnemies},
 	{"P_NukeEnemies",lib_pNukeEnemies},
 	{"P_HomingAttack",lib_pHomingAttack},
+	{"P_ResetCamera",lib_pResetCamera},
 	//{"P_SuperReady",lib_pSuperReady},
 	{"P_Telekinesis",lib_pTelekinesis},
 
@@ -3138,6 +3317,7 @@ static luaL_Reg lib[] = {
 
 	// p_slopes
 	{"P_GetZAt",lib_pGetZAt},
+	{"P_ButteredSlope",lib_pButteredSlope},
 
 	// r_defs
 	{"R_PointToAngle",lib_rPointToAngle},
@@ -3145,6 +3325,7 @@ static luaL_Reg lib[] = {
 	{"R_PointToDist",lib_rPointToDist},
 	{"R_PointToDist2",lib_rPointToDist2},
 	{"R_PointInSubsector",lib_rPointInSubsector},
+	{"R_IsPointInSubsector",lib_rIsPointInSubsector},
 
 	// r_things (sprite)
 	{"R_Char2Frame",lib_rChar2Frame},
@@ -3188,6 +3369,8 @@ static luaL_Reg lib[] = {
 
 	// g_game
 	{"G_BuildMapName",lib_gBuildMapName},
+	{"G_AddPlayer", lib_gAddPlayer},
+	{"G_RemovePlayer", lib_gRemovePlayer},
 	{"G_DoReborn",lib_gDoReborn},
 	{"G_SetCustomExitVars",lib_gSetCustomExitVars},
 	{"G_ExitLevel",lib_gExitLevel},
@@ -3268,5 +3451,3 @@ int LUA_BaseLib(lua_State *L)
 	luaL_register(L, NULL, lib);
 	return 0;
 }
-
-#endif

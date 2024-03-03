@@ -477,6 +477,12 @@ static UINT8 hudplusalpha[11]  = { 10,  8,  6,  4,  2,  0,  0,  0,  0,  0,  0};
 static UINT8 hudminusalpha[11] = { 10,  9,  9,  8,  8,  7,  7,  6,  6,  5,  5};
 UINT8 hudtrans = 0;
 
+// this is pretty dumb, but has to be done like this, otherwise the fps counter just disappears sometimes for no reason lol
+INT32 V_LocalTransFlag(void)
+{
+	return ((10-cv_translucenthud.value)*V_10TRANS);
+}
+
 static const UINT8 *v_colormap = NULL;
 static const UINT8 *v_translevel = NULL;
 
@@ -2467,6 +2473,27 @@ void V_DrawPaddedTallNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits)
 	{
 		x -= w;
 		V_DrawScaledPatch(x, y, flags, tallnum[num % 10]);
+		num /= 10;
+	} while (--digits);
+}
+
+// Draws a number with a set number of digits.
+// Does not handle negative numbers in a special way, don't try to feed it any.
+void V_DrawPaddedTallColorNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits, const UINT8 *colormap)
+{
+	INT32 w = SHORT(tallnum[0]->width);
+
+	if (flags & V_NOSCALESTART)
+		w *= vid.dupx;
+
+	if (num < 0)
+		num = -num;
+
+	// draw the number
+	do
+	{
+		x -= w;
+		V_DrawFixedPatch(x<<FRACBITS, y<<FRACBITS, FRACUNIT, flags, tallnum[num % 10], colormap);
 		num /= 10;
 	} while (--digits);
 }

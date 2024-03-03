@@ -596,7 +596,6 @@ static boolean PIT_CheckThing(mobj_t *thing)
 			return true; // the line doesn't cross between either pair of opposite corners
 	}
 
-#ifdef HAVE_BLUA
 	{
 		UINT8 shouldCollide = LUAh_MobjCollide(thing, tmthing); // checks hook for thing's type
 		if (P_MobjWasRemoved(tmthing) || P_MobjWasRemoved(thing))
@@ -615,7 +614,6 @@ static boolean PIT_CheckThing(mobj_t *thing)
 		else if (shouldCollide == 2)
 			return true; // force no collide
 	}
-#endif
 
 	// When solid spikes move, assume they just popped up and teleport things on top of them to hurt.
 	if (tmthing->type == MT_SPIKE && tmthing->flags & MF_SOLID)
@@ -2681,8 +2679,22 @@ boolean P_TryMove(mobj_t *thing, fixed_t x, fixed_t y, boolean allowdropoff)
 	fixed_t startingonground = P_IsObjectOnGround(thing);
 	floatok = false;
 
-	if (radius < MAXRADIUS/2)
-		radius = MAXRADIUS/2;
+	// This makes sure that there are no freezes from computing extremely small movements.
+	// Originally was MAXRADIUS/2, but that can cause some bad inconsistencies for small players.
+	radius = max(radius, thing->scale);
+
+	// And we also have to prevent Big Large (tm) movements, as those can skip too far
+	// across slopes and cause us to fail step up checks on them when we otherwise shouldn't.
+	radius = min(radius, 16 * thing->scale);
+
+	// (This whole "step" system is flawed; it was OK before, but the addition of slopes has
+	// exposed the problems with doing it like this. The right thing to do would be to use
+	// raycasting for physics to fix colliding in weird order, double-checking collisions,
+	// randomly colliding with slopes instead of going up them, etc. I don't feel like porting
+	// that from RR, as its both a huge sweeping change and still incomplete at the time of
+	// writing. Clamping radius to make our steps more precise will work just fine as long
+	// as you keep all of your crazy intentions to poke any of the other deep-rooted movement
+	// code to yourself. -- Sal 6/5/2023)
 
 	do {
 		if (thing->flags & MF_NOCLIP) {
@@ -3930,13 +3942,6 @@ static boolean PIT_ChangeSector(mobj_t *thing, boolean realcrush)
 
 				topheight = *rover->topheight;
 				bottomheight = *rover->bottomheight;
-
-/*#ifdef ESLOPE
-				if (rover->t_slope)
-					topheight = P_GetZAt(rover->t_slope, thing->x, thing->y);
-				if (rover->b_slope)
-					bottomheight = P_GetZAt(rover->b_slope, thing->x, thing->y);
-#endif*/
 
 				delta1 = thing->z - (bottomheight + topheight)/2;
 				delta2 = thingtop - (bottomheight + topheight)/2;

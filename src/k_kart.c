@@ -930,7 +930,7 @@ UINT8 K_GetKartColorByName(const char *name)
 	return 0;
 }
 
-static UINT8 K_GetHudColor(void)
+UINT8 K_GetHudColor(void)
 {
 	if (cv_colorizedhud.value){
 		if (cv_colorizedhudcolor.value) return cv_colorizedhudcolor.value;
@@ -939,7 +939,7 @@ static UINT8 K_GetHudColor(void)
 	return ((stplyr && gamestate == GS_LEVEL) ? stplyr->skincolor : cv_playercolor.value);
 }
 
-static boolean K_UseColorHud(void)
+boolean K_UseColorHud(void)
 {
 	return (cv_colorizedhud.value && clr_hud);
 }
@@ -3991,7 +3991,6 @@ void K_SpinPlayer(player_t *player, mobj_t *source, INT32 type, mobj_t *inflicto
 {
 	UINT8 scoremultiply = 1;
 	// PS: Inflictor is unused for all purposes here and is actually only ever relevant to Lua. It may be nil too.
-#ifdef HAVE_BLUA
 	boolean force = false;	// Used to check if Lua ShouldSpin should get us damaged reguardless of flashtics or heck knows what.
 	UINT8 shouldForce = LUAh_ShouldSpin(player, inflictor, source);
 	if (P_MobjWasRemoved(player->mo))
@@ -4000,11 +3999,6 @@ void K_SpinPlayer(player_t *player, mobj_t *source, INT32 type, mobj_t *inflicto
 		force = true;
 	else if (shouldForce == 2)
 		return;
-#else
-	static const boolean force = false;
-	(void)inflictor;	// in case some weirdo doesn't want Lua.
-#endif
-
 
 	if (!trapitem && G_BattleGametype())
 	{
@@ -4028,10 +4022,8 @@ void K_SpinPlayer(player_t *player, mobj_t *source, INT32 type, mobj_t *inflicto
 		}
 	}
 
-#ifdef HAVE_BLUA
 	if (LUAh_PlayerSpin(player, inflictor, source))	// Let Lua do its thing or overwrite if it wants to. Make sure to let any possible instashield happen because we didn't get "damaged" in this case.
 		return;
-#endif
 
 	if (source && source != player->mo && source->player)
 		K_PlayHitEmSound(source);
@@ -4137,7 +4129,6 @@ void K_SquishPlayer(player_t *player, mobj_t *source, mobj_t *inflictor)
 {
 	UINT8 scoremultiply = 1;
 	// PS: Inflictor is unused for all purposes here and is actually only ever relevant to Lua. It may be nil too.
-#ifdef HAVE_BLUA
 	boolean force = false;	// Used to check if Lua ShouldSquish should get us damaged reguardless of flashtics or heck knows what.
 	UINT8 shouldForce = LUAh_ShouldSquish(player, inflictor, source);
 	if (P_MobjWasRemoved(player->mo))
@@ -4146,10 +4137,6 @@ void K_SquishPlayer(player_t *player, mobj_t *source, mobj_t *inflictor)
 		force = true;
 	else if (shouldForce == 2)
 		return;
-#else
-	static const boolean force = false;
-	(void)inflictor;	// Please stop forgetting to put inflictor in yer functions thank -Lat'
-#endif
 
 	if (G_BattleGametype())
 	{
@@ -4173,10 +4160,8 @@ void K_SquishPlayer(player_t *player, mobj_t *source, mobj_t *inflictor)
 		}
 	}
 
-#ifdef HAVE_BLUA
 	if (LUAh_PlayerSquish(player, inflictor, source))	// Let Lua do its thing or overwrite if it wants to. Make sure to let any possible instashield happen because we didn't get "damaged" in this case.
 		return;
-#endif
 
 	player->kartstuff[k_sneakertimer] = 0;
 	player->kartstuff[k_driftboost] = 0;
@@ -4255,7 +4240,6 @@ void K_ExplodePlayer(player_t *player, mobj_t *source, mobj_t *inflictor) // A b
 {
 	fixed_t upgoer;
 	UINT8 scoremultiply = 1;
-#ifdef HAVE_BLUA
 	boolean force = false;	// Used to check if Lua ShouldExplode should get us damaged reguardless of flashtics or heck knows what.
 	UINT8 shouldForce = LUAh_ShouldExplode(player, inflictor, source);
 
@@ -4265,10 +4249,6 @@ void K_ExplodePlayer(player_t *player, mobj_t *source, mobj_t *inflictor) // A b
 		force = true;
 	else if (shouldForce == 2)
 		return;
-
-#else
-	static const boolean force = false;
-#endif
 
 	if (G_BattleGametype())
 	{
@@ -4292,10 +4272,8 @@ void K_ExplodePlayer(player_t *player, mobj_t *source, mobj_t *inflictor) // A b
 		}
 	}
 
-#ifdef HAVE_BLUA
 	if (LUAh_PlayerExplode(player, inflictor, source))	// Same thing. Also make sure to let Instashield happen blah blah
 		return;
-#endif
 
 	if (source && source != player->mo && source->player)
 		K_PlayHitEmSound(source);
@@ -6875,7 +6853,7 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 	}
 	
 	// Stacking Effect
-	if (stackingeffect && cv_stacking.value && cv_stackingeffect.value && player->kartstuff[k_totalstacks] > 1)
+	if (stackingeffect && cv_stacking.value && player->kartstuff[k_totalstacks] > 1)
 	{
 		//Thanks to 1ndev for code used for booststack->scale and boosttack->frame! (taken and modified from BoostStack)
 		mobj_t  *booststack;
@@ -9057,13 +9035,11 @@ void K_LoadKartHUDGraphics(void)
 	// Nametags
 	// Remove Health if you plan to use for vanilla-compat client
 	if (nametaggfx){
-		
 		nametagpic = W_CachePatchName("NTLINE", PU_HUDGFX);
 		nametagline = W_CachePatchName("NTLINEV", PU_HUDGFX);
 		nametagspeed = W_CachePatchName("NTSP", PU_HUDGFX);
 		nametagweight = W_CachePatchName("NTWH", PU_HUDGFX);
-		nametaghealth = W_CachePatchName("NTHP", PU_HUDGFX);
-		
+		nametaghealth = W_CachePatchName("NTHP", PU_HUDGFX);		
 	}
 	
 	if (driftgaugegfx){
@@ -9482,7 +9458,7 @@ static void K_initKartHUD(void)
 			ITEM2_X = BASEVIDWIDTH-39 + cv_item_xoffset.value;
 			ITEM2_Y = -8 + cv_item_yoffset.value;
 
-			LAPS2_X = BASEVIDWIDTH-40 + cv_laps_xoffset.value;
+			LAPS2_X = BASEVIDWIDTH-3 + cv_laps_xoffset.value;
 			LAPS2_Y = (BASEVIDHEIGHT/2)-13 + cv_laps_yoffset.value;
 
 			POSI2_X = BASEVIDWIDTH -4 + cv_posi_xoffset.value;
@@ -9549,6 +9525,91 @@ INT32 K_calcSplitFlags(INT32 snapflags)
 	return (splitflags|snapflags);
 }
 
+void K_getItemBoxDrawinfo(drawinfo_t *out)
+{
+	INT32 fx, fy, fflags;
+
+	// pain and suffering defined below
+	if (splitscreen < 2) // don't change shit for THIS splitscreen.
+	{
+		fx = ITEM_X;
+		fy = ITEM_Y;
+		fflags = K_calcSplitFlags(V_SNAPTOTOP|V_SNAPTOLEFT);
+	}
+	else // now we're having a fun game.
+	{
+		if (!(stplyrnum & 1)) // If we are P1 or P3...
+		{
+			fx = ITEM_X;
+			fy = ITEM_Y;
+			fflags = V_SNAPTOLEFT|(stplyrnum & 2 ? V_SPLITSCREEN : V_SNAPTOTOP); // flip P3 to the bottom.
+		}
+		else // else, that means we're P2 or P4.
+		{
+			fx = ITEM2_X;
+			fy = ITEM2_Y;
+			fflags = V_SNAPTORIGHT|(stplyrnum & 2 ? V_SPLITSCREEN : V_SNAPTOTOP); // flip P4 to the bottom
+		}
+	}
+
+	out->x = fx;
+	out->y = fy;
+	out->flags = fflags;
+}
+
+void K_getLapsDrawinfo(drawinfo_t *out)
+{
+	INT32 fx, fy, fflags;
+
+	// pain and suffering defined below
+	if (splitscreen < 2)	// don't change shit for THIS splitscreen.
+	{
+		fx = LAPS_X;
+		fy = LAPS_Y;
+		fflags = K_calcSplitFlags(V_SNAPTOBOTTOM|V_SNAPTOLEFT);
+	}
+	else
+	{
+		if (!(stplyrnum & 1))	// If we are P1 or P3...
+		{
+			fx = LAPS_X;
+			fy = LAPS_Y;
+			fflags = V_SNAPTOLEFT|(stplyrnum & 2 ? V_SPLITSCREEN|V_SNAPTOBOTTOM : 0);	// flip P3 to the bottom.
+		}
+		else // else, that means we're P2 or P4.
+		{
+			fx = LAPS2_X;
+			fy = LAPS2_Y;
+			fflags = V_SNAPTORIGHT|(stplyrnum & 2 ? V_SPLITSCREEN|V_SNAPTOBOTTOM : 0);	// flip P4 to the bottom
+		}
+	}
+
+	out->x = fx;
+	out->y = fy;
+	out->flags = fflags;
+}
+
+void K_getMinimapDrawinfo(drawinfo_t *out)
+{
+	INT32 fx = MINI_X, fy = MINI_Y, fflags = (splitscreen == 3 ? 0 : V_SNAPTORIGHT);	// flags should only be 0 when it's centered (4p split)
+
+	out->x = fx;
+	out->y = fy;
+	out->flags = fflags;
+}
+
+patch_t *K_getItemBoxPatch(boolean small, boolean dark)
+{
+	UINT8 ofs = (cv_darkitembox.value && dark ? 1 : 0) + (small ? 2 : 0);
+	return (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[ofs] : kp_itembg[ofs];
+}
+
+patch_t *K_getItemMulPatch(boolean small)
+{
+	UINT8 ofs = small ? 1 : 0;
+	return K_UseColorHud() ? kp_itemmulstickerclr[ofs] : kp_itemmulsticker[ofs];
+}
+
 static void K_drawKartStats(void)
 {
 	INT32 x, y, spdoffset, flags;
@@ -9566,13 +9627,10 @@ static void K_drawKartStats(void)
 		if (stplyr == &players[displayplayers[splitnum]])
 			break;
 	}
-	
-#ifdef HAVE_BLUA
+
 	if (!LUA_HudEnabled(hud_statdisplay))
 		return;
-#endif
-	
-	
+
 	// I tried my best, but this is still mess :/
 	if (splitscreen)
 	{
@@ -9674,12 +9732,8 @@ static void K_drawKartItem(void)
 	const UINT8 offset = ((splitscreen > 1) ? 1 : 0);
 	patch_t *localpatch = kp_nodraw;
 	patch_t *localbg;
-	
-	if (cv_colorizeditembox.value && K_UseColorHud())
-		localbg = ((offset) ? kp_itembgclr[2] : kp_itembgclr[0]);
-	else
-		localbg = ((offset) ? kp_itembg[2] : kp_itembg[0]);
-	
+	boolean dark = false;
+
 	patch_t *localinv = ((offset) ? kp_invincibility[((leveltime % (6*3)) / 3) + 7] : kp_invincibility[(leveltime % (7*3)) / 3]);
 	INT32 fx = 0, fy = 0, fflags = 0;	// final coords for hud and flags...
 	//INT32 splitflags = K_calcSplitFlags(V_SNAPTOTOP|V_SNAPTOLEFT);
@@ -9690,9 +9744,9 @@ static void K_drawKartItem(void)
 	UINT8 localcolor = SKINCOLOR_NONE;
 	SINT8 colormode = TC_RAINBOW;
 	UINT8 *colmap = NULL;
-	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
-	
-	boolean flipamount = false;	// Used for 3P/4P splitscreen to flip item amount stuff
+	UINT8 *colormap = NULL;
+
+	boolean flipamount = splitscreen > 1 && stplyrnum & 1;	// Used for 3P/4P splitscreen to flip item amount stuff
 
 	if (stplyr->kartstuff[k_itemroulette])
 	{
@@ -9873,8 +9927,7 @@ static void K_drawKartItem(void)
 				case KITEM_INVINCIBILITY:
 					numberdisplaymin = 2;
 					localpatch = localinv;
-					if (cv_darkitembox.value)
-						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
+					dark = true;
 					break;
 				case KITEM_BANANA:
 					numberdisplaymin = 2;
@@ -9907,8 +9960,7 @@ static void K_drawKartItem(void)
 				case KITEM_SPB:
 					numberdisplaymin = 2;
 					localpatch = kp_selfpropelledbomb[offset];
-					if (cv_darkitembox.value)
-						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
+					dark = true;
 					break;
 				case KITEM_GROW:
 					numberdisplaymin = 2;
@@ -9921,8 +9973,7 @@ static void K_drawKartItem(void)
 				case KITEM_THUNDERSHIELD:
 					numberdisplaymin = 2;
 					localpatch = kp_thundershield[offset];
-					if (cv_darkitembox.value)
-						localbg = (cv_colorizeditembox.value && K_UseColorHud()) ? kp_itembgclr[offset + 1] : kp_itembg[offset + 1];
+					dark = true;
 					break;
 				case KITEM_HYUDORO:
 					numberdisplaymin = 2;
@@ -9970,47 +10021,25 @@ static void K_drawKartItem(void)
 		}
 	}
 
-	// pain and suffering defined below
-	if (splitscreen < 2) // don't change shit for THIS splitscreen.
-	{
-		fx = ITEM_X;
-		fy = ITEM_Y;
-		fflags = K_calcSplitFlags(V_SNAPTOTOP|V_SNAPTOLEFT);
-	}
-	else // now we're having a fun game.
-	{
-		if (stplyr == &players[displayplayers[0]] || stplyr == &players[displayplayers[2]]) // If we are P1 or P3...
-		{
-			fx = ITEM_X;
-			fy = ITEM_Y;
-			fflags = V_SNAPTOLEFT|((stplyr == &players[displayplayers[2]]) ? V_SPLITSCREEN : V_SNAPTOTOP); // flip P3 to the bottom.
-		}
-		else // else, that means we're P2 or P4.
-		{
-			fx = ITEM2_X;
-			fy = ITEM2_Y;
-			fflags = V_SNAPTORIGHT|((stplyr == &players[displayplayers[3]]) ? V_SPLITSCREEN : V_SNAPTOTOP); // flip P4 to the bottom
-			flipamount = true;
-		}
-	}
+	localbg = K_getItemBoxPatch((boolean)offset, dark);
+	drawinfo_t info;
+	K_getItemBoxDrawinfo(&info);
+	fx = info.x;
+	fy = info.y;
+	fflags = info.flags;
 
 	if (localcolor != SKINCOLOR_NONE)
 		colmap = R_GetTranslationColormap(colormode, localcolor, GTC_CACHE);
+	if (K_UseColorHud())
+		colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
 
-	
-	if (cv_colorizeditembox.value && K_UseColorHud())
-		V_DrawMappedPatch(fx, fy, V_HUDTRANS|fflags, localbg,colormap);
-	else
-		V_DrawScaledPatch(fx, fy, V_HUDTRANS|fflags, localbg);
+	V_DrawMappedPatch(fx, fy, V_HUDTRANS|fflags, localbg, cv_colorizeditembox.value ? colormap : NULL);
 
 	// Then, the numbers:
 	if (stplyr->kartstuff[k_itemamount] >= numberdisplaymin && !stplyr->kartstuff[k_itemroulette])
 	{
-		if (!K_UseColorHud())
-			V_DrawScaledPatch(fx + (flipamount ? 48 : 0), fy, V_HUDTRANS|fflags|(flipamount ? V_FLIP : 0), kp_itemmulsticker[offset]);
-		else  //Colourized hud
-			V_DrawMappedPatch(fx + (flipamount ? 48 : 0), fy, V_HUDTRANS|fflags|(flipamount ? V_FLIP : 0), kp_itemmulstickerclr[offset], colormap); // flip this graphic for p2 and p4 in split and shift it.
-		
+		localbg = K_getItemMulPatch((boolean)offset);
+		V_DrawMappedPatch(fx + (flipamount ? 48 : 0), fy, V_HUDTRANS|fflags|(flipamount ? V_FLIP : 0), localbg, colormap); // flip this graphic for p2 and p4 in split and shift it.
 		V_DrawFixedPatch(fx<<FRACBITS, fy<<FRACBITS, FRACUNIT, V_HUDTRANS|fflags, localpatch, colmap);
 		if (offset)
 			if (flipamount) // reminder that this is for 3/4p's right ends of the screen.
@@ -10372,10 +10401,8 @@ static boolean K_drawKartPositionFaces(void)
 	if (numplayersingame <= 1)
 		return true;
 
-#ifdef HAVE_BLUA
 	if (!LUA_HudEnabled(hud_minirankings))
 		return false;	// Don't proceed but still return true for free play above if HUD is disabled.
-#endif
 
 	for (j = 0; j < numplayersingame; j++)
 	{
@@ -10398,9 +10425,6 @@ static boolean K_drawKartPositionFaces(void)
 
 		if (players+i == stplyr)
 			strank = ranklines;
-
-		//if (ranklines == 5)
-			//break; // Only draw the top 5 players -- we do this a different way now...
 
 		ranklines++;
 	}
@@ -10453,10 +10477,8 @@ static boolean K_drawKartPositionFaces(void)
 					V_DrawMappedPatch(FACE_X, Y, V_HUDTRANS|V_SNAPTOLEFT, R_GetSkinFaceRank(p), colormap);
 			}
 
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_battlebumpers))
 			{
-#endif
 				if (G_BattleGametype() && players[rankplayer[i]].kartstuff[k_bumper] > 0)
 				{
 					V_DrawMappedPatch(bumperx-2, Y, V_HUDTRANS|V_SNAPTOLEFT, kp_tinybumper[0], colormap);
@@ -10466,9 +10488,7 @@ static boolean K_drawKartPositionFaces(void)
 						V_DrawMappedPatch(bumperx, Y, V_HUDTRANS|V_SNAPTOLEFT, kp_tinybumper[1], colormap);
 					}
 				}
-#ifdef HAVE_BLUA
 			}	// A new level of stupidity: checking if lua is enabled to close a bracket. :Fascinating:
-#endif
 		}
 
 		if (i == strank)
@@ -10646,35 +10666,17 @@ static void K_drawKartLaps(void)
 {
 	INT32 splitflags = K_calcSplitFlags(V_SNAPTOBOTTOM|V_SNAPTOLEFT);
 	INT32 fx = 0, fy = 0, fflags = 0;	// stuff for 3p / 4p splitscreen.
-	boolean flipstring = false;	// used for 3p or 4p
+	boolean flipstring = splitscreen > 1 && stplyrnum & 1;  // used for 3p or 4p
 	INT32 stringw = 0;	// used with the above
-	
+
+	drawinfo_t info;
+	K_getLapsDrawinfo(&info);
+	fx = info.x;
+	fy = info.y;
+	fflags = info.flags;
+
 	if (splitscreen > 1)
 	{
-		// pain and suffering defined below
-		if (splitscreen < 2)	// don't change shit for THIS splitscreen.
-		{
-			fx = LAPS_X;
-			fy = LAPS_Y;
-			fflags = splitflags;
-		}
-		else
-		{
-			if (stplyr == &players[displayplayers[0]] || stplyr == &players[displayplayers[2]])	// If we are P1 or P3...
-			{
-				fx = LAPS_X;
-				fy = LAPS_Y;
-				fflags = V_SNAPTOLEFT|((stplyr == &players[displayplayers[2]]) ? V_SPLITSCREEN|V_SNAPTOBOTTOM : 0);	// flip P3 to the bottom.
-			}
-			else // else, that means we're P2 or P4.
-			{
-				fx = LAPS2_X;
-				fy = LAPS2_Y;
-				fflags = V_SNAPTORIGHT|((stplyr == &players[displayplayers[3]]) ? V_SPLITSCREEN|V_SNAPTOBOTTOM : 0);	// flip P4 to the bottom
-				flipstring = true;	// make the string right aligned and other shit
-			}
-		}
-
 		if (stplyr->exiting)	// draw stuff as god intended.
 		{
 			V_DrawScaledPatch(fx, fy, V_HUDTRANS|fflags, kp_splitlapflag);
@@ -10685,8 +10687,8 @@ static void K_drawKartLaps(void)
 			{
 				stringw = V_StringWidth(va("%d/%d", stplyr->laps+1, cv_numlaps.value), 0);
 
-				V_DrawScaledPatch(BASEVIDWIDTH-stringw-16, fy, V_HUDTRANS|fflags, kp_splitlapflag);
-				V_DrawRightAlignedString(BASEVIDWIDTH-3, fy+1, V_HUDTRANS|fflags, va("%d/%d", stplyr->laps+1, cv_numlaps.value));
+				V_DrawScaledPatch(fx-stringw-13, fy, V_HUDTRANS|fflags, kp_splitlapflag);
+				V_DrawRightAlignedString(fx, fy+1, V_HUDTRANS|fflags, va("%d/%d", stplyr->laps+1, cv_numlaps.value));
 			}
 			else	// draw stuff NORMALLY.
 			{
@@ -10699,23 +10701,23 @@ static void K_drawKartLaps(void)
 		if (!K_UseColorHud())
 		{
 			if (K_BigLapSticker())
-				V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, ((stplyr->laps + 1 > 9) ? kp_lapstickerbig2 : kp_lapstickerbig));
+				V_DrawScaledPatch(fx, fy, V_HUDTRANS|splitflags, ((stplyr->laps + 1 > 9) ? kp_lapstickerbig2 : kp_lapstickerbig));
 			else
-				V_DrawScaledPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapsticker);
+				V_DrawScaledPatch(fx, fy, V_HUDTRANS|splitflags, kp_lapsticker);
 		}
 		else //Colourized hud
 		{
 			UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
 			if (K_BigLapSticker())
-				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, ((stplyr->laps + 1 > 9) ? kp_lapstickerbig2clr : kp_lapstickerbigclr), colormap);
+				V_DrawMappedPatch(fx, fy, V_HUDTRANS|splitflags, ((stplyr->laps + 1 > 9) ? kp_lapstickerbig2clr : kp_lapstickerbigclr), colormap);
 			else
-				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
+				V_DrawMappedPatch(fx, fy, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
 		}
 		
 		if (stplyr->exiting)
-			V_DrawKartString(LAPS_X+33, LAPS_Y+3, V_HUDTRANS|splitflags, "FIN");
+			V_DrawKartString(fx+33, fy+3, V_HUDTRANS|splitflags, "FIN");
 		else
-			V_DrawKartString(LAPS_X+33, LAPS_Y+3, V_HUDTRANS|splitflags, va("%d/%d", stplyr->laps+1, cv_numlaps.value));
+			V_DrawKartString(fx+33, fy+3, V_HUDTRANS|splitflags, va("%d/%d", stplyr->laps+1, cv_numlaps.value));
 	}
 }
 
@@ -10867,31 +10869,22 @@ static void K_drawKartSpeedometer(void)
 static void K_drawKartBumpersOrKarma(void)
 {
 	UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
-	INT32 splitflags = K_calcSplitFlags(V_SNAPTOBOTTOM|V_SNAPTOLEFT);
-	INT32 fx = 0, fy = 0, fflags = 0;
-	boolean flipstring = false;	// same as laps, used for splitscreen
+	INT32 fx, fy, fflags;
+	boolean flipstring = splitscreen > 1 && stplyrnum & 1;  // same as laps, used for splitscreen
 	INT32 stringw = 0;	// used with the above
+
+	drawinfo_t info;
+	K_getLapsDrawinfo(&info);
+	fx = info.x;
+	fy = info.y;
+	fflags = info.flags;
 
 	if (splitscreen > 1)
 	{
-		// we will reuse lap coords here since it's essentially the same shit.
-
-		if (stplyr == &players[displayplayers[0]] || stplyr == &players[displayplayers[2]])	// If we are P1 or P3...
-		{
-			fx = LAPS_X;
-			fy = LAPS_Y;
-			fflags = V_SNAPTOLEFT|((stplyr == &players[displayplayers[2]]) ? V_SPLITSCREEN|V_SNAPTOBOTTOM : 0);	// flip P3 to the bottom.
-		}
-		else // else, that means we're P2 or P4.
-		{
-			fx = LAPS2_X;
-			fy = LAPS2_Y;
-			fflags = V_SNAPTORIGHT|((stplyr == &players[displayplayers[3]]) ? V_SPLITSCREEN|V_SNAPTOBOTTOM : 0);	// flip P4 to the bottom
-			flipstring = true;
-		}
-
 		if (stplyr->kartstuff[k_bumper] <= 0)
 		{
+			if (flipstring)
+				fx -= 37;
 			V_DrawMappedPatch(fx, fy-1, V_HUDTRANS|fflags, kp_splitkarmabomb, colormap);
 			V_DrawString(fx+13, fy+1, V_HUDTRANS|fflags, va("%d/2", stplyr->kartstuff[k_comebackpoints]));
 		}
@@ -10901,8 +10894,8 @@ static void K_drawKartBumpersOrKarma(void)
 			{
 				stringw = V_StringWidth(va("%d/%d", stplyr->kartstuff[k_bumper], cv_kartbumpers.value), 0);
 
-				V_DrawMappedPatch(BASEVIDWIDTH-stringw-16, fy-1, V_HUDTRANS|fflags, kp_rankbumper, colormap);
-				V_DrawRightAlignedString(BASEVIDWIDTH-3, fy+1, V_HUDTRANS|fflags, va("%d/%d", stplyr->kartstuff[k_bumper], cv_kartbumpers.value));
+				V_DrawMappedPatch(fx-stringw-13, fy-1, V_HUDTRANS|fflags, kp_rankbumper, colormap);
+				V_DrawRightAlignedString(fx, fy+1, V_HUDTRANS|fflags, va("%d/%d", stplyr->kartstuff[k_bumper], cv_kartbumpers.value));
 			}
 			else // draw bumpers normally.
 			{
@@ -10915,17 +10908,17 @@ static void K_drawKartBumpersOrKarma(void)
 	{
 		if (stplyr->kartstuff[k_bumper] <= 0)
 		{
-			V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, (K_UseColorHud() ? kp_karmastickerclr : kp_karmasticker), colormap);
-			V_DrawKartString(LAPS_X+47, LAPS_Y+3, V_HUDTRANS|splitflags, va("%d/2", stplyr->kartstuff[k_comebackpoints]));
+			V_DrawMappedPatch(fx, fy, V_HUDTRANS|fflags, (K_UseColorHud() ? kp_karmastickerclr : kp_karmasticker), colormap);
+			V_DrawKartString(fx+47, fy+3, V_HUDTRANS|fflags, va("%d/2", stplyr->kartstuff[k_comebackpoints]));
 		}
 		else
 		{
 			if (stplyr->kartstuff[k_bumper] > 9 && cv_kartbumpers.value > 9)
-				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, (K_UseColorHud() ? kp_bumperstickerwideclr : kp_bumperstickerwide), colormap);
+				V_DrawMappedPatch(fx, fy, V_HUDTRANS|fflags, (K_UseColorHud() ? kp_bumperstickerwideclr : kp_bumperstickerwide), colormap);
 			else
-				V_DrawMappedPatch(LAPS_X, LAPS_Y, V_HUDTRANS|splitflags, (K_UseColorHud() ? kp_bumperstickerclr : kp_bumpersticker), colormap);
+				V_DrawMappedPatch(fx, fy, V_HUDTRANS|fflags, (K_UseColorHud() ? kp_bumperstickerclr : kp_bumpersticker), colormap);
 
-			V_DrawKartString(LAPS_X+47, LAPS_Y+3, V_HUDTRANS|splitflags, va("%d/%d", stplyr->kartstuff[k_bumper], cv_kartbumpers.value));
+			V_DrawKartString(fx+47, fy+3, V_HUDTRANS|fflags, va("%d/%d", stplyr->kartstuff[k_bumper], cv_kartbumpers.value));
 		}
 	}
 }
@@ -10935,7 +10928,7 @@ static void K_drawKartBumpersOrKarma(void)
 // Code updated in Lua by GenericHeroGuy for libSG
 // Badly ported to C by NepDisk and acutally made to work and fixed by Indev!(Thanks so much!)
 // original code by Lat'
-static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, fixed_t mx, fixed_t my, fixed_t mz)
+static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, mobj_t *target, fixed_t hofs, boolean dontclip)
 {
 	fixed_t camx, camy, camz;
     angle_t camangle, camaiming;
@@ -10947,12 +10940,17 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 	fixed_t fovratio;
 	fixed_t offset;
 	boolean srcflip;
-	long y;
-	long x;
+	boolean targflip;
+	fixed_t y;
+	fixed_t x;
 
     // In case of early return we can check if those are negative
     vec->x = -1;
     vec->y = -1;
+
+	// this should never happen but its also kart so ¯\_(ツ)_/¯
+	if (!player || !target || !came)
+		return;
 
 	if (player->awayviewtics) {
 		camx = player->awayviewmobj->x;
@@ -10982,7 +10980,7 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 
 	// X coordinate
 	// get difference between camangle and angle towards target
-	x = (INT32)camangle - (INT32)R_PointToAngle2(camx, camy, mx, my);
+	x = (INT32)camangle - (INT32)R_PointToAngle2(camx, camy, target->x, target->y);
 
 	distfact = FINECOSINE((x>>ANGLETOFINESHIFT) & FINEMASK);
     if (!distfact) distfact = 1;
@@ -10993,15 +10991,18 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 		return;
 
 	// flipping
+	targflip = target->eflags & MFE_VERTICALFLIP;
 	srcflip = player->pflags & PF_FLIPCAM && player->mo->eflags & MFE_VERTICALFLIP;
 
 	// Y coordinate
 	// getting the angle difference here is a bit more involved...
 	// start by getting the height difference between the camera and target
-	y = camz - mz;
+	y = camz - target->z - (targflip ? target->height/1.5 : 0); // for some reason needs to be divided by 1.5 idk
+	if (hofs)
+		y = y - (targflip ? -hofs : hofs);
 
 	// then get the distance between camera and target
-	dist = R_PointToDist2(camx, camy, mx, my);
+	dist = R_PointToDist2(camx, camy, target->x, target->y);
 
 #ifdef HWRENDER
 	// NOW we can get the angle differnce
@@ -11011,8 +11012,8 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 		x = FixedMul(x, FINECOSINE((yang>>ANGLETOFINESHIFT) & FINEMASK)); // perspective
 		y = -camaiming - FixedDiv(yang, distfact);
 
-		//if ((fixed_t)y < ANGLE_270 || (fixed_t)y > ANGLE_90) // clip points behind the camera
-		//	return;
+		if (y < (fixed_t)ANGLE_270 || y > (fixed_t)ANGLE_90) // clip points behind the camera
+			return;
 		if (splitscreen == 1) // multiply by 1.25 for 2P splitscreen
 			y = y + (y/4) ;
 		if (srcflip) // flipcam
@@ -11043,12 +11044,38 @@ static void K_GetScreenCoords(vector2_t *vec, player_t *player, camera_t *came, 
 #endif
 		// thanks fickle
 		offset = FixedDiv(offset, fovratio);
+		if (srcflip)
+			offset = -offset; // flipcam
 		y = y + offset;
 	}
 
 	// project the angle to get our final X coordinate
 	x = FixedMul(FINETANGENT(((x+ANGLE_90)>>ANGLETOFINESHIFT) & 4095), fov);
+	if (splitscreen == 1) // divide by 320/200 (1.6) on 2P splitscreen
+		x = (x/2) + (x/8); 
 	x = x + xres;
+	
+	// now clip in screen-space
+	if (!dontclip && (x < 0 || x > xres*2 || y < 0 || y > yres*2))
+		return;
+
+	// get splitscreen index
+	int splitindex = stplyrnum;
+
+	// adjust coords for splitscreen
+	if (splitscreen == 1){ // 2P
+		y = y>>1;
+		if (splitindex)
+			y = y + yres;
+	}
+	if (splitscreen >= 2) { // 3P or 4P
+		x = x>>1;
+		y = y>>1;
+		if (splitindex & 1)
+			x = x + xres;
+		if (splitindex >= 2)
+			y = y + yres;
+	}
 
 	vec->y = y;
 	vec->x = x;
@@ -11071,15 +11098,22 @@ static void K_drawNameTags(void)
 	int tagsdisplayed = 0;
 	char *tag;
 	patch_t *icon;
+	INT32 hudtransflag = V_LocalTransFlag();
+	boolean flipcam;
 
-	if (!stplyr->mo || stplyr->spectator || splitscreen)
+	if (!stplyr->mo || (stplyr->spectator && !cv_shownametagspectator.value) || splitscreen || (stplyr->exiting && !cv_shownametagfinish.value))
 		return;
+
+	// True if currently viewed player is flipped and has flipcam on
+	flipcam = (stplyr->pflags & PF_FLIPCAM) && (stplyr->mo->eflags & MFE_VERTICALFLIP);
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
 		UINT8 *cm;
 		fixed_t distance = 0;
 		fixed_t maxdistance = (10*cv_nametagdist.value)* mapobjectscale;
+		flipped = 0;
+		fixed_t z;
 		
 		if (i > PLAYERSMASK)
 			continue;
@@ -11096,11 +11130,6 @@ static void K_drawNameTags(void)
 			continue;
 		if (!P_CheckSight(stplyr->mo, players[i].mo))
 			continue;
-		
-		tagsdisplayed += 1;
-			
-		if (tagsdisplayed > cv_nametagmaxplayers.value)
-			break;
 
 		switch (cv_nametagtrans.value)
 		{
@@ -11131,42 +11160,44 @@ static void K_drawNameTags(void)
 				trans =  V_40TRANS;
 				break;
 			case 4:
-				trans = V_HUDTRANS;
+				trans = hudtransflag;
 				break;
 			default:
 				break;
 		}
 
 		dup = vid.dupx;
-		
-		K_GetScreenCoords(&pos, stplyr, camera, players[i].mo->x, players[i].mo->y, players[i].mo->z + players[i].mo->height);
-		
+
+		// If flipcam is on, other player is flipped relative to us when we have different
+		// verticalflip flag value. Otherwise, they are simply flipped when verticalflip flag says
+		// so
+		if (flipcam)
+			flipped = (players[i].mo->eflags & MFE_VERTICALFLIP) != (stplyr->mo->eflags & MFE_VERTICALFLIP);
+		else
+			flipped = players[i].mo->eflags & MFE_VERTICALFLIP;
+
+		z = players[i].mo->height;
+
+		//Saltyhop hehe
+		if (cv_saltyhop.value && cv_nametaghop.value)
+			z += players[i].mo->spriteyoffset;
+
+		K_GetScreenCoords(&pos, stplyr, camera, players[i].mo, z, false);
+
 		//Check for negative screencoords
 		if (pos.x == -1 || pos.y == -1)
 			continue;
-		
-		//Flipcam off
-		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
-			pos.y += players[i].mo->height; 
-		
-		//Flipcam on
-		if (players[i].mo->eflags & MFE_VERTICALFLIP && (players[i].pflags & PF_FLIPCAM))
-			pos.y -= ((30*dup)<<FRACBITS); 
-		
-		//Flipcam off
-		if (players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM))
-			flipped = players[i].mo->eflags & MFE_VERTICALFLIP && !(players[i].pflags & PF_FLIPCAM);
-		
-		//Saltyhop hehe
-		if (cv_saltyhop.value && cv_nametaghop.value)
-			pos.y -= flipped ? -players[i].mo->spriteyoffset : players[i].mo->spriteyoffset;
-		
+		tagsdisplayed += 1;
+
+		if (tagsdisplayed > cv_nametagmaxplayers.value)
+			break;
+
 		namex = pos.x>>FRACBITS;
 		namey = pos.y>>FRACBITS;
-		
+
 		tag = va("%s%s ", HU_SkinColorToConsoleColor(players[i].mo->color),player_names[i]);
 		icon = R_GetSkinFaceMini(players[i].mo->player);
-		
+
 		cm = R_GetTranslationColormap(players[i].skin, players[i].mo->color, GTC_CACHE);
 		tagcolor = colortranslations[players[i].mo->color][7];
 		vflags = trans | V_NOSCALESTART;
@@ -11175,17 +11206,16 @@ static void K_drawNameTags(void)
 		
 		if (cv_smallnametags.value == 2 || cv_smallnametags.value == 1 || !nametaggfx)
 		{
-			
 			if (flipped)
 				namey += dup*5;
 			else // small offset
 				namey -= dup*3;
-			
+
 			if (nametaggfx && cv_smallnametags.value == 1)
 			{
 				if (cv_nametagfacerank.value)
 					tagwidthsmall += icon->width - dup;
-				
+
 				// Have to draw the nametag using patches here since drawfill can't draw at this scale...
 				if (!flipped)
 					V_DrawFixedPatch(namex<<FRACBITS, namey<<FRACBITS, FRACUNIT/2, vflags, nametagline, cm);
@@ -11224,7 +11254,6 @@ static void K_drawNameTags(void)
 				else
 					V_DrawSmallString(namex, namey - dup*5, V_ALLOWLOWERCASE | vflags, va("\x8A%d ", players[i].score));
 			}
-			
 		}
 		else
 		{
@@ -11261,22 +11290,14 @@ static void K_drawNameTags(void)
 			}
 			
 			if (cv_nametagfacerank.value)
-			{	
+			{
 				V_DrawMappedPatch(namex, namey - dup*(icon->height+1), vflags, icon, cm);
 				namex += dup*(icon->height+1); // add offset to other stuff
 			}
-			
+
 			V_DrawThinString(namex, namey - dup*10, V_ALLOWLOWERCASE | vflags, tag);
-			
-			// If you take this for a vanilla-compat client remove hpmod stuff.
-			if (cv_nametaghealth.value && players[i].kartstuff[k_hphealth])
-			{
-				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametaghealth);
-				V_DrawString(namex + dup*10, namey - dup*19, vflags, va("\x8D%d ", players[i].kartstuff[k_hphealth]));
-			}
-			
-			//If you take this for a vanilla-compat client remove the hp check.
-			if (((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2) && !(cv_nametaghealth.value && players[i].kartstuff[k_hphealth]))
+
+			if ((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2)
 			{
 				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametagspeed);
 				V_DrawScaledPatch(namex + dup*18, namey - dup*20, vflags, nametagweight);
@@ -11304,8 +11325,9 @@ static void K_drawDriftGauge(void)
 	vector2_t pos = {0};
 	fixed_t basex,basey;
 	INT32 drifttrans = 0;
+	INT32 hudtransflag = V_LocalTransFlag();
 	int dup = vid.dupx;
-	int i;
+	int i,j;
 
 	UINT8 driftcolors[3][4] = {
 		{0, 0, 10, 16},       // no drift
@@ -11323,29 +11345,34 @@ static void K_drawDriftGauge(void)
 		0, 31, 47, 63, 79, 95, 111, 119, 127, 143, 159, 175, 183, 191, 199, 207, 223, 247
 	};
 
-	if (!stplyr->kartstuff[k_drift])
+	if (!stplyr->mo || !stplyr->kartstuff[k_drift] || (!splitscreen && !camera->chase))
 		return;
-		
-		
-	K_GetScreenCoords(&pos, stplyr, camera, stplyr->mo->x, stplyr->mo->y, stplyr->mo->z+FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale));
-	
-	//Flipcam on
-	if (stplyr->mo->eflags & MFE_VERTICALFLIP && (stplyr->pflags & PF_FLIPCAM))
-		pos.y += ((25*dup)<<FRACBITS); 
-	
+
+	if (!splitscreen)
+		K_GetScreenCoords(&pos, stplyr, camera, stplyr->mo, FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale), false);
+	else
+	{
+		//Loop through each player camera for splitscreen.
+		for (j = 0; j <= stplyrnum; j++)
+			K_GetScreenCoords(&pos, stplyr, &camera[j], stplyr->mo, FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale), false);
+	}
+	//Check for negative screencoords
+	if (pos.x == -1 || pos.y == -1)
+		return;
+
 	basex = pos.x>>FRACBITS; 
 	basey = pos.y>>FRACBITS;
-	
+
 	fixed_t barx;
 	fixed_t bary;
 	INT32 BAR_WIDTH;
-	
+
 	if (cv_driftgaugetrans.value)
-		drifttrans = V_HUDTRANS;
+		drifttrans = hudtransflag;
 	else
 		drifttrans = 0;
-	
-	switch(cv_driftgaugestyle.value)
+
+	switch (cv_driftgaugestyle.value)
 	{
 		case 1:
 		case 2:
@@ -11355,7 +11382,6 @@ static void K_drawDriftGauge(void)
 				if (cv_driftgaugestyle.value == 1 || cv_driftgaugestyle.value == 3)
 				{
 					barx = basex - dup*23;
-
 					BAR_WIDTH = dup*47;
 				}
 				else
@@ -11379,13 +11405,12 @@ static void K_drawDriftGauge(void)
 					V_DrawMappedPatch(cv_driftgaugestyle.value == 2 ? basex + dup*11 : basex, basey, V_NOSCALESTART|V_OFFSET|drifttrans, cv_driftgaugestyle.value == 2 ? driftgaugesmallcolor : driftgaugecolor, colormap);
 				}
 
-
 				if (driftcharge >= driftval*4) // rainbow sparks
 				{
 					cmap = R_GetTranslationColormap(TC_RAINBOW, 1 + leveltime % (MAXSKINCOLORS-1),GTC_CACHE);
 					for	(i = 0; i < 4; i++)
 					{
-						V_DrawFill(barx, bary+dup*i, BAR_WIDTH, dup, (driftrainbow[(leveltime % 18) + 1] + i*2) | V_NOSCALESTART|drifttrans);
+						V_DrawFill(barx, bary+dup*1+dup*i, BAR_WIDTH, dup, (driftrainbow[(leveltime % 18) + 1] + i*2) | V_NOSCALESTART|drifttrans);
 					}
 				}
 				else // none/blue/red
@@ -11394,27 +11419,34 @@ static void K_drawDriftGauge(void)
 					for	(i = 0; i < 4; i++)
 					{
 						if (driftcharge >= driftval)
-							V_DrawFill(barx, bary+dup*i, BAR_WIDTH, dup, driftcolors[level-1][i] | V_NOSCALESTART|drifttrans);
+							V_DrawFill(barx, bary+dup*1+dup*i, BAR_WIDTH, dup, driftcolors[level-1][i] | V_NOSCALESTART|drifttrans);
 
-						V_DrawFill(barx, bary+dup*i, width, dup, driftcolors[level][i] | V_NOSCALESTART|drifttrans);
+						V_DrawFill(barx, bary+dup*1+dup*i, width, dup, driftcolors[level][i] | V_NOSCALESTART|drifttrans);
 					}
 				}
 
 				// right, also draw a cool number
 				//SG_DrawPaddedNum(v, basex + (dup*32), basey, driftcharge*100 / driftval, 3, "PINGN", V_NOSCALESTART|V_OFFSET|drifttrans, cmap)
 				if (cv_driftgaugestyle.value == 3)
-					V_DrawPaddedTallNum(basex + (dup*32), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, 3);
+					V_DrawPaddedTallColorNum(basex + (dup*32), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, 3, cmap);
 				else
 					V_DrawPingNum(cv_driftgaugestyle.value == 2 ? basex + (dup*22) : basex + (dup*32), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, cmap);
 			}
+			break;
+		case 4:
+			{
+				UINT8 *cmap;
+				INT32 level = min(driftcharge / driftval, 2);
+				if (driftcharge >= driftval*4)
+					cmap = R_GetTranslationColormap(TC_RAINBOW, 1 + leveltime % (MAXSKINCOLORS-1),GTC_CACHE);
+				else
+					cmap =  R_GetTranslationColormap(TC_RAINBOW, driftskins[level],GTC_CACHE);
 
+				V_DrawPaddedTallColorNum(basex + (dup*16), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, 3, cmap);
+			}
 			break;
-			
-		case 4:	
-			V_DrawPaddedTallNum(basex + (dup*16), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, 3);
+		default:
 			break;
-			
-		
 	}
 }
 
@@ -11676,7 +11708,7 @@ static void K_drawKartMinimap(void)
 	patch_t *AutomapPic;
 	INT32 i = 0;
 	INT32 x, y;
-	INT32 minimaptrans, splitflags = (splitscreen == 3 ? 0 : V_SNAPTORIGHT);	// flags should only be 0 when it's centered (4p split)
+	INT32 minimaptrans, splitflags;
 	SINT8 localplayers[4];
 	SINT8 numlocalplayers = 0;
 
@@ -11695,8 +11727,12 @@ static void K_drawKartMinimap(void)
 	else
 		return; // no pic, just get outta here
 
-	x = MINI_X - (AutomapPic->width/2);
-	y = MINI_Y - (AutomapPic->height/2);
+	drawinfo_t info;
+	K_getMinimapDrawinfo(&info);
+	x = info.x - (AutomapPic->width/2);
+	y = info.y - (AutomapPic->height/2);
+	splitflags = info.flags;
+
 
 	if (timeinmap > 105)
 	{
@@ -11860,10 +11896,9 @@ static void K_drawBattleFullscreen(void)
 	INT32 splitflags = V_SNAPTOTOP; // I don't feel like properly supporting non-green resolutions, so you can have a misuse of SNAPTO instead
 	fixed_t scale = FRACUNIT;
 	boolean drawcomebacktimer = true;	// lazy hack because it's cleaner in the long run.
-#ifdef HAVE_BLUA
+
 	if (!LUA_HudEnabled(hud_battlecomebacktimer))
 		drawcomebacktimer = false;
-#endif
 
 	if (splitscreen)
 	{
@@ -11975,9 +12010,7 @@ static void K_drawBattleFullscreen(void)
 				return;
 		}
 
-#ifdef HAVE_BLUA
 		if (LUA_HudEnabled(hud_freeplay))
-#endif
 			K_drawKartFreePlay(leveltime);
 	}
 }
@@ -12490,67 +12523,61 @@ void K_drawKartHUD(void)
 	if (!demo.title && (!battlefullscreen || splitscreen))
 	{
 		// Draw the CHECK indicator before the other items, so it's overlapped by everything else
-#ifdef HAVE_BLUA
+
 		if (LUA_HudEnabled(hud_check))	// delete lua when?
-#endif
+		{
 			if (cv_kartcheck.value && !splitscreen && !players[displayplayers[0]].exiting && !freecam)
 				K_drawKartPlayerCheck();
+		}
 
 		// Draw WANTED status
 		if (G_BattleGametype())
 		{
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_wanted))
-#endif
 				K_drawKartWanted();
 		}
 
 		if (cv_kartminimap.value)
 		{
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_minimap))
-#endif
 				K_drawKartMinimap();
 		}
 	}
 
 	if (battlefullscreen && !freecam)
 	{
-#ifdef HAVE_BLUA
 		if (LUA_HudEnabled(hud_battlefullscreen))
-#endif
 			K_drawBattleFullscreen();
 		return;
 	}
 
 	// Draw the item window
-#ifdef HAVE_BLUA
 	if (LUA_HudEnabled(hud_item) && !freecam)
-#endif
-		K_drawKartItem();
-		
-	
-	if (cv_driftgauge.value)
-		K_drawDriftGauge();
-	
+		K_drawKartItem();	
+
+	if (cv_driftgauge.value && !modeattacking)
+	{
+		if (LUA_HudEnabled(hud_driftgauge))
+			K_drawDriftGauge();
+	}
+
 	if (cv_nametag.value)
-		K_drawNameTags();
+	{
+		if (LUA_HudEnabled(hud_nametags))
+			K_drawNameTags();
+	}
 
 	// If not splitscreen, draw...
 	if (!splitscreen && !demo.title)
 	{
 		// Draw the timestamp
-#ifdef HAVE_BLUA
 		if (LUA_HudEnabled(hud_time))
-#endif
 			K_drawKartTimestamp(stplyr->realtime, TIME_X, TIME_Y, gamemap, 0);
 
 		if (!modeattacking)
 		{
 			// The top-four faces on the left
-			/*#ifdef HAVE_BLUA
-			if (LUA_HudEnabled(hud_minirankings))
-			#endif*/
+			//if (LUA_HudEnabled(hud_minirankings))
 				isfreeplay = K_drawKartPositionFaces();
 		}
 	}
@@ -12558,16 +12585,16 @@ void K_drawKartHUD(void)
 	if (!stplyr->spectator && !demo.freecam) // Bottom of the screen elements, don't need in spectate mode
 	{
 		if (!(splitscreen || demo.title))
-#ifdef HAVE_BLUA
+		{
 			if (LUA_HudEnabled(hud_position))
-#endif
 				K_drawInput();
+		}
 
 		if (!demo.title && cv_showstats.value)
-#ifdef HAVE_BLUA
-		if (LUA_HudEnabled(hud_statdisplay))
-#endif
-			K_drawKartStats();
+		{
+			if (LUA_HudEnabled(hud_statdisplay))
+				K_drawKartStats();
+		}
 
 		if (demo.title) // Draw title logo instead in demo.titles
 		{
@@ -12594,19 +12621,15 @@ void K_drawKartHUD(void)
 		else if (G_RaceGametype()) // Race-only elements
 		{
 			// Draw the lap counter
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_gametypeinfo))
-#endif
 				K_drawKartLaps();
 
 			if (!splitscreen)
 			{
 				// Draw the speedometer
-				// TODO: Make a better speedometer.
-#ifdef HAVE_BLUA
-			if (LUA_HudEnabled(hud_speedometer))
-#endif
-				K_drawKartSpeedometer();
+				// TODO: Make a better speedometer. << done :p
+				if (LUA_HudEnabled(hud_speedometer))
+					K_drawKartSpeedometer();
 			}
 
 			if (isfreeplay)
@@ -12614,26 +12637,20 @@ void K_drawKartHUD(void)
 			else if (!modeattacking)
 			{
 				// Draw the numerical position
-#ifdef HAVE_BLUA
 				if (LUA_HudEnabled(hud_position))
-#endif
 					K_DrawKartPositionNum(stplyr->kartstuff[k_position]);
 			}
 			else //if (!(demo.playback && hu_showscores))
 			{
 				// Draw the input UI
-#ifdef HAVE_BLUA
 				if (LUA_HudEnabled(hud_position))
-#endif
 					K_drawInput();
 			}
 		}
 		else if (G_BattleGametype()) // Battle-only
 		{
 			// Draw the hits left!
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_gametypeinfo))
-#endif
 				K_drawKartBumpersOrKarma();
 		}
 	}
@@ -12677,9 +12694,7 @@ void K_drawKartHUD(void)
 	// Draw FREE PLAY.
 	if (isfreeplay && !stplyr->spectator && timeinmap > 113)
 	{
-#ifdef HAVE_BLUA
 		if (LUA_HudEnabled(hud_freeplay))
-#endif
 			K_drawKartFreePlay(leveltime);
 	}
 
