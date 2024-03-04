@@ -35,6 +35,8 @@
 #include "lua_script.h"
 #include "d_netfil.h" // findfile
 
+#include <inttypes.h> // pri
+
 //========
 // protos.
 //========
@@ -1170,7 +1172,7 @@ consvar_t *CV_FindVar(const char *name)
   * \param netid The variable's identifier number.
   * \return A pointer to the variable itself if found, or NULL.
 */
-static consvar_t *CV_FindNetVar(u64_t netid)
+static consvar_t *CV_FindNetVar(uint64_t netid)
 {
 	consvar_t *cvar;
 
@@ -1193,9 +1195,9 @@ static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
   * \return A new unique identifier.
   * \sa CV_FindNetVar
   */
-static inline u64_t CV_ComputeNetidDJB2(const char *str)
+static inline uint64_t CV_ComputeNetidDJB2(const char *str)
 {
-        u64_t hash = 5381;
+        uint64_t hash = 5381;
         int c;
 
         while ((c = *str++))
@@ -1483,7 +1485,7 @@ static boolean serverloading = false;
 static void Got_NetVar(UINT8 **p, INT32 playernum)
 {
 	consvar_t *cvar;
-	u64_t netid;
+	uint64_t netid;
 	char *svalue;
 	UINT8 stealth = false;
 
@@ -1510,10 +1512,10 @@ static void Got_NetVar(UINT8 **p, INT32 playernum)
 
 	if (!cvar)
 	{
-		CONS_Alert(CONS_WARNING, "Netvar not found with netid %llu\n", netid);
+		CONS_Alert(CONS_WARNING, "Netvar not found with netid %"PRIu64"\n", netid);
 		return;
 	}
-	DEBFILE(va("Netvar received: %s [netid=%llu] value %s\n", cvar->name, netid, svalue));
+	DEBFILE(va("Netvar received: %s [netid=%"PRIu64"] value %s\n", cvar->name, netid, svalue));
 
 	Setvalue(cvar, svalue, stealth);
 }
