@@ -7425,7 +7425,7 @@ void G_LoadDemoInfo(menudemo_t *pdemo)
 	count = READUINT16(info_p);
 	while (count--)
 	{
-		UINT64 netid;
+		u64_t netid;
 		char *svalue;
 
 		netid = READUINT64(info_p);
