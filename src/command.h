@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include "doomdef.h"
 
-typedef unsigned long long int u64_t; // work around windows and linux differences.
+typedef uint64_t u64_t; // work around windows and linux differences.
 
 //===================================
 // Command buffer & command execution
