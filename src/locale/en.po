@@ -168,12 +168,12 @@ msgstr ""
 
 #: command.c:1165
 #, c-format
-msgid "Netvar not found with netid %lu\n"
+msgid "Netvar not found with netid %llu\n"
 msgstr ""
 
 #: command.c:1169 command.c:1171
 #, c-format
-msgid "Netvar received: %s [netid=%lu] value %s\n"
+msgid "Netvar received: %s [netid=%llu] value %s\n"
 msgstr ""
 
 #: command.c:1227
