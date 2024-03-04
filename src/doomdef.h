@@ -126,9 +126,9 @@ extern char  logfilename[1024];
 // we use comprevision and compbranch instead.
 #else
 #define VERSION    2 // Game version
-#define SUBVERSION 2 // more precise version number
-#define VERSIONSTRING "Neptune 1.8b"
-#define VERSIONSTRINGW L"Neptune 1.8b"
+#define SUBVERSION 3 // more precise version number
+#define VERSIONSTRING "Neptune 1.8c"
+#define VERSIONSTRINGW L"Neptune 1.8c"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!
@@ -573,7 +573,7 @@ void M_StartupLocale(void);
 // M_GetText function that just returns the string.
 #define M_GetText(x) (x)
 #endif
-extern void *(*M_Memcpy)(void* dest, const void* src, size_t n) FUNCNONNULL;
+void *M_Memcpy(void* dest, const void* src, size_t n);
 char *va(const char *format, ...) FUNCPRINTF;
 char *M_GetToken(const char *inputString);
 char *sizeu1(size_t num);
