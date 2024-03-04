@@ -1193,7 +1193,7 @@ static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
   * \return A new unique identifier.
   * \sa CV_FindNetVar
   */
-static inline u64_t CV_ComputeNetidDJB2(const char *str)
+static inline UINT64 CV_ComputeNetidDJB2(const char *str)
 {
         unsigned long hash = 5381;
         int c;
