@@ -1195,7 +1195,7 @@ static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
   */
 static inline u64_t CV_ComputeNetidDJB2(const char *str)
 {
-        unsigned long hash = 5381;
+        u64_t hash = 5381;
         int c;
 
         while ((c = *str++))
