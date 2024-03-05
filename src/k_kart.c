@@ -11365,6 +11365,10 @@ static void K_drawDriftGauge(void)
 	else
 		drifttrans = 0;
 
+	
+	INT32 level = min(driftcharge / driftval, 2);
+	UINT8 *cmap;
+	
 	switch (cv_driftgaugestyle.value)
 	{
 		case 1:
@@ -11385,8 +11389,6 @@ static void K_drawDriftGauge(void)
 
 				INT32 limit = driftval * (driftcharge >= driftval*2 ? 2 : 1);
 				INT32 width = ((driftcharge - (driftcharge >= driftval ? limit : 0)) * BAR_WIDTH) / limit;
-				INT32 level = min(driftcharge / driftval, 2);
-				UINT8 *cmap;
 
 				if (!K_UseColorHud())
 					V_DrawMappedPatch(cv_driftgaugestyle.value == 2 ? basex + dup*11 : basex, basey, V_NOSCALESTART|V_OFFSET|drifttrans, cv_driftgaugestyle.value == 2 ? driftgaugesmall : driftgauge, NULL);
@@ -11425,8 +11427,6 @@ static void K_drawDriftGauge(void)
 			break;
 		case 4:
 			{
-				UINT8 *cmap;
-				INT32 level = min(driftcharge / driftval, 2);
 				if (driftcharge >= driftval*4)
 					cmap = R_GetTranslationColormap(TC_RAINBOW, 1 + leveltime % (MAXSKINCOLORS-1),GTC_CACHE);
 				else
