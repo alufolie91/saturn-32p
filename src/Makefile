@@ -142,6 +142,7 @@ D_FILES=$(D_DIR)/srb2.srb \
 	$(D_DIR)/sounds.kart \
 	$(D_DIR)/patch.kart \
 	$(D_DIR)/music.kart \
+	$(D_DIR)/neptune.kart \
 
 PKG_CONFIG?=pkg-config
 
