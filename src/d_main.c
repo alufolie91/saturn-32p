@@ -1068,7 +1068,6 @@ static boolean AddIWAD(void)
 boolean found_extra_kart;
 boolean found_extra2_kart;
 boolean found_kv_kart;
-boolean found_neptune_kart;
 
 boolean snw_speedo; // snowy speedometer check
 boolean clr_hud; // colour hud check
@@ -1076,10 +1075,6 @@ boolean big_lap; // bigger lap counter
 boolean big_lap_color; // bigger lap counter but colour
 boolean kartzspeedo; // kartZ speedometer
 boolean statdp; // New stat
-boolean multisneaker_icon; // Extra icons for Sneakers
-boolean stackingeffect; // Booststacking effect
-boolean nametaggfx; // Nametag stuffs
-boolean driftgaugegfx;
 
 static void IdentifyVersion(void)
 {
@@ -1087,7 +1082,6 @@ static void IdentifyVersion(void)
 	found_extra_kart = false;
 	found_extra2_kart = false;
 	found_kv_kart = false;
-	found_neptune_kart = false;
 
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	// change to the directory where 'srb2.srb' is found
@@ -1134,6 +1128,10 @@ static void IdentifyVersion(void)
 #ifdef USE_PATCH_KART
 	D_AddFile(va(pandf,srb2waddir,"patch.kart"), startupwadfiles);
 #endif
+	
+	D_AddFile(va(pandf,srb2waddir,"neptune.kart"), startupwadfiles);
+
+	
 	// completely optional
 	if (FIL_ReadFileOK(va(pandf,srb2waddir,"extra.kart"))) {
 		D_AddFile(va(pandf,srb2waddir,"extra.kart"), startupwadfiles);
@@ -1150,12 +1148,6 @@ static void IdentifyVersion(void)
 	if (FIL_ReadFileOK(va(pandf,srb2waddir,"kv.kart"))) {
 		D_AddFile(va(pandf,srb2waddir,"kv.kart"), startupwadfiles);
 		found_kv_kart = true;
-	}
-	
-	// completely optional 4: Super Mario Bros 3
-	if (FIL_ReadFileOK(va(pandf,srb2waddir,"neptune.kart"))) {
-		D_AddFile(va(pandf,srb2waddir,"neptune.kart"), startupwadfiles);
-		found_neptune_kart = true;
 	}
 
 #if !defined (HAVE_SDL) || defined (HAVE_MIXER)
@@ -1433,6 +1425,8 @@ void D_SRB2Main(void)
 #ifdef USE_PATCH_KART
 	mainwads++; W_VerifyFileMD5(mainwads, ASSET_HASH_PATCH_KART);		// patch.kart
 #endif
+	mainwads++; // Neptune.kart
+	
 #else
 #ifdef USE_PATCH_DTA
 	mainwads++;	// patch.dta
@@ -1444,10 +1438,11 @@ void D_SRB2Main(void)
 #ifdef USE_PATCH_KART
 	mainwads++;	// patch.kart
 #endif
+	mainwads++; // neptune.kart
 
 #endif //ifndef DEVELOP
 
-	if (found_extra_kart || found_extra2_kart || found_kv_kart || found_neptune_kart) // found the funny, add it in!
+	if (found_extra_kart || found_extra2_kart || found_kv_kart) // found the funny, add it in!
 	{
 		// HAYA: These are seperated for a reason lmao
 		if (found_extra_kart) 
@@ -1455,8 +1450,6 @@ void D_SRB2Main(void)
 		if (found_extra2_kart)
 			mainwads++;
 		if (found_kv_kart)
-			mainwads++;
-		if (found_neptune_kart)
 			mainwads++;
 		
 		// now check for speedometer stuff
@@ -1487,22 +1480,6 @@ void D_SRB2Main(void)
 		if (W_CheckMultipleLumps("K_STATNB", "K_STATN1", "K_STATN2", "K_STATN3", "K_STATN4", \
 			"K_STATN5", "K_STATN6", NULL)) 
 			statdp = true;
-		
-		// extra sneaker icons
-		if (W_CheckMultipleLumps("K_ITSHO2", "K_ITSHO3", NULL)) 
-			multisneaker_icon = true;
-		
-		// BoostStack effect
-		if (W_CheckMultipleLumps("BSSSA0", "BSSSB0", "BSSSC0", "BSSSD0", "BSSSE0", NULL))
-			stackingeffect = true;
-
-		// Nametag stuffs
-		// Remove HP if you plan to use for vanilla-compat client
-		if (W_CheckMultipleLumps("NTLINE","NTLINEV","NTHP","NTSP","NTWH", NULL))
-			nametaggfx = true;
-		
-		if (W_CheckMultipleLumps("K_DGAU","K_DCAU","K_DGSU","K_DCSU", NULL)) 
-			driftgaugegfx = true;
 	}
 
 	//

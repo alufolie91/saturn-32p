@@ -4612,17 +4612,6 @@ void M_Init(void)
 		OP_SaturnMenu[sm_coloritem].status = IT_GRAYEDOUT;
 		OP_SaturnMenu[sm_colorhud_customcolor].status = IT_GRAYEDOUT;
 	}
-	
-	if (!nametaggfx)
-		OP_NametagMenu[nt_ntchar].status = IT_GRAYEDOUT;
-
-	if (!multisneaker_icon){
-		OP_NeptuneTwoMenu[pmt_multisneaker].status = IT_GRAYEDOUT;
-	}
-	
-	if (!stackingeffect){	
-		OP_NeptuneTwoMenu[pmt_stackefx].status = IT_GRAYEDOUT;
-	}
 
 #ifndef NONET
 	CV_RegisterVar(&cv_serversort);

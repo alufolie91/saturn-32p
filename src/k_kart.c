@@ -6853,7 +6853,7 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 	}
 	
 	// Stacking Effect
-	if (stackingeffect && cv_stacking.value && player->kartstuff[k_totalstacks] > 1)
+	if (cv_stacking.value && player->kartstuff[k_totalstacks] > 1)
 	{
 		//Thanks to 1ndev for code used for booststack->scale and boosttack->frame! (taken and modified from BoostStack)
 		mobj_t  *booststack;
@@ -9034,20 +9034,16 @@ void K_LoadKartHUDGraphics(void)
 
 	// Nametags
 	// Remove Health if you plan to use for vanilla-compat client
-	if (nametaggfx){
-		nametagpic = W_CachePatchName("NTLINE", PU_HUDGFX);
-		nametagline = W_CachePatchName("NTLINEV", PU_HUDGFX);
-		nametagspeed = W_CachePatchName("NTSP", PU_HUDGFX);
-		nametagweight = W_CachePatchName("NTWH", PU_HUDGFX);
-		nametaghealth = W_CachePatchName("NTHP", PU_HUDGFX);		
-	}
+	nametagpic = W_CachePatchName("NTLINE", PU_HUDGFX);
+	nametagline = W_CachePatchName("NTLINEV", PU_HUDGFX);
+	nametagspeed = W_CachePatchName("NTSP", PU_HUDGFX);
+	nametagweight = W_CachePatchName("NTWH", PU_HUDGFX);
+	nametaghealth = W_CachePatchName("NTHP", PU_HUDGFX);
 	
-	if (driftgaugegfx){
-		driftgauge =  W_CachePatchName("K_DGAU", PU_HUDGFX);
-		driftgaugecolor =  W_CachePatchName("K_DCAU", PU_HUDGFX);
-		driftgaugesmall =  W_CachePatchName("K_DGSU", PU_HUDGFX);
-		driftgaugesmallcolor =  W_CachePatchName("K_DCSU", PU_HUDGFX);
-	}
+	driftgauge =  W_CachePatchName("K_DGAU", PU_HUDGFX);
+	driftgaugecolor =  W_CachePatchName("K_DCAU", PU_HUDGFX);
+	driftgaugesmall =  W_CachePatchName("K_DGSU", PU_HUDGFX);
+	driftgaugesmallcolor =  W_CachePatchName("K_DCSU", PU_HUDGFX);
 
 	// Starting countdown
 	kp_startcountdown[0] = 		W_CachePatchName("K_CNT3A", PU_HUDGFX);
@@ -9138,11 +9134,8 @@ void K_LoadKartHUDGraphics(void)
 
 	kp_sneaker[0] =				W_CachePatchName("K_ITSHOE", PU_HUDGFX);
 	
-	if (multisneaker_icon) // Multisneaker icon
-	{
-		kp_multsneaker[0] = W_CachePatchName("K_ITSHO2", PU_HUDGFX);
-		kp_multsneaker[1] = W_CachePatchName("K_ITSHO3", PU_HUDGFX);
-	}
+	kp_multsneaker[0] = W_CachePatchName("K_ITSHO2", PU_HUDGFX);
+	kp_multsneaker[1] = W_CachePatchName("K_ITSHO3", PU_HUDGFX);
 	
 	kp_rocketsneaker[0] =		W_CachePatchName("K_ITRSHE", PU_HUDGFX);
 
@@ -9886,7 +9879,7 @@ static void K_drawKartItem(void)
 			switch(stplyr->kartstuff[k_itemtype])
 			{
 				case KITEM_SNEAKER:
-					if (multisneaker_icon && cv_multisneakericon.value)
+					if (cv_multisneakericon.value)
 					{
 						if (offset)
 						{
@@ -11204,14 +11197,14 @@ static void K_drawNameTags(void)
 		tagwidth = cv_smallnametags.value ? dup*V_SmallStringWidth(player_names[i], V_ALLOWLOWERCASE) : dup*V_ThinStringWidth(player_names[i], V_ALLOWLOWERCASE);
 		tagwidthsmall = cv_smallnametags.value ? V_SmallStringWidth(player_names[i], V_ALLOWLOWERCASE) : V_ThinStringWidth(player_names[i], V_ALLOWLOWERCASE);
 		
-		if (cv_smallnametags.value == 2 || cv_smallnametags.value == 1 || !nametaggfx)
+		if (cv_smallnametags.value == 2 || cv_smallnametags.value == 1)
 		{
 			if (flipped)
 				namey += dup*5;
 			else // small offset
 				namey -= dup*3;
 
-			if (nametaggfx && cv_smallnametags.value == 1)
+			if (cv_smallnametags.value == 1)
 			{
 				if (cv_nametagfacerank.value)
 					tagwidthsmall += icon->width - dup;
@@ -11377,8 +11370,6 @@ static void K_drawDriftGauge(void)
 		case 1:
 		case 2:
 		case 3:
-			if (driftgaugegfx)
-			{
 				if (cv_driftgaugestyle.value == 1 || cv_driftgaugestyle.value == 3)
 				{
 					barx = basex - dup*23;
@@ -11431,7 +11422,6 @@ static void K_drawDriftGauge(void)
 					V_DrawPaddedTallColorNum(basex + (dup*32), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, 3, cmap);
 				else
 					V_DrawPingNum(cv_driftgaugestyle.value == 2 ? basex + (dup*22) : basex + (dup*32), basey, V_NOSCALESTART|V_OFFSET|drifttrans, driftcharge*100 / driftval, cmap);
-			}
 			break;
 		case 4:
 			{
