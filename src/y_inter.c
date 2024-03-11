@@ -387,14 +387,11 @@ static void Y_AnimatedVoteScreenCheck(void)
 	boolean stopSearching = false;
 
 	if (luaVoteScreen)
-	{
 		strncpy(tmpPrefix, luaVoteScreen, 4);
-	}
 	else
 	{
-		if(G_BattleGametype()) {
+		if(G_BattleGametype())
 			strcpy(tmpPrefix, "BTLS");
-		}
 	}
 
 	strncpy(animPrefix, tmpPrefix, 4);
@@ -407,20 +404,22 @@ static void Y_AnimatedVoteScreenCheck(void)
 	currentAnimFrame = 0;
 
 	INT32 i = 1;
-	while(!stopSearching){
+	while(!stopSearching)
+	{
 		boolean normalLumpExists = W_LumpExists(va("%sC%d", tmpPrefix, i));
 		boolean wideLumpExists = W_LumpExists(va("%sW%d", tmpPrefix, i));
 
-		if(normalLumpExists || wideLumpExists){
-			if(normalLumpExists){
+		if (normalLumpExists || wideLumpExists)
+		{
+			if (normalLumpExists)
 				foundAnimVoteFrames++;
-			}
-			if(wideLumpExists){
+
+			if (wideLumpExists)
 				foundAnimVoteWideFrames++;
-			}
-		} else { // If we don't find at least frame 1 (e.g VEXTRN1), let's just stop looking
-			stopSearching = true;
 		}
+		else // If we don't find at least frame 1 (e.g VEXTRN1), let's just stop looking
+			stopSearching = true;
+
 		i++;
 	}
 }
@@ -684,7 +683,6 @@ void Y_IntermissionDrawer(void)
 							}
 						}
 					}
-
 
 					if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN)
 					{
@@ -1202,34 +1200,6 @@ static void Y_UnloadData(void)
 	UNLOAD(widebgpatch);
 	UNLOAD(bgtile);
 	UNLOAD(interpic);
-
-	/*switch (intertype)
-	{
-		case int_coop:
-			// unload the coop and single player patches
-			UNLOAD(data.coop.ttlnum);
-			UNLOAD(data.coop.bonuspatches[3]);
-			UNLOAD(data.coop.bonuspatches[2]);
-			UNLOAD(data.coop.bonuspatches[1]);
-			UNLOAD(data.coop.bonuspatches[0]);
-			UNLOAD(data.coop.ptotal);
-			break;
-		case int_spec:
-			// unload the special stage patches
-			//UNLOAD(data.spec.cemerald);
-			//UNLOAD(data.spec.nowsuper);
-			UNLOAD(data.spec.bonuspatch);
-			UNLOAD(data.spec.pscore);
-			UNLOAD(data.spec.pcontinues);
-			break;
-		case int_match:
-		case int_race:
-		default:
-			//without this default,
-			//int_none, int_tag, int_chaos, and int_classicrace
-			//are not handled
-			break;
-	}*/
 }
 
 // SRB2Kart: Voting!
@@ -1238,21 +1208,23 @@ static void Y_UnloadData(void)
 //
 // Draw animated patch based on frame counter on vote screen
 //
-static void Y_DrawAnimatedVoteScreenPatch(boolean widePatch){
+
+static inline void Y_DrawAnimatedVoteScreenPatch(boolean widePatch)
+{
 	char tempAnimPrefix[7];
 	(widePatch) ? strcpy(tempAnimPrefix, animWidePrefix) : strcpy(tempAnimPrefix, animPrefix);
 	INT32 tempFoundAnimVoteFrames = (widePatch) ? foundAnimVoteWideFrames : foundAnimVoteFrames;
-	INT32 flags = V_SNAPTOBOTTOM | V_SNAPTOTOP;
 
 	// Just in case someone provides LESS widescreen frames than normal frames or vice versa, reset the frame counter to 0
-	if(widePatch) {
-		if(currentAnimFrame > foundAnimVoteWideFrames-1){
+	if (widePatch)
+	{
+		if (currentAnimFrame > foundAnimVoteWideFrames-1)
 			currentAnimFrame = 0;
-		}
-	} else {
-		if(currentAnimFrame > foundAnimVoteFrames-1){
+	}
+	else
+	{
+		if (currentAnimFrame > foundAnimVoteFrames-1)
 			currentAnimFrame = 0;
-		}
 	}
 
 	/*patch_t *currPatch = W_CachePatchName(va("%s%d", tempAnimPrefix, currentAnimFrame+1), PU_CACHE);
@@ -1263,10 +1235,10 @@ static void Y_DrawAnimatedVoteScreenPatch(boolean widePatch){
 
 	{
 		patch_t *background = W_CachePatchName(va("%s%d", tempAnimPrefix, currentAnimFrame + 1), PU_CACHE);		
-		V_DrawScaledPatch(160 - (background->width / 2), (200 - (background->height)), flags, background);		
+		V_DrawScaledPatch(160 - (background->width / 2), (200 - (background->height)), V_SNAPTOBOTTOM|V_SNAPTOTOP, background);		
 	}
 	if (lastvotetic != votetic && lastvotetic % 2 == 0) {
-		currentAnimFrame = (currentAnimFrame+1 > tempFoundAnimVoteFrames-1) ? 0 : currentAnimFrame + 1; // jeez no fucking idea how to make this shit not go nuts with interpolation
+		currentAnimFrame = (currentAnimFrame + 1 > tempFoundAnimVoteFrames - 1) ? 0 : currentAnimFrame + 1; // jeez no fucking idea how to make this shit not go nuts with interpolation
 	}
 }
 
@@ -1330,40 +1302,29 @@ void Y_VoteDrawer(void)
 	if (!voteclient.loaded)
 		return;
 
-	{
-		static angle_t rubyfloattime = 0;
-		rubyheight = FINESINE(rubyfloattime>>ANGLETOFINESHIFT);
-		rubyfloattime += FixedMul(ANGLE_MAX/NEWTICRATE, renderdeltatics);
-	}
+	static angle_t rubyfloattime = 0;
+	rubyheight = FINESINE(rubyfloattime>>ANGLETOFINESHIFT);
+	rubyfloattime += FixedMul(ANGLE_MAX/NEWTICRATE, renderdeltatics);
 
 	V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31);
 
-	if (widebgpatch && vid.width / vid.dupx > 320) {
-
-		if(foundAnimVoteWideFrames == 0){
+	if (widebgpatch && vid.width / vid.dupx > 320)
+	{
+		if (foundAnimVoteWideFrames == 0)
 			V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(widebgpatch->width)/2),
 								(vid.height / vid.dupy) - SHORT(widebgpatch->height),
 								V_SNAPTOTOP|V_SNAPTOLEFT, widebgpatch);
-		} else {
-			// patch_t *currPatch = W_CachePatchName(va("%s%d", animPrefix, currentAnimFrame+1), PU_CACHE);
-			// V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(currPatch->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
-			// 			(vid.height / vid.dupy) - SHORT(currPatch->height),
-			// 			V_SNAPTOTOP|V_SNAPTOLEFT, currPatch);
-			// if(votetic % 4 == 0 && !paused){
-			// 	currentAnimFrame = (currentAnimFrame+1 > foundAnimVoteFrames-1) ? 0 : currentAnimFrame + 1;
-			// }
+		else
 			Y_DrawAnimatedVoteScreenPatch(true);
-		}
-	} else {
-		if(foundAnimVoteFrames == 0) {
+	}
+	else
+	{
+		if (foundAnimVoteFrames == 0)
 			V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(bgpatch->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
 								(vid.height / vid.dupy) - SHORT(bgpatch->height),
 								V_SNAPTOTOP|V_SNAPTOLEFT, bgpatch);
-		} else {
+		else
 			Y_DrawAnimatedVoteScreenPatch(false);
-		}
-
-
 	}
 
 	rowval = (votemax*3)+((votemax > 1) ? (votemax - 1) : 0);
