@@ -3481,15 +3481,6 @@ static void K_GetKartBoostPower(player_t *player)
 	fixed_t speedtablesum = 0;
 	int a;
 	fixed_t acceltablesum = 0;
-	
-	fixed_t sort (const void * sort1, const void * sort2) {
-   		return ( *(const fixed_t*)sort1 - *(const fixed_t*)sort2);
-	}
-	
-	
-	
-	
-	
 
 	if (player->kartstuff[k_spinouttimer] && player->kartstuff[k_wipeoutslow] == 1) // Slow down after you've been bumped
 	{
@@ -3629,9 +3620,6 @@ static void K_GetKartBoostPower(player_t *player)
 		fixed_t acceltable[] = { hyudoroaccelboost, player->kartstuff[k_slopeaccelboost] ,player->kartstuff[k_ssaccelboost],growaccelboost, startaccelboost,player->kartstuff[k_trickaccelboost], invincibilityaccelboost, driftaccelboost, sneakeraccelboost };
 		fixed_t speedsize = sizeof(speedtable) / sizeof(speedtable[0]);
 		fixed_t accelsize = sizeof(speedtable) / sizeof(speedtable[0]);
-			
-		qsort(speedtable, speedsize, sizeof(fixed_t), sort);
-		qsort(acceltable, accelsize, sizeof(fixed_t), sort);
 		
 		for( s = 0 ; s <  speedsize; s++ )
 		{
@@ -3650,13 +3638,6 @@ static void K_GetKartBoostPower(player_t *player)
 		accelboost = acceltablesum;
 		boostmult = finalboostmult;
 		player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack] + player->kartstuff[k_trickstack];
-		
-		//speedboost = startspeedboost + driftspeedboost + growspeedboost + sneakerspeedboost + invincibilityspeedboost;
-		//accelboost = growaccelboost + startaccelboost + invincibilityaccelboost + driftaccelboost + sneakeraccelboost;
-		
-		//boostmult = max(boostmult, growboostmult)
-			
-			
 			
 	}
 	//Vanilla speed stuff	
