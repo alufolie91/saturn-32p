@@ -36,8 +36,6 @@
 #include "hardware/hw_md2.h"
 #endif
 
-#include "qs22j.h"
-
 #ifdef PC_DOS
 #include <stdio.h> // for snprintf
 int	snprintf(char *str, size_t n, const char *fmt, ...);
@@ -3334,7 +3332,7 @@ static int skinSortFunc(const void *a, const void *b) //tbh i have no clue what 
 void sortSkinGrid(void)
 {
 	CONS_Printf("Sorting skin list (%d)...\n", cv_skinselectgridsort.value);
-	qs22j(skinsorted, numskins, sizeof(UINT8), skinSortFunc);
+	qsort(skinsorted, numskins, sizeof(UINT16), skinSortFunc);
 }
 
 //

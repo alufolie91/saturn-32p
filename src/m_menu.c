@@ -50,8 +50,6 @@
 #include "p_setup.h"
 #include "f_finale.h"
 
-#include "qs22j.h"
-
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
 #endif
@@ -10007,22 +10005,22 @@ void M_SortServerList(void)
 	switch(cv_serversort.value)
 	{
 	case 0:		// Ping.
-		qs22j(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_time);
+		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_time);
 		break;
 	case 1:		// Modified state.
-		qs22j(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_modified);
+		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_modified);
 		break;
 	case 2:		// Most players.
-		qs22j(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_numberofplayer_reverse);
+		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_numberofplayer_reverse);
 		break;
 	case 3:		// Least players.
-		qs22j(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_numberofplayer);
+		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_numberofplayer);
 		break;
 	case 4:		// Max players.
-		qs22j(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_maxplayer_reverse);
+		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_maxplayer_reverse);
 		break;
 	case 5:		// Gametype.
-		qs22j(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_gametype);
+		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_gametype);
 		break;
 	}
 #endif

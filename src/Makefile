@@ -461,7 +461,6 @@ DBGNAME?=$(EXENAME).debug
 # SRB2kart kart.o on line 433 below
 OBJS:=$(i_main_o) \
 		$(OBJDIR)/comptime.o \
-		$(OBJDIR)/qs22j.o   \
 		$(OBJDIR)/string.o   \
 		$(OBJDIR)/d_main.o   \
 		$(OBJDIR)/d_protocol.o   \
