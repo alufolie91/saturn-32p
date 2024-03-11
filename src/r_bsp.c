@@ -653,7 +653,7 @@ void R_SortPolyObjects(subsector_t *sub)
 		// 03/10/06: only bother if there are actually polys to sort
 		if (numpolys >= 2)
 		{
-			qsort(po_ptrs, numpolys, sizeof(polyobj_t *),
+			qs22j(po_ptrs, numpolys, sizeof(polyobj_t *),
 				R_PolyobjCompare);
 		}
 	}
