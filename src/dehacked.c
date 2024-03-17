@@ -7996,7 +7996,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"LAVENDER",		// SKINCOLOR_LAVENDER
 	"BYZANTIUM",	// SKINCOLOR_BYZANTIUM
 	"POMEGRANATE",	// SKINCOLOR_POMEGRANATE
-	"LILAC",        // SKINCOLOR_LILAC
+	"LILAC",		// SKINCOLOR_LILAC
 	"BONE",         // SKINCOLOR_BONE
 	"CARBON",       // SKINCOLOR_CARBON
 	"INK",          // SKINCOLOR_INK
@@ -8016,7 +8016,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"APPLE",        // SKINCOLOR_APPLE
 	"SEAFOAM",      // SKINCOLOR_SEAFOAM
 	"FOREST",       // SKINCOLOR_FOREST
-	"TOPAZ",        // SKINCOLOR_TOPAZ
+	"FROST",        // SKINCOLOR_FROST
 	"WAVE",         // SKINCOLOR_WAVE
 	"ICY",          // SKINCOLOR_ICY
 	"PEACOCK",      // SKINCOLOR_PEACOCK
@@ -8040,7 +8040,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"FIERY",        // SKINCOLOR_FIERY
 	"SPICE",        // SKINCOLOR_SPICE
 	"KING",         // SKINCOLOR_KING
-	"HOTDOG",      // SKINCOLOR_HOTDOG
+	"HOTDOG",       // SKINCOLOR_HOTDOG
 	"CARNATION",    // SKINCOLOR_CARNATION
 	"CANDY",        // SKINCOLOR_CANDY
 	"NEBULA",       // SKINCOLOR_NEBULA
@@ -8050,7 +8050,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"CHEESE",       // SKINCOLOR_CHEESE
 	"DUNE",         // SKINCOLOR_DUNE
 	"BRASS",        // SKINCOLOR_BRASS
-	"CITRINE",      // SKINCOLOR_CITRINE
+	"LEMON",        // SKINCOLOR_LEMON
 	"CASKET",       // SKINCOLOR_CASKET
 	"KHAKI",        // SKINCOLOR_KHAKI
 	"LIGHT",        // SKINCOLOR_LIGHT
@@ -8088,7 +8088,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"ORCA",         // SKINCOLOR_ORCA
 	"STORM",        // SKINCOLOR_STORM
 	"MIDNIGHT",     // SKINCOLOR_MIDNIGHT
-	"COTTONCANDY", // SKINCOLOR_COTTONCANDY
+	"COTTONCANDY",  // SKINCOLOR_COTTONCANDY
 	"CYBER",        // SKINCOLOR_CYBER
 	"AMETHYST",     // SKINCOLOR_AMETHYST
 	"IRIS",         // SKINCOLOR_IRIS
@@ -8100,7 +8100,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"MULBERRY",     // SKINCOLOR_MULBERRY
 	"BOYSENBERRY",  // SKINCOLOR_BOYSENBERRY
 	"MYSTIC",       // SKINCOLOR_MYSTIC
-	"WICKED",       // SKINCOLOR_WICKED
+	"WICKED"        // SKINCOLOR_WICKED
 
 	// Special super colors
 	// Super Sonic Yellow
