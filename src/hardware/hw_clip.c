@@ -324,8 +324,6 @@ angle_t gld_FrustumAngle(angle_t tiltangle)
 
 	float tilt = (float)fabs(((double)(int)tiltangle) / ANG1);
 
-	// NEWCLIP TODO: SRB2CBTODO: make a global render_fov for this function
-
 	if (tilt > 90.0f)
 		tilt = 90.0f;
 
@@ -335,14 +333,13 @@ angle_t gld_FrustumAngle(angle_t tiltangle)
 
 	// ok, this is a gross hack that barely works...
 	// but at least it doesn't overestimate too much...
-	clipfov = atan(1 / projMatrix[0]) * 360 / M_PIl;
+	clipfov = atan(1 / projMatrix[0]) * 360 / M_PI;
 	floatangle = 2.0f + (45.0f + (tilt / 1.9f)) * clipfov / 90.0f;
 	if (floatangle >= 180.0)
 		return 0xffffffff;
-	a1 = (angle_t)xs_CRoundToInt(ANG1 * floatangle);
+	a1 = ANG1 * (int)floatangle;
 	return a1;
 }
-
 
 
 // SRB2CB I don't think used any of this stuff, let's disable for now since SRB2 probably doesn't want it either

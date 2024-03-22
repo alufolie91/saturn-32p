@@ -476,16 +476,14 @@ void Y_IntermissionDrawer(void)
 	else
 		hilicol = ((intertype == int_race) ? V_SKYMAP : V_REDMAP);
 
-	if (sorttic != -1 && intertic > sorttic && !demo.playback)
+	if (sorttic != -1 && intertic >= sorttic && !demo.playback)
 	{
 		INT32 count = (intertic - sorttic);
 
 		if (count < 8)
-			x -= ((count * vid.width) / (8 * vid.dupx));
-		else if (count == 8)
-			goto dotimer;
+			x -= ((((count<<FRACBITS) + R_GetHudUncap()) * vid.width)>>FRACBITS) / (8 * vid.dupx);
 		else if (count < 16)
-			x += (((16 - count) * vid.width) / (8 * vid.dupx));
+			x += (((((16 - count)<<FRACBITS) - R_GetHudUncap()) * vid.width)>>FRACBITS) / (8 * vid.dupx);
 	}
 
 	// SRB2kart 290117 - compeltely replaced this block.
@@ -543,23 +541,17 @@ void Y_IntermissionDrawer(void)
 
 		// draw the level name
 
-#ifdef HAVE_BLUA
 		if (LUA_HudEnabled(hud_intertitle))
-#endif
 			V_DrawCenteredString(-4 + x + BASEVIDWIDTH/2, 12, 0, data.match.levelstring);
 
 
-#ifdef HAVE_BLUA
 		if (LUA_HudEnabled(hud_interborders))
-#endif
 			V_DrawFill((x-3) - duptweak, 34, dupadjust-2, 1, 0);
 
 		if (data.match.encore)
 		{
 
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_intertitle))
-#endif
 				V_DrawCenteredString(-4 + x + BASEVIDWIDTH/2, 12-8, hilicol, "ENCORE MODE");
 			
 		}
@@ -567,22 +559,17 @@ void Y_IntermissionDrawer(void)
 		if (data.match.numplayers > NUMFORNEWCOLUMN)
 		{
 
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_interborders))
 			{
-#endif
 				V_DrawFill(x+101, 24, 1, 158, 0);
 				V_DrawFill(x+207, 24, 1, 158, 0);
 				V_DrawFill((x-3) - duptweak, 182, dupadjust-2, 1, 0);
-#ifdef HAVE_BLUA
 			}
-#endif
 
 			//V_DrawCenteredString(x+6+(BASEVIDWIDTH/2), 24, hilicol, "#");
 			//V_DrawString(x+36+(BASEVIDWIDTH/2), 24, hilicol, "NAME");
-#ifdef HAVE_BLUA
+			
 			if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscoretitle))
-#endif
 				V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
 
 			//V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
@@ -590,36 +577,24 @@ void Y_IntermissionDrawer(void)
 		}
 		else
 		{
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_interlisting))
 			{
-#endif
 				V_DrawCenteredString(x+6, 24, hilicol, "#");
 				V_DrawString(x+36, 24, hilicol, "NAME");
-#ifdef HAVE_BLUA
 			}
-#endif
 
-#ifdef HAVE_BLUA
 			if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscoretitle))
-#endif
 				V_DrawRightAlignedString(x+(BASEVIDWIDTH/2)+152, 24, hilicol, timeheader);
 			
 		}
 
-#ifdef HAVE_BLUA
 		if (LUA_HudEnabled(hud_interlisting))
 		{
-#endif
 			V_DrawCenteredString(x+6, 24, hilicol, "#");
 			V_DrawString(x+36, 24, hilicol, "NAME");
-#ifdef HAVE_BLUA
-		}
-#endif		
+		}	
 
-#ifdef HAVE_BLUA
 		if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscoretitle))
-#endif
 			V_DrawRightAlignedString(x+(BASEVIDWIDTH/2)+152, 24, hilicol, timeheader);
 
 		for (i = 0; i < data.match.numplayers; i++)
@@ -634,10 +609,8 @@ void Y_IntermissionDrawer(void)
 				if (dojitter)
 					y--;
 
-#ifdef HAVE_BLUA
 				if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interplayers))
 				{
-#endif
 					if (data.match.numplayers > NUMFORNEWCOLUMN)
 						V_DrawPingNum(x+6, y+2, 0, data.match.pos[i], NULL);
 					else
@@ -689,9 +662,7 @@ void Y_IntermissionDrawer(void)
 						UINT8 cursorframe = (intertic / 4) % 8;
 						V_DrawScaledPatch(x+16, y-4, 0, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_CACHE));
 					}
-#ifdef HAVE_BLUA
 				}
-#endif
 				data.match.truncnames[i][sizeof data.match.truncnames[i] - 1] = '\0';
 
 				snprintf(data.match.truncnames[i],
@@ -709,18 +680,14 @@ void Y_IntermissionDrawer(void)
 				else
 					STRBUFCPY(strtime, data.match.name[i]);
 
-#ifdef HAVE_BLUA
 				if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interplayers))
 				{
-#endif
 					if (data.match.numplayers > NUMFORNEWCOLUMN)
 						V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 					else
 
 						V_DrawString(x+36, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
-#ifdef HAVE_BLUA
 				}
-#endif
 
 
 				if (data.match.rankingsmode)
@@ -734,40 +701,30 @@ void Y_IntermissionDrawer(void)
 						else
 							snprintf(strtime, sizeof strtime, "(%s  %d)", ((data.match.negaflag[i]) ? "-" : "+"), data.match.increase[data.match.num[i]]);
 
-#ifdef HAVE_BLUA
 						if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
 						{
-#endif
 							if (data.match.numplayers > NUMFORNEWCOLUMN)
 								V_DrawRightAlignedThinString(x+83+gutter, y, V_6WIDTHSPACE, strtime);
 							else
 								V_DrawRightAlignedString(x+120+gutter, y, 0, strtime);
-#ifdef HAVE_BLUA
 						}
-#endif
 					}
 
 					snprintf(strtime, sizeof strtime, "%d", data.match.val[i]);
 
-#ifdef HAVE_BLUA
 					if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
 					{
-#endif
 						if (data.match.numplayers > NUMFORNEWCOLUMN)
 							V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
 						else
 							V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
-#ifdef HAVE_BLUA
 					}
-#endif
 				}
 				else
 				{
 					if (data.match.val[i] == (UINT32_MAX-1))
 					{
-#ifdef HAVE_BLUA
 						if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
-#endif
 							V_DrawRightAlignedThinString(x+(data.match.numplayers > NUMFORNEWCOLUMN ? 100 : 152)+gutter, y, (data.match.numplayers > NUMFORNEWCOLUMN ? V_6WIDTHSPACE : 0), "NO CONTEST.");
 
 					}
@@ -779,31 +736,23 @@ void Y_IntermissionDrawer(void)
 							G_TicsToSeconds(data.match.val[i]), G_TicsToCentiseconds(data.match.val[i]));
 							strtime[sizeof strtime - 1] = '\0';
 
-#ifdef HAVE_BLUA
 								if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
 								{
-#endif
 									if (data.match.numplayers > NUMFORNEWCOLUMN)
 										V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
 									else
 										V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
-#ifdef HAVE_BLUA
 								}
-#endif
 						}
 						else
 						{
-#ifdef HAVE_BLUA
 							if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
 							{
-#endif
 								if (data.match.numplayers > NUMFORNEWCOLUMN)
 									V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, va("%i", data.match.val[i]));
 								else
 									V_DrawRightAlignedString(x+152+gutter, y, 0, va("%i", data.match.val[i]));
-#ifdef HAVE_BLUA
 							}
-#endif
 						}
 
 					}
@@ -826,7 +775,6 @@ void Y_IntermissionDrawer(void)
 		}
 	}
 
-dotimer:
 	if (timer)
 	{
 		char *string;
@@ -1208,7 +1156,6 @@ static void Y_UnloadData(void)
 //
 // Draw animated patch based on frame counter on vote screen
 //
-
 static inline void Y_DrawAnimatedVoteScreenPatch(boolean widePatch)
 {
 	char tempAnimPrefix[7];

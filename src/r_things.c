@@ -3239,7 +3239,6 @@ static int skinSortFunc(const void *a, const void *b) //tbh i have no clue what 
 	const UINT16 val_a = *((const UINT16 *)a);
 	const UINT16 val_b = *((const UINT16 *)b);
 
-
 	//return (strcmp(in1->realname, in2->realname) < 0) || (strcmp(in1->realname, in2->realname) ==);
 
 	switch (cv_skinselectgridsort.value)

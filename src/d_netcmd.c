@@ -1194,7 +1194,6 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_recordmultiplayerdemos);
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
-	
 	CV_RegisterVar(&cv_nativekeyboard);
 }
 

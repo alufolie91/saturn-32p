@@ -84,7 +84,6 @@ subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y);
 boolean R_DoCulling(line_t *cullheight, line_t *viewcullheight, fixed_t vz, fixed_t bottomh, fixed_t toph);
 
 // Performance stats
-
 extern precise_t ps_prevframetime;// time when previous frame was rendered
 extern ps_metric_t ps_rendercalltime;
 extern ps_metric_t ps_otherrendertime;
@@ -108,14 +107,14 @@ extern ps_metric_t ps_numpolyobjects;
 // REFRESH - the actual rendering functions.
 //
 
-extern consvar_t cv_showhud, cv_translucenthud;
+extern consvar_t cv_showhud, cv_translucenthud, cv_uncappedhud;
 extern consvar_t cv_homremoval;
 extern consvar_t cv_chasecam, cv_chasecam2, cv_chasecam3, cv_chasecam4;
 extern consvar_t cv_flipcam, cv_flipcam2, cv_flipcam3, cv_flipcam4;
 extern consvar_t cv_shadow, cv_shadowoffs;
 extern consvar_t cv_ffloorclip, cv_spriteclip;
 extern consvar_t cv_translucency;
-extern consvar_t /*cv_precipdensity,*/ cv_drawdist, /*cv_drawdist_nights,*/ cv_drawdist_precip, cv_lessprecip;
+extern consvar_t cv_drawdist, cv_drawdist_precip, cv_lessprecip;
 extern consvar_t cv_fov;
 extern consvar_t cv_skybox;
 extern consvar_t cv_tailspickup;
@@ -142,4 +141,7 @@ void R_RenderPlayerView(player_t *player);
 
 // add commands related to engine, at game startup
 void R_RegisterEngineStuff(void);
+
+// return multiplier for HUD uncap
+INT32 R_GetHudUncap(void);
 #endif

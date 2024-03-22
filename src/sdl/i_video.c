@@ -75,6 +75,7 @@
 #include "../command.h"
 #include "sdlmain.h"
 #include "../i_system.h"
+#include "../hu_stuff.h" // for chat_on
 #ifdef HWRENDER
 #include "../hardware/hw_main.h"
 #include "../hardware/hw_drv.h"
@@ -428,19 +429,13 @@ static INT32 GetTypedChar(SDL_Scancode code, SDL_Keysym *sym)
             // ASCII character - if it isn't, it's possible the input
             // char is a Unicode value instead; better to send a null
             // character than the unshifted key.
-            if (strlen(next_event.text.text) == 1
-             && (next_event.text.text[0] & 0x80) == 0)
-            {
-                return next_event.text.text[0];
-            }
-	    else
-	    {
-		    // wtf
-		    if (strcmp(next_event.text.text, "ç"))
-			    return 'n';
-		    else if (strcmp(next_event.text.text, "ñ"))
-			    return 'c';
-	    }
+
+            if (strlen(next_event.text.text) == 1 &&
+				(next_event.text.text[0] >= ' ' && next_event.text.text[0] <= '~')) {
+				return next_event.text.text[0];
+			} else {
+				return '\0';
+			}
         }
 
 	if (code >= SDL_SCANCODE_1 && code <= SDL_SCANCODE_9)
@@ -485,7 +480,7 @@ static INT32 GetTypedChar(SDL_Scancode code, SDL_Keysym *sym)
 		case SDL_SCANCODE_BACKSLASH:      return '\\';
 		case SDL_SCANCODE_NONUSHASH:      return '#';
 		case SDL_SCANCODE_SEMICOLON:      return ';';
-		case SDL_SCANCODE_APOSTROPHE:     return '\'';
+		case SDL_SCANCODE_APOSTROPHE: 	  return '\'';
 		case SDL_SCANCODE_GRAVE:          return '`';
 		case SDL_SCANCODE_COMMA:          return ',';
 		case SDL_SCANCODE_PERIOD:         return '.';
@@ -848,7 +843,8 @@ static void Impl_HandleKeyboardEvent(SDL_KeyboardEvent evt, Uint32 type)
 		return;
 	}
 
-	if (cv_nativekeyboard.value)
+
+	if (cv_nativekeyboard.value && (chat_on || CON_Ready() || (menu_text_input && menuactive))) //only use this this if on chat or console or the current menu wants inputs from us (except if its the control setup menu ig)
 		event.data1 = GetTypedChar(evt.keysym.scancode, &evt.keysym);
 	else
 		event.data1 = Impl_SDL_Scancode_To_Keycode(evt.keysym.scancode);
