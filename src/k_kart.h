@@ -36,6 +36,10 @@ extern consvar_t cv_stackingeffect;
 extern consvar_t cv_stackingeffectscaling;
 extern consvar_t cv_coloredsneakertrail;
 extern consvar_t cv_alwaysshowitemstacks;
+extern consvar_t cv_battlespeedo;
+
+#define NUMSPEEDOSTUFF 6
+extern CV_PossibleValue_t speedo_cons_t[NUMSPEEDOSTUFF];
 
 boolean K_IsPlayerLosing(player_t *player);
 boolean K_IsPlayerWanted(player_t *player);
@@ -87,7 +91,6 @@ void K_CalculateBattleWanted(void);
 void K_CheckBumpers(void);
 void K_CheckSpectateStatus(void);
 void K_UpdateSpectateGrief(void);
-void K_AutoAdjustNameTagPos(void);
 
 // sound stuff for lua
 void K_PlayAttackTaunt(mobj_t *source);

@@ -21,6 +21,8 @@
 #include "p_slopes.h"
 #include "z_zone.h" // Check R_Prep3DFloors
 
+#include "qs22j.h"
+
 seg_t *curline;
 side_t *sidedef;
 line_t *linedef;
@@ -651,7 +653,7 @@ void R_SortPolyObjects(subsector_t *sub)
 		// 03/10/06: only bother if there are actually polys to sort
 		if (numpolys >= 2)
 		{
-			qsort(po_ptrs, numpolys, sizeof(polyobj_t *),
+			qs22j(po_ptrs, numpolys, sizeof(polyobj_t *),
 				R_PolyobjCompare);
 		}
 	}
@@ -1237,9 +1239,9 @@ void R_RenderBSPNode(INT32 bspnum)
 {
 	node_t *bsp;
 	INT32 side;
-	
+
 	ps_numbspcalls.value.i++;
-	
+
 	while (!(bspnum & NF_SUBSECTOR))  // Found a subsector?
 	{
 		bsp = &nodes[bspnum];
@@ -1250,7 +1252,6 @@ void R_RenderBSPNode(INT32 bspnum)
 		R_RenderBSPNode(bsp->children[side]);
 
 		// Possibly divide back space.
-
 		if (!R_CheckBBox(bsp->bbox[side^1]))
 			return;
 
@@ -1258,7 +1259,8 @@ void R_RenderBSPNode(INT32 bspnum)
 	}
 
 	// PORTAL CULLING
-	if (portalcullsector) {
+	if (portalcullsector)
+	{
 		sector_t *sect = subsectors[bspnum & ~NF_SUBSECTOR].sector;
 		if (sect != portalcullsector)
 			return;

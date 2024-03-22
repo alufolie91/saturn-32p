@@ -28,6 +28,7 @@
 #include "r_vbo.h"
 #include "../hw_shaders.h"
 #include "../hw_main.h"
+#include "../hw_clip.h"
 
 // Eeeeh not sure is this right way, but it works < sry :c < sry again it had to go :c
 
@@ -110,7 +111,7 @@ const GLubyte *gl_extensions = NULL;
 
 //Hurdler: 04/10/2000: added for the kick ass coronas as Boris wanted;-)
 static GLfloat modelMatrix[16];
-static GLfloat projMatrix[16];
+GLfloat projMatrix[16];
 static GLint   viewport[4];
 
 
@@ -885,8 +886,10 @@ static void GLPerspective(GLfloat fovy, GLfloat aspect)
 	m[1][1] = cotangent;
 	m[2][2] = -(zFar + zNear) / deltaZ;
 	m[3][2] = -2.0f * zNear * zFar / deltaZ;
+
 	pglMultMatrixf(&m[0][0]);
 }
+
 
 // -----------------+
 // SetModelView     :
@@ -2726,7 +2729,9 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 	static boolean special_splitscreen;
 	GLdouble used_fov;
 	boolean shearing = false;
+
 	pglLoadIdentity();
+
 	if (stransform)
 	{
 		used_fov = stransform->fovxangle;
@@ -2747,7 +2752,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 		if (stransform->roll)
 			pglRotatef(stransform->rollangle, 0.0f, 0.0f, 1.0f);
-		pglRotatef(stransform->anglex, 1.0f, 0.0f, 0.0f);
+		pglRotatef(stransform->anglex       , 1.0f, 0.0f, 0.0f);
 		pglRotatef(stransform->angley+270.0f, 0.0f, 1.0f, 0.0f);
 		pglTranslatef(-stransform->x, -stransform->z, -stransform->y);
 
@@ -2776,11 +2781,12 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 	if (special_splitscreen)
 	{
-		used_fov = atan(tan(used_fov*M_PIl/360)*0.8)*360/M_PIl;
+		used_fov = (float)(atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI);
 		GLPerspective((GLfloat)used_fov, 2*ASPECT_RATIO);
 	}
 	else
 		GLPerspective((GLfloat)used_fov, ASPECT_RATIO);
+
 	pglGetFloatv(GL_PROJECTION_MATRIX, projMatrix); // added for new coronas' code (without depth buffer)
 	pglMatrixMode(GL_MODELVIEW);
 
@@ -3180,7 +3186,7 @@ EXPORT void HWRAPI(MakeScreenTexture) (int tex)
 	tex_downloaded = screenTextures[tex];
 }
 
-EXPORT void HWRAPI(DrawScreenFinalTexture)(int tex, int width, int height)
+EXPORT void HWRAPI(DrawScreenFinalTexture)(int tex, INT32 width, INT32 height)
 {
 	float xfix, yfix;
 	float origaspect, newaspect;
