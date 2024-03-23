@@ -1170,7 +1170,7 @@ consvar_t *CV_FindVar(const char *name)
   * \param netid The variable's identifier number.
   * \return A pointer to the variable itself if found, or NULL.
 */
-static consvar_t *CV_FindNetVar(u64_t netid)
+static consvar_t *CV_FindNetVar(unsigned long netid)
 {
 	consvar_t *cvar;
 
