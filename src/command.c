@@ -1187,12 +1187,15 @@ static void Setvalue(consvar_t *var, const char *valstr, boolean stealth);
 
 /** Builds a unique Net Variable identifier number, which is used
   * in network packets instead of the full name.
-  * Replacment of previous system with DJB2
   *
   * \param s Name of the variable.
   * \return A new unique identifier.
+  * \hash replaced with djb2
   * \sa CV_FindNetVar
   */
+
+
+    
 static inline unsigned long CV_ComputeNetidDJB2(const char *str)
 {
         static unsigned long hash = 5381;
