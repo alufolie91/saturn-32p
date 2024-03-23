@@ -1207,6 +1207,22 @@ static inline unsigned long CV_ComputeNetidDJB2(const char *str)
         return hash;
 }
 
+
+static inline UINT16 CV_ComputeNetid(const char *s)
+{
+	UINT16 ret = 0, i = 0;
+	static UINT16 premiers[16] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53};
+
+	while (*s)
+	{
+		ret = (UINT16)(ret + (*s)*premiers[i]);
+		s++;
+		i = (UINT16)((i+1) % 16);
+	}
+	return ret;
+}
+
+
 /** Registers a variable for later use from the console.
   *
   * \param variable The variable to register.
