@@ -132,7 +132,7 @@ typedef struct consvar_s //NULL, NULL, 0, NULL, NULL |, 0, NULL, NULL, 0, 0, NUL
 	const char *string;   // value in string
 	char *zstring;        // Either NULL or same as string.
 	                      // If non-NULL, must be Z_Free'd later.
-	uint64_t netid; // used internaly : netid for send end receive
+	UINT16 netid; // used internaly : netid for send end receive
 	                      // used only with CV_NETVAR
 	char changed;         // has variable been changed by the user? 0 = no, 1 = yes
 	struct consvar_s *next;
