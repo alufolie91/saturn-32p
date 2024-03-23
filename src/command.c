@@ -1483,7 +1483,7 @@ static boolean serverloading = false;
 static void Got_NetVar(UINT8 **p, INT32 playernum)
 {
 	consvar_t *cvar;
-	u64_t netid;
+	UINT64 netid;
 	char *svalue;
 	UINT8 stealth = false;
 
@@ -1510,10 +1510,10 @@ static void Got_NetVar(UINT8 **p, INT32 playernum)
 
 	if (!cvar)
 	{
-		CONS_Alert(CONS_WARNING, "Netvar not found with netid %llu\n", netid);
+		CONS_Alert(CONS_WARNING, "Netvar not found with netid %lu\n", netid);
 		return;
 	}
-	DEBFILE(va("Netvar received: %s [netid=%llu] value %s\n", cvar->name, netid, svalue));
+	DEBFILE(va("Netvar received: %s [netid=%lu] value %s\n", cvar->name, netid, svalue));
 
 	Setvalue(cvar, svalue, stealth);
 }
