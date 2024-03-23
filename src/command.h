@@ -16,8 +16,6 @@
 #include <stdio.h>
 #include "doomdef.h"
 
-typedef unsigned long long int u64_t;  // work around windows and linux differences.
-
 //===================================
 // Command buffer & command execution
 //===================================
@@ -134,7 +132,7 @@ typedef struct consvar_s //NULL, NULL, 0, NULL, NULL |, 0, NULL, NULL, 0, 0, NUL
 	const char *string;   // value in string
 	char *zstring;        // Either NULL or same as string.
 	                      // If non-NULL, must be Z_Free'd later.
-	u64_t netid; // used internaly : netid for send end receive
+	UINT64 netid; // used internaly : netid for send end receive
 	                      // used only with CV_NETVAR
 	char changed;         // has variable been changed by the user? 0 = no, 1 = yes
 	struct consvar_s *next;
