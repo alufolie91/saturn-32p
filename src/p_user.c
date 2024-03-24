@@ -1936,7 +1936,7 @@ static void P_3dMovement(player_t *player)
 	if ((player->exiting || mapreset) || player->pflags & PF_STASIS || player->kartstuff[k_spinouttimer]) // pw_introcam?
 	{
 		cmd->forwardmove = cmd->sidemove = 0;
-		if (player->kartstuff[k_sneakertimer])
+		if (player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer])
 			cmd->forwardmove = 50;
 	}
 
@@ -2494,7 +2494,7 @@ static void P_MovePlayer(player_t *player)
 	////////////////////////////
 
 	// SRB2kart - Drifting smoke and fire
-	if (cv_sneakerfire.value && player->kartstuff[k_sneakertimer] > 0 && onground && (leveltime & 1))
+	if (cv_sneakerfire.value && (player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && onground && (leveltime & 1))
 		K_SpawnBoostTrail(player);
 
 	if (player->kartstuff[k_invincibilitytimer] > 0)
@@ -4683,7 +4683,7 @@ void P_PlayerThink(player_t *player)
 #if 1
 	// "Blur" a bit when you have speed shoes and are going fast enough
 	if ((player->powers[pw_super] || player->powers[pw_sneakers]
-		|| player->kartstuff[k_driftboost] || player->kartstuff[k_sneakertimer] || player->kartstuff[k_startboost]) && !player->kartstuff[k_invincibilitytimer] // SRB2kart
+		|| player->kartstuff[k_driftboost] || player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer] || player->kartstuff[k_startboost]) && !player->kartstuff[k_invincibilitytimer] // SRB2kart
 		&& (player->speed + abs(player->mo->momz)) > FixedMul(20*FRACUNIT,player->mo->scale))
 	{
 		UINT8 i;

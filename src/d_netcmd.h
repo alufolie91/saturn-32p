@@ -136,6 +136,13 @@ extern consvar_t cv_stackingdimval;
 extern consvar_t cv_stackingbrakemod;
 //boosts
 extern consvar_t cv_sneakerstack;
+
+extern consvar_t cv_panel;
+extern consvar_t cv_panelsharestack;
+extern consvar_t cv_panelstack;
+
+
+
 extern consvar_t cv_sneakerspeedeasy;
 extern consvar_t cv_sneakerspeednormal;
 extern consvar_t cv_sneakerspeedhard;

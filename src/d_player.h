@@ -346,6 +346,10 @@ typedef enum
 	
 	//Health nametag
 	k_hphealth,
+	k_paneltimer,
+	k_realpaneltimer,
+	k_panelstack,
+	
 
 	NUMKARTSTUFF
 } kartstufftype_t;
