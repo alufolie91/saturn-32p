@@ -3542,13 +3542,36 @@ static void K_GetKartBoostPower(player_t *player)
 		}
 		else
 		{
-			if (cv_sneakerextend.value && !cv_chainoffroad.value)
+			if (cv_sneakerextend.value && (!cv_chainoffroad.value || cv_chainoffroad.value == 2 || cv_chainoffroad.value == 3) )
 			{
-				if (!player->kartstuff[k_timerstore])
+				switch(cv_chainoffroad.value)
 				{
-					player->kartstuff[k_sneakerstack] = 0;
-					player->kartstuff[k_panelstack] = 0;
-				}
+					case 0:
+						if ( cv_panel.value ? (!player->kartstuff[k_sneakertimerstore] && !player->kartstuff[k_paneltimerstore]) : player->kartstuff[k_sneakertimerstore])
+						{
+							player->kartstuff[k_sneakerstack] = 0;
+							if (!cv_panelsharestack.value)
+								player->kartstuff[k_panelstack] = 0;
+						}
+						break;
+					case 2:
+						if (!player->kartstuff[k_paneltimerstore])
+						{
+							player->kartstuff[k_sneakerstack] = 0;
+							if (!cv_panelsharestack.value)
+								player->kartstuff[k_panelstack] = 0;
+						}	
+						break;
+					
+					case 3:
+						if (!player->kartstuff[k_sneakertimerstore])
+						{
+							player->kartstuff[k_sneakerstack] = 0;
+							if (!cv_panelsharestack.value)
+								player->kartstuff[k_panelstack] = 0;
+						}	
+						break;
+				}	
 			}
 			else
 			{
@@ -3783,34 +3806,63 @@ static void K_GetKartBoostPower(player_t *player)
 // Something Something
 static void K_ChainOffroadNerf(player_t *player)
 {
-		
-	if (player->kartstuff[k_sneakertimer] && !player->kartstuff[k_realsneakertimer] && player->kartstuff[k_offroad])
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
 	{
-		player->kartstuff[k_timerstore] = player->kartstuff[k_sneakertimer];
-		
-		//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
-		player->kartstuff[k_sneakertimer] = 0;
+		if (player->kartstuff[k_sneakertimer] && !player->kartstuff[k_realsneakertimer] && player->kartstuff[k_offroad])
+		{
+			player->kartstuff[k_sneakertimerstore] = player->kartstuff[k_sneakertimer];
+
+			//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
+			player->kartstuff[k_sneakertimer] = 0;
+		}
+		else if (player->kartstuff[k_sneakertimerstore] && !player->kartstuff[k_realsneakertimer] && !player->kartstuff[k_offroad])
+		{
+			player->kartstuff[k_sneakertimer] = player->kartstuff[k_sneakertimerstore];
+			player->kartstuff[k_sneakertimerstore] = 0;
+			//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+		}
 	}
-	else if (player->kartstuff[k_timerstore] && !player->kartstuff[k_realsneakertimer] && !player->kartstuff[k_offroad])
+	
+	
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
 	{
-		player->kartstuff[k_sneakertimer] = player->kartstuff[k_timerstore];
-		player->kartstuff[k_timerstore] = 0;
-		//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+		if (player->kartstuff[k_paneltimer] && !player->kartstuff[k_realpaneltimer] && player->kartstuff[k_offroad])
+		{
+			player->kartstuff[k_paneltimerstore] = player->kartstuff[k_paneltimer];
+
+			//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
+			player->kartstuff[k_paneltimer] = 0;
+		}
+		else if (player->kartstuff[k_paneltimerstore] && !player->kartstuff[k_realpaneltimer] && !player->kartstuff[k_offroad])
+		{
+			player->kartstuff[k_paneltimer] = player->kartstuff[k_paneltimerstore];
+			player->kartstuff[k_paneltimerstore] = 0;
+			//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+		}
 	}
 	
 	if (cv_sneakerextendtype.value == 1)
 	{
-		if (player->kartstuff[k_timerstore] > 0 && !player->kartstuff[k_driftboost])
-			player->kartstuff[k_timerstore]--;
+		if (player->kartstuff[k_sneakertimerstore] > 0 && !player->kartstuff[k_driftboost])
+			player->kartstuff[k_sneakertimerstore]--;
+		
+		if (player->kartstuff[k_paneltimerstore] > 0 && !player->kartstuff[k_driftboost])
+			player->kartstuff[k_paneltimerstore]--;
 	}
 	else
 	{
-		if (player->kartstuff[k_timerstore] > 0)
-			player->kartstuff[k_timerstore]--;
+		if (player->kartstuff[k_sneakertimerstore] > 0)
+			player->kartstuff[k_sneakertimerstore]--;
+		
+		if (player->kartstuff[k_paneltimerstore] > 0)
+			player->kartstuff[k_paneltimerstore]--;
 	}
 	
 	if (player->kartstuff[k_spinouttimer] > 0)
-		player->kartstuff[k_timerstore] = 0;
+	{
+		player->kartstuff[k_sneakertimerstore] = 0;
+		player->kartstuff[k_paneltimerstore] = 0;
+	}
 	
 	//CONS_Printf(M_GetText("offroadtimerstore: %d\n"), player->kartstuff[k_timerstore]);
 		
@@ -5768,7 +5820,7 @@ void K_DoSneaker(player_t *player, INT32 type)
 		}
 	}
 		player->kartstuff[k_sneakertimer] = sneakertime;
-		if (!cv_chainoffroad.value)
+		if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
 			player->kartstuff[k_realsneakertimer] = sneakertime;
 		
 		//Stacks
@@ -5826,7 +5878,7 @@ void K_DoPanel(player_t *player)
 			K_FlipFromObject(overlay, player->mo);
 	}
 		player->kartstuff[k_paneltimer] = sneakertime;
-		if (!cv_chainoffroad.value)
+		if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
 			player->kartstuff[k_realpaneltimer] = sneakertime;
 		
 		//Stacks
@@ -6869,7 +6921,7 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 
 	K_GetKartBoostPower(player);
 	
-	if (cv_sneakerextend.value && !cv_chainoffroad.value)
+	if (cv_sneakerextend.value && (!cv_chainoffroad.value || cv_chainoffroad.value == 2 || cv_chainoffroad.value == 3) )
 		K_ChainOffroadNerf(player);
 
 	// Speed lines
@@ -7071,7 +7123,7 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 			player->kartstuff[k_wipeoutslow] = wipeoutslowtime+1;
 	}
 	
-	if (!cv_chainoffroad.value)
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
 	{
 		if (player->kartstuff[k_realsneakertimer])
 			player->kartstuff[k_realsneakertimer]--;
@@ -7110,7 +7162,7 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		if (player->kartstuff[k_wipeoutslow] > 0 && player->kartstuff[k_wipeoutslow] < wipeoutslowtime+1)
 			player->kartstuff[k_wipeoutslow] = wipeoutslowtime+1;
 		
-		if (!cv_chainoffroad.value)
+		if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
 		{
 			if (player->kartstuff[k_realpaneltimer])
 				player->kartstuff[k_realpaneltimer]--;
