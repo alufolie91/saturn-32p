@@ -4859,7 +4859,6 @@ static void K_StretchPlayerGravity(player_t *p)
 
 	//CONS_Printf(M_GetText("div: %d, scale factor: %d, stretch value: %d\n"), rzsDiv, stretchScaleFactor, cv_gravstretch.value);
 
-
     I_Assert(p != NULL);
 	I_Assert(p->mo != NULL);
 	I_Assert(!P_MobjWasRemoved(p->mo));
@@ -4899,6 +4898,7 @@ static void K_StretchPlayerGravity(player_t *p)
 			slamDiv = 0;
 		else
 			slamDiv = FixedDiv(p->mo->stretchslam, stretchScaleFactor);
+		
         p->mo->spritexscale = (dxs+(((slamDiv*2)/3)*2));
         p->mo->spriteyscale = (dys-(slamDiv));
         if (p->mo->stretchslam > 0)
@@ -8833,7 +8833,6 @@ static patch_t *skp_smallstickerclr3;
 static patch_t *kp_itemmulstickerclr[2];
 static patch_t *kp_itembgclr[4];
 
-
 //Kartz speedo
 static patch_t *kp_kartzspeedo[25];
 
@@ -8989,6 +8988,7 @@ void K_LoadKartHUDGraphics(void)
 		kp_itembgclr[3] = 				W_CachePatchName("K_ISBCD", PU_HUDGFX);
 		kp_itemmulstickerclr[1] = 		W_CachePatchName("K_ISMULC", PU_HUDGFX);
 		kp_itemmulstickerclr[0] = 		W_CachePatchName("K_ITMULC", PU_HUDGFX);
+		
 		if (big_lap_color){		
 			kp_lapstickerbigclr = 		W_CachePatchName("K_SCLAPB", PU_HUDGFX);
 			kp_lapstickerbig2clr = 		W_CachePatchName("K_SCLA2B", PU_HUDGFX);
