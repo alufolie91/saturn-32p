@@ -694,7 +694,6 @@ typedef enum
 #ifdef HAVE_DISCORDRPC
 	mpause_discordrequests,
 #endif
-
 	mpause_continue,
 	mpause_psetupsplit,
 	mpause_psetupsplit2,
@@ -1298,33 +1297,31 @@ static const char* OP_MouseTooltips[] =
 
 static menuitem_t OP_VideoOptionsMenu[] =
 {
-	{IT_STRING | IT_CALL,	NULL,	"Set Resolution...",	M_VideoModeMenu,		 10},
+	{IT_STRING | IT_CALL,	NULL,	"Set Resolution...",	M_VideoModeMenu,		  10},
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
-	{IT_STRING|IT_CVAR,		NULL,	"Fullscreen",			&cv_fullscreen,			 20},
+	{IT_STRING|IT_CVAR,		NULL,	"Fullscreen",			&cv_fullscreen,			  20},
 #endif
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-							NULL,	"Brightness",				&cv_globalgamma,			 30},
+							NULL,	"Brightness",			&cv_globalgamma,		  30},
 
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                        NULL, "Saturation",      &cv_globalsaturation ,     40},
+	                        NULL, 	"Saturation",      		&cv_globalsaturation ,    40},
 							
-	{IT_SUBMENU|IT_STRING, NULL, "Advanced Color Settings...", &OP_ColorOptionsDef,  50},
+	{IT_SUBMENU|IT_STRING, NULL, "Advanced Color Settings...", &OP_ColorOptionsDef,   50},
 
-	{IT_STRING | IT_CVAR,	NULL,	"Draw Distance",		&cv_drawdist,			 65},
-	{IT_STRING | IT_CVAR,	NULL,	"Weather Draw Distance",&cv_drawdist_precip,	 75},
-	{IT_STRING | IT_CVAR,	NULL,	"Skyboxes",				&cv_skybox,				 85},
-	{IT_STRING | IT_CVAR,	NULL,	"Field of View",		&cv_fov,				 95},
+	{IT_STRING | IT_CVAR,	NULL,	"Draw Distance",		&cv_drawdist,			  65},
+	{IT_STRING | IT_CVAR,	NULL,	"Weather Draw Distance",&cv_drawdist_precip,	  75},
+	{IT_STRING | IT_CVAR,	NULL,	"Field of View",		&cv_fov,				  95},
 
 	{IT_STRING | IT_CVAR,	NULL,	"Show FPS",				&cv_ticrate,			 105},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Sync",		&cv_vidwait,			115},
-	{IT_STRING | IT_CVAR,   NULL,   "FPS Cap",              &cv_fpscap,             125},
-	{IT_STRING | IT_CVAR,   NULL,   "Drift spark pulse size",&cv_driftsparkpulse,   135},
-	{IT_STRING | IT_CVAR,   NULL,   "Uppercase Menu",		&cv_menucaps,   		145},
-
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Sync",		&cv_vidwait,			 115},
+	{IT_STRING | IT_CVAR,   NULL,   "FPS Cap",              &cv_fpscap,              125},
+	{IT_STRING | IT_CVAR,   NULL,   "Drift spark pulse size",&cv_driftsparkpulse,    135},
+	{IT_STRING | IT_CVAR, 	NULL, 	"VHS effect", 			&cv_vhseffect, 		 	 145},
 #ifdef HWRENDER
-	{IT_SUBMENU|IT_STRING,	NULL,	"OpenGL Options...",	&OP_OpenGLOptionsDef,	155},
+	{IT_SUBMENU|IT_STRING,	NULL,	"OpenGL Options...",	&OP_OpenGLOptionsDef,	 155},
 #endif
-	{IT_SUBMENU|IT_STRING,  NULL,   "Experimental Options...", &OP_ExpOptionsDef,   165},
+	{IT_SUBMENU|IT_STRING,  NULL,   "Experimental Options...", &OP_ExpOptionsDef,    165},
 
 };
 
@@ -1339,13 +1336,12 @@ static const char* OP_VideoTooltips[] =
 	"Advanced color settings of the game.",
 	"How far away objects are drawn.",
 	"How far away weather is drawn.",
-	"Toggle being able to see the sky.",
 	"Player field of view.",
 	"Show current game framerate and select the style.",
 	"Sync game framerate to refresh rate of monitor.",
 	"Set manual framerate cap.",
 	"Size of drift spark pulse.",
-	"Force menu to only use uppercase.",
+	"Show a VHS-like effect when the game is paused\n or youre rewinding replays.",
 #ifdef HWRENDER
 	"Options for OpenGL renderer.",
 #endif
@@ -1364,13 +1360,12 @@ enum
 	op_video_color,
 	op_video_dd,
 	op_video_wdd,
-	op_video_skybox,
 	op_video_fov,
 	op_video_fps,
 	op_video_vsync,
 	op_video_fpscap,
 	op_video_driftsparkpulse,
-	op_uppercase_menu,
+	op_exp_vhs,
 #ifdef HWRENDER
 	op_video_ogl,
 #endif
@@ -1431,23 +1426,22 @@ static menuitem_t OP_ExpOptionsMenu[] =
 	{IT_STRING|IT_CVAR,		NULL, "Mobj Subsector Interpolation",	&cv_mobjssector,		 	 35},
 	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 45},
 	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 55},
-	
-	{IT_STRING | IT_CVAR, 	NULL, "VHS effect", 					&cv_vhseffect, 		 		 75},
-	
+
+	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 70},
+
 	{IT_STRING | IT_CVAR, 	NULL, "Clipping R_PointToAngle Version", &cv_pointoangleexor64, 	 85},
-	
+
 	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 95},
 	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	105},
 #ifdef HWRENDER	
 	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 95},
 
 	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		105},
-	
+
 	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	125},
 	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	135},
 	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	145},
 	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		155},
-	
 #endif	
 };
 
@@ -1458,7 +1452,7 @@ static const char* OP_ExpTooltips[] =
 	"Toggles Mobj Subsector Interpolation.",
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
-	"Show a VHS-like effect when the game is paused\n or youre rewinding replays.",
+	"Toggle being able to see the sky.",
 	"Which version of R_PointToAngle should\nbe used for Sector Clipping?\n64 may fix rendering issues on larger maps\nat the cost of performance.",
 	"Hides 3DFloors which are not visible\npotentially resulting in a performance boost.",
 	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
@@ -1479,7 +1473,7 @@ enum
 	op_exp_mobjssector,
 	op_exp_precipinter,
 	op_exp_lessprecip,
-	op_exp_vhs,
+	op_exp_skybox,
 	op_exp_angleshit,
 	op_exp_ffclip,
 	op_exp_sprclip,
@@ -2015,22 +2009,25 @@ static menuitem_t OP_SaturnMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Show Lap Emblem",		 				&cv_showlapemblem, 	 		70},
 	{IT_STRING | IT_CVAR, NULL,	"Show Minimap Names",   				&cv_showminimapnames, 		75},
 	{IT_STRING | IT_CVAR, NULL,	"Small Minimap Players",   				&cv_minihead, 				80},
-	
-	{IT_STRING | IT_CVAR, NULL, "Show Cecho Messages", 					&cv_cechotoggle, 			90},
-	{IT_STRING | IT_CVAR, NULL, "Show Localskin Menus", 				&cv_showlocalskinmenus, 	95},
-	{IT_STRING | IT_SUBMENU, NULL, "Nametags...", 						&OP_NametagDef, 			100},
-	{IT_STRING | IT_SUBMENU, NULL, "Driftgauge...", 					&OP_DriftGaugeDef, 			105},
-	
-	{IT_STRING | IT_CVAR, NULL, "Uncapped HUD", 						&cv_uncappedhud, 		 	115},
 
-	{IT_STRING | IT_CVAR, NULL, "Native keyboard layout", 				&cv_nativekeyboard, 		125},
+	{IT_STRING | IT_CVAR, NULL, "Uncapped HUD", 						&cv_uncappedhud, 		    90},
 
-	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		 	135},
+	{IT_STRING | IT_CVAR, NULL, "Show Cecho Messages", 					&cv_cechotoggle, 			95},
+	{IT_STRING | IT_CVAR, NULL, "Show Localskin Menus", 				&cv_showlocalskinmenus, 	100},
+	{IT_STRING | IT_CVAR, NULL, "Uppercase Menu",						&cv_menucaps,   		    105},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Sprite Distortion...", 			&OP_PlayerDistortDef,	 	145},
-	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		 	150},
+	{IT_STRING | IT_CVAR, NULL, "Native Keyboard Layout",				&cv_nativekeyboard,   	   110},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,		160}, // uwu
+	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		   125},
+
+	{IT_STRING | IT_SUBMENU, NULL, "Nametags...", 						&OP_NametagDef, 		   135},
+	{IT_STRING | IT_SUBMENU, NULL, "Driftgauge...", 					&OP_DriftGaugeDef, 		   140},
+
+	{IT_SUBMENU|IT_STRING,	NULL,	"Sprite Distortion...", 			&OP_PlayerDistortDef,	   150},
+	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		   155},
+
+	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,	   160}, // uwu
+
 };
 
 static const char* OP_SaturnTooltips[] =
@@ -2049,13 +2046,14 @@ static const char* OP_SaturnTooltips[] =
 	"Show the big 'LAP' text on a lap change.",
 	"Show player names on the minimap.",
 	"Minimize the player icons on the minimap.",
+	"Uncaps the HUD framerate, making it appear smoother.",
 	"Show the big Cecho Messages.",
 	"Show Localskin Menus.",
-	"Nametag Options.",
-	"Driftgauge Options.",
-	"Uncaps the HUD framerate, making it appear smoother.",
+	"Force menu to only use uppercase.",
 	"Use your native Keyboard Layout.",
 	"Disables the flicker effect on Midnight Channel.",
+	"Nametag Options.",
+	"Driftgauge Options.",
 	"Options for sprite distortion effects.",
 	"Move position of HUD elements.",
 	"See the people who helped make this project possible!",
@@ -2077,13 +2075,15 @@ enum
 	sm_lapemblem,
 	sm_mapnames,
 	sm_smallmap,
+	sm_uncappedhud,
 	sm_cechotogle,
 	sm_showlocalskin,
-	sm_nametagmen,
-	sm_driftgaugemen,
-	sm_uncappedhud,
+	op_uppercase_menu,
 	sm_nativkey,
 	sm_pisschannel,
+	sm_nametagmen,
+	sm_driftgaugemen,
+
 	sm_distortionmenu,
 	sm_hudoffsets,
 	sm_credits,
@@ -2096,25 +2096,28 @@ static menuitem_t OP_NeptuneMenu[] =
 	//{IT_HEADER, NULL, "Sneaker", NULL, 10},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension", 			&cv_sneakerextend, 	 	10},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension Type", 		&cv_sneakerextendtype, 	15},
-	{IT_STRING | IT_CVAR, NULL, "Sneaker Chain Offroad", 		&cv_chainoffroad,	 	20},
+	{IT_STRING | IT_CVAR, NULL, "Chain Offroad", 				&cv_chainoffroad,	 	20},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Stack", 				&cv_sneakerstack,		25},
+	{IT_STRING | IT_CVAR, NULL, "Panel Timer", 					&cv_panel,		30},
+	{IT_STRING | IT_CVAR, NULL, "Panel StackShare", 			&cv_panelsharestack,	35},
+	{IT_STRING | IT_CVAR, NULL, "Panel Stacks", 				&cv_panelstack,		40},
 	
 	//{IT_HEADER, NULL, "Mini-Turbo", NULL, 30},
-	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	35},
-	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	40},
-	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	45},
-	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	50},
+	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	50},
+	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	55},
+	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	60},
+	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	65},
 	
 	//{IT_HEADER, NULL, "Stacking", NULL, 55},
-	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	60},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		65},
+	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	75},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		80},
 	
-	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			75},
-	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		80},
+	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			90},
+	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		95},
 	
 	//{IT_HEADER, NULL, "Items", NULL, 70},
-	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			90},
-	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			95},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			105},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			110},
 	
 
 
@@ -2126,8 +2129,11 @@ static const char* OP_NeptuneTooltips[] =
 	//NULL,
 	"Allow sneakers be extended by mini-turbos.",
 	"How should sneaker extentension be treated?\nBS holds the sneaker until mini-turbo is over.\nZBL ties mini-turbo and sneakers together.",
-	"Should extended sneakers past regular duration allow to mow offroad?",
+	"Should extended boosts past regular duration allow to mow offroad?",
 	"Number of times sneakers stack together.",
+	"Should panels be seprate from sneakers?",
+	"Should panels and sneakers share the same stack counter?",
+	"Number of times panels stack together",
 	//NULL,
 	"Allow mini-turbos to add together",
 	"Duration of blue mini-turbo.",
@@ -2151,6 +2157,9 @@ enum
 	pm_sneakeret,
 	pm_sneakerco,
 	pm_sneakerst,
+	pm_panel,
+	pm_panelsh,
+	pm_panelst,
 	pm_additivemt,
 	pm_bst,
 	pm_rst,
@@ -2293,37 +2302,34 @@ static menuitem_t OP_HudOffsetMenu[] =
 
 static menuitem_t OP_SaturnCreditsMenu[] =
 {
-	{IT_HEADER, NULL, "Saturn Credits", 									NULL,       0},
-	
-	{IT_HEADER, NULL, "Thanks to all contributers <3", 											NULL,      15},
-	
-	{IT_STRING2+IT_SPACE, NULL, 	"alufolie91 aka Alug",      						NULL, 	   20},
+	{IT_HEADER, NULL, "Saturn Credits", 												NULL,       0},
+
+	{IT_HEADER, NULL, "Thanks to all contributers <3", 									NULL,      15},
+
+	{IT_STRING2+IT_SPACE, NULL, 	"Alug",      										NULL, 	   20},
 	{IT_STRING2+IT_SPACE, NULL, 	"Indev",        									NULL,      30},
 	{IT_STRING2+IT_SPACE, NULL, 	"Haya",       										NULL,      40},
 	{IT_STRING2+IT_SPACE, NULL, 	"Nepdisk", 		 									NULL, 	   50},
-	{IT_STRING2+IT_SPACE, NULL, 	"xyzzy",     										NULL, 	   60},
-	{IT_STRING2+IT_SPACE, NULL, 	"Chearii", 		 									NULL, 	   70},
-	
-	
-	{IT_STRING+IT_SPACE, NULL, "", 									NULL,       73},	// dummy text 
-	
-	{IT_STRING2+IT_SPACE, NULL, 	"Sunflower aka AnimeSonic", 		 				NULL, 	   80},
-	{IT_STRING2+IT_SPACE, NULL, 	"Yuz aka Yuzler", 		  							NULL, 	  90},
-	{IT_STRING2+IT_SPACE, NULL, 	"Democrab", 		  								NULL, 	   100},
-	{IT_STRING2+IT_SPACE, NULL, 	"EXpand aka Maver", 		 						NULL, 	  110},
-	{IT_STRING2+IT_SPACE, NULL, 	"Nexit", 		 						NULL, 	  120},
-	
-	{IT_HEADER, NULL, "Special Thanks <3", 									NULL,     130},
-	
-	
-	{IT_STRING2+IT_SPACE,	NULL,	"All of Sunflower's Garden",	      				NULL,     150},
-	{IT_STRING2+IT_SPACE, NULL, 	"Galactice",       									NULL,     160},
-	{IT_STRING2+IT_SPACE, NULL, 	"Himie and",       									NULL,     170},	
-	{IT_STRING2+IT_SPACE, NULL, 	"The Moe Mansion / Birdhouse Team",       			NULL,     180},
-	
+	{IT_STRING2+IT_SPACE, NULL, 	"GenericHeroGuy", 		 							NULL, 	   60},
+	{IT_STRING2+IT_SPACE, NULL, 	"xyzzy",     										NULL, 	   70},
+	{IT_STRING2+IT_SPACE, NULL, 	"Chearii", 		 									NULL, 	   80},
 
-	{IT_STRING+IT_SPACE, NULL, "", 									NULL,       190},	// dummy text II
-	{IT_STRING, NULL, "", 									NULL,       200},	// dummy text III
+	{IT_STRING+IT_SPACE, NULL, 		"", 												NULL,      83},	// dummy text 
+
+	{IT_STRING2+IT_SPACE, NULL, 	"Sunflower aka AnimeSonic", 		 				NULL, 	   90},
+	{IT_STRING2+IT_SPACE, NULL, 	"Yuz aka Yuzler", 		  							NULL, 	  100},
+	{IT_STRING2+IT_SPACE, NULL, 	"Democrab", 		  								NULL, 	  110},
+	{IT_STRING2+IT_SPACE, NULL, 	"EXpand aka Maver", 		 						NULL, 	  120},
+	{IT_STRING2+IT_SPACE, NULL, 	"Nexit", 		 									NULL, 	  130},
+
+	{IT_HEADER, 		  NULL, 	"Special Thanks <3", 								NULL,     140},
+
+	{IT_STRING2+IT_SPACE, NULL,		"All of Sunflower's Garden",	      				NULL,     160},
+	{IT_STRING2+IT_SPACE, NULL, 	"The Moe Mansion and Birdhouse Team",       		NULL,     170},
+	{IT_STRING2+IT_SPACE, NULL, 	"Galactice for Galaxy",       						NULL,     180},
+
+	{IT_STRING+IT_SPACE, NULL, "", 														NULL,     190},	// dummy text II
+	{IT_STRING, NULL, "", 																NULL,     200},	// dummy text III
 };
 
 static const char* OP_CreditTooltips[] =
@@ -2394,7 +2400,7 @@ static menuitem_t OP_ForkedBirdMenu[] =
 {
 	{IT_HEADER, NULL, "Local Skins", NULL, 0},
 	{IT_STRING | IT_CVAR | IT_CV_STRING, NULL, "Local Skin Name", &cv_fakelocalskin, 10},
-	{IT_STRING2 | IT_SPACE, NULL, "Set to None for no Local Skin", NULL, 20},
+	{IT_STRING2 | IT_SPACE, NULL, "SET TO NONE FOR NO LOCAL SKIN", NULL, 20},
 	{IT_STRING | IT_CALL, NULL, "Apply to All Players", M_LocalSkinChange, 140},
 	{IT_STRING | IT_CALL, NULL, "Apply to Displaying Player", M_LocalSkinChange, 150},
 	{IT_STRING | IT_CALL, NULL, "Apply to Yourself", M_LocalSkinChange, 160},
@@ -2931,7 +2937,7 @@ menu_t OP_VideoOptionsDef =
 	&OP_MainDef,
 	OP_VideoOptionsMenu,
 	M_DrawVideoMenu,
-	30, 20,
+	30, 15,
 	0,
 	NULL,
 	{NULL}
@@ -3021,7 +3027,7 @@ menu_t OP_MonitorToggleDef =
 menu_t OP_OpenGLOptionsDef = DEFAULTSCROLLSTYLE("M_VIDEO", OP_OpenGLOptionsMenu, &OP_VideoOptionsDef, 30, 30);
 #endif
 
-menu_t OP_ExpOptionsDef = DEFAULTMENUSTYLE("M_VIDEO", OP_ExpOptionsMenu, &OP_VideoOptionsDef, 30, 30);
+menu_t OP_ExpOptionsDef = DEFAULTMENUSTYLE("M_VIDEO", OP_ExpOptionsMenu, &OP_VideoOptionsDef, 30, 20);
 
 menu_t OP_DataOptionsDef = DEFAULTMENUSTYLE("M_DATA", OP_DataOptionsMenu, &OP_MainDef, 60, 30);
 menu_t OP_ScreenshotOptionsDef = DEFAULTMENUSTYLE("M_SCSHOT", OP_ScreenshotOptionsMenu, &OP_DataOptionsDef, 30, 30);
@@ -3041,8 +3047,8 @@ menu_t OP_HudOffsetDef = DEFAULTSCROLLSTYLE(NULL, OP_HudOffsetMenu, &OP_SaturnDe
 menu_t OP_SaturnCreditsDef = DEFAULTMENUSTYLE(NULL, OP_SaturnCreditsMenu, &OP_SaturnDef, 30, 10);
 
 menu_t OP_BirdDef = DEFAULTMENUSTYLE(NULL, OP_BirdMenu, &OP_MainDef, 30, 30);
-menu_t OP_NametagDef = DEFAULTMENUSTYLE(NULL, OP_NametagMenu, &OP_SaturnDef, 30, 40);
 
+menu_t OP_NametagDef = DEFAULTMENUSTYLE(NULL, OP_NametagMenu, &OP_SaturnDef, 30, 40);
 menu_t OP_DriftGaugeDef = DEFAULTMENUSTYLE(NULL, OP_DriftGaugeMenu, &OP_SaturnDef, 30, 60);
 
 menu_t OP_TiltDef = DEFAULTMENUSTYLE(NULL, OP_TiltMenu, &OP_BirdDef, 30, 60);
@@ -4608,7 +4614,8 @@ void M_Init(void)
 		//OP_SaturnMenu[sm_speedometer].text = "Speedometer (No PMeter)";
 	// idk i dont wanna bother with this tbh lmao
 
-	if (!clr_hud){	// uhguauhauguuhee
+	if (!clr_hud) // uhguauhauguuhee
+	{
 		OP_SaturnMenu[sm_colorhud].status = IT_GRAYEDOUT;
 		OP_SaturnMenu[sm_coloritem].status = IT_GRAYEDOUT;
 		OP_SaturnMenu[sm_colorhud_customcolor].status = IT_GRAYEDOUT;
@@ -5017,7 +5024,7 @@ static void M_DrawGenericMenu(void)
 					y += STRINGHEIGHT;
 					break;
 			case IT_STRING2:
-				V_DrawString(((BASEVIDWIDTH - V_StringWidth(currentMenu->menuitems[i].text, 0))>>1), y, 0, currentMenu->menuitems[i].text);
+				V_DrawString(((BASEVIDWIDTH - V_StringWidth(currentMenu->menuitems[i].text, 0))>>1), y, lowercase, currentMenu->menuitems[i].text);
 				/* FALLTHRU */
 			case IT_DYLITLSPACE:
 				y += SMALLLINEHEIGHT;

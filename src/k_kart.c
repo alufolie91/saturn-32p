@@ -1009,6 +1009,10 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_stackingbrakemod);
 	//Boosts
 	CV_RegisterVar(&cv_sneakerstack);
+	CV_RegisterVar(&cv_panel);
+	CV_RegisterVar(&cv_panelsharestack);
+	CV_RegisterVar(&cv_panelstack);
+	
 	CV_RegisterVar(&cv_sneakerspeedeasy);
 	CV_RegisterVar(&cv_sneakerspeednormal);
 	CV_RegisterVar(&cv_sneakerspeedhard);
@@ -3455,7 +3459,7 @@ static void K_GetKartBoostPower(player_t *player)
 	
 	fixed_t sneakeraccelboost = 0;
 	fixed_t sneakerspeedboost = 0;
-	INT32 sneakerstack = player->kartstuff[k_sneakerstack];
+	INT32 combostack = 0;
 		
 	fixed_t invincibilityaccelboost = 0;
 	fixed_t invincibilityspeedboost = 0;
@@ -3494,7 +3498,7 @@ static void K_GetKartBoostPower(player_t *player)
 	}
 
 	// Offroad is separate, it's difficult to factor it in with a variable value anyway.
-	if (!(player->kartstuff[k_invincibilitytimer] || player->kartstuff[k_hyudorotimer] || player->kartstuff[k_sneakertimer])
+	if (!(player->kartstuff[k_invincibilitytimer] || player->kartstuff[k_hyudorotimer] || player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer] )
 		&& player->kartstuff[k_offroad] >= 0)
 		boostpower = FixedDiv(boostpower, player->kartstuff[k_offroad] + FRACUNIT);
 
@@ -3516,34 +3520,64 @@ static void K_GetKartBoostPower(player_t *player)
 	//Booststacking
 	if (cv_stacking.value)	
 	{
-		if (player->kartstuff[k_sneakertimer]) // Sneaker
+		if (player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer]) // Sneaker
 		{
+			combostack = player->kartstuff[k_sneakerstack] + player->kartstuff[k_panelstack];
 			switch (gamespeed)
 			{
 				case 0:
-					sneakerspeedboost = max(speedboost, cv_sneakerspeedeasy.value)* (sneakerstack ? sneakerstack : 1);
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedeasy.value)* (combostack ? combostack : 1);
 					break;
 				case 2:
-					sneakerspeedboost = max(speedboost, cv_sneakerspeedhard.value)* (sneakerstack ? sneakerstack : 1); 
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedhard.value)* (combostack ? combostack : 1); 
 					break;
 				case 3:
-					sneakerspeedboost = max(speedboost, cv_sneakerspeedexpert.value)* (sneakerstack ? sneakerstack : 1); 
+					sneakerspeedboost = max(speedboost, cv_sneakerspeedexpert.value)* (combostack ? combostack : 1); 
 					break;
 				default:
-					sneakerspeedboost = max(speedboost, cv_sneakerspeednormal.value) * (sneakerstack ? sneakerstack : 1);
+					sneakerspeedboost = max(speedboost, cv_sneakerspeednormal.value) * (combostack ? combostack : 1);
 					break;
 			}
 				sneakeraccelboost = max(accelboost, cv_sneakeraccel.value); // + 800%  524288
 		}
 		else
 		{
-			if (cv_sneakerextend.value && !cv_chainoffroad.value)
+			if (cv_sneakerextend.value && (!cv_chainoffroad.value || cv_chainoffroad.value == 2 || cv_chainoffroad.value == 3) )
 			{
-				if (!player->kartstuff[k_timerstore])
-					player->kartstuff[k_sneakerstack] = 0;
+				switch(cv_chainoffroad.value)
+				{
+					case 0:
+						if ( cv_panel.value ? (!player->kartstuff[k_sneakertimerstore] && !player->kartstuff[k_paneltimerstore]) : player->kartstuff[k_sneakertimerstore])
+						{
+							player->kartstuff[k_sneakerstack] = 0;
+							if (!cv_panelsharestack.value)
+								player->kartstuff[k_panelstack] = 0;
+						}
+						break;
+					case 2:
+						if (!player->kartstuff[k_paneltimerstore])
+						{
+							player->kartstuff[k_sneakerstack] = 0;
+							if (!cv_panelsharestack.value)
+								player->kartstuff[k_panelstack] = 0;
+						}	
+						break;
+					
+					case 3:
+						if (!player->kartstuff[k_sneakertimerstore])
+						{
+							player->kartstuff[k_sneakerstack] = 0;
+							if (!cv_panelsharestack.value)
+								player->kartstuff[k_panelstack] = 0;
+						}	
+						break;
+				}	
 			}
 			else
+			{
 				player->kartstuff[k_sneakerstack] = 0;
+				player->kartstuff[k_panelstack] = 0;
+			}
 					
 				
 				
@@ -3642,7 +3676,7 @@ static void K_GetKartBoostPower(player_t *player)
 		speedboost = speedtablesum;
 		accelboost = acceltablesum;
 		boostmult = finalboostmult;
-		player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack] + player->kartstuff[k_trickstack];
+		player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_panelstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack] + player->kartstuff[k_trickstack];
 			
 	}
 	//Vanilla speed stuff	
@@ -3709,7 +3743,7 @@ static void K_GetKartBoostPower(player_t *player)
 		
 		if (speedboost > 0 && player->kartspeed < 6) {
 			//Apply a bonus top speed to lower speeds only while boosting
-			if (player->kartstuff[k_offroad] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_invincibilitytimer] && !player->kartstuff[k_sneakertimer])
+			if (player->kartstuff[k_offroad] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_invincibilitytimer] && ( !player->kartstuff[k_sneakertimer] || !player->kartstuff[k_paneltimer] ))
 			{	
 				//No getting free offroad with drift boosts alone
 			}
@@ -3772,34 +3806,63 @@ static void K_GetKartBoostPower(player_t *player)
 // Something Something
 static void K_ChainOffroadNerf(player_t *player)
 {
-		
-	if (player->kartstuff[k_sneakertimer] && !player->kartstuff[k_realsneakertimer] && player->kartstuff[k_offroad])
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
 	{
-		player->kartstuff[k_timerstore] = player->kartstuff[k_sneakertimer];
-		
-		//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
-		player->kartstuff[k_sneakertimer] = 0;
+		if (player->kartstuff[k_sneakertimer] && !player->kartstuff[k_realsneakertimer] && player->kartstuff[k_offroad])
+		{
+			player->kartstuff[k_sneakertimerstore] = player->kartstuff[k_sneakertimer];
+
+			//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
+			player->kartstuff[k_sneakertimer] = 0;
+		}
+		else if (player->kartstuff[k_sneakertimerstore] && !player->kartstuff[k_realsneakertimer] && !player->kartstuff[k_offroad])
+		{
+			player->kartstuff[k_sneakertimer] = player->kartstuff[k_sneakertimerstore];
+			player->kartstuff[k_sneakertimerstore] = 0;
+			//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+		}
 	}
-	else if (player->kartstuff[k_timerstore] && !player->kartstuff[k_realsneakertimer] && !player->kartstuff[k_offroad])
+	
+	
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
 	{
-		player->kartstuff[k_sneakertimer] = player->kartstuff[k_timerstore];
-		player->kartstuff[k_timerstore] = 0;
-		//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+		if (player->kartstuff[k_paneltimer] && !player->kartstuff[k_realpaneltimer] && player->kartstuff[k_offroad])
+		{
+			player->kartstuff[k_paneltimerstore] = player->kartstuff[k_paneltimer];
+
+			//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
+			player->kartstuff[k_paneltimer] = 0;
+		}
+		else if (player->kartstuff[k_paneltimerstore] && !player->kartstuff[k_realpaneltimer] && !player->kartstuff[k_offroad])
+		{
+			player->kartstuff[k_paneltimer] = player->kartstuff[k_paneltimerstore];
+			player->kartstuff[k_paneltimerstore] = 0;
+			//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+		}
 	}
 	
 	if (cv_sneakerextendtype.value == 1)
 	{
-		if (player->kartstuff[k_timerstore] > 0 && !player->kartstuff[k_driftboost])
-			player->kartstuff[k_timerstore]--;
+		if (player->kartstuff[k_sneakertimerstore] > 0 && !player->kartstuff[k_driftboost])
+			player->kartstuff[k_sneakertimerstore]--;
+		
+		if (player->kartstuff[k_paneltimerstore] > 0 && !player->kartstuff[k_driftboost])
+			player->kartstuff[k_paneltimerstore]--;
 	}
 	else
 	{
-		if (player->kartstuff[k_timerstore] > 0)
-			player->kartstuff[k_timerstore]--;
+		if (player->kartstuff[k_sneakertimerstore] > 0)
+			player->kartstuff[k_sneakertimerstore]--;
+		
+		if (player->kartstuff[k_paneltimerstore] > 0)
+			player->kartstuff[k_paneltimerstore]--;
 	}
 	
 	if (player->kartstuff[k_spinouttimer] > 0)
-		player->kartstuff[k_timerstore] = 0;
+	{
+		player->kartstuff[k_sneakertimerstore] = 0;
+		player->kartstuff[k_paneltimerstore] = 0;
+	}
 	
 	//CONS_Printf(M_GetText("offroadtimerstore: %d\n"), player->kartstuff[k_timerstore]);
 		
@@ -4150,6 +4213,8 @@ void K_SquishPlayer(player_t *player, mobj_t *source, mobj_t *inflictor)
 		return;
 
 	player->kartstuff[k_sneakertimer] = 0;
+	if (cv_panel.value)
+		player->kartstuff[k_paneltimer] = 0;
 	player->kartstuff[k_driftboost] = 0;
 
 	player->kartstuff[k_drift] = 0;
@@ -4265,6 +4330,8 @@ void K_ExplodePlayer(player_t *player, mobj_t *source, mobj_t *inflictor) // A b
 		K_PlayHitEmSound(source);
 
 	player->kartstuff[k_sneakertimer] = 0;
+	if (cv_panel.value)
+		player->kartstuff[k_paneltimer] = 0;
 	player->kartstuff[k_driftboost] = 0;
 
 	player->kartstuff[k_drift] = 0;
@@ -4859,7 +4926,6 @@ static void K_StretchPlayerGravity(player_t *p)
 
 	//CONS_Printf(M_GetText("div: %d, scale factor: %d, stretch value: %d\n"), rzsDiv, stretchScaleFactor, cv_gravstretch.value);
 
-
     I_Assert(p != NULL);
 	I_Assert(p->mo != NULL);
 	I_Assert(!P_MobjWasRemoved(p->mo));
@@ -4899,6 +4965,7 @@ static void K_StretchPlayerGravity(player_t *p)
 			slamDiv = 0;
 		else
 			slamDiv = FixedDiv(p->mo->stretchslam, stretchScaleFactor);
+		
         p->mo->spritexscale = (dxs+(((slamDiv*2)/3)*2));
         p->mo->spriteyscale = (dys-(slamDiv));
         if (p->mo->stretchslam > 0)
@@ -5723,7 +5790,7 @@ void K_DoSneaker(player_t *player, INT32 type)
 			player->kartstuff[k_destboostcam] = FixedMul(FRACUNIT, FixedDiv((intendedboost - player->kartstuff[k_speedboost]), intendedboost));
 	}
 
-	if (!player->kartstuff[k_sneakertimer])
+	if (!player->kartstuff[k_sneakertimer] && !player->kartstuff[k_paneltimer])
 	{
 		if (type == 2)
 		{
@@ -5753,7 +5820,7 @@ void K_DoSneaker(player_t *player, INT32 type)
 		}
 	}
 		player->kartstuff[k_sneakertimer] = sneakertime;
-		if (!cv_chainoffroad.value)
+		if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
 			player->kartstuff[k_realsneakertimer] = sneakertime;
 		
 		//Stacks
@@ -5772,6 +5839,62 @@ void K_DoSneaker(player_t *player, INT32 type)
 		K_PlayBoostTaunt(player->mo);
 	}
 }
+
+void K_DoPanel(player_t *player)
+{
+	fixed_t intendedboost;
+
+	switch (gamespeed)
+	{
+		case 0:
+			intendedboost = 53740+768;
+			break;
+		case 2:
+			intendedboost = 17294+768;
+			break;
+		//expert
+		case 3:
+			intendedboost = 14706;
+			break;
+			
+		default:
+			intendedboost = 32768;
+			break;
+	}
+
+	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
+	{
+		S_StartSound(player->mo, sfx_cdfm01);
+		K_SpawnDashDustRelease(player);
+		if (intendedboost > player->kartstuff[k_speedboost])
+			player->kartstuff[k_destboostcam] = FixedMul(FRACUNIT, FixedDiv((intendedboost - player->kartstuff[k_speedboost]), intendedboost));
+	}
+
+	if (!player->kartstuff[k_paneltimer] && !player->kartstuff[k_sneakertimer])
+	{
+			mobj_t *overlay = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_BOOSTFLAME);
+			P_SetTarget(&overlay->target, player->mo);
+			P_SetScale(overlay, (overlay->destscale = player->mo->scale));
+			K_FlipFromObject(overlay, player->mo);
+	}
+		player->kartstuff[k_paneltimer] = sneakertime;
+		if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
+			player->kartstuff[k_realpaneltimer] = sneakertime;
+		
+		//Stacks
+		if (cv_stacking.value && player->kartstuff[k_paneltimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
+		{	
+			if (cv_panelsharestack.value)
+				player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
+			else
+				player->kartstuff[k_panelstack] = min(player->kartstuff[k_panelstack] + 1,cv_panelstack.value);
+		}
+	
+		
+	// set angle for spun out players:
+	player->kartstuff[k_boostangle] = (INT32)player->mo->angle;
+}
+
 
 static void K_DoShrink(player_t *user)
 {
@@ -5846,7 +5969,7 @@ void K_DoPogoSpring(mobj_t *mo, fixed_t vertispeed, UINT8 sound)
 				thrust = 72<<FRACBITS;
 			if (mo->player->kartstuff[k_pogospring] != 2)
 			{
-				if (mo->player->kartstuff[k_sneakertimer])
+				if (mo->player->kartstuff[k_sneakertimer] || mo->player->kartstuff[k_paneltimer])
 					thrust = FixedMul(thrust, 5*FRACUNIT/4);
 				else if (mo->player->kartstuff[k_invincibilitytimer])
 					thrust = FixedMul(thrust, 9*FRACUNIT/8);
@@ -6798,11 +6921,11 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 
 	K_GetKartBoostPower(player);
 	
-	if (cv_sneakerextend.value && !cv_chainoffroad.value)
+	if (cv_sneakerextend.value && (!cv_chainoffroad.value || cv_chainoffroad.value == 2 || cv_chainoffroad.value == 3) )
 		K_ChainOffroadNerf(player);
 
 	// Speed lines
-	if ((player->kartstuff[k_sneakertimer] || player->kartstuff[k_driftboost] || player->kartstuff[k_startboost]) && player->speed > 0)
+	if ((player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer] || player->kartstuff[k_driftboost] || player->kartstuff[k_startboost]) && player->speed > 0)
 	{
 		mobj_t *fast = P_SpawnMobj(player->mo->x + (P_RandomRange(-36,36) * player->mo->scale),
 			player->mo->y + (P_RandomRange(-36,36) * player->mo->scale),
@@ -7000,22 +7123,63 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 			player->kartstuff[k_wipeoutslow] = wipeoutslowtime+1;
 	}
 	
-	if (!cv_chainoffroad.value)
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
 	{
 		if (player->kartstuff[k_realsneakertimer])
 			player->kartstuff[k_realsneakertimer]--;
 	}
+	
+	if (cv_panel.value)
+	{
+		//sneakerextender
+		if (cv_sneakerextend.value)
+		{
+			if (cv_sneakerextendtype.value == 1)
+			{
+				if (player->kartstuff[k_driftboost])
+				{
+					player->kartstuff[k_paneltimer] = max(player->kartstuff[k_paneltimer] - 1,1);
+				}
+				else
+				{
+					player->kartstuff[k_paneltimer]--;
+				}
+			}
+			else if (cv_sneakerextendtype.value == 2)	
+			{
+				if (player->kartstuff[k_paneltimer])
+				{
+					player->kartstuff[k_paneltimer] = max(player->kartstuff[k_paneltimer], player->kartstuff[k_driftboost]);
+					player->kartstuff[k_paneltimer]--;
+				}
+			}
+		}	
+		else
+		{
+			player->kartstuff[k_paneltimer]--;
+		}
+
+		if (player->kartstuff[k_wipeoutslow] > 0 && player->kartstuff[k_wipeoutslow] < wipeoutslowtime+1)
+			player->kartstuff[k_wipeoutslow] = wipeoutslowtime+1;
+		
+		if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
+		{
+			if (player->kartstuff[k_realpaneltimer])
+				player->kartstuff[k_realpaneltimer]--;
+		}
+	}
+	
 
 	if (player->kartstuff[k_floorboost])
 		player->kartstuff[k_floorboost]--;
 
 	if (cv_sneakerextend.value && cv_sneakerextendtype.value == 2)
 	{		
-		if (player->kartstuff[k_driftboost] && player->kartstuff[k_sneakertimer])
+		if (player->kartstuff[k_driftboost] && (player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer]))
 		{	
-			player->kartstuff[k_driftboost] = player->kartstuff[k_sneakertimer];
+			player->kartstuff[k_driftboost] = max(player->kartstuff[k_sneakertimer], player->kartstuff[k_paneltimer]);
 		}
-		else if (player->kartstuff[k_driftboost] && !player->kartstuff[k_sneakertimer])
+		else if (player->kartstuff[k_driftboost] && !player->kartstuff[k_sneakertimer] && !player->kartstuff[k_paneltimer])
 		{
 			player->kartstuff[k_driftboost]--;
 		}
@@ -7297,7 +7461,7 @@ INT16 K_GetKartTurnValue(player_t *player, INT16 turnvalue)
 
 	turnvalue = FixedMul(turnvalue, adjustangle); // Weight has a small effect on turning
 
-	if (player->kartstuff[k_invincibilitytimer] || player->kartstuff[k_sneakertimer] || player->kartstuff[k_growshrinktimer] > 0)
+	if (player->kartstuff[k_invincibilitytimer] || player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer] || player->kartstuff[k_growshrinktimer] > 0)
 		turnvalue = FixedMul(turnvalue, FixedDiv(5*FRACUNIT, 4*FRACUNIT));
 
 	return turnvalue;
@@ -7458,7 +7622,7 @@ static void K_KartDrift(player_t *player, boolean onground)
 		}
 
 		// Disable drift-sparks until you're going fast enough
-		if (player->kartstuff[k_getsparks] == 0 || (player->kartstuff[k_offroad] && !player->kartstuff[k_invincibilitytimer] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_sneakertimer]))
+		if (player->kartstuff[k_getsparks] == 0 || (player->kartstuff[k_offroad] && !player->kartstuff[k_invincibilitytimer] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_sneakertimer] && !player->kartstuff[k_paneltimer]  ))
 			driftadditive = 0;
 		if (player->speed > minspeed*2)
 			player->kartstuff[k_getsparks] = 1;
@@ -7526,7 +7690,7 @@ static void K_KartDrift(player_t *player, boolean onground)
 		player->kartstuff[k_getsparks] = 0;
 	}
 
-	if ((!player->kartstuff[k_sneakertimer])
+	if ( (!(player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer]))
 	|| (!player->cmd.driftturn)
 	|| (!player->kartstuff[k_aizdriftstrat])
 	|| (player->cmd.driftturn > 0) != (player->kartstuff[k_aizdriftstrat] > 0))
@@ -8833,7 +8997,6 @@ static patch_t *skp_smallstickerclr3;
 static patch_t *kp_itemmulstickerclr[2];
 static patch_t *kp_itembgclr[4];
 
-
 //Kartz speedo
 static patch_t *kp_kartzspeedo[25];
 
@@ -8989,6 +9152,7 @@ void K_LoadKartHUDGraphics(void)
 		kp_itembgclr[3] = 				W_CachePatchName("K_ISBCD", PU_HUDGFX);
 		kp_itemmulstickerclr[1] = 		W_CachePatchName("K_ISMULC", PU_HUDGFX);
 		kp_itemmulstickerclr[0] = 		W_CachePatchName("K_ITMULC", PU_HUDGFX);
+		
 		if (big_lap_color){		
 			kp_lapstickerbigclr = 		W_CachePatchName("K_SCLAPB", PU_HUDGFX);
 			kp_lapstickerbig2clr = 		W_CachePatchName("K_SCLA2B", PU_HUDGFX);

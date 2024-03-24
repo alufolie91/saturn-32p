@@ -4062,7 +4062,12 @@ DoneSection2:
 					player->kartstuff[k_floorboost] = 3;
 				else
 					player->kartstuff[k_floorboost] = 2;
-				K_DoSneaker(player, 0);
+				
+				
+				if (cv_stacking.value && cv_panel.value)
+					K_DoPanel(player);
+				else
+					K_DoSneaker(player, 0);
 			}
 			break;
 
@@ -7375,7 +7380,7 @@ void T_Friction(friction_t *f)
 		// (or at least MF_PUSHABLEs, which is all I care about anyway)
 		if ((!(thing->flags & (MF_NOGRAVITY | MF_NOCLIP)) && thing->z == thing->floorz) && (thing->player
 			&& (thing->player->kartstuff[k_invincibilitytimer] == 0 && thing->player->kartstuff[k_hyudorotimer] == 0
-			&& thing->player->kartstuff[k_sneakertimer] == 0 && thing->player->kartstuff[k_growshrinktimer] <= 0)))
+			&& thing->player->kartstuff[k_sneakertimer] == 0 && thing->player->kartstuff[k_paneltimer] == 0 && thing->player->kartstuff[k_growshrinktimer] <= 0)))
 		{
 			if (f->roverfriction)
 			{

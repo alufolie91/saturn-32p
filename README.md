@@ -89,7 +89,10 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - driftgaugeoffset Default value: -20
 - driftgaugetransparency Default value: On
 - driftgaugestyle Default value: Default
-- sneakerchainoffroad Default value: On
+- chainoffroad Default value: Both
+- stacking_paneltimer Default value: Off
+- stacking_panelsharestack Default value: On
+- stacking_panelstack Default value: 2
 
 ## Item odds customization
 Please use the cfg script located at ServerScripts/itemodds.cfg if you are going to host a server that will use custom odds.
