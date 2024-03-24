@@ -2096,25 +2096,28 @@ static menuitem_t OP_NeptuneMenu[] =
 	//{IT_HEADER, NULL, "Sneaker", NULL, 10},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension", 			&cv_sneakerextend, 	 	10},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Extension Type", 		&cv_sneakerextendtype, 	15},
-	{IT_STRING | IT_CVAR, NULL, "Sneaker Chain Offroad", 		&cv_chainoffroad,	 	20},
+	{IT_STRING | IT_CVAR, NULL, "Chain Offroad", 				&cv_chainoffroad,	 	20},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Stack", 				&cv_sneakerstack,		25},
+	{IT_STRING | IT_CVAR, NULL, "Panel Timer", 					&cv_panel,		30},
+	{IT_STRING | IT_CVAR, NULL, "Panel StackShare", 			&cv_panelsharestack,	35},
+	{IT_STRING | IT_CVAR, NULL, "Panel Stacks", 				&cv_panelstack,		40},
 	
 	//{IT_HEADER, NULL, "Mini-Turbo", NULL, 30},
-	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	35},
-	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	40},
-	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	45},
-	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	50},
+	{IT_STRING | IT_CVAR, NULL, "Additive Mini-Turbos", 		&cv_additivemt, 	 	50},
+	{IT_STRING | IT_CVAR, NULL, "Blue Spark Time", 				&cv_bluesparktics, 	 	55},
+	{IT_STRING | IT_CVAR, NULL, "Red Spark Time", 				&cv_redsparktics, 	 	60},
+	{IT_STRING | IT_CVAR, NULL, "Rainbow Spark Time", 			&cv_rainbowsparktics, 	65},
 	
 	//{IT_HEADER, NULL, "Stacking", NULL, 55},
-	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	60},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		65},
+	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	75},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		80},
 	
-	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			75},
-	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		80},
+	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			90},
+	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		95},
 	
 	//{IT_HEADER, NULL, "Items", NULL, 70},
-	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			90},
-	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			95},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			105},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			110},
 	
 
 
