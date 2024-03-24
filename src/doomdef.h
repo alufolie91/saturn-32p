@@ -127,8 +127,8 @@ extern char  logfilename[1024];
 #else
 #define VERSION    2 // Game version
 #define SUBVERSION 6 // more precise version number
-#define VERSIONSTRING "Neptune PanelTest"
-#define VERSIONSTRINGW L"Neptune PanelTest"
+#define VERSIONSTRING "Neptune 2.0"
+#define VERSIONSTRINGW L"Neptune 2.0"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!
