@@ -1282,7 +1282,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 			cmd->buttons |= BT_ACCELERATE;
 		axis = JoyAxis(AXISBRAKE, ssplayer);
 		if (InputDown(gc_brake, ssplayer) || (usejoystick && axis > 0))
-			cmd->buttons |= BT_BRAKE;
+			cmd->buttons |= BT_BRAKE; 
 		axis = JoyAxis(AXISAIM, ssplayer);
 		if (InputDown(gc_aimforward, ssplayer) || (usejoystick && axis < 0))
 			forward += forwardmove[1];
@@ -1293,7 +1293,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	{
 		// forward with key or button // SRB2kart - we use an accel/brake instead of forward/backward.
 		axis = JoyAxis(AXISMOVE, ssplayer);
-		if (InputDown(gc_accelerate, ssplayer) || (gamepadjoystickmove && axis > 0) || player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer])
+		if (InputDown(gc_accelerate, ssplayer) || (gamepadjoystickmove && axis > 0) || player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer] || player->kartstuff[k_sneakertimerstore] || player->kartstuff[k_paneltimerstore])
 		{
 			cmd->buttons |= BT_ACCELERATE;
 			forward = forwardmove[1];	// 50
