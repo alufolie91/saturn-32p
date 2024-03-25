@@ -3806,38 +3806,41 @@ static void K_GetKartBoostPower(player_t *player)
 // Something Something
 static void K_ChainOffroadNerf(player_t *player)
 {
-	if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
+	if (!player->kartstuff[k_invincibilitytimer] || !player->kartstuff[k_hyudorotimer])
 	{
-		if (player->kartstuff[k_sneakertimer] && !player->kartstuff[k_realsneakertimer] && player->kartstuff[k_offroad])
+		if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
 		{
-			player->kartstuff[k_sneakertimerstore] = player->kartstuff[k_sneakertimer];
+			if (player->kartstuff[k_sneakertimer] && !player->kartstuff[k_realsneakertimer] && player->kartstuff[k_offroad])
+			{
+				player->kartstuff[k_sneakertimerstore] = player->kartstuff[k_sneakertimer];
 
-			//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
-			player->kartstuff[k_sneakertimer] = 0;
+				//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
+				player->kartstuff[k_sneakertimer] = 0;
+			}
+			else if (player->kartstuff[k_sneakertimerstore] && !player->kartstuff[k_realsneakertimer] && !player->kartstuff[k_offroad])
+			{
+				player->kartstuff[k_sneakertimer] = player->kartstuff[k_sneakertimerstore];
+				player->kartstuff[k_sneakertimerstore] = 0;
+				//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+			}
 		}
-		else if (player->kartstuff[k_sneakertimerstore] && !player->kartstuff[k_realsneakertimer] && !player->kartstuff[k_offroad])
-		{
-			player->kartstuff[k_sneakertimer] = player->kartstuff[k_sneakertimerstore];
-			player->kartstuff[k_sneakertimerstore] = 0;
-			//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
-		}
-	}
-	
-	
-	if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
-	{
-		if (player->kartstuff[k_paneltimer] && !player->kartstuff[k_realpaneltimer] && player->kartstuff[k_offroad])
-		{
-			player->kartstuff[k_paneltimerstore] = player->kartstuff[k_paneltimer];
 
-			//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
-			player->kartstuff[k_paneltimer] = 0;
-		}
-		else if (player->kartstuff[k_paneltimerstore] && !player->kartstuff[k_realpaneltimer] && !player->kartstuff[k_offroad])
+
+		if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
 		{
-			player->kartstuff[k_paneltimer] = player->kartstuff[k_paneltimerstore];
-			player->kartstuff[k_paneltimerstore] = 0;
-			//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+			if (player->kartstuff[k_paneltimer] && !player->kartstuff[k_realpaneltimer] && player->kartstuff[k_offroad])
+			{
+				player->kartstuff[k_paneltimerstore] = player->kartstuff[k_paneltimer];
+
+				//CONS_Printf(M_GetText("timerstore set: %d\n"), player->kartstuff[k_timerstore]);
+				player->kartstuff[k_paneltimer] = 0;
+			}
+			else if (player->kartstuff[k_paneltimerstore] && !player->kartstuff[k_realpaneltimer] && !player->kartstuff[k_offroad])
+			{
+				player->kartstuff[k_paneltimer] = player->kartstuff[k_paneltimerstore];
+				player->kartstuff[k_paneltimerstore] = 0;
+				//CONS_Printf(M_GetText("time given: %d\n"), player->kartstuff[k_sneakertimer]);
+			}
 		}
 	}
 	
