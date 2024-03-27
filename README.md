@@ -113,7 +113,11 @@ This makes this dramitcally easier then doing it all by hand.
 - k_slopeaccelboost Used to pass through slopeboost accelboost to internal stacking system
 - k_trickspeedboost Used to pass through trickmod speedboost to internal stacking system
 - k_trickaccelboost Used to pass through trickmod accelboost to internal stacking system
-
+- k_realsneakertimer Used for when chainoffroad is disabled for sneakers
+- k_hphealth Used to pass through hpmod health to internal nametags
+- k_paneltimer Timer used for when panels are made separate from from sneakers
+- k_realpaneltimer Used for when chainoffroad is disabled for panels
+- k_panelstack Used when panels don't share sneaker stack count. Current number of active panel stacks. Modfifying this will effect stack value.
 
 ## New lua functions
 
