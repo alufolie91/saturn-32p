@@ -7065,6 +7065,11 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 				player->kartstuff[k_realpaneltimer]--;
 		}
 	}
+	else
+	{
+		player->kartstuff[k_paneltimer] = 0;
+		player->kartstuff[k_realpaneltimer] = 0;
+	}
 	
 
 	if (player->kartstuff[k_floorboost])

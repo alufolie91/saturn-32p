@@ -8142,9 +8142,9 @@ void P_MobjThinker(mobj_t *mobj)
 
 				if (p)
 				{
-					if (( p->kartstuff[k_sneakertimer] || p->kartstuff[k_paneltimer]) > mobj->movecount)
+					if (max(p->kartstuff[k_sneakertimer], p->kartstuff[k_paneltimer]) > mobj->movecount)
 						P_SetMobjState(mobj, S_BOOSTFLAME);
-					mobj->movecount = p->kartstuff[k_sneakertimer] || p->kartstuff[k_paneltimer];
+					mobj->movecount = max(p->kartstuff[k_sneakertimer], p->kartstuff[k_paneltimer]);
 					
 					if (cv_stacking.value)
 					{
