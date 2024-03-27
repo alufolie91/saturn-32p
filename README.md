@@ -127,6 +127,13 @@ These should be the same as how they are usually used in lua.
 - os.date
 - os.difftime
 
+- debug.gethook
+- debug.getinfo
+- debug.getlocal
+- debug.getupvalue
+- debug.sethook
+- debug.traceback
+
 ## Dependencies
 - SDL2 (Linux/OS X only)
 - SDL2-Mixer (Linux/OS X only)
