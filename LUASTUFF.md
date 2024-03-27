@@ -109,6 +109,15 @@ Makes mobj go down slope as if it was made of butter.
 
 Used to check if slope is in subsector.
 
+## Lua Debug library
+
+debug.gethook
+debug.getinfo
+debug.getlocal
+debug.getupvalue
+debug.sethook
+debug.traceback
+
 # Stuff from Uranus
 
 ## Interpoints (p.interpoints)

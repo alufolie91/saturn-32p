@@ -449,6 +449,9 @@ consvar_t cv_lookaxis = {"joyaxis_look", "None", CV_SAVE, joyaxis_cons_t, NULL, 
 consvar_t cv_fireaxis = {"joyaxis_fire", "L Trigger", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftaxis = {"joyaxis_drift", "R Trigger", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_lookbackaxis = {"joyaxis_lookback", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom1axis = {"joyaxis_custom1", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom2axis = {"joyaxis_custom2", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom3axis = {"joyaxis_custom3", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_xdeadzone = {"joy_xdeadzone", "0.3", CV_FLOAT|CV_SAVE, deadzone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_ydeadzone = {"joy_ydeadzone", "0.5", CV_FLOAT|CV_SAVE, deadzone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -460,6 +463,9 @@ consvar_t cv_lookaxis2 = {"joyaxis2_look", "None", CV_SAVE, joyaxis_cons_t, NULL
 consvar_t cv_fireaxis2 = {"joyaxis2_fire", "L Trigger", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftaxis2 = {"joyaxis2_drift", "R Trigger", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_lookbackaxis2 = {"joyaxis2_lookback", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom1axis2 = {"joyaxis2_custom1", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom2axis2 = {"joyaxis2_custom2", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom3axis2 = {"joyaxis2_custom3", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_xdeadzone2 = {"joy2_xdeadzone", "0.3", CV_FLOAT|CV_SAVE, deadzone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_ydeadzone2 = {"joy2_ydeadzone", "0.5", CV_FLOAT|CV_SAVE, deadzone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -471,6 +477,9 @@ consvar_t cv_lookaxis3 = {"joyaxis3_look", "None", CV_SAVE, joyaxis_cons_t, NULL
 consvar_t cv_fireaxis3 = {"joyaxis3_fire", "L Trigger", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftaxis3 = {"joyaxis3_drift", "R Trigger", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_lookbackaxis3 = {"joyaxis3_lookback", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom1axis3 = {"joyaxis3_custom1", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom2axis3 = {"joyaxis3_custom2", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom3axis3 = {"joyaxis3_custom3", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_xdeadzone3 = {"joy3_xdeadzone", "0.3", CV_FLOAT|CV_SAVE, deadzone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_ydeadzone3 = {"joy3_ydeadzone", "0.5", CV_FLOAT|CV_SAVE, deadzone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -482,6 +491,9 @@ consvar_t cv_lookaxis4 = {"joyaxis4_look", "None", CV_SAVE, joyaxis_cons_t, NULL
 consvar_t cv_fireaxis4 = {"joyaxis4_fire", "L Trigger", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftaxis4 = {"joyaxis4_drift", "R Trigger", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_lookbackaxis4 = {"joyaxis4_lookback", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom1axis4 = {"joyaxis4_custom1", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom2axis4 = {"joyaxis4_custom2", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_custom3axis4 = {"joyaxis4_custom3", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_xdeadzone4 = {"joy4_xdeadzone", "0.3", CV_FLOAT|CV_SAVE, deadzone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_ydeadzone4 = {"joy4_ydeadzone", "0.5", CV_FLOAT|CV_SAVE, deadzone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -748,6 +760,15 @@ static INT32 Joy1Axis(axis_input_e axissel)
 		case AXISLOOKBACK:
 			axisval = cv_lookbackaxis.value;
 			break;
+		case AXISCUSTOM1:
+			axisval = cv_custom1axis.value;
+			break;
+		case AXISCUSTOM2:
+			axisval = cv_custom2axis.value;
+			break;
+		case AXISCUSTOM3:
+			axisval = cv_custom3axis.value;
+			break;
 		default:
 			return 0;
 	}
@@ -831,6 +852,15 @@ static INT32 Joy2Axis(axis_input_e axissel)
 			break;
 		case AXISLOOKBACK:
 			axisval = cv_lookbackaxis2.value;
+			break;
+		case AXISCUSTOM1:
+			axisval = cv_custom1axis2.value;
+			break;
+		case AXISCUSTOM2:
+			axisval = cv_custom2axis2.value;
+			break;
+		case AXISCUSTOM3:
+			axisval = cv_custom3axis2.value;
 			break;
 		default:
 			return 0;
@@ -918,6 +948,15 @@ static INT32 Joy3Axis(axis_input_e axissel)
 		case AXISLOOKBACK:
 			axisval = cv_lookbackaxis3.value;
 			break;
+		case AXISCUSTOM1:
+			axisval = cv_custom1axis3.value;
+			break;
+		case AXISCUSTOM2:
+			axisval = cv_custom2axis3.value;
+			break;
+		case AXISCUSTOM3:
+			axisval = cv_custom3axis3.value;
+			break;
 		default:
 			return 0;
 	}
@@ -1003,6 +1042,15 @@ static INT32 Joy4Axis(axis_input_e axissel)
 			break;
 		case AXISLOOKBACK:
 			axisval = cv_lookbackaxis4.value;
+			break;
+		case AXISCUSTOM1:
+			axisval = cv_custom1axis4.value;
+			break;
+		case AXISCUSTOM2:
+			axisval = cv_custom2axis4.value;
+			break;
+		case AXISCUSTOM3:
+			axisval = cv_custom3axis4.value;
 			break;
 		default:
 			return 0;
@@ -1293,7 +1341,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	{
 		// forward with key or button // SRB2kart - we use an accel/brake instead of forward/backward.
 		axis = JoyAxis(AXISMOVE, ssplayer);
-		if (InputDown(gc_accelerate, ssplayer) || (gamepadjoystickmove && axis > 0) || player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer] || player->kartstuff[k_sneakertimerstore] || player->kartstuff[k_paneltimerstore])
+		if (InputDown(gc_accelerate, ssplayer) || (gamepadjoystickmove && axis > 0) || player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer])
 		{
 			cmd->buttons |= BT_ACCELERATE;
 			forward = forwardmove[1];	// 50
@@ -1337,11 +1385,14 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		cmd->buttons |= BT_DRIFT;
 
 	// Lua scriptable buttons
-	if (InputDown(gc_custom1, ssplayer))
+	axis = JoyAxis(AXISCUSTOM1, ssplayer);
+	if (InputDown(gc_custom1, ssplayer) || (usejoystick && axis > 0))
 		cmd->buttons |= BT_CUSTOM1;
-	if (InputDown(gc_custom2, ssplayer))
+	axis = JoyAxis(AXISCUSTOM2, ssplayer);
+	if (InputDown(gc_custom2, ssplayer) || (usejoystick && axis > 0))
 		cmd->buttons |= BT_CUSTOM2;
-	if (InputDown(gc_custom3, ssplayer))
+	axis = JoyAxis(AXISCUSTOM3, ssplayer);
+	if (InputDown(gc_custom3, ssplayer) || (usejoystick && axis > 0))
 		cmd->buttons |= BT_CUSTOM3;
 
 	// Reset camera
@@ -5179,7 +5230,7 @@ void G_ReadDemoTiccmd(ticcmd_t *cmd, INT32 playernum)
 		|| (leveltime > starttime && (cmd->buttons & BT_ACCELERATE && cmd->buttons & BT_BRAKE)) // Rubber-burn turn
 		|| (players[displayplayers[0]].kartstuff[k_respawn]) // Respawning
 		|| (players[displayplayers[0]].spectator || objectplacing)) // Not a physical player
-		&& !(players[displayplayers[0]].kartstuff[k_spinouttimer] && players[displayplayers[0]].kartstuff[k_sneakertimer])) // Spinning and boosting cancels out spinout
+		&& !(players[displayplayers[0]].kartstuff[k_spinouttimer] && (players[displayplayers[0]].kartstuff[k_sneakertimer] || players[displayplayers[0]].kartstuff[k_paneltimer]) )) // Spinning and boosting cancels out spinout
 		localangle[0] += (cmd->angleturn<<16);
 
 	if (!(demoflags & DF_GHOST) && *demo_p == DEMOMARKER)

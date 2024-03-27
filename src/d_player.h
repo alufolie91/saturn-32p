@@ -342,16 +342,14 @@ typedef enum
 	
 	//Offroad nerf
 	k_realsneakertimer,
-	k_sneakertimerstore,
 	
 	//Health nametag
 	k_hphealth,
 	
+	//Panel Shit
 	k_paneltimer,
 	k_realpaneltimer,
 	k_panelstack,
-	k_paneltimerstore,
-	
 
 	NUMKARTSTUFF
 } kartstufftype_t;
