@@ -1184,7 +1184,8 @@ static void IdentifyVersion(void)
 	
 	D_AddFile(va(pandf,srb2waddir,"neptune.kart"), startupwadfiles);
 
-	
+	//D_AddFile(va(pandf,srb2waddir,"followers.kart"), startupwadfiles);       // merge this in GFX later, this is mostly to avoid uploading a MASSIVE patch.kart /gfx.kart for testing. -Lat'
+
 	// completely optional
 	if (FIL_ReadFileOK(va(pandf,srb2waddir,"extra.kart"))) {
 		D_AddFile(va(pandf,srb2waddir,"extra.kart"), startupwadfiles);

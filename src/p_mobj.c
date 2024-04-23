@@ -10951,6 +10951,8 @@ void P_SpawnPlayer(INT32 playernum)
 	p->awayviewmobj = NULL;
 	p->awayviewtics = 0;
 
+	p->follower = NULL;	// cleanse follower from existence
+
 	// set the scale to the mobj's destscale so settings get correctly set.  if we don't, they sometimes don't.
 	if (cv_kartdebugshrink.value && !modeattacking && !p->bot)
 		mobj->destscale = 6*mobj->destscale/8;

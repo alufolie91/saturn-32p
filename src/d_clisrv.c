@@ -2540,6 +2540,14 @@ void CL_ClearPlayer(INT32 playernum)
 		// Don't leave a NiGHTS ghost!
 		if ((players[playernum].pflags & PF_NIGHTSMODE) && players[playernum].mo->tracer)
 			P_RemoveMobj(players[playernum].mo->tracer);
+		
+		// Remove Follower
+		if (players[playernum].follower)
+		{
+			P_RemoveMobj(players[playernum].follower);
+			P_SetTarget(&players[playernum].follower, NULL);
+		}
+		
 		P_RemoveMobj(players[playernum].mo);
 	}
 	memset(&players[playernum], 0, sizeof (player_t));
