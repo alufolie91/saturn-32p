@@ -1430,6 +1430,9 @@ void K_RegisterKartStuff(void)
 	
 	// Hide followers
 	CV_RegisterVar(&cv_hidefollowers);
+	
+	// New water
+	CV_RegisterVar(&cv_newwatersplash);
 }
 
 //}

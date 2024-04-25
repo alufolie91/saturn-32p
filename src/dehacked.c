@@ -6807,6 +6807,23 @@ static const char *const STATE_LIST[] = { // array length left dynamic for sanit
 	//Booststack
 	"S_BOOSTSTACK",
 
+	"S_WATERTRAIL1",
+	"S_WATERTRAIL2",
+	"S_WATERTRAIL3",
+	"S_WATERTRAIL4",
+	"S_WATERTRAIL5",
+	"S_WATERTRAIL6",
+	"S_WATERTRAIL7",
+	"S_WATERTRAIL8",
+	"S_WATERTRAILUNDERLAY1",
+	"S_WATERTRAILUNDERLAY2",
+	"S_WATERTRAILUNDERLAY3",
+	"S_WATERTRAILUNDERLAY4",
+	"S_WATERTRAILUNDERLAY5",
+	"S_WATERTRAILUNDERLAY6",
+	"S_WATERTRAILUNDERLAY7",
+	"S_WATERTRAILUNDERLAY8",
+
 #ifdef SEENAMES
 	"S_NAMECHECK",
 #endif
@@ -7603,6 +7620,9 @@ const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for sanity t
 	
 	//Booststack effect
 	"MT_BOOSTSTACK",
+
+	"MT_WATERTRAIL",
+	"MT_WATERTRAILUNDERLAY",
 
 	"MT_FOLLOWER",
 #ifdef SEENAMES
