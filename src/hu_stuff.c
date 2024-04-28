@@ -1357,7 +1357,7 @@ void HU_Ticker(void)
 	if (cechotimer > 0) --cechotimer;
 	
 	// Animate the desynch dots
-	if (hu_resynching)
+	if (hu_redownloadinggamestate)
 		resynch_ticker++;	//tic tic tic tic tic	
 
 	HU_TickSongCredits();
@@ -2522,7 +2522,7 @@ void HU_Drawer(void)
 		HU_DrawSongCredits();
 
 	// draw desynch text
-	if (hu_resynching)
+	if (hu_redownloadinggamestate)
 	{
 		char resynch_text[14];
 		UINT32 i;
