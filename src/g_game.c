@@ -1694,7 +1694,7 @@ void G_DoLoadLevel(boolean resetplayer)
 	Z_CheckHeap(-2);
 #endif
 	
-	P_SetShitAimStuff();
+	memset(localaiming, 0, sizeof(localaiming));
 
 	for (i = 0; i <= splitscreen; i++)
 	{

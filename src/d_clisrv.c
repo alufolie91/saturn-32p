@@ -4493,6 +4493,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 	switch (netbuffer->packettype)
 	{
 // -------------------------------------------- SERVER RECEIVE ----------
+		case PT_CLIENTCMD:
 		case PT_CLIENT2CMD:
 		case PT_CLIENT3CMD:
 		case PT_CLIENT4CMD:
