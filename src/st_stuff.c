@@ -717,6 +717,9 @@ static void ST_drawLevelTitle(void)
 
 	if (timeinmap > 113)
 		return;
+	
+	if (leveltime > 113)
+		return;
 
 	lvlw = V_LevelNameWidth(lvlttl);
 
