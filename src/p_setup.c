@@ -2272,7 +2272,7 @@ lumpnum_t lastloadedmaplumpnum; // for comparative savegame
 //
 // Some player initialization for map start.
 //
-static void P_LevelInitStuff(void)
+static void P_LevelInitStuff(boolean reloadinggamestate)
 {
 	INT32 i;
 
@@ -2308,7 +2308,10 @@ static void P_LevelInitStuff(void)
 	// circuit, race and competition stuff
 	circuitmap = false;
 	numstarposts = 0;
-	totalrings = timeinmap = 0;
+	totalrings = 0;
+
+	if (!reloadinggamestate)
+		timeinmap = 0;
 
 	// special stage
 	stagefailed = false;
@@ -2410,7 +2413,7 @@ void P_LoadThingsOnly(void)
 			P_RemoveMobj(mo);
 	}
 
-	P_LevelInitStuff();
+	P_LevelInitStuff(false);
 
 	if (W_IsLumpWad(lastloadedmaplumpnum)) // welp it's a map wad in a pk3
 	{ // HACK: Open wad file rather quickly so we can use the things lump
@@ -2755,7 +2758,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 	if (cv_runscripts.value && mapheaderinfo[gamemap-1]->scriptname[0] != '#')
 		P_RunLevelScript(mapheaderinfo[gamemap-1]->scriptname);
 
-	P_LevelInitStuff();
+	P_LevelInitStuff(reloadinggamestate);
 
 	for (i = 0; i <= splitscreen; i++)
 		postimgtype[i] = postimg_none;
@@ -2853,7 +2856,8 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 
 	// As oddly named as this is, this handles music only.
 	// We should be fine starting it here.
-	S_Start();
+	if(!reloadinggamestate)
+		S_Start();
 
 	levelfadecol = (encoremode && !ranspecialwipe ? 122 : 120);
 
