@@ -986,10 +986,8 @@ typedef enum
 	tc_noenemies,
 	tc_eachtime,
 	tc_disappear,
-#ifdef ESLOPE
 	tc_dynslopeline,
 	tc_dynslopevert,
-#endif // ESLOPE
 	tc_polyrotate, // haleyjd 03/26/06: polyobjects
 	tc_polymove,
 	tc_polywaypoint,
@@ -1024,13 +1022,11 @@ static inline UINT32 SavePlayer(const player_t *player)
 	return 0xFFFFFFFF;
 }
 
-#ifdef ESLOPE
 static UINT32 SaveSlope(const pslope_t *slope)
 {
 	if (slope) return (UINT32)(slope->id);
 	return 0xFFFFFFFF;
 }
-#endif // ESLOPE
 
 //
 // SaveMobjThinker
@@ -1562,7 +1558,6 @@ static void SaveDisappearThinker(const thinker_t *th, const UINT8 type)
 	WRITEINT32(save_p, ht->exists);
 }
 
-#ifdef ESLOPE
 /// Save a dynamic slope thinker.
 static inline void SaveDynamicSlopeThinker(const thinker_t *th, const UINT8 type)
 {
@@ -1577,8 +1572,6 @@ static inline void SaveDynamicSlopeThinker(const thinker_t *th, const UINT8 type
 	WRITEMEM(save_p, ht->tags, sizeof(ht->tags));
     WRITEMEM(save_p, ht->vex, sizeof(ht->vex));
 }
-#endif // ESLOPE
-
 
 //
 // SavePolyrotateThinker
@@ -1868,7 +1861,6 @@ static void P_NetArchiveThinkers(void)
 			SaveDisappearThinker(th, tc_disappear);
 			continue;
 		}
-#ifdef ESLOPE
 		else if (th->function.acp1 == (actionf_p1)T_DynamicSlopeLine)
 		{
 			SaveDynamicSlopeThinker(th, tc_dynslopeline);
@@ -1879,7 +1871,6 @@ static void P_NetArchiveThinkers(void)
 			SaveDynamicSlopeThinker(th, tc_dynslopevert);
 			continue;
 		}
-#endif // ESLOPE
 		else if (th->function.acp1 == (actionf_p1)T_PolyObjRotate)
 		{
 			SavePolyrotatetThinker(th, tc_polyrotate);
@@ -1972,7 +1963,6 @@ static inline player_t *LoadPlayer(UINT32 player)
 	return &players[player];
 }
 
-#ifdef ESLOPE
 static inline pslope_t *LoadSlope(UINT32 slopeid)
 {
 	pslope_t *p = slopelist;
@@ -1984,7 +1974,6 @@ static inline pslope_t *LoadSlope(UINT32 slopeid)
 	} while ((p = p->next));
 	return NULL;
 }
-#endif // ESLOPE
 
 
 //
@@ -2612,7 +2601,6 @@ static inline void LoadDisappearThinker(actionf_p1 thinker)
 	P_AddThinker(&ht->thinker);
 }
 
-#ifdef ESLOPE
 /// Save a dynamic slope thinker.
 static inline void LoadDynamicSlopeThinker(actionf_p1 thinker)
 {
@@ -2628,7 +2616,6 @@ static inline void LoadDynamicSlopeThinker(actionf_p1 thinker)
 
 	P_AddThinker(&ht->thinker);
 }
-#endif // ESLOPE
 
 
 //
@@ -2922,14 +2909,12 @@ static void P_NetUnArchiveThinkers(void)
 			case tc_disappear:
 				LoadDisappearThinker((actionf_p1)T_Disappear);
 				break;
-#ifdef ESLOPE
 			case tc_dynslopeline:
 				LoadDynamicSlopeThinker((actionf_p1)T_DynamicSlopeLine);
 				break;
 			case tc_dynslopevert:
 				LoadDynamicSlopeThinker((actionf_p1)T_DynamicSlopeVert);
 				break;
-#endif // ESLOPE
 			case tc_polyrotate:
 				LoadPolyrotatetThinker((actionf_p1)T_PolyObjRotate);
 				break;
