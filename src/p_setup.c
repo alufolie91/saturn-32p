@@ -2791,11 +2791,6 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 	// Initial height of PointOfView
 	// will be set by player think.
 	players[consoleplayer].viewz = 1;
-	
-	//cancel all wipes
-	if (reloadinggamestate)
-		wipegamestate = gamestate; // Don't fade if reloading the gamestate
-
 
 	// Encore mode fade to pink to white
 	// This is handled BEFORE sounds are stopped.
@@ -2823,7 +2818,6 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 		}
 		else //dedicated servers can call this now, to wait the appropriate amount of time for clients to wipe
 		{
-			
 			F_RunWipe(wipedefs[wipe_speclevel_towhite], false);
 			F_RunWipe(wipedefs[wipe_level_final], false);
 		}
@@ -2859,8 +2853,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 
 	// As oddly named as this is, this handles music only.
 	// We should be fine starting it here.
-	if (!reloadinggamestate)
-		S_Start();
+	S_Start();
 
 	levelfadecol = (encoremode && !ranspecialwipe ? 122 : 120);
 

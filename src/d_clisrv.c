@@ -1350,9 +1350,6 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 	// so they know they can resume the game
 	netbuffer->packettype = PT_RECEIVEDGAMESTATE;
 	HSendPacket(servernode, true, 0, 0);
-	
-
-	
 }
 
 static void CL_ReloadReceivedSavegame(void)
