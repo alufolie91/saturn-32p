@@ -605,6 +605,11 @@ INT32 P_AddLevelFlat(const char *flatname, levelflat_t *levelflat)
 	return (INT32)i;
 }
 
+void P_SetShitAimStuff(void)
+{
+	memset(localaiming, 0, sizeof(localaiming));
+}
+
 // help function for Lua and $$$.sav reading
 // same as P_AddLevelFlat, except this is not setup so we must realloc levelflats to fit in the new flat
 // no longer a static func in lua_maplib.c because p_saveg.c also needs it
@@ -3258,6 +3263,9 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 		CV_SetValue(&cv_analog2, false);
 		CV_SetValue(&cv_analog, false);
 	}*/
+
+	if (!reloadinggamestate)
+		memset(localaiming, 0, sizeof(localaiming));
 
 	// clear special respawning que
 	iquehead = iquetail = 0;

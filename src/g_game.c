@@ -1693,6 +1693,8 @@ void G_DoLoadLevel(boolean resetplayer)
 #ifdef PARANOIA
 	Z_CheckHeap(-2);
 #endif
+	
+	P_SetShitAimStuff();
 
 	for (i = 0; i <= splitscreen; i++)
 	{

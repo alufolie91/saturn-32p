@@ -67,11 +67,10 @@ typedef enum
 	PT_REQUESTFILE,   // Client requests a file transfer
 	PT_ASKINFOVIAMS,  // Packet from the MS requesting info be sent to new client.
 	                  // If this ID changes, update masterserver definition.
-	
+
 	PT_WILLRESENDGAMESTATE, // Hey Client, I am about to resend you the gamestate!
 	PT_CANRECEIVEGAMESTATE, // Okay Server, I'm ready to receive it, you can go ahead.
 	PT_RECEIVEDGAMESTATE,   // Thank you Server, I am ready to play again!
-
 
 	// Add non-PT_CANFAIL packet types here to avoid breaking MS compatibility.
 

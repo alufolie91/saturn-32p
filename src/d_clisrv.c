@@ -1345,8 +1345,7 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 		CONS_Alert(CONS_ERROR, M_GetText("Can't delete %s\n"), tmpsave);
 	consistancy[gametic%TICQUEUE] = Consistancy();
 	CON_ToggleOff();
-	
-	
+
 	// Tell the server we have received and reloaded the gamestate
 	// so they know they can resume the game
 	netbuffer->packettype = PT_RECEIVEDGAMESTATE;
@@ -1359,7 +1358,6 @@ static void CL_ReloadReceivedSavegame(void)
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-
 		LUA_InvalidatePlayer(&players[i]);
 
 		sprintf(player_names[i], "Player %d", i + 1);
@@ -3516,12 +3514,16 @@ static void ResetNode(INT32 node)
 	nodewaiting[node] = 0;
 	nettics[node] = gametic;
 	supposedtics[node] = gametic;
-	
+
 	nodetoplayer[node] = -1;
 	nodetoplayer2[node] = -1;
+	nodetoplayer3[node] = -1;
+	nodetoplayer4[node] = -1;
 	playerpernode[node] = 0;
-	
+
 	sendingsavegame[node] = false;
+	resendingsavegame[node] = false;
+	savegameresendcooldown[node] = 0;
 	bannednode[node].banid = SIZE_MAX;
 	bannednode[node].timeleft = NO_BAN_TIME;
 }
@@ -3541,7 +3543,6 @@ void SV_ResetServer(void)
 	for (i = 0; i < MAXNETNODES; i++)
 	{
 		ResetNode(i);
-
 	}
 
 	for (i = 0; i < MAXPLAYERS; i++)
@@ -4587,7 +4588,6 @@ static void HandlePacketFromPlayer(SINT8 node)
 				&& !resendingsavegame[node] && savegameresendcooldown[node] <= I_GetTime()
 				&& !SV_ResendingSavegameToAnyone())
 			{
-
 				if (cv_resynchattempts.value)
 				{
 					// Tell the client we are about to resend them the gamestate
@@ -4757,7 +4757,6 @@ static void HandlePacketFromPlayer(SINT8 node)
 		case PT_CANRECEIVEGAMESTATE:
 			PT_CanReceiveGamestate(node);
 			break;
-
 		case PT_RECEIVEDGAMESTATE:
 			sendingsavegame[node] = false;
 			resendingsavegame[node] = false;

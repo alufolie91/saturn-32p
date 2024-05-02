@@ -3270,7 +3270,7 @@ static void P_NetArchiveMisc(boolean resending)
 		WRITEINT16(save_p, GS_WAITINGPLAYERS); // nice hack to put people back into waitingplayers
 	else
 		WRITEINT16(save_p, gamestate);
-	
+
 	WRITEINT16(save_p, gametype);
 
 	for (i = 0; i < MAXPLAYERS; i++)
@@ -3378,7 +3378,7 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(boolean reloading)
 	mapmusflags |= MUSIC_RELOADRESET;
 
 	G_SetGamestate(READINT16(save_p));
-	
+
 	gametype = READINT16(save_p);
 
 	pig = READUINT32(save_p);
@@ -3394,7 +3394,7 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(boolean reloading)
 
 	encoremode = (boolean)READUINT8(save_p);
 
-	if (!P_SetupLevel(true,reloading))
+	if (!P_SetupLevel(true, reloading))
 		return false;
 
 	// get the time
