@@ -1512,7 +1512,7 @@ void P_XYMovement(mobj_t *mo)
 	fixed_t oldx, oldy; // reducing bobbing/momentum on ice when up against walls
 	boolean moved;
 	pslope_t *oldslope = NULL;
-	vector3_t slopemom;
+	vector3_t slopemom = {0,0,0};
 	fixed_t predictedz = 0;
 
 	I_Assert(mo != NULL);
@@ -5161,18 +5161,17 @@ static void P_Boss9Thinker(mobj_t *mobj)
 				mobj->angle -= InvAngle(angle)/8;
 
 			// Spawn energy particles
-			for (spawner = mobj->hnext; spawner; spawner = spawner->hnext) {
+			for (spawner = mobj->hnext; spawner; spawner = spawner->hnext)
+			{
 				dist = P_AproxDistance(spawner->x - mobj->x, spawner->y - mobj->y);
 				if (P_RandomRange(1,(dist>>FRACBITS)/16) == 1)
 					break;
 			}
-			if (spawner) {
+			if (spawner && dist)
+			{
 				mobj_t *missile = P_SpawnMissile(spawner, mobj, MT_MSGATHER);
 				missile->momz = FixedDiv(missile->momz, 7*FRACUNIT/4);
-				if (dist == 0)
-					missile->fuse = 0;
-				else
-					missile->fuse = (dist/P_AproxDistance(missile->momx, missile->momy));
+				missile->fuse = (dist/P_AproxDistance(missile->momx, missile->momy));
 				if (missile->fuse > mobj->fuse)
 					P_RemoveMobj(missile);
 			}
@@ -10523,6 +10522,9 @@ void P_SpawnPrecipitation(void)
 
 		//for (j = 0; j < cv_precipdensity.value; ++j) -- density is 1 for kart always
 		{
+			INT32 floorz;
+			INT32 ceilingz;
+
 			x = ((cv_lessprecip.value ? basex*1.5 : basex) + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3));
 			y = ((cv_lessprecip.value ? basey*1.5 : basey) + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3));
 
@@ -10556,8 +10558,19 @@ void P_SpawnPrecipitation(void)
 			else // everything else.
 				rainmo = P_SpawnRainMobj(x, y, height, MT_RAIN);
 
-			// Randomly assign a height, now that floorz is set.
-			rainmo->z = M_RandomRange(rainmo->floorz>>FRACBITS, rainmo->ceilingz>>FRACBITS)<<FRACBITS;
+			floorz = rainmo->floorz >> FRACBITS;
+			ceilingz = rainmo->ceilingz >> FRACBITS;
+
+			if (floorz < ceilingz)
+			{
+				// Randomly assign a height, now that floorz is set.
+				rainmo->z = M_RandomRange(floorz, ceilingz) << FRACBITS;
+			}
+			else
+			{
+				// ...except if the floor is above the ceiling.
+				rainmo->z = ceilingz << FRACBITS;
+			}
 		}
 	}
 
@@ -10840,37 +10853,22 @@ void P_RespawnSpecials(void)
 //
 void P_SpawnPlayer(INT32 playernum)
 {
-	UINT8 i, pcount = 0;
+	UINT8 i;
 	player_t *p = &players[playernum];
 	mobj_t *mobj;
+
+	boolean justjoined = (p->jointime <= 1);
 
 	if (p->playerstate == PST_REBORN)
 		G_PlayerReborn(playernum);
 
-	for (i = 0; i < MAXPLAYERS; i++)
-	{
-		if (i == playernum)
-			continue;
-		if (!playeringame[i] || players[i].spectator)
-			continue;
-		if (players[i].jointime <= 1) // Prevent splitscreen hosters/joiners from only adding 1 player at a time in empty servers
-			continue;
-		pcount++;
-	}
+	if (justjoined)
+		G_SpectatePlayerOnJoin(playernum);
 
-	// spawn as spectator determination
-	if (multiplayer && demo.playback); // Don't mess with spectator values since the demo setup handles them already.
-	else if (!G_GametypeHasSpectators())
-		p->spectator = false;
-	else if (netgame && p->jointime <= 1 && pcount)
-	{
-		p->spectator = true;
-		p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
-	}
-	else if (multiplayer && !netgame)
+	if (G_GametypeHasTeams())
 	{
 		// If you're in a team game and you don't have a team assigned yet...
-		if (G_GametypeHasTeams() && p->ctfteam == 0)
+		if (!p->spectator && p->ctfteam == 0)
 		{
 			changeteam_union NetPacket;
 			UINT16 usvalue;
@@ -10881,9 +10879,6 @@ void P_SpawnPlayer(INT32 playernum)
 			p->spectator = true;
 			p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
 
-			if (playernum&1) p->skincolor = skincolor_redteam;
-			else             p->skincolor = skincolor_blueteam;
-
 			// but immediately send a team change packet.
 			NetPacket.packet.playernum = playernum;
 			NetPacket.packet.verification = true;
@@ -10891,18 +10886,6 @@ void P_SpawnPlayer(INT32 playernum)
 
 			usvalue = SHORT(NetPacket.value.l|NetPacket.value.b);
 			SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
-		}
-		else // Otherwise, never spectator.
-			p->spectator = false;
-	}
-
-	if (G_GametypeHasTeams())
-	{
-		// Fix stupid non spectator spectators.
-		if (!p->spectator && !p->ctfteam)
-		{
-			p->spectator = true;
-			p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
 		}
 
 		// Fix team colors.
@@ -10959,6 +10942,16 @@ void P_SpawnPlayer(INT32 playernum)
 
 	if (G_BattleGametype()) // SRB2kart
 	{
+		UINT8 pcount = 0;
+		
+		for (i = 0; i < MAXPLAYERS; ++i)
+		{
+			if (G_CouldView(i))
+			{
+				pcount++;
+			}
+		}
+		
 		mobj_t *overheadarrow = P_SpawnMobj(mobj->x, mobj->y, mobj->z + P_GetPlayerHeight(p)+16*FRACUNIT, MT_PLAYERARROW);
 		P_SetTarget(&overheadarrow->target, mobj);
 		overheadarrow->flags2 |= MF2_DONTDRAW;

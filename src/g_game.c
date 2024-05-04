@@ -1204,7 +1204,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	// why build a ticcmd if we're paused?
 	// Or, for that matter, if we're being reborn.
 	// Kart, don't build a ticcmd if someone is resynching or the server is stopped too so we don't fly off course in bad conditions
-	if (paused || P_AutoPause() || (gamestate == GS_LEVEL && player->playerstate == PST_REBORN) || hu_resynching)
+	if (paused || P_AutoPause() || (gamestate == GS_LEVEL && player->playerstate == PST_REBORN) || hu_redownloadinggamestate)
 	{
 		cmd->angleturn = (INT16)(lang >> 16);
 		cmd->aiming = G_ClipAimingPitch(&laim);
@@ -1341,7 +1341,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	{
 		// forward with key or button // SRB2kart - we use an accel/brake instead of forward/backward.
 		axis = JoyAxis(AXISMOVE, ssplayer);
-		if (InputDown(gc_accelerate, ssplayer) || (gamepadjoystickmove && axis > 0) || player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer])
+		if (InputDown(gc_accelerate, ssplayer) || (gamepadjoystickmove && axis > 0))
 		{
 			cmd->buttons |= BT_ACCELERATE;
 			forward = forwardmove[1];	// 50
@@ -1352,6 +1352,8 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 			// JOYAXISRANGE is supposed to be 1023 (divide by 1024)
 			forward += ((axis * forwardmove[1]) / (JOYAXISRANGE-1));
 		}
+		else if  (player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer])
+			forward = forwardmove[1];	// 50
 
 		axis = JoyAxis(AXISBRAKE, ssplayer);
 		if (InputDown(gc_brake, ssplayer) || (gamepadjoystickmove && axis > 0))
@@ -1669,7 +1671,7 @@ void G_DoLoadLevel(boolean resetplayer)
 	}
 
 	// Setup the level.
-	if (!P_SetupLevel(false))
+	if (!P_SetupLevel(false, false))
 	{
 		// fail so reset game stuff
 		Command_ExitGame_f();
@@ -1691,6 +1693,8 @@ void G_DoLoadLevel(boolean resetplayer)
 #ifdef PARANOIA
 	Z_CheckHeap(-2);
 #endif
+	
+	memset(localaiming, 0, sizeof(localaiming));
 
 	for (i = 0; i <= splitscreen; i++)
 	{
@@ -3178,14 +3182,53 @@ void G_DoReborn(INT32 playernum)
 	}
 }
 
+// These are the barest esentials.
+// This func probably doesn't even need to know if the player is a bot.
 void G_AddPlayer(INT32 playernum)
 {
-	player_t *p = &players[playernum];
+	CL_ClearPlayer(playernum);
 
-	p->jointime = 0;
-	p->playerstate = PST_REBORN;
+	playeringame[playernum] = true;
 
-	demo_extradata[playernum] |= DXD_PLAYSTATE|DXD_COLOR|DXD_NAME|DXD_SKIN; // Set everything
+	player_t *newplayer = &players[playernum];
+
+	newplayer->playerstate = PST_REBORN;
+	newplayer->jointime = 0;
+
+	demo_extradata[playernum] |= DXD_ADDPLAYER;
+}
+
+void G_SpectatePlayerOnJoin(INT32 playernum)
+{
+	// This is only ever called shortly after the above.
+	// That calls CL_ClearPlayer, so spectator is false by default
+
+	if (!netgame && !G_GametypeHasTeams() && !G_GametypeHasSpectators())
+		return;
+
+	// These are handled automatically elsewhere
+	if (demo.playback || players[playernum].bot)
+		return;
+
+	UINT8 i;
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		if (!playeringame[i])
+			continue;
+
+		// Spectators are of no consequence
+		if (players[i].spectator)
+			continue;
+
+		// Prevent splitscreen hosters/joiners from only adding 1 player at a time in empty servers (this will also catch yourself)
+		if (!players[i].jointime)
+			continue;
+
+		// A ha! An established player! It's time to spectate
+		players[playernum].spectator = true;
+		break;
+	}
+
 }
 
 void G_ExitLevel(void)
@@ -5048,29 +5091,24 @@ void G_ReadDemoExtraData(void)
 
 			switch (extradata) {
 			case DXD_PST_PLAYING:
-				players[p].pflags |= PF_WANTSTOJOIN; // fuck you
+				if (players[p].spectator == true)
+				{
+					players[p].pflags |= PF_WANTSTOJOIN; // fuck you
+				}
 				break;
 
 			case DXD_PST_SPECTATING:
-				players[p].pflags &= ~PF_WANTSTOJOIN; // double-fuck you
-				if (!playeringame[p])
+				if (players[p].spectator)
 				{
-					CL_ClearPlayer(p);
-					playeringame[p] = true;
-					G_AddPlayer(p);
-					players[p].spectator = true;
-
-					// There's likely an off-by-one error in timing recording or playback of joins. This hacks around it so I don't have to find out where that is. \o/
-					if (oldcmd[p].forwardmove)
-						P_RandomByte();
+					players[p].pflags &= ~PF_WANTSTOJOIN;
 				}
 				else
 				{
-					players[p].spectator = true;
 					if (players[p].mo)
-						P_DamageMobj(players[p].mo, NULL, NULL, 10000);
-					else
-						players[p].playerstate = PST_REBORN;
+					{
+						P_DamageMobj(players[p].mo, NULL, NULL, 42000);
+					}
+					P_SetPlayerSpectator(p);
 				}
 				break;
 
@@ -5933,7 +5971,7 @@ void G_GhostTicker(void)
 			if (ziptic & EZT_THOKMASK)
 			{ // Let's only spawn ONE of these per frame, thanks.
 				mobj_t *mobj;
-				INT32 type = -1;
+				UINT32 type = MT_NULL;
 				if (g->mo->skin)
 				{
 					switch (ziptic & EZT_THOKMASK)
@@ -6257,7 +6295,10 @@ void G_ReadMetalTic(mobj_t *metal)
 	// Read changes from the tic
 	if (ziptic & GZT_XYZ)
 	{
-		P_MoveOrigin(metal, READFIXED(metal_p), READFIXED(metal_p), READFIXED(metal_p));
+		oldmetal.x = READFIXED(metal_p);
+		oldmetal.y = READFIXED(metal_p);
+		oldmetal.z = READFIXED(metal_p);
+		P_MoveOrigin(metal, oldmetal.x, oldmetal.y, oldmetal.z);
 		oldmetal.x = metal->x;
 		oldmetal.y = metal->y;
 		oldmetal.z = metal->z;
@@ -7637,7 +7678,7 @@ void G_DoPlayDemo(char *defdemoname)
 		if (!playeringame[displayplayers[0]] || players[displayplayers[0]].spectator)
 			displayplayers[0] = consoleplayer = serverplayer = p;
 
-		playeringame[p] = true;
+		G_AddPlayer(p);
 		players[p].spectator = spectator;
 
 		// Name
@@ -8410,7 +8451,7 @@ void G_SaveDemo(void)
 		size_t i, strindex = 0;
 		boolean dash = true;
 
-		for (i = 0; demo.titlename[i] && i < 127; i++)
+		for (i = 0; i < 127 && demo.titlename[i]; i++)
 		{
 			if ((demo.titlename[i] >= 'a' && demo.titlename[i] <= 'z') ||
 				(demo.titlename[i] >= '0' && demo.titlename[i] <= '9'))
@@ -8497,7 +8538,7 @@ boolean G_DemoTitleResponder(event_t *ev)
 		if (len < 64)
 		{
 			demo.titlename[len+1] = 0;
-			demo.titlename[len] = CON_ShiftChar(ch);
+			demo.titlename[len] = cv_keyboardlayout.value == 3 ? CON_ShitAndAltGrChar(ch) : CON_ShiftChar(ch);
 		}
 	}
 	else if (ch == KEY_BACKSPACE)

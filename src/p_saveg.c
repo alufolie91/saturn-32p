@@ -117,13 +117,16 @@ static void P_NetArchivePlayers(void)
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
+		WRITESINT8(save_p, (SINT8)adminplayers[i]);
+		
 		if (!playeringame[i])
 			continue;
 
 		flags = 0;
 
-		// no longer send ticcmds, player name, skin, or color
+		// no longer send ticcmds
 
+		WRITESTRINGN(save_p, player_names[i], MAXPLAYERNAME);
 		WRITEANGLE(save_p, players[i].aiming);
 		WRITEANGLE(save_p, players[i].awayviewaiming);
 		WRITEINT32(save_p, players[i].awayviewtics);
@@ -151,6 +154,8 @@ static void P_NetArchivePlayers(void)
 		WRITEUINT16(save_p, players[i].flashpal);
 		WRITEUINT16(save_p, players[i].flashcount);
 
+		WRITEUINT8(save_p, players[i].skincolor);
+		WRITEINT32(save_p, players[i].skin);
 		WRITEUINT32(save_p, players[i].score);
 		WRITEFIXED(save_p, players[i].dashspeed);
 		WRITEINT32(save_p, players[i].dashtime);
@@ -298,6 +303,8 @@ static void P_NetUnArchivePlayers(void)
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
+		adminplayers[i] = (INT32)READSINT8(save_p);
+		
 		// Do NOT memset player struct to 0
 		// other areas may initialize data elsewhere
 		//memset(&players[i], 0, sizeof (player_t));
@@ -305,9 +312,8 @@ static void P_NetUnArchivePlayers(void)
 			continue;
 
 		// NOTE: sending tics should (hopefully) no longer be necessary
-		// sending player names, skin and color should not be necessary at all!
-		// (that data is handled in the server config now)
 
+		READSTRINGN(save_p, player_names[i], MAXPLAYERNAME);
 		players[i].aiming = READANGLE(save_p);
 		players[i].awayviewaiming = READANGLE(save_p);
 		players[i].awayviewtics = READINT32(save_p);
@@ -335,6 +341,8 @@ static void P_NetUnArchivePlayers(void)
 		players[i].flashpal = READUINT16(save_p);
 		players[i].flashcount = READUINT16(save_p);
 
+		players[i].skincolor = READUINT8(save_p);
+		players[i].skin = READINT32(save_p);
 		players[i].score = READUINT32(save_p);
 		players[i].dashspeed = READFIXED(save_p); // dashing speed
 		players[i].dashtime = READINT32(save_p); // dashing speed
@@ -992,6 +1000,8 @@ typedef enum
 	tc_noenemies,
 	tc_eachtime,
 	tc_disappear,
+	tc_dynslopeline,
+	tc_dynslopevert,
 	tc_polyrotate, // haleyjd 03/26/06: polyobjects
 	tc_polymove,
 	tc_polywaypoint,
@@ -1023,6 +1033,12 @@ static UINT32 SaveLine(const line_t *line)
 static inline UINT32 SavePlayer(const player_t *player)
 {
 	if (player) return (UINT32)(player - players);
+	return 0xFFFFFFFF;
+}
+
+static UINT32 SaveSlope(const pslope_t *slope)
+{
+	if (slope) return (UINT32)(slope->id);
 	return 0xFFFFFFFF;
 }
 
@@ -1068,7 +1084,7 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 	diff2 = 0;
 
 	// not the default but the most probable
-	if (mobj->momx != 0 || mobj->momy != 0 || mobj->momz != 0)
+	if (mobj->momx != 0 || mobj->momy != 0 || mobj->momz != 0 || mobj->pmomz !=0)
 		diff |= MD_MOM;
 	if (mobj->radius != mobj->info->radius)
 		diff |= MD_RADIUS;
@@ -1196,6 +1212,7 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		WRITEFIXED(save_p, mobj->momx);
 		WRITEFIXED(save_p, mobj->momy);
 		WRITEFIXED(save_p, mobj->momz);
+		WRITEFIXED(save_p, mobj->pmomz);
 	}
 	if (diff & MD_RADIUS)
 		WRITEFIXED(save_p, mobj->radius);
@@ -1555,6 +1572,20 @@ static void SaveDisappearThinker(const thinker_t *th, const UINT8 type)
 	WRITEINT32(save_p, ht->exists);
 }
 
+/// Save a dynamic slope thinker.
+static inline void SaveDynamicSlopeThinker(const thinker_t *th, const UINT8 type)
+{
+	const dynplanethink_t* ht = (const void*)th;
+
+	WRITEUINT8(save_p, type);
+	WRITEUINT8(save_p, ht->type);
+	WRITEUINT32(save_p, SaveSlope(ht->slope));
+	WRITEUINT32(save_p, SaveLine(ht->sourceline));
+	WRITEFIXED(save_p, ht->extent);
+
+	WRITEMEM(save_p, ht->tags, sizeof(ht->tags));
+    WRITEMEM(save_p, ht->vex, sizeof(ht->vex));
+}
 
 //
 // SavePolyrotateThinker
@@ -1844,6 +1875,16 @@ static void P_NetArchiveThinkers(void)
 			SaveDisappearThinker(th, tc_disappear);
 			continue;
 		}
+		else if (th->function.acp1 == (actionf_p1)T_DynamicSlopeLine)
+		{
+			SaveDynamicSlopeThinker(th, tc_dynslopeline);
+			continue;
+		}
+		else if (th->function.acp1 == (actionf_p1)T_DynamicSlopeVert)
+		{
+			SaveDynamicSlopeThinker(th, tc_dynslopevert);
+			continue;
+		}
 		else if (th->function.acp1 == (actionf_p1)T_PolyObjRotate)
 		{
 			SavePolyrotatetThinker(th, tc_polyrotate);
@@ -1936,6 +1977,19 @@ static inline player_t *LoadPlayer(UINT32 player)
 	return &players[player];
 }
 
+static inline pslope_t *LoadSlope(UINT32 slopeid)
+{
+	pslope_t *p = slopelist;
+	if (slopeid > slopecount) return NULL;
+	do
+	{
+		if (p->id == slopeid)
+			return p;
+	} while ((p = p->next));
+	return NULL;
+}
+
+
 //
 // LoadMobjThinker
 //
@@ -2022,6 +2076,7 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		mobj->momx = READFIXED(save_p);
 		mobj->momy = READFIXED(save_p);
 		mobj->momz = READFIXED(save_p);
+		mobj->pmomz = READFIXED(save_p);
 	} // otherwise they're zero, and the memset took care of it
 
 	if (diff & MD_RADIUS)
@@ -2560,6 +2615,22 @@ static inline void LoadDisappearThinker(actionf_p1 thinker)
 	P_AddThinker(&ht->thinker);
 }
 
+/// Save a dynamic slope thinker.
+static inline void LoadDynamicSlopeThinker(actionf_p1 thinker)
+{
+	dynplanethink_t* ht = Z_Malloc(sizeof(*ht), PU_LEVSPEC, NULL);
+	ht->thinker.function.acp1 = thinker;
+
+	ht->type = READUINT8(save_p);
+	ht->slope = LoadSlope(READUINT32(save_p));
+	ht->sourceline = LoadLine(READUINT32(save_p));
+	ht->extent = READFIXED(save_p);
+	READMEM(save_p, ht->tags, sizeof(ht->tags));
+	READMEM(save_p, ht->vex, sizeof(ht->vex));
+
+	P_AddThinker(&ht->thinker);
+}
+
 
 //
 // LoadPolyrotateThinker
@@ -2851,6 +2922,12 @@ static void P_NetUnArchiveThinkers(void)
 
 			case tc_disappear:
 				LoadDisappearThinker((actionf_p1)T_Disappear);
+				break;
+			case tc_dynslopeline:
+				LoadDynamicSlopeThinker((actionf_p1)T_DynamicSlopeLine);
+				break;
+			case tc_dynslopevert:
+				LoadDynamicSlopeThinker((actionf_p1)T_DynamicSlopeVert);
 				break;
 			case tc_polyrotate:
 				LoadPolyrotatetThinker((actionf_p1)T_PolyObjRotate);
@@ -3248,18 +3325,22 @@ static inline void P_UnArchiveSPGame(INT16 mapoverride)
 	playeringame[consoleplayer] = true;
 }
 
-static void P_NetArchiveMisc(void)
+static void P_NetArchiveMisc(boolean resending)
 {
 	UINT32 pig = 0;
 	INT32 i;
 
 	WRITEUINT32(save_p, ARCHIVEBLOCK_MISC);
 
+	if (resending)
+		WRITEUINT32(save_p, gametic);
 	WRITEINT16(save_p, gamemap);
 	if (gamestate != GS_LEVEL)
 		WRITEINT16(save_p, GS_WAITINGPLAYERS); // nice hack to put people back into waitingplayers
 	else
 		WRITEINT16(save_p, gamestate);
+
+	WRITEINT16(save_p, gametype);
 
 	for (i = 0; i < MAXPLAYERS; i++)
 		pig |= (playeringame[i] != 0)<<i;
@@ -3343,7 +3424,7 @@ static void P_NetArchiveMisc(void)
 		WRITEUINT8(save_p, 0x2e);
 }
 
-FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(void)
+FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(boolean reloading)
 {
 	UINT32 pig;
 	INT32 i;
@@ -3351,6 +3432,9 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(void)
 	if (READUINT32(save_p) != ARCHIVEBLOCK_MISC)
 		I_Error("Bad $$$.sav at archive block Misc");
 
+	if (reloading)
+		gametic = READUINT32(save_p);
+	
 	gamemap = READINT16(save_p);
 
 	// gamemap changed; we assume that its map header is always valid,
@@ -3360,9 +3444,12 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(void)
 
 	// tell the sound code to reset the music since we're skipping what
 	// normally sets this flag
-	mapmusflags |= MUSIC_RELOADRESET;
+	if (!reloading)
+		mapmusflags |= MUSIC_RELOADRESET;
 
 	G_SetGamestate(READINT16(save_p));
+
+	gametype = READINT16(save_p);
 
 	pig = READUINT32(save_p);
 	for (i = 0; i < MAXPLAYERS; i++)
@@ -3377,8 +3464,11 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(void)
 
 	encoremode = (boolean)READUINT8(save_p);
 
-	if (!P_SetupLevel(true))
+	if (!P_SetupLevel(true, reloading))
+	{
+		CONS_Alert(CONS_ERROR, M_GetText("Can't load the level!\n"));
 		return false;
+	}
 
 	// get the time
 	leveltime = READUINT32(save_p);
@@ -3461,14 +3551,14 @@ void P_SaveGame(void)
 	WRITEUINT8(save_p, 0x1d); // consistency marker
 }
 
-void P_SaveNetGame(void)
+void P_SaveNetGame(boolean resending)
 {
 	thinker_t *th;
 	mobj_t *mobj;
 	INT32 i = 1; // don't start from 0, it'd be confused with a blank pointer otherwise
 
 	CV_SaveNetVars(&save_p, false);
-	P_NetArchiveMisc();
+	P_NetArchiveMisc(resending);
 
 	// Assign the mobjnumber for pointer tracking
 	if (gamestate == GS_LEVEL)
@@ -3520,10 +3610,10 @@ boolean P_LoadGame(INT16 mapoverride)
 	return true;
 }
 
-boolean P_LoadNetGame(void)
+boolean P_LoadNetGame(boolean reloading)
 {
 	CV_LoadNetVars(&save_p);
-	if (!P_NetUnArchiveMisc())
+	if (!P_NetUnArchiveMisc(reloading))
 		return false;
 	P_NetUnArchivePlayers();
 	if (gamestate == GS_LEVEL)

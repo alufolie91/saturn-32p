@@ -492,6 +492,7 @@ static void FreeMipmapColormap(INT32 patchnum, void *patch)
 		if (next->data)
 			Z_Free(next->data);
 		next->data = NULL;
+		HWD.pfnDeleteTexture(next);
 
 		// Free the old colormap mipmap from memory.
 		free(next);
@@ -535,7 +536,11 @@ void HWR_LoadTextures(size_t pnumtextures)
 	HWR_FreeTextureCache();
 
 	gr_numtextures = pnumtextures;
+#ifdef GLENCORE
 	gr_textures = calloc(pnumtextures, sizeof (*gr_textures)*2); // *2 - 1 for encore-remapped texture and another for noencore texture (unused when not in encore)
+#else
+	gr_textures = calloc(pnumtextures, sizeof (*gr_textures));
+#endif
 	if (gr_textures == NULL)
 		I_Error("HWR_LoadTextures: ran out of memory for OpenGL textures. Sad!");
 }
@@ -555,8 +560,12 @@ GLMapTexture_t *HWR_GetTexture(INT32 tex, boolean noencore)
 		tex = 0;
 #endif
 	}
-	grtex = &gr_textures[tex*2 + (encoremap && !noencore ? 0 : 1)];
 
+#ifdef GLENCORE
+	grtex = &gr_textures[tex*2 + (encoremap && !noencore ? 0 : 1)];
+#else
+	grtex = &gr_textures[tex];
+#endif
 	if (!grtex->mipmap.data && !grtex->mipmap.downloaded)
 		HWR_GenerateTexture(tex, grtex, noencore);
 
@@ -664,7 +673,7 @@ static void HWR_LoadMappedPatch(GLMipmap_t *grmip, GLPatch_t *gpatch)
 	{
 		patch_t *patch = gpatch->rawpatch;
 		if (!patch)
-				patch = W_CacheLumpNumPwad(gpatch->wadnum, gpatch->lumpnum, PU_STATIC);
+			patch = W_CacheLumpNumPwad(gpatch->wadnum, gpatch->lumpnum, PU_STATIC);
 		HWR_MakePatch(patch, gpatch, grmip, true);
 
 		// You can't free rawpatch for some reason?
@@ -677,7 +686,6 @@ static void HWR_LoadMappedPatch(GLMipmap_t *grmip, GLPatch_t *gpatch)
 	// If hardware does not have the texture, then call pfnSetTexture to upload it
 	if (!grmip->downloaded)
 		HWD.pfnSetTexture(grmip);
-	
 	HWR_SetCurrentTexture(grmip);
 
 	// The system-memory data can be purged now.
@@ -708,7 +716,6 @@ void HWR_GetPatch(GLPatch_t *gpatch)
 	// If hardware does not have the texture, then call pfnSetTexture to upload it
 	if (!gpatch->mipmap->downloaded)
 		HWD.pfnSetTexture(gpatch->mipmap);
-
 	HWR_SetCurrentTexture(gpatch->mipmap);
 
 	// The system-memory patch data can be purged now.
@@ -763,7 +770,6 @@ void HWR_UnlockCachedPatch(GLPatch_t *gpatch)
 		return;
 
 	Z_ChangeTag(gpatch->mipmap->data, PU_HWRCACHE_UNLOCKED);
-	Z_ChangeTag(gpatch, PU_HWRPATCHINFO_UNLOCKED);
 }
 
 GLPatch_t *HWR_GetCachedGLPatchPwad(UINT16 wadnum, UINT16 lumpnum)

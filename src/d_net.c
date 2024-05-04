@@ -814,8 +814,9 @@ static const char *packettypename[NUMPACKETTYPE] =
 	"REQUESTFILE",
 	"ASKINFOVIAMS",
 
-	"RESYNCHEND",
-	"RESYNCHGET",
+	"WILLRESENDGAMESTATE",
+	"CANRECEIVEGAMESTATE",
+	"RECEIVEDGAMESTATE",
 
 	"CLIENT3CMD",
 	"CLIENT3MIS",
@@ -830,7 +831,6 @@ static const char *packettypename[NUMPACKETTYPE] =
 	"TEXTCMD4",
 	"CLIENTJOIN",
 	"NODETIMEOUT",
-	"RESYNCHING",
 
 	"TELLFILESNEEDED",
 	"MOREFILESNEEDED",
@@ -1445,6 +1445,12 @@ void Command_Ping_f(void)
 			pingv[pingc].f   = playerpingtable[i];
 			pingv[pingc].ms  = ms;
 			pingc++;
+		}
+		else
+		{
+			pingv[pingc].num = 0;
+			pingv[pingc].f   = 0;
+			pingv[pingc].ms  = 0;
 		}
 	}
 

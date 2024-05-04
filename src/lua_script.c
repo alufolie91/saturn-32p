@@ -22,6 +22,8 @@
 #include "p_saveg.h"
 #include "p_local.h"
 #include "p_slopes.h" // for P_SlopeById
+#include "s_sound.h"
+#include "m_menu.h"
 #ifdef LUA_ALLOW_BYTECODE
 #include "d_netfil.h" // for LUA_DumpFile
 #endif
@@ -1313,6 +1315,12 @@ static UINT8 UnArchiveValue(int TABLESINDEX)
 		break;
 	case ARCH_TEND:
 		return 1;
+	default:
+		CONS_Alert(CONS_ERROR, "Unknown value type unarchived, save is corrupted!\n");
+		G_SetExitGameFlag();
+		S_StartSound(NULL, sfx_syfail); // he he he
+		M_StartMessage(M_GetText("Corrupted save received\nPress ESC\n"), NULL, MM_NOTHING);
+		return 1;
 	}
 	return 0;
 }
@@ -1499,12 +1507,29 @@ static void UnArchiveTables(void)
 	for (i = 1; i <= n; i++)
 	{
 		lua_rawgeti(gL, TABLESINDEX, i);
+
+		if (!lua_istable(gL, -1))
+		{
+			CONS_Alert(CONS_ERROR, "Value in tables list #%d is not a table! (corrupted save?)\n", i);
+			continue;
+		}
+
 		while (true)
 		{
 			if (UnArchiveValue(TABLESINDEX) == 1) // read key
 				break;
-			if (UnArchiveValue(TABLESINDEX) == 2) // read value
+
+			UINT8 ret = UnArchiveValue(TABLESINDEX);
+
+			if (ret == 1)
+			{
+				CONS_Alert(CONS_ERROR, "Unexpected end of save reached (Corrupted save?)\n");
+				lua_pop(gL, 1); // Pop key
+				break;
+			}
+			else if (ret == 2) // read value
 				n++;
+
 			if (lua_isnil(gL, -2)) // if key is nil (if a function etc was accidentally saved)
 			{
 				CONS_Alert(CONS_ERROR, "A nil key in table %d was found! (Invalid key type or corrupted save?)\n", i);

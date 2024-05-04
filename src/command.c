@@ -876,8 +876,8 @@ static void COM_Help_f(void)
 				return;
 			}
 
-			CONS_Printf("No variable or command named %s", help);
-			CONS_Printf("\x82""\nCheck wiki.srb2.org for more or try typing help without arguments\n");
+			CONS_Printf("Variable or command not found, trying \"find %s\"...\n", help);
+			COM_ImmedExecute(va("find %s", help));
 
 		}
 		return;
@@ -2119,7 +2119,12 @@ void CV_SaveVariables(FILE *f)
 
 			// Silly hack for Min/Max vars
 			if (!strcmp(cvar->string, "MAX") || !strcmp(cvar->string, "MIN"))
-				sprintf(stringtowrite, "%d", cvar->value);
+			{
+				if (cvar->flags & CV_FLOAT)
+					sprintf(stringtowrite, "%f", FixedToFloat(cvar->value));
+				else
+					sprintf(stringtowrite, "%d", cvar->value);
+			}
 			else
 				strcpy(stringtowrite, cvar->string);
 

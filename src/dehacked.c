@@ -334,7 +334,7 @@ static void readPlayer(MYFILE *f, INT32 num)
 				// It works down here, though.
 				{
 					INT32 numline = 0;
-					for (i = 0; i < MAXLINELEN-1; i++)
+					for (i = 0; (size_t)i < sizeof(description[num].notes)-1; i++)
 					{
 						if (numline < 20 && description[num].notes[i] == '\n')
 							numline++;
@@ -8266,8 +8266,6 @@ struct {
 	// Slope flags
 	{"SL_NOPHYSICS",SL_NOPHYSICS},      // Don't do momentum adjustment with this slope
 	{"SL_NODYNAMIC",SL_NODYNAMIC},      // Slope will never need to move during the level, so don't fuss with recalculating it
-	{"SL_ANCHORVERTEX",SL_ANCHORVERTEX},// Slope is using a Slope Vertex Thing to anchor its position
-	{"SL_VERTEXSLOPE",SL_VERTEXSLOPE},  // Slope is built from three Slope Vertex Things
 
 	// Angles
 	{"ANG1",ANG1},
@@ -9070,7 +9068,11 @@ static char *lua_enumlib_sprintf_upper(char **buf, int* size, const char *format
 	if (length > *size)
 	{
 		void *ptr = realloc(*buf, length+1);
-		if (!ptr) return NULL;
+		if (!ptr)
+		{
+			va_end(va);
+			return NULL;
+		}
 		*buf = ptr;
 		*size = length+1;
 
