@@ -3464,7 +3464,10 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(boolean reloading)
 	encoremode = (boolean)READUINT8(save_p);
 
 	if (!P_SetupLevel(true, reloading))
+	{
+		CONS_Alert(CONS_ERROR, M_GetText("Can't load the level!\n"));
 		return false;
+	}
 
 	// get the time
 	leveltime = READUINT32(save_p);
