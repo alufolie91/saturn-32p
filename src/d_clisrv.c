@@ -4612,6 +4612,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 					break;
 				}
 			}
+			break;
 		case PT_BASICKEEPALIVE:
 			if (client)
 				break;
