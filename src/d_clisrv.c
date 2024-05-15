@@ -4158,7 +4158,7 @@ static void HandleServerInfo(SINT8 node)
 
 static void PT_WillResendGamestate(void)
 {
-	char tmpsave[256];
+	char tmpsave[264];
 
 	if (server || cl_redownloadinggamestate)
 		return;
