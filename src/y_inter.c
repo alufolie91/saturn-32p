@@ -1207,7 +1207,7 @@ void Y_VoteDrawer(void)
 	height /= votemax;
 
 	y = (200-height)/2;
-	picdiff = 80*( max(0, (votemax-1) ) ); // let's draw these in reverse order
+	picdiff = 80*(max(0, (votemax-1))); // let's draw these in reverse order
 	lvls = -1; // shitty cheat
 
 	for (i = 0; i < (rowval+1); i++)
@@ -1621,7 +1621,7 @@ void Y_VoteTicker(void)
 		{
 			UINT8 p;
 			boolean pressed = false;
-			UINT32 votewrap = 0;
+			SINT8 votewrap = 0;
 
 			if (votemax == 2)
 				votewrap = 3;
@@ -1668,7 +1668,7 @@ void Y_VoteTicker(void)
 					// HORRIBLE hack, my GOD
 					if ((InputDown(gc_turnright, i+1) || JoyAxis(AXISTURN, i+1) > 0) && !pressed) // move right
 					{
-						if ((UINT8)(voteclient.playerinfo[i].selection) <= votewrap)
+						if ((voteclient.playerinfo[i].selection) <= votewrap)
 							voteclient.playerinfo[i].selection += 4;
 						else 
 							voteclient.playerinfo[i].selection -= ((votemax-1)*4);
@@ -1682,14 +1682,14 @@ void Y_VoteTicker(void)
 							voteclient.playerinfo[i].selection -= 4;
 						else 
 							voteclient.playerinfo[i].selection += ((votemax-1)*4);
-							
+
 						pressed = true;
 					}
 				}
 
 				if (voteclient.playerinfo[i].selection < 0)
-					voteclient.playerinfo[i].selection = ((votemax*3)+((votemax > 1) ? (votemax-1) : 0) );
-				if (voteclient.playerinfo[i].selection > ((votemax*3)+((votemax > 1) ? (votemax-1) : 0)) )
+					voteclient.playerinfo[i].selection = ((votemax*3)+((votemax > 1) ? (votemax-1) : 0));
+				if (voteclient.playerinfo[i].selection > ((votemax*3)+((votemax > 1) ? (votemax-1) : 0)))
 					voteclient.playerinfo[i].selection = 0;
 
 				if ((InputDown(gc_accelerate, i+1) || JoyAxis(AXISMOVE, i+1) > 0) && !pressed)
