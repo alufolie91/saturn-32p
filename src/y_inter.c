@@ -1668,7 +1668,7 @@ void Y_VoteTicker(void)
 					// HORRIBLE hack, my GOD
 					if ((InputDown(gc_turnright, i+1) || JoyAxis(AXISTURN, i+1) > 0) && !pressed) // move right
 					{
-						if ((UINT32)(voteclient.playerinfo[i].selection) <= votewrap)
+						if ((UINT8)(voteclient.playerinfo[i].selection) <= votewrap)
 							voteclient.playerinfo[i].selection += 4;
 						else 
 							voteclient.playerinfo[i].selection -= ((votemax-1)*4);
