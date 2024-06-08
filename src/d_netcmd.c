@@ -4382,7 +4382,7 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 	{
 		if (gamestate == GS_LEVEL && players[playernum].mo)
 		{
-			P_DamageMobj(players[playernum].mo, NULL, NULL, 42000);
+			P_DamageMobj(players[playernum].mo, NULL, NULL, 10000);
 		}
 
 		//...but because the above could return early under some contexts, we try again here
