@@ -2259,8 +2259,6 @@ static void P_LevelInitStuff(void)
 
 	leveltime = 0;
 
-	memset(localaiming, 0, sizeof(localaiming));
-
 	// map object scale
 	mapobjectscale = mapheaderinfo[gamemap-1]->mobj_scale;
 
@@ -2696,7 +2694,7 @@ static boolean P_CanSave(void)
   * \param skipprecip If true, don't spawn precipitation.
   * \todo Clean up, refactor, split up; get rid of the bloat.
   */
-boolean P_SetupLevel(boolean skipprecip)
+boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 {
 	// use gamemap to get map number.
 	// 99% of the things already did, so.
@@ -2773,7 +2771,7 @@ boolean P_SetupLevel(boolean skipprecip)
 
 	// Encore mode fade to pink to white
 	// This is handled BEFORE sounds are stopped.
-	if (encoremode && !prevencoremode && !demo.rewinding)
+	if (encoremode && !prevencoremode && !demo.rewinding && !reloadinggamestate)
 	{
 		tic_t locstarttime, endtime, nowtime;
 
@@ -2838,7 +2836,7 @@ boolean P_SetupLevel(boolean skipprecip)
 
 	// Let's fade to white here
 	// But only if we didn't do the encore startup wipe
-	if (!ranspecialwipe && !demo.rewinding)
+	if (!ranspecialwipe && !demo.rewinding && !reloadinggamestate)
 	{
 		if(rendermode != render_none)
 		{
@@ -3240,6 +3238,9 @@ boolean P_SetupLevel(boolean skipprecip)
 		CV_SetValue(&cv_analog2, false);
 		CV_SetValue(&cv_analog, false);
 	}*/
+	
+	if (!reloadinggamestate)
+		memset(localaiming, 0, sizeof(localaiming));
 
 	// clear special respawning que
 	iquehead = iquetail = 0;
@@ -3247,7 +3248,7 @@ boolean P_SetupLevel(boolean skipprecip)
 	P_MapEnd();
 
 	// Remove the loading shit from the screen
-	if (rendermode != render_none)
+	if (rendermode != render_none && (!reloadinggamestate))
 		V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, levelfadecol);
 
 	if (precache || dedicated)
@@ -3296,7 +3297,6 @@ boolean P_SetupLevel(boolean skipprecip)
 
 	if (rendermode != render_none)
 	{
-		R_ResetViewInterpolation(0);
 		R_ResetViewInterpolation(0);
 		R_UpdateMobjInterpolators();
 	}
