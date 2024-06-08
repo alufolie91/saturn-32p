@@ -580,6 +580,8 @@ static CV_PossibleValue_t skinselectgridsort_t[] ={
 };
 consvar_t cv_skinselectgridsort ={ "skinselectgridsort", "Real name", CV_SAVE|CV_CALL|CV_NOINIT, skinselectgridsort_t, sortSkinGrid, 0, NULL, NULL, 0, 0, NULL };
 
+consvar_t cv_betainterscreen = {"betaintermissionscreen", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 INT16 gametype = GT_RACE; // SRB2kart
 boolean forceresetplayers = false;
 boolean deferencoremode = false;
@@ -827,6 +829,8 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
 	CV_RegisterVar(&cv_keyboardlayout);
+	
+	CV_RegisterVar(&cv_betainterscreen);
 }
 
 // =========================================================================
@@ -2677,13 +2681,9 @@ void D_ModifyClientVote(SINT8 voted, UINT8 splitplayer)
 {
 	char buf[2];
 	char *p = buf;
-	UINT8 player = consoleplayer;
-
-	if (splitplayer > 0)
-		player = displayplayers[splitplayer];
 
 	WRITESINT8(p, voted);
-	WRITEUINT8(p, player);
+	WRITEUINT8(p, splitplayer);
 	SendNetXCmd(XD_MODIFYVOTE, &buf, 2);
 }
 

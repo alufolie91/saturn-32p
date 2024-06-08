@@ -74,6 +74,11 @@ typedef enum
 } menumessagetype_t;
 void M_StartMessage(const char *string, void *routine, menumessagetype_t itemtype);
 
+extern boolean DPADUPSCROLL;
+extern boolean DPADDOWNSCROLL;
+extern boolean DPADLEFTSCROLL;
+extern boolean DPADRIGHTSCROLL;
+
 typedef enum
 {
 	M_NOT_WAITING,
@@ -128,6 +133,10 @@ extern boolean menu_text_input;
 #define IT_CV_NOPRINT     1536
 #define IT_CV_NOMOD       2048
 #define IT_CV_INVISSLIDER 2560
+
+// For cv_float's, will use 1/2 as increment instead of 1/16
+// Not sure if i should add it to cvartype, since its more a flag than type
+#define IT_CV_BIGFLOAT    4096
 
 //call/submenu specific
 // There used to be a lot more here but ...
