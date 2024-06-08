@@ -7611,10 +7611,12 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"SANDY",        // SKINCOLOR_SANDY
 	"BANANA",       // SKINCOLOR_BANANA
 	"SUNFLOWER",    // SKINCOLOR_SUNFLOWER
+	"OLIVINE",      // SKINCOLOR_OLIVINE
 	"PERIDOT",      // SKINCOLOR_PERIDOT
 	"APPLE",        // SKINCOLOR_APPLE
 	"SEAFOAM",      // SKINCOLOR_SEAFOAM
 	"FOREST",       // SKINCOLOR_FOREST
+	"TOPAZ",        // SKINCOLOR_TOPAZ
 	"FROST",        // SKINCOLOR_FROST
 	"WAVE",         // SKINCOLOR_WAVE
 	"ICY",          // SKINCOLOR_ICY
@@ -7649,6 +7651,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"CHEESE",       // SKINCOLOR_CHEESE
 	"DUNE",         // SKINCOLOR_DUNE
 	"BRASS",        // SKINCOLOR_BRASS
+	"CITRINE",      // SKINCOLOR_CITRINE
 	"LEMON",        // SKINCOLOR_LEMON
 	"CASKET",       // SKINCOLOR_CASKET
 	"KHAKI",        // SKINCOLOR_KHAKI

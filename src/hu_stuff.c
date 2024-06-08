@@ -906,6 +906,7 @@ const char *HU_SkinColorToConsoleColor(skincolors_t color)
 		case SKINCOLOR_CROCODILE:
 		case SKINCOLOR_OLIVE:
 		case SKINCOLOR_BANANA:
+		case SKINCOLOR_CITRINE:
 		case SKINCOLOR_LEMON:
 		case SKINCOLOR_MOON:
 			return "\x82"; // V_YELLOWMAP
@@ -915,6 +916,7 @@ const char *HU_SkinColorToConsoleColor(skincolors_t color)
 		case SKINCOLOR_TEA:
 		case SKINCOLOR_PISTACHIO:
 		case SKINCOLOR_SUNFLOWER:
+		case SKINCOLOR_OLIVINE:
 		case SKINCOLOR_PERIDOT:
 		case SKINCOLOR_APPLE:
 		case SKINCOLOR_SEAFOAM:
@@ -960,6 +962,7 @@ const char *HU_SkinColorToConsoleColor(skincolors_t color)
 		case SKINCOLOR_CERULEAN:
 		case SKINCOLOR_NAVY:
 		case SKINCOLOR_SAPPHIRE:
+		case SKINCOLOR_TOPAZ:
 		case SKINCOLOR_FROST:
 		case SKINCOLOR_WAVE:
 		case SKINCOLOR_ICY:
