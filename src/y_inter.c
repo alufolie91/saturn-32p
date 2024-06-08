@@ -1110,7 +1110,6 @@ void Y_VoteDrawer(void)
 	fixed_t rubyheight = 0;
 	fixed_t picscale = FRACUNIT; // GREENRES
 	fixed_t picwidth = 160;
-	boolean unevenhypot;
 
 	// CEP: scale by screen hypotenuse for extra voting rows
 	INT32 vidx = ((vid.width) / vid.dupx);
@@ -1142,17 +1141,13 @@ void Y_VoteDrawer(void)
 	picwidth *= picscale;
 
 	// shitty hack to prevent alignment issues
-	if ( ((hypoti % 5) == 1) || ((hypoti % 5) == 4) || ((hypoti % 5) == 2) )
+	if (((hypoti % 5) == 1) || ((hypoti % 5) == 4) || ((hypoti % 5) == 2))
 	{
 		if ((hypoti % 5) == 2) // scale DOWN the image
 			picscale -= (hypoti*16);
 		else
 			picscale += (hypoti*2); // scale UP the image
-
-		unevenhypot = true;
 	}
-	else
-		unevenhypot = false;
 
 	if (rendermode == render_none)
 		return;
@@ -1226,8 +1221,6 @@ void Y_VoteDrawer(void)
 		INT32 fillscale = 800/hypotdiv;
 		INT32 hypotmod = (hypoti % 5); // hypotenuse mod 5, rescale the bounding box
 		INT32 hypotadd = ((hypotmod > 1) ? (hypotmod/4) : hypotmod); // how much do we add the bounding box by?
-		INT32 hypmod7 = ((hypoti % 7 == 0) ? ((hypoti % 4)*(FRACUNIT/8)) : 0);
-		INT32 hypmod6 = ((hypoti % 6 == 0) ? (FRACUNIT) : 0);
 
 		// integer scaling makes me want to DIE
 		if ((hypotmod == 3))
@@ -1675,7 +1668,7 @@ void Y_VoteTicker(void)
 					// HORRIBLE hack, my GOD
 					if ((InputDown(gc_turnright, i+1) || JoyAxis(AXISTURN, i+1) > 0) && !pressed) // move right
 					{
-						if (voteclient.playerinfo[i].selection <= votewrap)
+						if ((UINT32)(voteclient.playerinfo[i].selection) <= votewrap)
 							voteclient.playerinfo[i].selection += 4;
 						else 
 							voteclient.playerinfo[i].selection -= ((votemax-1)*4);
