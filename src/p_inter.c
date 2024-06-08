@@ -2705,6 +2705,11 @@ static inline boolean P_PlayerHitsPlayer(mobj_t *target, mobj_t *inflictor, mobj
 static void P_KillPlayer(player_t *player, mobj_t *source, INT32 damage)
 {
 	player->pflags &= ~(PF_CARRIED|PF_SLIDING|PF_ITEMHANG|PF_MACESPIN|PF_ROPEHANG|PF_NIGHTSMODE);
+	
+	if (damage == 42000 && (G_GametypeHasTeams() || G_GametypeHasSpectators()))
+	{
+		P_SetPlayerSpectator(player-players);
+	}
 
 	// Burst weapons and emeralds in Match/CTF only
 	if (source && (G_BattleGametype()))
