@@ -17,7 +17,7 @@
 #ifndef __DOOMTYPE__
 #define __DOOMTYPE__
 
-#ifdef _WIN32
+#if defined (_WIN32)
 //#define WIN32_LEAN_AND_MEAN
 #define RPC_NO_WINDOWS_H
 #include <windows.h>
@@ -48,7 +48,6 @@ typedef long ssize_t;
 		#define PDWORD_PTR PDWORD
 	#endif
 #endif
-
 #else
 #define __STDC_LIMIT_MACROS
 #include <stdint.h>
@@ -249,6 +248,7 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 	#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1) // >= GCC 3.1
 		#define FUNCDEAD __attribute__ ((deprecated))
 		#define FUNCINLINE __attribute__((always_inline))
+		#define PUREFUNC __attribute__((pure))
 		#define FUNCNONNULL __attribute__((nonnull))
 	#endif
 
@@ -320,6 +320,9 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
 #ifndef ATTRNOINLINE
 #define ATTRNOINLINE
+#endif
+#ifndef PUREFUNC
+#define PUREFUNC
 #endif
 
 /* Miscellaneous types that don't fit anywhere else (Can this be changed?) */
