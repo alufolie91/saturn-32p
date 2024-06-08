@@ -26,6 +26,8 @@
 boolean LUA_CallAction(enum actionnum actionnum, mobj_t *actor);
 state_t *astate;
 
+boolean actionsoverridden[NUMACTIONS] = {false};
+
 //
 // Sprite Names
 //
