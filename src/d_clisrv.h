@@ -279,7 +279,7 @@ typedef struct
 	char name[MAXPLAYERNAME+1];
 	UINT8 address[4]; // sending another string would run us up against MAXPACKETLENGTH
 	UINT8 team;
-	UINT8 skin;
+	UINT16 skin;
 	UINT8 data; // Color is first four bits, hasflag, isit and issuper have one bit each, the last is unused.
 	UINT32 score;
 	UINT16 timeinserver; // In seconds.
@@ -289,7 +289,7 @@ typedef struct
 typedef struct
 {
 	char name[MAXPLAYERNAME+1];
-	UINT8 skin;
+	UINT16 skin;
 	UINT8 color;
 	UINT32 pflags;
 	UINT32 score;

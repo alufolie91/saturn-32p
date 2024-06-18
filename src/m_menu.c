@@ -10966,7 +10966,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			colwidth = colwidth - 10;
 		
 		INT32 j = -colwidth;
-		INT16 col = setupm_fakecolor - colwidth;
+		INT32 col = setupm_fakecolor - colwidth;
 		INT32 x = mx;
 		INT32 cw = indexwidth;
 		UINT8 ch;
@@ -10994,7 +10994,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	{
 		const INT32 icons = 4;
 		INT32 k = -icons;
-		INT16 col = setupm_fakeskin - icons;
+		INT32 col = setupm_fakeskin - icons;
 		INT32 x = BASEVIDWIDTH/2 - ((icons+1)*24) - 4;
 		fixed_t scale = FRACUNIT/2;
 		INT32 offx = 8, offy = 8;
