@@ -23,8 +23,36 @@
 #include "lua_hud.h" // hud_running errors
 #include "lua_hook.h"	// cmd errors
 
-boolean LUA_CallAction(const char *action, mobj_t *actor);
+boolean LUA_CallAction(enum actionnum actionnum, mobj_t *actor);
 state_t *astate;
+
+enum sfxinfo_read {
+	sfxinfor_name = 0,
+	sfxinfor_singular,
+	sfxinfor_priority,
+	sfxinfor_flags, // "pitch"
+	sfxinfor_skinsound
+};
+const char *const sfxinfo_ropt[] = {
+	"name",
+	"singular",
+	"priority",
+	"flags",
+	"skinsound",
+	NULL};
+
+enum sfxinfo_write {
+	sfxinfow_singular = 0,
+	sfxinfow_priority,
+	sfxinfow_flags // "pitch"
+};
+const char *const sfxinfo_wopt[] = {
+	"singular",
+	"priority",
+	"flags",
+	NULL};
+
+boolean actionsoverridden[NUMACTIONS] = {false};
 
 //
 // Sprite Names
@@ -250,27 +278,21 @@ boolean LUA_SetLuaAction(void *stv, const char *action)
 	return true; // action successfully set.
 }
 
-boolean LUA_CallAction(const char *csaction, mobj_t *actor)
+boolean LUA_CallAction(enum actionnum actionnum, mobj_t *actor)
 {
-	I_Assert(csaction != NULL);
 	I_Assert(actor != NULL);
 
-	if (!gL) // Lua isn't loaded,
+	if (!actionsoverridden[actionnum]) // The action is not overriden,
 		return false; // action not called.
 
-	if (superstack && fasticmp(csaction, superactions[superstack-1])) // the action is calling itself,
-		return false; // let it call the hardcoded function instead.
-
+	if (superstack && fasticmp(actionpointers[actionnum].name, superactions[superstack-1])) // the action is calling itself,
+		return false; // let it call the hardcoded function 
+		
 	lua_pushcfunction(gL, LUA_GetErrorMessage);
 
 	// grab function by uppercase name.
 	lua_getfield(gL, LUA_REGISTRYINDEX, LREG_ACTIONS);
-	{
-		char *action = Z_StrDup(csaction);
-		strupr(action);
-		lua_getfield(gL, -1, action);
-		Z_Free(action);
-	}
+	lua_getfield(gL, -1, actionpointers[actionnum].name);
 	lua_remove(gL, -2); // pop LREG_ACTIONS
 
 	if (lua_isnil(gL, -1)) // no match
@@ -293,7 +315,7 @@ boolean LUA_CallAction(const char *csaction, mobj_t *actor)
 	lua_pushinteger(gL, var1);
 	lua_pushinteger(gL, var2);
 
-	superactions[superstack] = csaction;
+	superactions[superstack] = actionpointers[actionnum].name;
 	++superstack;
 
 	LUA_Call(gL, 3, 0, -(2 + 3));
