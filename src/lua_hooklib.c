@@ -2080,7 +2080,7 @@ boolean LUAh_PlayerItemUse(player_t *player, kartitems_t itemType, boolean wasHo
 	for (hookp = roothook; hookp; hookp = hookp->next)
 		if (hookp->type == hook_PlayerItemUse)
 		{
-			if (lua_gettop(gL) == 0)
+			if (lua_gettop(gL) == 1)
 			{
 				LUA_PushUserdata(gL, player, META_PLAYER); // Player that is using an item
 				lua_pushinteger(gL, itemType); // KITEM_* enums
