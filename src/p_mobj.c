@@ -3415,6 +3415,7 @@ void P_DestroyRobots(void)
 boolean P_CameraThinker(player_t *player, camera_t *thiscam, boolean resetcalled)
 {
 	boolean itsatwodlevel = false;
+	boolean flipcam = (player->pflags & PF_FLIPCAM && !(player->pflags & PF_NIGHTSMODE) && player->mo->eflags & MFE_VERTICALFLIP);
 	postimg_t postimg = postimg_none;
 	UINT8 i;
 
@@ -3437,10 +3438,12 @@ boolean P_CameraThinker(player_t *player, camera_t *thiscam, boolean resetcalled
 		}
 	}
 
-	if (encoremode)
+	if (encoremode && !flipcam)
 		postimg = postimg_mirror;
-	else if (player->pflags & PF_FLIPCAM && !(player->pflags & PF_NIGHTSMODE) && player->mo->eflags & MFE_VERTICALFLIP)
+	else if (!encoremode && flipcam)
 		postimg = postimg_flip;
+	else if (encoremode && flipcam)
+		postimg = postimg_mirrorflip;
 	else if (player->awayviewtics && player->awayviewmobj && !P_MobjWasRemoved(player->awayviewmobj)) // Camera must obviously exist
 	{
 		camera_t dummycam;
@@ -10659,7 +10662,8 @@ void P_PrecipitationEffects(void)
 		volume = 255; // Sky above? We get it full blast.
 	else
 	{
-		fixed_t x, y, yl, yh, xl, xh;
+		/* GCC is optimizing away y >= yl, FUCK YOU */
+		volatile fixed_t x, y, yl, yh, xl, xh;
 		fixed_t closedist, newdist;
 
 		// Essentially check in a 1024 unit radius of the player for an outdoor area.
@@ -10668,8 +10672,8 @@ void P_PrecipitationEffects(void)
 		xl = players[displayplayers[0]].mo->x - 1024*FRACUNIT;
 		xh = players[displayplayers[0]].mo->x + 1024*FRACUNIT;
 		closedist = 2048*FRACUNIT;
-		for (y = yl; y <= yh; y += FRACUNIT*64)
-			for (x = xl; x <= xh; x += FRACUNIT*64)
+		for (y = yl; y >= yl && y <= yh; y += FRACUNIT*64)
+			for (x = xl; x >= xl && x <= xh; x += FRACUNIT*64)
 			{
 				if (R_PointInSubsector(x, y)->sector->ceilingpic == skyflatnum) // Found the outdoors!
 				{

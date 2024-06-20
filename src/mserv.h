@@ -92,7 +92,9 @@ char *GetMODVersion(int id);
 #endif
 
 char *GetMasterServerRules(void);
+#endif
 
+#ifdef MASTERSERVER
 /* HTTP */
 void HMS_set_api (char *api);
 int  HMS_register (void);
@@ -103,5 +105,6 @@ msg_server_t * HMS_fetch_servers (msg_server_t *list, int id);
 int  HMS_compare_mod_version (char *buffer, size_t size_of_buffer);
 const char * HMS_fetch_rules (char *buffer, size_t size_of_buffer);
 
-#endif //#ifdef MASTERSERVER
+#endif
+
 #endif

@@ -74,6 +74,11 @@ typedef enum
 } menumessagetype_t;
 void M_StartMessage(const char *string, void *routine, menumessagetype_t itemtype);
 
+extern boolean DPADUPSCROLL;
+extern boolean DPADDOWNSCROLL;
+extern boolean DPADLEFTSCROLL;
+extern boolean DPADRIGHTSCROLL;
+
 typedef enum
 {
 	M_NOT_WAITING,

@@ -617,6 +617,7 @@ static void D_Display(void)
 // =========================================================================
 
 tic_t rendergametic;
+static int menuInputDelayTimer = 0;
 
 void D_SRB2Loop(void)
 {
@@ -778,6 +779,44 @@ void D_SRB2Loop(void)
 			Discord_RunCallbacks();
 		}
 #endif
+
+		// this is absolutely awful and i hate it lmao
+		if (menuactive && (DPADUPSCROLL || DPADDOWNSCROLL || DPADLEFTSCROLL || DPADRIGHTSCROLL))
+		{
+			event_t myev;
+			myev.type = ev_keydown;
+
+			if (renderisnewtic)
+			{
+				menuInputDelayTimer++;
+
+				if (menuInputDelayTimer >= 19) // TICRATE * ( (k+2) (1 - [wz + h + j - q]^2 - [(gk + 2g + k + 1)(h + j) + h - z]^2 - [16(k + 1)^3(k + 2)(n + 1)^2 + 1 - f^2]^2 calculated by my butt
+				{
+					if (DPADUPSCROLL)
+					{
+						myev.data1 = KEY_UPARROW;
+						M_Responder(&myev);
+					}
+					else if (DPADDOWNSCROLL)
+					{
+						myev.data1 = KEY_DOWNARROW;
+						M_Responder(&myev);
+					}
+					else if (DPADLEFTSCROLL)
+					{
+						myev.data1 = KEY_LEFTARROW;
+						M_Responder(&myev);
+					}
+					else if (DPADRIGHTSCROLL)
+					{
+						myev.data1 = KEY_RIGHTARROW;
+						M_Responder(&myev);
+					}
+				}
+			}
+		}
+		else
+			menuInputDelayTimer = 0;
 
 		// Fully completed frame made.
 		finishprecise = I_GetPreciseTime();

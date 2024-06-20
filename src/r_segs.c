@@ -208,7 +208,7 @@ static void R_DrawWallSplats(void)
 				pindex = MAXLIGHTSCALE - 1;
 			dc_colormap = walllights[pindex];
 			if (encoremap && !(seg->linedef->flags & ML_TFERLINE))
-				dc_colormap += (256*32);
+				dc_colormap += COLORMAP_REMAPOFFSET;
 
 			if (frontsector->extra_colormap)
 				dc_colormap = frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
@@ -496,7 +496,6 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 			}
 		}
 
-
 		dc_texheight = textureheight[texnum]>>FRACBITS;
 
 		// draw the columns
@@ -573,7 +572,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 						{
 							dc_colormap = rlight->rcolormap;
 							if (encoremap && !(ldef->flags & ML_TFERLINE))
-								dc_colormap += (256*32);
+								dc_colormap += COLORMAP_REMAPOFFSET;
 							continue;
 						}
 
@@ -594,7 +593,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 						windowtop = windowbottom + 1;
 						dc_colormap = rlight->rcolormap;
 						if (encoremap && !(ldef->flags & ML_TFERLINE))
-							dc_colormap += (256*32);
+							dc_colormap += COLORMAP_REMAPOFFSET;
 					}
 					windowbottom = realbot;
 					if (windowtop < windowbottom)
@@ -612,7 +611,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 
 				dc_colormap = walllights[pindex];
 				if (encoremap && !(ldef->flags & ML_TFERLINE))
-					dc_colormap += (256*32);
+					dc_colormap += COLORMAP_REMAPOFFSET;
 
 				if (frontsector->extra_colormap)
 					dc_colormap = frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
@@ -634,12 +633,15 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 // Loop through R_DrawMaskedColumn calls
 static void R_DrawRepeatMaskedColumn(column_t *col)
 {
-	while (sprtopscreen < sprbotscreen) {
+	INT64 z;
+	while (sprtopscreen < sprbotscreen)
+	{
 		R_DrawMaskedColumn(col);
-		if (sprtopscreen + (INT64)dc_texheight*spryscale > (INT64)INT32_MAX) // prevent overflow
+		z = sprtopscreen + (INT64)dc_texheight*spryscale;
+		if (z > (INT64)INT32_MAX) // prevent overflow
 			sprtopscreen = INT32_MAX;
 		else
-			sprtopscreen += dc_texheight*spryscale;
+			sprtopscreen = z;
 	}
 }
 
@@ -980,7 +982,9 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 	// draw the columns
 	for (dc_x = x1; dc_x <= x2; dc_x++)
 	{
-		if (maskedtexturecol[dc_x] != INT16_MAX)
+		if (maskedtexturecol[dc_x] == INT16_MAX)
+			continue;
+
 		{
 			if (ffloortextureslide) { // skew FOF walls
 				if (oldx != -1)
@@ -1104,7 +1108,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 						{
 							dc_colormap = rlight->rcolormap;
 							if (encoremap && !(curline->linedef->flags & ML_TFERLINE))
-								dc_colormap += (256*32);
+								dc_colormap += COLORMAP_REMAPOFFSET;
 						}
 						if (solid && windowtop < bheight)
 							windowtop = bheight;
@@ -1136,7 +1140,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 					{
 						dc_colormap = rlight->rcolormap;
 						if (encoremap && !(curline->linedef->flags & ML_TFERLINE))
-							dc_colormap += (256*32);
+							dc_colormap += COLORMAP_REMAPOFFSET;
 					}
 				}
 				windowbottom = sprbotscreen;
@@ -1157,7 +1161,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 			dc_colormap = walllights[pindex];
 
 			if (encoremap && !(curline->linedef->flags & ML_TFERLINE))
-				dc_colormap += (256*32);
+				dc_colormap += COLORMAP_REMAPOFFSET;
 
 			if (pfloor->flags & FF_FOG && pfloor->master->frontsector->extra_colormap)
 				dc_colormap = pfloor->master->frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
@@ -1393,7 +1397,7 @@ static void R_RenderSegLoop (void)
 
 			dc_colormap = walllights[pindex];
 			if (encoremap && !(curline->linedef->flags & ML_TFERLINE))
-				dc_colormap += (256*32);
+				dc_colormap += COLORMAP_REMAPOFFSET;
 			dc_x = rw_x;
 			dc_iscale = 0xffffffffu / (unsigned)rw_scale;
 
@@ -2596,23 +2600,26 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 		if (toptexture)
 		{
-			pixhigh = (centeryfrac>>4) - FixedMul (worldhigh, rw_scale);
-			pixhighstep = -FixedMul (rw_scalestep,worldhigh);
+			fixed_t topfracend = (centeryfrac>>4) - FixedMul (worldhighslope, ds_p->scale2);
 
-			if (backsector->c_slope) {
-				fixed_t topfracend = (centeryfrac>>4) - FixedMul (worldhighslope, ds_p->scale2);
-				pixhighstep = (topfracend-pixhigh)/(range);
-			}
+			pixhigh = (centeryfrac>>4) - FixedMul (worldhigh, rw_scale);
+			pixhighstep = (topfracend-pixhigh)/(range);
+
+			// If the lowest part of a ceiling stretching down covers the entire screen
+			if (min(pixhigh, topfracend)>>HEIGHTBITS >= viewheight-1)
+				g_walloffscreen = true;
 		}
 
 		if (bottomtexture)
 		{
+			fixed_t bottomfracend = (centeryfrac>>4) - FixedMul (worldlowslope, ds_p->scale2);
+
 			pixlow = (centeryfrac>>4) - FixedMul (worldlow, rw_scale);
-			pixlowstep = -FixedMul (rw_scalestep,worldlow);
-			if (backsector->f_slope) {
-				fixed_t bottomfracend = (centeryfrac>>4) - FixedMul (worldlowslope, ds_p->scale2);
-				pixlowstep = (bottomfracend-pixlow)/(range);
-			}
+			pixlowstep = (bottomfracend-pixlow)/(range);
+
+			// If the highest part of a floor stretching up covers the entire screen
+			if ((max(pixlow, bottomfracend)+HEIGHTUNIT-1)>>HEIGHTBITS <= 0)
+				g_walloffscreen = true;
 		}
 
 		{

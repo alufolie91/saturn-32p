@@ -949,6 +949,8 @@ static CV_PossibleValue_t skinselectgridsort_t[] ={
 };
 consvar_t cv_skinselectgridsort ={ "skinselectgridsort", "Real name", CV_SAVE|CV_CALL|CV_NOINIT, skinselectgridsort_t, sortSkinGrid, 0, NULL, NULL, 0, 0, NULL };
 
+consvar_t cv_betainterscreen = {"betaintermissionscreen", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 INT16 gametype = GT_RACE; // SRB2kart
 boolean forceresetplayers = false;
 boolean deferencoremode = false;
@@ -1201,6 +1203,8 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
 	CV_RegisterVar(&cv_keyboardlayout);
+	
+	CV_RegisterVar(&cv_betainterscreen);
 }
 
 // =========================================================================

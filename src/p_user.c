@@ -1195,6 +1195,9 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 {
 	mobj_t *ghost;
 
+	if (!mobj || P_MobjWasRemoved(mobj))
+		return NULL;
+
 	ghost = P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_GHOST);
 
 	P_SetScale(ghost, mobj->scale);
@@ -4144,8 +4147,18 @@ static void P_CalcPostImg(player_t *player)
 		}
 	}
 
-	if (player->mo->eflags & MFE_VERTICALFLIP)
-		*type = postimg_flip;
+	if (!encoremode) // srb2kart
+	{
+		if (player->mo->eflags & MFE_VERTICALFLIP)
+			*type = postimg_flip;
+	}
+	else
+	{
+		if (player->mo->eflags & MFE_VERTICALFLIP)
+			*type = postimg_mirrorflip;
+		else
+			*type = postimg_mirror;
+	}
 
 #if 1
 	(void)param;
@@ -4160,9 +4173,6 @@ static void P_CalcPostImg(player_t *player)
 			*param = 5;
 	}
 #endif
-
-	if (encoremode) // srb2kart
-		*type = postimg_mirror;
 }
 
 void P_DoTimeOver(player_t *player)

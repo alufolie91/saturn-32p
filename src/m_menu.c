@@ -58,6 +58,7 @@
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
+#include "hardware/r_opengl/r_opengl.h"
 #endif
 
 #include "d_net.h"
@@ -1459,27 +1460,30 @@ static menuitem_t OP_ColorOptionsMenu[] =
 static menuitem_t OP_ExpOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
+	
+	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",			&cv_grmaxinterpdist,		 20},
+	{IT_STRING|IT_CVAR,		NULL, "Mobj Subsector Interpolation",	&cv_mobjssector,		 	 25},
+	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 30},
+	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 35},
 
-	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",			&cv_grmaxinterpdist,		 25},
-	{IT_STRING|IT_CVAR,		NULL, "Mobj Subsector Interpolation",	&cv_mobjssector,		 	 35},
-	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 45},
-	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 55},
+	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 42},
 
-	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 70},
+	{IT_STRING | IT_CVAR, 	NULL, "Clipping R_PointToAngle Version", &cv_pointoangleexor64, 	 49},
 
-	{IT_STRING | IT_CVAR, 	NULL, "Clipping R_PointToAngle Version", &cv_pointoangleexor64, 	 85},
-
-	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 95},
-	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	105},
+	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 56},
+	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	61},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 95},
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 68},
+#ifdef USE_FBO_OGL
+	{IT_STRING | IT_CVAR, 	NULL, "FBO Downsampling support", 		&cv_grframebuffer, 			 73},
+#endif
 
-	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		105},
+	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		80},
 
-	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	125},
-	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	135},
-	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	145},
-	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		155},
+	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	87},
+	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	92},
+	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	97},
+	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		102},
 #endif	
 };
 
@@ -1496,6 +1500,9 @@ static const char* OP_ExpTooltips[] =
 	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
 #ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
+#ifdef USE_FBO_OGL
+	"Allows the game to downsample from a higher resolution than your display in OpenGL renderer mode\nrequires a GPU with atleast OpenGL 3.0 support.",
+#endif
 	"Change the depth of the Palette in Palette rendering mod\n 16 bits is like software looks ingame\nwhile 24 bits is how software looks in screenshots.",
 	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
 	"Fixes issues that resulted in Textures not being properly skewed\n example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result in worse performance in some cases.",
@@ -1517,6 +1524,10 @@ enum
 	op_exp_sprclip,
 #ifdef HWRENDER
 	op_exp_grscrtx,
+#ifdef USE_FBO_OGL
+	op_exp_fbo,
+#endif
+	op_exp_paldepth,
 	op_exp_spltwal,
 	op_exp_pegging,
 	op_exp_fofzfight,
@@ -3065,7 +3076,7 @@ menu_t OP_MonitorToggleDef =
 menu_t OP_OpenGLOptionsDef = DEFAULTSCROLLSTYLE("M_VIDEO", OP_OpenGLOptionsMenu, &OP_VideoOptionsDef, 30, 30);
 #endif
 
-menu_t OP_ExpOptionsDef = DEFAULTMENUSTYLE("M_VIDEO", OP_ExpOptionsMenu, &OP_VideoOptionsDef, 30, 20);
+menu_t OP_ExpOptionsDef = DEFAULTSCROLLSTYLE("M_VIDEO", OP_ExpOptionsMenu, &OP_VideoOptionsDef, 30, 35);
 
 menu_t OP_DataOptionsDef = DEFAULTMENUSTYLE("M_DATA", OP_DataOptionsMenu, &OP_MainDef, 60, 30);
 menu_t OP_ScreenshotOptionsDef = DEFAULTMENUSTYLE("M_SCSHOT", OP_ScreenshotOptionsMenu, &OP_DataOptionsDef, 30, 30);
@@ -3581,6 +3592,11 @@ static void Command_Manual_f(void)
 	itemOn = 0;
 }
 
+boolean DPADUPSCROLL = false;
+boolean DPADDOWNSCROLL = false;
+boolean DPADLEFTSCROLL = false;
+boolean DPADRIGHTSCROLL = false;
+
 //
 // M_Responder
 //
@@ -3612,7 +3628,6 @@ boolean M_Responder(event_t *ev)
 	{
 		ch = ev->data1;
 
-		// added 5-2-98 remap virtual keys (mouse & joystick buttons)
 		switch (ch)
 		{
 			case KEY_MOUSE1:
@@ -3638,6 +3653,40 @@ boolean M_Responder(event_t *ev)
 				break;
 			case KEY_HAT1 + 3:
 				ch = KEY_RIGHTARROW;
+				break;
+		}
+
+		switch (ev->data1) // if you pressed it set those to true
+		{
+			case KEY_HAT1:
+				DPADUPSCROLL = true;
+				break;
+			case KEY_HAT1 + 1:
+				DPADDOWNSCROLL = true;
+				break;
+			case KEY_HAT1 + 2:
+				DPADLEFTSCROLL = true;
+				break;
+			case KEY_HAT1 + 3:
+				DPADRIGHTSCROLL = true;
+				break;
+		}
+	}
+	else if (ev->type == ev_keyup)
+	{
+		switch (ev->data1) // if you let go of those set those to false
+		{
+			case KEY_HAT1:
+				DPADUPSCROLL = false;
+				break;
+			case KEY_HAT1 + 1:
+				DPADDOWNSCROLL = false;
+				break;
+			case KEY_HAT1 + 2:
+				DPADLEFTSCROLL = false;
+				break;
+			case KEY_HAT1 + 3:
+				DPADRIGHTSCROLL = false;
 				break;
 		}
 	}
@@ -4271,6 +4320,11 @@ void M_StartControlPanel(void)
 
 	menuactive = true;
 
+	DPADUPSCROLL = false;
+	DPADDOWNSCROLL = false;
+	DPADLEFTSCROLL = false;
+	DPADRIGHTSCROLL = false;
+
 	if (demo.playback)
 	{
 		currentMenu = &PlaybackMenuDef;
@@ -4629,16 +4683,23 @@ void M_Init(void)
 	{
 		OP_VideoOptionsMenu[op_video_ogl].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_grscrtx].status = IT_DISABLED;
+#ifdef USE_FBO_OGL
+		OP_ExpOptionsMenu[op_exp_fbo].status = IT_DISABLED;
+#endif
 		OP_ExpOptionsMenu[op_exp_spltwal].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_pegging].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_fofzfight].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_fofcut].status = IT_DISABLED;
 	}
-	
+
 	if (rendermode == render_opengl)
 	{
 		OP_ExpOptionsMenu[op_exp_ffclip].status = IT_DISABLED;
 		OP_ExpOptionsMenu[op_exp_sprclip].status = IT_DISABLED;
+#ifdef USE_FBO_OGL
+		if (!supportFBO)
+			OP_ExpOptionsMenu[op_exp_fbo].status = IT_GRAYEDOUT;
+#endif
 	}
 #endif
 
