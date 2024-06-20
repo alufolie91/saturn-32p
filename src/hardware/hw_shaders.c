@@ -25,18 +25,21 @@ static struct {
 	const char *vertex;
 	const char *fragment;
 } const gl_shadersources[] = {
-	
+
 	// Floor shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_FLOOR_FRAGMENT_SHADER},
 
 	// Shadow shader
-	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SHADOW_FRAGMENT_SHADER},
+	{GLSL_SPRITECLIP_HACK_VERTEX_SHADER, GLSL_SHADOW_FRAGMENT_SHADER},
 
 	// Wall shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WALL_FRAGMENT_SHADER},
 
 	// Sprite shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WALL_FRAGMENT_SHADER},
+
+	// Sprite clipping hack shader (for pulling things out of the floor)
+	{GLSL_SPRITECLIP_HACK_VERTEX_SHADER, GLSL_WALL_FRAGMENT_SHADER},
 
 	// Model shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WALL_FRAGMENT_SHADER},
@@ -52,7 +55,7 @@ static struct {
 
 	// Palette postprocess shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_PALETTE_POSTPROCESS_FRAGMENT_SHADER},
-	
+
 	// UI colormap fade shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_UI_COLORMAP_FADE_FRAGMENT_SHADER},
 
