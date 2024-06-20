@@ -217,8 +217,11 @@ void HWR_DrawStretchyFixedPatch(GLPatch_t *gpatch, fixed_t x, fixed_t y, fixed_t
 				// Need to temporarily cache the real patch to get the colour of the top left pixel
 				patch_t *realpatch = W_CacheLumpNumPwad(gpatch->wadnum, gpatch->lumpnum, PU_STATIC);
 				const column_t *column = (const column_t *)((const UINT8 *)(realpatch) + LONG((realpatch)->columnofs[0]));
-				const UINT8 *source = (const UINT8 *)(column) + 3;
-				HWR_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, (column->topdelta == 0xff ? 31 : source[0]));
+				if (!column->topdelta)
+				{
+					const UINT8 *source = (const UINT8 *)(column) + 3;
+					HWR_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, (column->topdelta == 0xff ? 31 : source[0]));
+				}
 				Z_Free(realpatch);
 			}
 			// centre screen
@@ -231,7 +234,7 @@ void HWR_DrawStretchyFixedPatch(GLPatch_t *gpatch, fixed_t x, fixed_t y, fixed_t
 			}
 			if (fabsf((float)vid.height - (float)BASEVIDHEIGHT * dupy) > 1.0E-36f)
 			{
-				if ((option & (V_SPLITSCREEN|V_SNAPTOBOTTOM)) == (V_SPLITSCREEN|V_SNAPTOBOTTOM))
+				if ((option & (V_SPLITSCREEN|V_SNAPTOTOP)) == (V_SPLITSCREEN|V_SNAPTOTOP))
 					cy += ((float)vid.height/2 - ((float)BASEVIDHEIGHT/2 * dupy));
 				else if (option & V_SNAPTOBOTTOM)
 					cy += ((float)vid.height - ((float)BASEVIDHEIGHT * dupy));
@@ -365,8 +368,11 @@ void HWR_DrawCroppedPatch(GLPatch_t *gpatch, fixed_t x, fixed_t y, fixed_t pscal
 				// Need to temporarily cache the real patch to get the colour of the top left pixel
 				patch_t *realpatch = W_CacheLumpNumPwad(gpatch->wadnum, gpatch->lumpnum, PU_STATIC);
 				const column_t *column = (const column_t *)((const UINT8 *)(realpatch) + LONG((realpatch)->columnofs[0]));
-				const UINT8 *source = (const UINT8 *)(column) + 3;
-				HWR_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, (column->topdelta == 0xff ? 31 : source[0]));
+				if (!column->topdelta)
+				{
+					const UINT8 *source = (const UINT8 *)(column) + 3;
+					HWR_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, (column->topdelta == 0xff ? 31 : source[0]));
+				}
 				Z_Free(realpatch);
 			}
 			// centre screen
@@ -379,7 +385,7 @@ void HWR_DrawCroppedPatch(GLPatch_t *gpatch, fixed_t x, fixed_t y, fixed_t pscal
 			}
 			if (fabsf((float)vid.height - (float)BASEVIDHEIGHT * dupy) > 1.0E-36f)
 			{
-				if ((option & (V_SPLITSCREEN|V_SNAPTOBOTTOM)) == (V_SPLITSCREEN|V_SNAPTOBOTTOM))
+				if ((option & (V_SPLITSCREEN|V_SNAPTOTOP)) == (V_SPLITSCREEN|V_SNAPTOTOP))
 					cy += ((float)vid.height/2 - ((float)BASEVIDHEIGHT/2 * dupy));
 				else if (option & V_SNAPTOBOTTOM)
 					cy += ((float)vid.height - ((float)BASEVIDHEIGHT * dupy));

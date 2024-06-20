@@ -565,9 +565,5 @@ EXPORT void HWRAPI(SetPalette) (RGBA_t *pal)
 		myPaletteData[i].s.blue  = pal[i].s.blue;
 		myPaletteData[i].s.alpha = pal[i].s.alpha;
 	}
-
-	// on a palette change, you have to reload all of the textures
-	Flush();
 }
-
 #endif

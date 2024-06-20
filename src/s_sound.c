@@ -30,9 +30,7 @@
 #include "m_cond.h" // for conditionsets
 #include "m_menu.h" // bird music stuff
 
-#ifdef HAVE_BLUA
 #include "lua_hook.h" // MusicChange hook
-#endif
 
 #ifdef HW3SOUND
 // 3D Sound Interface
@@ -972,9 +970,10 @@ static void S_StopChannel(INT32 cnum)
 
 		// degrade usefulness of sound data
 		c->sfxinfo->usefulness--;
-
 		c->sfxinfo = 0;
 	}
+
+	c->origin = NULL;
 }
 
 //
@@ -1995,12 +1994,10 @@ void S_ChangeMusicEx(const char *mmusic, UINT16 mflags, boolean looping, UINT32 
 		|| demo.title) // SRB2Kart: Demos don't interrupt title screen music
 		return;
 
-	strncpy(newmusic, mmusic, 6);
-#ifdef HAVE_BLUA
+	strncpy(newmusic, mmusic, 7);
+
 	if(LUAh_MusicChange(music_name, newmusic, &mflags, &looping, &position, &prefadems, &fadeinms))
 		return;
-#endif
-	newmusic[6] = 0;
 
  	// No Music (empty string)
 	if (newmusic[0] == 0)

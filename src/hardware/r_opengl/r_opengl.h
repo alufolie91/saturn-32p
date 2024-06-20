@@ -73,10 +73,6 @@ void Flush(void);
 INT32 isExtAvailable(const char *extension, const GLubyte *start);
 void SetModelView(GLint w, GLint h);
 void SetStates(void);
-#ifdef USE_PALETTED_TEXTURE
-extern PFNGLCOLORTABLEEXTPROC glColorTableEXT;
-extern GLubyte                palette_tex[256*3];
-#endif
 
 #ifndef GL_EXT_texture_filter_anisotropic
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
@@ -116,16 +112,21 @@ extern const GLubyte	*gl_version;
 extern const GLubyte	*gl_renderer;
 extern const GLubyte	*gl_extensions;
 
+extern int 				majorGL, minorGL;
+
 extern RGBA_t			myPaletteData[];
 extern GLint			screen_width;
 extern GLint			screen_height;
 extern GLbyte			screen_depth;
 extern GLint			maximumAnisotropy;
+extern boolean 			supportMipMap;
 
 /**	\brief OpenGL flags for video driver
 */
 extern INT32            oglflags;
 extern GLint            textureformatGL;
+
+extern GLfloat projMatrix[16];
 
 typedef enum
 {

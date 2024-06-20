@@ -36,8 +36,9 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, unsigned int *IndexArray);
 EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags);
 EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask, FBOOLEAN DepthMask, FBOOLEAN StencilMask, FRGBAFloat *ClearColor);
-EXPORT void HWRAPI(SetTexture) (FTextureInfo *TexInfo);
-EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *TexInfo);
+EXPORT void HWRAPI(SetTexture) (GLMipmap_t *TexInfo);
+EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *TexInfo);
+EXPORT void HWRAPI(DeleteTexture) (GLMipmap_t *TexInfo);
 EXPORT void HWRAPI(ReadScreenTexture) (int tex, UINT16 *dst_data);
 EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip, float farclip);
 EXPORT void HWRAPI(ClearMipMapCache) (void);
@@ -59,7 +60,7 @@ EXPORT void HWRAPI(FlushScreenTextures) (void);
 EXPORT void HWRAPI(DoScreenWipe) (int wipeStart, int wipeEnd);
 EXPORT void HWRAPI(DrawScreenTexture) (int tex, FSurfaceInfo *surf, FBITFIELD polyflags);
 EXPORT void HWRAPI(MakeScreenTexture) (int tex);
-EXPORT void HWRAPI(DrawScreenFinalTexture) (int tex, int width, int height);
+EXPORT void HWRAPI(DrawScreenFinalTexture) (int tex, INT32 width, INT32 height);
 
 EXPORT void HWRAPI(RenderVhsEffect) (fixed_t upbary, fixed_t downbary, UINT8 updistort, UINT8 downdistort, UINT8 barsize);
 
@@ -99,6 +100,7 @@ struct hwdriver_s
 	ClearBuffer         	pfnClearBuffer;
 	SetTexture          	pfnSetTexture;
 	UpdateTexture       	pfnUpdateTexture;
+	DeleteTexture       	pfnDeleteTexture;
 	ReadScreenTexture   	pfnReadScreenTexture;
 	GClipRect           	pfnGClipRect;
 	ClearMipMapCache    	pfnClearMipMapCache;

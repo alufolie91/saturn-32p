@@ -148,7 +148,7 @@ boolean P_Teleport(mobj_t *thing, fixed_t x, fixed_t y, fixed_t z, angle_t angle
 
 		if (!dontstopmove)
 			thing->reactiontime = TICRATE/2; // don't move for about half a second
-
+		
 		// absolute angle position
 		// move chasecam at new player location
 		for (i = 0; i <= splitscreen; i++)
@@ -180,7 +180,10 @@ boolean P_Teleport(mobj_t *thing, fixed_t x, fixed_t y, fixed_t z, angle_t angle
 			P_ResetPlayer(thing->player);
 			P_SetPlayerMobjState(thing, S_KART_STND1); // SRB2kart - was S_PLAY_STND
 		}
-
+		
+		// Prevent boosted spinout from throwing you left on teleport
+		thing->player->kartstuff[k_boostangle] = angle;
+		
 		if (flash)
 			P_FlashPal(thing->player, PAL_MIXUP, 10);
 	}

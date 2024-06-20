@@ -126,9 +126,9 @@ extern char  logfilename[1024];
 // we use comprevision and compbranch instead.
 #else
 #define VERSION    2 // Game version
-#define SUBVERSION 0 // more precise version number
-#define VERSIONSTRING "Neptune 1.7"
-#define VERSIONSTRINGW L"Neptune 1.7"
+#define SUBVERSION 9 // more precise version number
+#define VERSIONSTRING "Neptune 2.1"
+#define VERSIONSTRINGW L"Neptune 2.1"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!
@@ -573,7 +573,7 @@ void M_StartupLocale(void);
 // M_GetText function that just returns the string.
 #define M_GetText(x) (x)
 #endif
-extern void *(*M_Memcpy)(void* dest, const void* src, size_t n) FUNCNONNULL;
+void *M_Memcpy(void* dest, const void* src, size_t n);
 char *va(const char *format, ...) FUNCPRINTF;
 char *M_GetToken(const char *inputString);
 char *sizeu1(size_t num);
@@ -663,16 +663,8 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 // None of these that are disabled in the normal build are guaranteed to work perfectly
 // Compile them at your own risk!
 
-/// Kalaron/Eternity Engine slope code (SRB2CB ported)
-#define ESLOPE
-
-/// Backwards compatibility with SRB2CB's slope linedef types.
-///	\note	A simple shim that prints a warning.
-#define ESLOPE_TYPESHIM
-
-///	Delete file while the game is running.
-///	\note	EXTREMELY buggy, tends to crash game.
-//#define DELFILE
+/// Undefine to use the new method of Gamma correction see colour cube in v_video.c
+#define BACKWARDSCOMPATCORRECTION
 
 ///	Allows the use of devmode in multiplayer. AKA "fishcake"
 //#define NETGAME_DEVMODE
@@ -683,15 +675,8 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 ///	Dumps the contents of a network save game upon consistency failure for debugging.
 //#define DUMPCONSISTENCY
 
-///	Polyobject fake flat code
-#define POLYOBJECTS_PLANES
-
 ///	See name of player in your crosshair
 #define SEENAMES
-
-///	Who put weights on my recycler?  ... Inuyasha did.
-///	\note	XMOD port.
-//#define WEIGHTEDRECYCLER
 
 ///	Allow loading of savegames between different versions of the game.
 ///	\note	XMOD port.
@@ -710,9 +695,6 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 #define CLIENT_LOADINGSCREEN
 #endif
 
-/// Experimental tweaks to analog mode. (Needs a lot of work before it's ready for primetime.)
-//#define REDSANALOG
-
 /// Backwards compatibility with musicslots.
 /// \note	You should leave this enabled unless you're working with a future SRB2 version.
 #define MUSICSLOT_COMPATIBILITY
@@ -727,20 +709,10 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 /// SRB2Kart: MIDI support is shitty and busted and we don't want it, lets throw it behind a define
 #define NO_MIDI
 
-/// FINALLY some real clipping that doesn't make walls dissappear AND speeds the game up
-/// (that was the original comment from SRB2CB, sadly it is a lie and actually slows game down)
-/// on the bright side it fixes some weird issues with translucent walls
-/// \note	SRB2CB port.
-///      	SRB2CB itself ported this from PrBoom+
-//#define NEWCLIP
-
 /// Sprite rotation
 #define ROTSPRITE
 #define ROTANGLES 72 // Needs to be a divisor of 360 (45, 60, 90, 120...)
 #define ROTANGDIFF (360 / ROTANGLES)
-
-/// Hardware renderer: OpenGL
-#define GL_SHADERS
 
 #if defined (HAVE_CURL) && ! defined (NONET)
 //#define MASTERSERVER

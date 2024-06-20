@@ -165,7 +165,6 @@ typedef struct
 	FLOAT       s,t;
 } FOutVector;
 
-#ifdef GL_SHADERS
 // Shader targets used to render specific types of geometry.
 // A shader target is resolved to an actual shader with HWR_GetShaderFromTarget.
 // The shader returned may be a base shader or a custom shader.
@@ -203,7 +202,6 @@ enum hwdshaderstage
 
 typedef enum hwdshaderstage hwdshaderstage_t;
 
-#endif
 
 // ==========================================================================
 //                                                               RENDER MODES
@@ -255,7 +253,17 @@ enum ETextureFlags
 	TF_TRANSPARENT = 0x00000040,        // texture with some alpha == 0
 };
 
-typedef struct GLMipmap_s FTextureInfo;
+struct FTextureInfo
+{
+	UINT32 width, height;
+	UINT32 downloaded;
+	UINT32 format;
+
+	struct GLMipmap_s *texture;
+	struct FTextureInfo *prev, *next;
+};
+typedef struct FTextureInfo FTextureInfo;
+
 
 struct FLightInfo
 {
@@ -287,8 +295,6 @@ enum hwdsetspecialstate
 	HWD_SET_MSAA,
 
 	HWD_SET_SCREEN_TEXTURES,
-	
-	HWD_SET_DEPTH_ONLY_MODE,// for portals
 
 	HWD_SET_PORTAL_MODE,// new portal thing
 	HWD_SET_STENCIL_LEVEL,

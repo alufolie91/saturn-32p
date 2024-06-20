@@ -33,6 +33,7 @@
 #include "SDL.h"
 
 #ifdef _MSC_VER
+#include <windows.h>
 #pragma warning(default : 4214 4244)
 #endif
 
@@ -42,7 +43,7 @@
 
 #ifdef HAVE_IMAGE
 #include "SDL_image.h"
-#elif (!defined(__APPLE__))
+#elif defined (__unix__) || (!defined(__APPLE__) && defined (UNIXCOMMON)) // Windows & Mac don't need this, as SDL will do it for us.
 #define LOAD_XPM //I want XPM!
 #include "IMG_xpm.c" //Alam: I don't want to add SDL_Image.dll/so
 #define HAVE_IMAGE //I have SDL_Image, sortof
@@ -75,6 +76,7 @@
 #include "../command.h"
 #include "sdlmain.h"
 #include "../i_system.h"
+#include "../hu_stuff.h" // for chat_on
 #ifdef HWRENDER
 #include "../hardware/hw_main.h"
 #include "../hardware/hw_drv.h"
@@ -109,6 +111,19 @@ boolean a2c = false;
 #endif
 
 boolean highcolor = false;
+
+static void KeyboardLayout_OnChange(void)
+{
+	HU_Shiftform();
+}
+
+boolean I_UseNativeKeyboard(void)
+{
+	return cv_keyboardlayout.value == 2 && (chat_on || CON_Ready() || (menu_text_input && menuactive));
+}
+
+static CV_PossibleValue_t keyboardlayout_cons_t[] = {{1,"Default US"}, {2, "Native"}, {3, "AZERTY"}, {0, NULL}};
+consvar_t cv_keyboardlayout = {"keyboardlayout", "Default US", CV_SAVE|CV_CALL, keyboardlayout_cons_t, KeyboardLayout_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 static void Impl_SetVsync(void);
 
@@ -380,6 +395,111 @@ static INT32 Impl_SDL_Scancode_To_Keycode(SDL_Scancode code)
 		default:                  break;
 	}
 	return 0;
+}
+
+// Get the equivalent ASCII (Unicode?) character for a keypress.
+static INT32 GetTypedChar(SDL_Scancode code, SDL_Keysym *sym)
+{
+	SDL_Event next_event;
+	boolean Text_Input_Only = (chat_on || CON_Ready() || (menu_text_input && menuactive));  //only use this this if on chat or console or the current menu wants inputs from us (except if its the control setup menu ig)
+
+	// Special cases, where we always return a fixed value.
+	switch (sym->sym)
+	{
+		case SDLK_BACKSPACE: return KEY_BACKSPACE;
+		case SDLK_RETURN:    return KEY_ENTER;
+		default:
+			break;
+	}
+
+	if (Text_Input_Only)
+	{
+		if (SDL_PeepEvents(&next_event, 1, SDL_PEEKEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT) == 1 && next_event.type == SDL_TEXTINPUT)
+		{
+			if (next_event.text.text[1] == '\0') // limit to ASCII
+				return next_event.text.text[0];
+		}
+	}
+
+	return Impl_SDL_Scancode_To_Keycode(code); //fallback
+}
+
+static INT32 Impl_SDL_Keysym_To_Keycode(SDL_Keysym keysym)
+{
+	SDL_Keycode keycode= keysym.sym;
+	SDL_Scancode scancode= keysym.scancode;
+
+	if (keycode >= SDLK_a && keycode <= SDLK_z)
+	{
+		// get lowercase ASCII
+		return keycode;
+	}
+	if (keycode >= SDLK_F1 && keycode <= SDLK_F10)
+	{
+		return KEY_F1 + (keycode - SDLK_F1);
+	}
+	if(scancode == SDL_SCANCODE_APOSTROPHE)
+	{
+		return KEY_FR_U_GRAVE;
+	}
+	switch(scancode){
+		case SDL_SCANCODE_APOSTROPHE:    return KEY_FR_U_GRAVE;
+		case SDL_SCANCODE_LEFTBRACKET:   return '^';
+		default:               break;
+	}
+	switch (keycode)
+	{
+		// F11 and F12 are separated from the rest of the function keys
+		case SDLK_F11: return KEY_F11;
+		case SDLK_F12: return KEY_F12;
+
+		case SDLK_RETURN:         return KEY_ENTER;
+		case SDLK_ESCAPE:         return KEY_ESCAPE;
+		case SDLK_BACKSPACE:      return KEY_BACKSPACE;
+		case SDLK_TAB:            return KEY_TAB;
+		case SDLK_SPACE:          return KEY_SPACE;
+		case SDLK_EQUALS:         return KEY_EQUALS;
+		case SDLK_SEMICOLON:      return ';';
+		case SDLK_COMMA:          return ',';
+		case SDLK_COLON:          return ':';
+		case SDLK_EXCLAIM:        return '!';
+		case SDLK_DOLLAR:         return '$';
+		case SDLK_ASTERISK:       return '*';
+		case SDLK_PERCENT:        return '%';
+		case SDLK_0:              return KEY_FR_A_GRAVE;
+		case SDLK_1:
+		case SDLK_AMPERSAND:      return '&';
+		case SDLK_2:              return KEY_FR_E_AIGUE;
+		case SDLK_3:
+		case SDLK_QUOTEDBL:       return '"';
+		case SDLK_4:		      return '\'';
+		case SDLK_5:
+		case SDLK_LEFTPAREN:      return '(';
+		case SDLK_6:
+		case SDLK_MINUS:          return KEY_MINUS;
+		case SDLK_7:              return KEY_FR_E_GRAVE;
+		case SDLK_8:
+		case SDLK_UNDERSCORE:     return '_';
+		case SDLK_9:              return KEY_FR_C_CEDILLE;
+		case SDLK_RIGHTPAREN:     return ')';
+		case SDLK_SLASH:          return '/';
+		case SDLK_LESS:           return '<';
+
+
+		case SDLK_KP_0: return KEY_KEYPAD0;
+		case SDLK_KP_1: return KEY_KEYPAD1;
+		case SDLK_KP_2: return KEY_KEYPAD2;
+		case SDLK_KP_3: return KEY_KEYPAD3;
+		case SDLK_KP_4: return KEY_KEYPAD4;
+		case SDLK_KP_5: return KEY_KEYPAD5;
+		case SDLK_KP_6: return KEY_KEYPAD6;
+		case SDLK_KP_7: return KEY_KEYPAD7;
+		case SDLK_KP_8: return KEY_KEYPAD8;
+		case SDLK_KP_9: return KEY_KEYPAD9;
+
+		default:                  break;
+	}
+	return Impl_SDL_Scancode_To_Keycode(scancode);
 }
 
 static void SDLdoGrabMouse(void)
@@ -696,7 +816,14 @@ static void Impl_HandleKeyboardEvent(SDL_KeyboardEvent evt, Uint32 type)
 	{
 		return;
 	}
-	event.data1 = Impl_SDL_Scancode_To_Keycode(evt.keysym.scancode);
+
+	if (cv_keyboardlayout.value == 2)
+		event.data1 = GetTypedChar(evt.keysym.scancode, &evt.keysym);
+	else if (cv_keyboardlayout.value == 3)
+		event.data1 = Impl_SDL_Keysym_To_Keycode(evt.keysym);
+	else
+		event.data1 = Impl_SDL_Scancode_To_Keycode(evt.keysym.scancode);
+
 	if (event.data1) D_PostEvent(&event);
 }
 
@@ -2129,6 +2256,7 @@ void I_StartupGraphics(void)
 		HWD.pfnClearBuffer      = hwSym("ClearBuffer",NULL);
 		HWD.pfnSetTexture       = hwSym("SetTexture",NULL);
 		HWD.pfnUpdateTexture    = hwSym("UpdateTexture",NULL);
+		HWD.pfnDeleteTexture    = hwSym("DeleteTexture",NULL);
 		HWD.pfnReadScreenTexture= hwSym("ReadScreenTexture",NULL);
 		HWD.pfnGClipRect        = hwSym("GClipRect",NULL);
 		HWD.pfnClearMipMapCache = hwSym("ClearMipMapCache",NULL);

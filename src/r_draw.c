@@ -40,31 +40,6 @@
 */
 INT32 viewwidth, scaledviewwidth, viewheight, viewwindowx, viewwindowy;
 
-/**	\brief pointer to the start of each line of the screen,
-*/
-UINT8 *ylookup[MAXVIDHEIGHT*4];
-
-/**	\brief pointer to the start of each line of the screen, for view1 (splitscreen)
-*/
-UINT8 *ylookup1[MAXVIDHEIGHT*4];
-
-/**	\brief pointer to the start of each line of the screen, for view2 (splitscreen)
-*/
-UINT8 *ylookup2[MAXVIDHEIGHT*4];
-
-/**	\brief pointer to the start of each line of the screen, for view3 (splitscreen)
-*/
-UINT8 *ylookup3[MAXVIDHEIGHT*4];
-
-/**	\brief pointer to the start of each line of the screen, for view4 (splitscreen)
-*/
-UINT8 *ylookup4[MAXVIDHEIGHT*4];
-
-/**	\brief  x byte offset for columns inside the viewwindow,
-	so the first column starts at (SCRWIDTH - VIEWWIDTH)/2
-*/
-INT32 columnofs[MAXVIDWIDTH*4];
-
 UINT8 *topleft;
 
 // =========================================================================
@@ -75,8 +50,6 @@ lighttable_t *dc_colormap;
 INT32 dc_x = 0, dc_yl = 0, dc_yh = 0;
 
 fixed_t dc_iscale, dc_texturemid;
-UINT8 dc_hires; // under MSVC boolean is a byte, while on other systems, it a bit,
-               // soo lets make it a byte on all system for the ASM code
 UINT8 *dc_source;
 
 // -----------------------
@@ -122,6 +95,9 @@ float focallengthf, zeroheight;
 */
 
 UINT32 nflatxshift, nflatyshift, nflatshiftup, nflatmask;
+
+// For, uh, tilted lighting, duh.
+static INT32 *tiltlighting;
 
 // ==========================================================================
 //                        OLD DOOM FUZZY EFFECT
@@ -234,280 +210,6 @@ void R_InitTranslationTables(void)
 	W_ReadLump(W_GetNumForName("TRANS80"), transtables+0x70000);
 	W_ReadLump(W_GetNumForName("TRANS90"), transtables+0x80000);
 }
-
-
-/**	\brief	Generates a translation colormap.
-
-	\param	dest_colormap	colormap to populate
-	\param	skinnum		number of skin, TC_DEFAULT or TC_BOSS
-	\param	color		translation color
-
-	\return	void
-*/
-/*
-static void R_GenerateTranslationColormap(UINT8 *dest_colormap, INT32 skinnum, UINT8 color)
-{
-	// Table of indices into the palette of the first entries of each translated ramp
-	const UINT8 skinbasecolors[] = {
-		0x00, // SKINCOLOR_WHITE
-		0x03, // SKINCOLOR_SILVER
-		0x08, // SKINCOLOR_GREY
-		0x18, // SKINCOLOR_BLACK
-		0xd0, // SKINCOLOR_CYAN
-		0xdc, // SKINCOLOR_TEAL
-		0xc8, // SKINCOLOR_STEEL
-		0xe2, // SKINCOLOR_BLUE
-		0x40, // SKINCOLOR_PEACH
-		0x48, // SKINCOLOR_TAN
-		0x90, // SKINCOLOR_PINK
-		0xf8, // SKINCOLOR_LAVENDER
-		0xc0, // SKINCOLOR_PURPLE
-		0x52, // SKINCOLOR_ORANGE
-		0x5c, // SKINCOLOR_ROSEWOOD
-		0x20, // SKINCOLOR_BEIGE
-		0x30, // SKINCOLOR_BROWN
-		0x7d, // SKINCOLOR_RED
-		0x85, // SKINCOLOR_DARKRED
-		0xb8, // SKINCOLOR_NEONGREEN
-		0xa0, // SKINCOLOR_GREEN
-		0xb0, // SKINCOLOR_ZIM
-		0x69, // SKINCOLOR_OLIVE
-		0x67, // SKINCOLOR_YELLOW
-		0x70, // SKINCOLOR_GOLD
-	};
-	INT32 i;
-	INT32 starttranscolor;
-
-	// Handle a couple of simple special cases
-	if (skinnum == TC_BOSS || skinnum == TC_ALLWHITE || skinnum == TC_METALSONIC || color == SKINCOLOR_NONE)
-	{
-		for (i = 0; i < NUM_PALETTE_ENTRIES; i++)
-		{
-			if (skinnum == TC_ALLWHITE) dest_colormap[i] = 0;
-			else dest_colormap[i] = (UINT8)i;
-		}
-
-		// White!
-		if (skinnum == TC_BOSS)
-			dest_colormap[31] = 0;
-		else if (skinnum == TC_METALSONIC)
-			dest_colormap[239] = 0;
-
-		return;
-	}
-
-	starttranscolor = (skinnum != TC_DEFAULT) ? skins[skinnum].starttranscolor : DEFAULT_STARTTRANSCOLOR;
-
-	// Fill in the entries of the palette that are fixed
-	for (i = 0; i < starttranscolor; i++)
-		dest_colormap[i] = (UINT8)i;
-
-	for (i = (UINT8)(starttranscolor + 16); i < NUM_PALETTE_ENTRIES; i++)
-		dest_colormap[i] = (UINT8)i;
-
-	// Build the translated ramp
-	switch (color)
-	{
-	case SKINCOLOR_SILVER:
-	case SKINCOLOR_GREY:
-	case SKINCOLOR_PEACH:
-	case SKINCOLOR_BEIGE:
-	case SKINCOLOR_BROWN:
-	case SKINCOLOR_RED:
-	case SKINCOLOR_GREEN:
-	case SKINCOLOR_BLUE:
-		// 16 color ramp
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(skinbasecolors[color - 1] + i);
-		break;
-
-	case SKINCOLOR_ORANGE:
-		// 14 colors of orange + brown
-		for (i = 0; i < SKIN_RAMP_LENGTH-2; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(skinbasecolors[color - 1] + i);
-		for (i = 0; i < 2; i++)
-			dest_colormap[starttranscolor + (i+SKIN_RAMP_LENGTH-2)] = (UINT8)(152 + i);
-		break;
-
-	case SKINCOLOR_CYAN:
-		// 12 color ramp
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(skinbasecolors[color - 1] + (12*i/SKIN_RAMP_LENGTH));
-		break;
-
-	case SKINCOLOR_WHITE:
-	case SKINCOLOR_BLACK:
-	case SKINCOLOR_STEEL:
-	case SKINCOLOR_PINK:
-	case SKINCOLOR_LAVENDER:
-	case SKINCOLOR_PURPLE:
-	case SKINCOLOR_DARKRED:
-	case SKINCOLOR_ZIM:
-	case SKINCOLOR_YELLOW:
-	case SKINCOLOR_GOLD:
-		// 8 color ramp
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(skinbasecolors[color - 1] + (i >> 1));
-		break;
-
-	case SKINCOLOR_TEAL:
-		// 5 color ramp
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-		{
-			if (5*i/16 == 0)
-				dest_colormap[starttranscolor + i] = 0xf7;
-			else
-				dest_colormap[starttranscolor + i] = (UINT8)(skinbasecolors[color - 1] + (5*i/SKIN_RAMP_LENGTH) - 1);
-		}
-		break;
-
-	case SKINCOLOR_OLIVE:
-		// 7 color ramp
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(skinbasecolors[color - 1] + (7*i/SKIN_RAMP_LENGTH));
-		break;
-
-	case SKINCOLOR_TAN:
-		// 16 color ramp, from two color ranges
-		for (i = 0; i < SKIN_RAMP_LENGTH/2; i++) // Peach half
-			dest_colormap[starttranscolor + i] = (UINT8)(skinbasecolors[color - 1] + i);
-		for (i = 0; i < SKIN_RAMP_LENGTH/2; i++) // Brown half
-			dest_colormap[starttranscolor + (i+8)] = (UINT8)(48 + i);
-		break;
-
-	case SKINCOLOR_ROSEWOOD:
-		// 12 color ramp, from two color ranges!
-		for (i = 0; i < 6; i++) // Orange ...third?
-			dest_colormap[starttranscolor + i] = (UINT8)(skinbasecolors[color - 1] + (12*i/SKIN_RAMP_LENGTH));
-		for (i = 0; i < 10; i++) // Rosewood two-thirds-ish
-			dest_colormap[starttranscolor + (i+6)] = (UINT8)(152 + (12*i/SKIN_RAMP_LENGTH));
-		break;
-
-	case SKINCOLOR_NEONGREEN:
-		// Multi-color ramp
-		dest_colormap[starttranscolor] = 0xA0; // Brighter green
-		for (i = 0; i < SKIN_RAMP_LENGTH-1; i++) // Neon Green
-			dest_colormap[starttranscolor + (i+1)] = (UINT8)(skinbasecolors[color - 1] + (6*i/(SKIN_RAMP_LENGTH-1)));
-		break;
-
-	// Super colors, from lightest to darkest!
-	case SKINCOLOR_SUPER1:
-		// Super White
-		for (i = 0; i < 10; i++)
-			dest_colormap[starttranscolor + i] = 120; // True white
-		for (; i < SKIN_RAMP_LENGTH; i++) // White-yellow fade
-			dest_colormap[starttranscolor + i] = (UINT8)(96 + (i-10));
-		break;
-
-	case SKINCOLOR_SUPER2:
-		// Super Bright
-		for (i = 0; i < 5; i++) // White-yellow fade
-			dest_colormap[starttranscolor + i] = (UINT8)(96 + i);
-		dest_colormap[starttranscolor + 5] = 112; // Golden shine
-		for (i = 0; i < 8; i++) // Yellow
-			dest_colormap[starttranscolor + (i+6)] = (UINT8)(101 + (i>>1));
-		for (i = 0; i < 2; i++) // With a fine golden finish! :3
-			dest_colormap[starttranscolor + (i+14)] = (UINT8)(113 + i);
-		break;
-
-	case SKINCOLOR_SUPER3:
-		// Super Yellow
-		for (i = 0; i < 3; i++) // White-yellow fade
-			dest_colormap[starttranscolor + i] = (UINT8)(98 + i);
-		dest_colormap[starttranscolor + 3] = 112; // Golden shine
-		for (i = 0; i < 8; i++) // Yellow
-			dest_colormap[starttranscolor + (i+4)] = (UINT8)(101 + (i>>1));
-		for (i = 0; i < 4; i++) // With a fine golden finish! :3
-			dest_colormap[starttranscolor + (i+12)] = (UINT8)(113 + i);
-		break;
-
-	case SKINCOLOR_SUPER4:
-		// "The SSNTails"
-		dest_colormap[starttranscolor] = 112; // Golden shine
-		for (i = 0; i < 8; i++) // Yellow
-			dest_colormap[starttranscolor + (i+1)] = (UINT8)(101 + (i>>1));
-		for (i = 0; i < 7; i++) // With a fine golden finish! :3
-			dest_colormap[starttranscolor + (i+9)] = (UINT8)(113 + i);
-		break;
-
-	case SKINCOLOR_SUPER5:
-		// Golden Delicious
-		for (i = 0; i < 8; i++) // Yellow
-			dest_colormap[starttranscolor + i] = (UINT8)(101 + (i>>1));
-		for (i = 0; i < 7; i++) // With a fine golden finish! :3
-			dest_colormap[starttranscolor + (i+8)] = (UINT8)(113 + i);
-		dest_colormap[starttranscolor + 15] = 155;
-		break;
-
-	// Super Tails
-	case SKINCOLOR_TSUPER1:
-		for (i = 0; i < 10; i++) // white
-			dest_colormap[starttranscolor + i] = 120;
-		for (; i < SKIN_RAMP_LENGTH; i++) // orange
-			dest_colormap[starttranscolor + i] = (UINT8)(80 + (i-10));
-		break;
-
-	case SKINCOLOR_TSUPER2:
-		for (i = 0; i < 4; i++) // white
-			dest_colormap[starttranscolor + i] = 120;
-		for (; i < SKIN_RAMP_LENGTH; i++) // orange
-			dest_colormap[starttranscolor + i] = (UINT8)(80 + ((i-4)>>1));
-		break;
-
-	case SKINCOLOR_TSUPER3:
-		dest_colormap[starttranscolor] = 120; // pure white
-		dest_colormap[starttranscolor+1] = 120;
-		for (i = 2; i < SKIN_RAMP_LENGTH; i++) // orange
-			dest_colormap[starttranscolor + i] = (UINT8)(80 + ((i-2)>>1));
-		break;
-
-	case SKINCOLOR_TSUPER4:
-		dest_colormap[starttranscolor] = 120; // pure white
-		for (i = 1; i < 9; i++) // orange
-			dest_colormap[starttranscolor + i] = (UINT8)(80 + (i-1));
-		for (; i < SKIN_RAMP_LENGTH; i++) // gold
-			dest_colormap[starttranscolor + i] = (UINT8)(115 + (5*(i-9)/7));
-		break;
-
-	case SKINCOLOR_TSUPER5:
-		for (i = 0; i < 8; i++) // orange
-			dest_colormap[starttranscolor + i] = (UINT8)(80 + i);
-		for (; i < SKIN_RAMP_LENGTH; i++) // gold
-			dest_colormap[starttranscolor + i] = (UINT8)(115 + (5*(i-8)/8));
-		break;
-
-	// Super Knuckles
-	case SKINCOLOR_KSUPER1:
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(120 + (i >> 2));
-		break;
-
-	case SKINCOLOR_KSUPER2:
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(120 + (6*i/SKIN_RAMP_LENGTH));
-		break;
-
-	case SKINCOLOR_KSUPER3:
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(120 + (i >> 1));
-		break;
-
-	case SKINCOLOR_KSUPER4:
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(121 + (i >> 1));
-		break;
-
-	case SKINCOLOR_KSUPER5:
-		for (i = 0; i < SKIN_RAMP_LENGTH; i++)
-			dest_colormap[starttranscolor + i] = (UINT8)(122 + (i >> 1));
-		break;
-
-	default:
-		I_Error("Invalid skin color #%hu.", (UINT16)color);
-		break;
-	}
-}
-*/
 
 /**	\brief	Retrieves a translation colormap from the cache.
 
@@ -641,16 +343,6 @@ UINT8 R_GetColorByName(const char *name)
 }
 */
 
-// ==========================================================================
-//               COMMON DRAWER FOR 8 AND 16 BIT COLOR MODES
-// ==========================================================================
-
-// in a perfect world, all routines would be compatible for either mode,
-// and optimised enough
-//
-// in reality, the few routines that can work for either mode, are
-// put here
-
 /**	\brief	The R_InitViewBuffer function
 
 	Creates lookup tables for getting the framebuffer address
@@ -664,9 +356,30 @@ UINT8 R_GetColorByName(const char *name)
 
 */
 
+static void R_AllocViewMemory(void)
+{
+	negonearray = Z_Realloc(negonearray, sizeof(*negonearray) * viewwidth, PU_STATIC, NULL);
+	screenheightarray = Z_Realloc(screenheightarray, sizeof(*screenheightarray) * viewwidth, PU_STATIC, NULL);
+
+	floorclip = Z_Realloc(floorclip, sizeof(*floorclip) * viewwidth, PU_STATIC, NULL);
+	ceilingclip = Z_Realloc(ceilingclip, sizeof(*ceilingclip) * viewwidth, PU_STATIC, NULL);
+
+	frontscale = Z_Realloc(frontscale, sizeof(*frontscale) * viewwidth, PU_STATIC, NULL);
+
+	xtoviewangle = Z_Realloc(xtoviewangle, sizeof(*xtoviewangle) * (viewwidth + 1), PU_STATIC, NULL);
+	
+	tiltlighting = Z_Realloc(tiltlighting, sizeof(*tiltlighting) * viewwidth, PU_STATIC, NULL);
+
+	R_AllocSegMemory();
+	R_AllocClipSegMemory();
+	R_AllocPlaneMemory();
+	//R_AllocFloorSpriteTables();
+	R_AllocVisSpriteMemory();
+}
+
 void R_InitViewBuffer(INT32 width, INT32 height)
 {
-	INT32 i, bytesperpixel = vid.bpp;
+	INT32 bytesperpixel = vid.bpp;
 
 	if (width > MAXVIDWIDTH)
 		width = MAXVIDWIDTH;
@@ -675,24 +388,10 @@ void R_InitViewBuffer(INT32 width, INT32 height)
 	if (bytesperpixel < 1 || bytesperpixel > 4)
 		I_Error("R_InitViewBuffer: wrong bytesperpixel value %d\n", bytesperpixel);
 
+	R_AllocViewMemory();
+
 	viewwindowx = 0;
 	viewwindowy = 0;
-
-	// Column offset for those columns of the view window, but relative to the entire screen
-	for (i = 0; i < width; i++)
-		columnofs[i] = (viewwindowx + i) * bytesperpixel;
-
-	// Precalculate all row offsets.
-	for (i = 0; i < height; i++)
-	{
-		ylookup[i] = ylookup1[i] = screens[0] + i*vid.width*bytesperpixel;
-		if (splitscreen == 1)
-			ylookup2[i] = screens[0] + (i+viewheight)*vid.width*bytesperpixel;
-		else
-			ylookup2[i] = screens[0] + i*vid.width*bytesperpixel + (viewwidth*bytesperpixel);
-		ylookup3[i] = screens[0] + (i+viewheight)*vid.width*bytesperpixel;
-		ylookup4[i] = screens[0] + (i+viewheight)*vid.width*bytesperpixel + (viewwidth*bytesperpixel);
-	}
 }
 
 /**	\brief viewborder patches lump numbers

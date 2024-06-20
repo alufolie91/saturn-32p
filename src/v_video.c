@@ -18,6 +18,8 @@
 #include "v_video.h"
 #include "hu_stuff.h"
 #include "r_draw.h"
+#include "r_main.h"
+#include "r_fps.h"
 #include "console.h"
 
 #include "i_video.h" // rendermode
@@ -44,7 +46,7 @@ consvar_t cv_ticrate = {"showfps", "No", CV_SAVE, fps_cons_t, NULL, 0, NULL, NUL
 
 static void CV_palette_OnChange(void);
 
-static CV_PossibleValue_t gamma_cons_t[] = {{-15, "MIN"}, {5, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t gamma_cons_t[] = {{-15, "MIN"}, {4, "MAX"}, {0, NULL}};
 consvar_t cv_globalgamma = {"gamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t saturation_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
@@ -95,6 +97,7 @@ toast 18/04/17
 */
 
 float Cubepal[2][2][2][3];
+boolean Cubeapply = false;
 
 // returns whether to apply cube, selectively avoiding expensive operations
 static boolean InitCube(void)
@@ -279,12 +282,14 @@ static boolean InitCube(void)
 	return true;
 }
 
+#ifdef BACKWARDSCOMPATCORRECTION
 /*
 So it turns out that the way gamma was implemented previously, the default
 colour profile of the game was messed up. Since this bad decision has been
 around for a long time, and the intent is to keep the base game looking the
 same, I'm not gonna be the one to remove this base modification.
 toast 20/04/17
+... welp yes i am (27/07/19, see the ifdef around it)
 */
 const UINT8 correctiontable[256] =
 	{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
@@ -304,10 +309,98 @@ const UINT8 correctiontable[256] =
 	224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,
 	240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255};
 
+const UINT8 gammatable[5][256] =
+{
+	{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
+	17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
+	33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,
+	49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,
+	65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,
+	81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,
+	97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,
+	113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,
+	128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
+	144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
+	160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
+	176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
+	192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,
+	208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,
+	224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,
+	240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255},
+
+	{2,4,5,7,8,10,11,12,14,15,16,18,19,20,21,23,24,25,26,27,29,30,31,
+	32,33,34,36,37,38,39,40,41,42,44,45,46,47,48,49,50,51,52,54,55,
+	56,57,58,59,60,61,62,63,64,65,66,67,69,70,71,72,73,74,75,76,77,
+	78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,
+	99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,
+	115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,129,
+	130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,
+	146,147,148,148,149,150,151,152,153,154,155,156,157,158,159,160,
+	161,162,163,163,164,165,166,167,168,169,170,171,172,173,174,175,
+	175,176,177,178,179,180,181,182,183,184,185,186,186,187,188,189,
+	190,191,192,193,194,195,196,196,197,198,199,200,201,202,203,204,
+	205,205,206,207,208,209,210,211,212,213,214,214,215,216,217,218,
+	219,220,221,222,222,223,224,225,226,227,228,229,230,230,231,232,
+	233,234,235,236,237,237,238,239,240,241,242,243,244,245,245,246,
+	247,248,249,250,251,252,252,253,254,255},
+
+	{4,7,9,11,13,15,17,19,21,22,24,26,27,29,30,32,33,35,36,38,39,40,42,
+	43,45,46,47,48,50,51,52,54,55,56,57,59,60,61,62,63,65,66,67,68,69,
+	70,72,73,74,75,76,77,78,79,80,82,83,84,85,86,87,88,89,90,91,92,93,
+	94,95,96,97,98,100,101,102,103,104,105,106,107,108,109,110,111,112,
+	113,114,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,
+	129,130,131,132,133,133,134,135,136,137,138,139,140,141,142,143,144,
+	144,145,146,147,148,149,150,151,152,153,153,154,155,156,157,158,159,
+	160,160,161,162,163,164,165,166,166,167,168,169,170,171,172,172,173,
+	174,175,176,177,178,178,179,180,181,182,183,183,184,185,186,187,188,
+	188,189,190,191,192,193,193,194,195,196,197,197,198,199,200,201,201,
+	202,203,204,205,206,206,207,208,209,210,210,211,212,213,213,214,215,
+	216,217,217,218,219,220,221,221,222,223,224,224,225,226,227,228,228,
+	229,230,231,231,232,233,234,235,235,236,237,238,238,239,240,241,241,
+	242,243,244,244,245,246,247,247,248,249,250,251,251,252,253,254,254,
+	255},
+
+	{8,12,16,19,22,24,27,29,31,34,36,38,40,41,43,45,47,49,50,52,53,55,
+	57,58,60,61,63,64,65,67,68,70,71,72,74,75,76,77,79,80,81,82,84,85,
+	86,87,88,90,91,92,93,94,95,96,98,99,100,101,102,103,104,105,106,107,
+	108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,
+	125,126,127,128,129,130,131,132,133,134,135,135,136,137,138,139,140,
+	141,142,143,143,144,145,146,147,148,149,150,150,151,152,153,154,155,
+	155,156,157,158,159,160,160,161,162,163,164,165,165,166,167,168,169,
+	169,170,171,172,173,173,174,175,176,176,177,178,179,180,180,181,182,
+	183,183,184,185,186,186,187,188,189,189,190,191,192,192,193,194,195,
+	195,196,197,197,198,199,200,200,201,202,202,203,204,205,205,206,207,
+	207,208,209,210,210,211,212,212,213,214,214,215,216,216,217,218,219,
+	219,220,221,221,222,223,223,224,225,225,226,227,227,228,229,229,230,
+	231,231,232,233,233,234,235,235,236,237,237,238,238,239,240,240,241,
+	242,242,243,244,244,245,246,246,247,247,248,249,249,250,251,251,252,
+	253,253,254,254,255},
+
+	{16,23,28,32,36,39,42,45,48,50,53,55,57,60,62,64,66,68,69,71,73,75,76,
+	78,80,81,83,84,86,87,89,90,92,93,94,96,97,98,100,101,102,103,105,106,
+	107,108,109,110,112,113,114,115,116,117,118,119,120,121,122,123,124,
+	125,126,128,128,129,130,131,132,133,134,135,136,137,138,139,140,141,
+	142,143,143,144,145,146,147,148,149,150,150,151,152,153,154,155,155,
+	156,157,158,159,159,160,161,162,163,163,164,165,166,166,167,168,169,
+	169,170,171,172,172,173,174,175,175,176,177,177,178,179,180,180,181,
+	182,182,183,184,184,185,186,187,187,188,189,189,190,191,191,192,193,
+	193,194,195,195,196,196,197,198,198,199,200,200,201,202,202,203,203,
+	204,205,205,206,207,207,208,208,209,210,210,211,211,212,213,213,214,
+	214,215,216,216,217,217,218,219,219,220,220,221,221,222,223,223,224,
+	224,225,225,226,227,227,228,228,229,229,230,230,231,232,232,233,233,
+	234,234,235,235,236,236,237,237,238,239,239,240,240,241,241,242,242,
+	243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,
+	251,252,252,253,254,254,255,255}
+};
+#endif
+
 // keep a copy of the palette so that we can get the RGB value for a color index at any time.
 static void LoadPalette(const char *lumpname)
 {
-	boolean cube = InitCube();
+#ifdef BACKWARDSCOMPATCORRECTION
+	const UINT8 *usegamma = gammatable[min(max(cv_globalgamma.value, 0), 4)];
+#endif
+	Cubeapply = InitCube();
 	lumpnum_t lumpnum = W_GetNumForName(lumpname);
 	size_t i, palsize = W_LumpLength(lumpnum)/3;
 	UINT8 *pal;
@@ -319,49 +412,96 @@ static void LoadPalette(const char *lumpname)
 	pal = W_CacheLumpNum(lumpnum, PU_CACHE);
 	for (i = 0; i < palsize; i++)
 	{
-		pLocalPalette[i].s.red = correctiontable[*pal++];
-		pLocalPalette[i].s.green = correctiontable[*pal++];
-		pLocalPalette[i].s.blue = correctiontable[*pal++];
+#ifdef BACKWARDSCOMPATCORRECTION
+		if (cv_globalgamma.value >= 0 && cv_globalgamma.value <= 4)
+		{
+			pLocalPalette[i].s.red = usegamma[*pal++];
+			pLocalPalette[i].s.green = usegamma[*pal++];
+			pLocalPalette[i].s.blue = usegamma[*pal++];
+		}
+		else
+		{
+			pLocalPalette[i].s.red = correctiontable[*pal++];
+			pLocalPalette[i].s.green = correctiontable[*pal++];
+			pLocalPalette[i].s.blue = correctiontable[*pal++];
+		}
+#else
+		pLocalPalette[i].s.red = *pal++;
+		pLocalPalette[i].s.green = *pal++;
+		pLocalPalette[i].s.blue = *pal++;
+#endif
 		pLocalPalette[i].s.alpha = 0xFF;
 
-		// lerp of colour cubing!
-		if (cube)
-		{
-			float working[4][3];
-			float linear;
-			UINT8 q;
-
-			linear = (pLocalPalette[i].s.red/255.0);
-#define dolerp(e1, e2) ((1 - linear)*e1 + linear*e2)
-			for (q = 0; q < 3; q++)
-			{
-				working[0][q] = dolerp(Cubepal[0][0][0][q], Cubepal[1][0][0][q]);
-				working[1][q] = dolerp(Cubepal[0][1][0][q], Cubepal[1][1][0][q]);
-				working[2][q] = dolerp(Cubepal[0][0][1][q], Cubepal[1][0][1][q]);
-				working[3][q] = dolerp(Cubepal[0][1][1][q], Cubepal[1][1][1][q]);
-			}
-			linear = (pLocalPalette[i].s.green/255.0);
-			for (q = 0; q < 3; q++)
-			{
-				working[0][q] = dolerp(working[0][q], working[1][q]);
-				working[1][q] = dolerp(working[2][q], working[3][q]);
-			}
-			linear = (pLocalPalette[i].s.blue/255.0);
-			for (q = 0; q < 3; q++)
-			{
-				working[0][q] = 255*dolerp(working[0][q], working[1][q]);
-				if (working[0][q] > 255.0)
-					working[0][q] = 255.0;
-				else if (working[0][q]  < 0.0)
-					working[0][q] = 0.0;
-			}
-#undef dowork
-
-			pLocalPalette[i].s.red = (UINT8)(working[0][0]);
-			pLocalPalette[i].s.green = (UINT8)(working[0][1]);
-			pLocalPalette[i].s.blue = (UINT8)(working[0][2]);
-		}
+		// lerp of colour cubing! if you want, make it smoother yourself
+		if (Cubeapply)
+			V_CubeApply(&pLocalPalette[i].s.red, &pLocalPalette[i].s.green, &pLocalPalette[i].s.blue);
 	}
+}
+
+#ifdef BACKWARDSCOMPATCORRECTION
+static boolean V_ShouldCube(void)
+{
+#define diffcons(cv) (cv.value != atoi(cv.defaultvalue))
+	return (diffcons(cv_globalsaturation)
+		|| diffcons(cv_rhue)
+		|| diffcons(cv_yhue)
+		|| diffcons(cv_ghue)
+		|| diffcons(cv_chue)
+		|| diffcons(cv_bhue)
+		|| diffcons(cv_mhue)
+		|| diffcons(cv_rgamma)
+		|| diffcons(cv_ygamma)
+		|| diffcons(cv_ggamma)
+		|| diffcons(cv_cgamma)
+		|| diffcons(cv_bgamma)
+		|| diffcons(cv_mgamma)
+		|| (cv_globalgamma.value <= 0));
+#undef diffcons
+}
+#endif
+
+void V_CubeApply(UINT8 *red, UINT8 *green, UINT8 *blue)
+{
+	float working[4][3];
+	float linear;
+	UINT8 q;
+
+	if (!Cubeapply
+#ifdef BACKWARDSCOMPATCORRECTION
+	|| !V_ShouldCube()
+#endif
+	)
+		return;
+
+	linear = (*red/255.0);
+#define dolerp(e1, e2) ((1 - linear)*e1 + linear*e2)
+	for (q = 0; q < 3; q++)
+	{
+		working[0][q] = dolerp(Cubepal[0][0][0][q], Cubepal[1][0][0][q]);
+		working[1][q] = dolerp(Cubepal[0][1][0][q], Cubepal[1][1][0][q]);
+		working[2][q] = dolerp(Cubepal[0][0][1][q], Cubepal[1][0][1][q]);
+		working[3][q] = dolerp(Cubepal[0][1][1][q], Cubepal[1][1][1][q]);
+	}
+	linear = (*green/255.0);
+	for (q = 0; q < 3; q++)
+	{
+		working[0][q] = dolerp(working[0][q], working[1][q]);
+		working[1][q] = dolerp(working[2][q], working[3][q]);
+	}
+	linear = (*blue/255.0);
+	for (q = 0; q < 3; q++)
+	{
+		working[0][q] = 255*dolerp(working[0][q], working[1][q]);
+		if (working[0][q] > 255.0)
+			working[0][q] = 255.0;
+		else if (working[0][q]  < 0.0)
+			working[0][q] = 0.0;
+	}
+#undef dolerp
+
+	*red = (UINT8)(working[0][0]);
+	*green = (UINT8)(working[0][1]);
+	*blue = (UINT8)(working[0][2]);
 }
 
 const char *R_GetPalname(UINT16 num)
@@ -398,7 +538,7 @@ void V_SetPalette(INT32 palettenum)
 		LoadMapPalette();
 
 #ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none) 
+	if (rendermode == render_opengl)
 		HWR_SetPalette(&pLocalPalette[palettenum*256]);
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else
@@ -412,7 +552,7 @@ void V_SetPaletteLump(const char *pal)
 {
 	LoadPalette(pal);
 #ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none) 
+	if (rendermode == render_opengl)
 		HWR_SetPalette(pLocalPalette);
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else
@@ -460,6 +600,12 @@ void VID_BlitLinearScreen(const UINT8 *srcptr, UINT8 *destptr, INT32 width, INT3
 static UINT8 hudplusalpha[11]  = { 10,  8,  6,  4,  2,  0,  0,  0,  0,  0,  0};
 static UINT8 hudminusalpha[11] = { 10,  9,  9,  8,  8,  7,  7,  6,  6,  5,  5};
 UINT8 hudtrans = 0;
+
+// this is pretty dumb, but has to be done like this, otherwise the fps counter just disappears sometimes for no reason lol
+INT32 V_LocalTransFlag(void)
+{
+	return ((10-cv_translucenthud.value)*V_10TRANS);
+}
 
 static const UINT8 *v_colormap = NULL;
 static const UINT8 *v_translevel = NULL;
@@ -516,16 +662,17 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 			alphalevel = hudminusalpha[hudtrans];
 		else if (alphalevel == 14)
 			alphalevel = 10 - hudtrans;
-		/*else if (alphalevel == 15)
-			alphalevel = hudplusalpha[hudtrans];*/
+		else if (alphalevel == 15)
+			alphalevel = hudplusalpha[hudtrans];
 
 		if (alphalevel >= 10)
 			return; // invis
-	}
-	if (alphalevel)
-	{
-		v_translevel = transtables + ((alphalevel-1)<<FF_TRANSSHIFT);
-		patchdrawfunc = translucentpdraw;
+
+		if (alphalevel)
+		{
+			v_translevel = transtables + ((alphalevel-1)<<FF_TRANSSHIFT);
+			patchdrawfunc = translucentpdraw;
+		}
 	}
 
 	v_colormap = NULL;
@@ -577,7 +724,7 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 
 		// top offset
 		// TODO: make some kind of vertical version of V_FLIP, maybe by deprecating V_OFFSET in future?!?
-		offsety = FixedMul(SHORT(patch->topoffset)<<FRACBITS, pscale);
+		offsety = FixedMul(SHORT(patch->topoffset)<<FRACBITS, vscale);
 
 		if ((scrn & (V_NOSCALESTART|V_OFFSET)) == (V_NOSCALESTART|V_OFFSET)) // Multiply by dupx/dupy for crosshairs
 		{
@@ -619,16 +766,16 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 		// Center it if necessary
 		if (!(scrn & V_SCALEPATCHMASK))
 		{
-			// if it's meant to cover the whole screen, black out the rest
-			// BAD, BAD, BAD, FUCK OFF, STOP, EW, AAAAAAA
-			// This does NOT account for transparent pixels
-			/*if (x == 0 && FixedMul(SHORT(patch->width)<<FRACBITS, pscale)>>FRACBITS == BASEVIDWIDTH
-				&& y == 0 && FixedMul(SHORT(patch->height)<<FRACBITS, pscale)>>FRACBITS == BASEVIDHEIGHT)
+			// if it's meant to cover the whole screen, black out the rest (ONLY IF TOP LEFT ISN'T TRANSPARENT)
+			if (x == 0 && SHORT(patch->width) == BASEVIDWIDTH && y == 0 && SHORT(patch->height) == BASEVIDHEIGHT)
 			{
 				column = (const column_t *)((const UINT8 *)(patch) + LONG(patch->columnofs[0]));
-				source = (const UINT8 *)(column) + 3;
-				V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, (column->topdelta == 0xff ? 31 : source[0]));
-			}*/
+				if (!column->topdelta)
+				{
+					source = (const UINT8 *)(column) + 3;
+					V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, source[0]);
+				}
+			}
 
 			if (vid.width != BASEVIDWIDTH * dupx)
 			{
@@ -714,6 +861,9 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 // Draws a patch cropped and scaled to arbitrary size.
 void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_t *patch, fixed_t sx, fixed_t sy, fixed_t w, fixed_t h)
 {
+	UINT8 (*patchdrawfunc)(const UINT8*, const UINT8*, fixed_t);
+	UINT32 alphalevel = 0;
+	// boolean flip = false;
 	fixed_t col, ofs, colfrac, rowfrac, fdup;
 	INT32 dupx, dupy;
 	const column_t *column;
@@ -730,6 +880,28 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 		return;
 	}
 #endif
+
+	patchdrawfunc = standardpdraw;
+
+	v_translevel = NULL;
+	if ((alphalevel = ((scrn & V_ALPHAMASK) >> V_ALPHASHIFT)))
+	{
+		if (alphalevel == 13)
+			alphalevel = hudminusalpha[hudtrans];
+		else if (alphalevel == 14)
+			alphalevel = 10 - hudtrans;
+		else if (alphalevel == 15)
+			alphalevel = hudplusalpha[hudtrans];
+
+		if (alphalevel >= 10)
+			return; // invis
+
+		if (alphalevel)
+		{
+			v_translevel = transtables + ((alphalevel-1)<<FF_TRANSSHIFT);
+			patchdrawfunc = translucentpdraw;
+		}
+	}
 
 	// only use one dup, to avoid stretching (har har)
 	dupx = dupy = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
@@ -763,14 +935,8 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 		if (!(scrn & V_SCALEPATCHMASK))
 		{
 			// if it's meant to cover the whole screen, black out the rest
-			// BAD, BAD, BAD, FUCK OFF, STOP, EW, AAAAAAA
-			// This does NOT account for transparent pixels
-			/*if (x == 0 && SHORT(patch->width) == BASEVIDWIDTH && y == 0 && SHORT(patch->height) == BASEVIDHEIGHT)
-			{
-				column = (const column_t *)((const UINT8 *)(patch) + LONG(patch->columnofs[0]));
-				source = (const UINT8 *)(column) + 3;
-				V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, (column->topdelta == 0xff ? 31 : source[0]));
-			}*/
+			// no the patch is cropped do not do this ever
+
 			if (vid.width != BASEVIDWIDTH * dupx)
 			{
 				// dupx adjustments pretend that screen width is BASEVIDWIDTH * dupx,
@@ -793,7 +959,7 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 		desttop += (y*vid.width) + x;
 	}
 
-	for (col = sx<<FRACBITS; (col>>FRACBITS) < SHORT(patch->width) && (col>>FRACBITS) < w; col += colfrac, ++x, desttop++)
+	for (col = sx<<FRACBITS; (col>>FRACBITS) < SHORT(patch->width) && ((col>>FRACBITS) - sx) < w; col += colfrac, ++x, desttop++)
 	{
 		INT32 topdelta, prevdelta = -1;
 		if (x < 0) // don't draw off the left of the screen (WRAP PREVENTION)
@@ -810,12 +976,18 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 			prevdelta = topdelta;
 			source = (const UINT8 *)(column) + 3;
 			dest = desttop;
-			dest += FixedInt(FixedMul(topdelta<<FRACBITS,fdup))*vid.width;
+			if (topdelta-sy > 0)
+			{
+				dest += FixedInt(FixedMul((topdelta-sy)<<FRACBITS,fdup))*vid.width;
+				ofs = 0;
+			}
+			else
+				ofs = (sy-topdelta)<<FRACBITS;
 
-			for (ofs = sy<<FRACBITS; dest < deststop && (ofs>>FRACBITS) < column->length && (ofs>>FRACBITS) < h; ofs += rowfrac)
+			for (; dest < deststop && (ofs>>FRACBITS) < column->length && (((ofs>>FRACBITS) - sy) + topdelta) < h; ofs += rowfrac)
 			{
 				if (dest >= screens[scrn&V_PARAMMASK]) // don't draw off the top of the screen (CRASH PREVENTION)
-					*dest = source[ofs>>FRACBITS];
+					*dest = patchdrawfunc(dest, source, ofs);
 				dest += vid.width;
 			}
 			column = (const column_t *)((const UINT8 *)column + column->length + 4);
@@ -958,11 +1130,11 @@ void V_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	if (alphalevel)
 	{
 		if (alphalevel == 13)
-			alphalevel = hudminusalpha[cv_translucenthud.value];
+			alphalevel = hudminusalpha[hudtrans];
 		else if (alphalevel == 14)
-			alphalevel = 10 - cv_translucenthud.value;
+			alphalevel = 10 - hudtrans;
 		else if (alphalevel == 15)
-			alphalevel = hudplusalpha[cv_translucenthud.value];
+			alphalevel = hudplusalpha[hudtrans];
 
 		if (alphalevel >= 10)
 			return; // invis
@@ -1097,11 +1269,11 @@ void V_DrawFillConsoleMap(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	if ((alphalevel = ((c & V_ALPHAMASK) >> V_ALPHASHIFT)))
 	{
 		if (alphalevel == 13)
-			alphalevel = hudminusalpha[cv_translucenthud.value];
+			alphalevel = hudminusalpha[hudtrans];
 		else if (alphalevel == 14)
-			alphalevel = 10 - cv_translucenthud.value;
+			alphalevel = 10 - hudtrans;
 		else if (alphalevel == 15)
-			alphalevel = hudplusalpha[cv_translucenthud.value];
+			alphalevel = hudplusalpha[hudtrans];
 
 		if (alphalevel >= 10)
 			return; // invis
@@ -1342,7 +1514,7 @@ void V_DrawPatchFill(patch_t *pat)
 
 void V_DrawVhsEffect(boolean rewind)
 {
-	static fixed_t upbary = 100, downbary = 150;
+	static fixed_t upbary = 100*FRACUNIT, downbary = 150*FRACUNIT;
 
 	UINT8 *buf = screens[0], *tmp = screens[4];
 	UINT16 y;
@@ -1362,19 +1534,19 @@ void V_DrawVhsEffect(boolean rewind)
 	if (rewind)
 		V_DrawVhsEffect(false); // experimentation
 
-	if (renderisnewtic)
-	{
-		upbary -= (vid.dupy * (rewind ? 3 : 1.8f));
-		downbary += (vid.dupy * (rewind ? 2 : 1));
-	}
+	fixed_t frac = R_UsingFrameInterpolation() ? renderdeltatics : FRACUNIT;
+	upbary -= frac * (vid.dupy * (rewind ? 3 : 1.8f));
+	downbary += frac * (vid.dupy * (rewind ? 2 : 1));
 
-	if (upbary < -barsize) upbary = vid.height;
-	if (downbary > vid.height) downbary = -barsize;
+	if (upbary < -barsize*FRACUNIT) upbary = vid.height<<FRACBITS;
+	if (downbary > vid.height<<FRACBITS) downbary = -barsize*FRACUNIT;
+
+	fixed_t uby = upbary>>FRACBITS, dby = downbary>>FRACBITS;
 
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
 	{
-		HWR_RenderVhsEffect(upbary, downbary, updistort, downdistort, barsize);
+		HWR_RenderVhsEffect(uby, dby, updistort, downdistort, barsize);
 		return;
 	}
 #endif
@@ -1384,15 +1556,15 @@ void V_DrawVhsEffect(boolean rewind)
 		thismapstart = normalmapstart;
 		offs = 0;
 
-		if (y >= upbary && y < upbary+barsize)
+		if (y >= uby && y < uby+barsize)
 		{
 			thismapstart -= (2<<FF_TRANSSHIFT) - (5<<8);
-			offs += updistort * 2.0f * min(y-upbary, upbary+barsize-y) / barsize;
+			offs += updistort * 2.0f * min(y-uby, uby+barsize-y) / barsize;
 		}
-		if (y >= downbary && y < downbary+barsize)
+		if (y >= dby && y < dby+barsize)
 		{
 			thismapstart -= (2<<FF_TRANSSHIFT) - (5<<8);
-			offs -= downdistort * 2.0f * min(y-downbary, downbary+barsize-y) / barsize;
+			offs -= downdistort * 2.0f * min(y-dby, dby+barsize-y) / barsize;
 		}
 		offs += M_RandomKey(vid.dupx<<1);
 
@@ -2279,6 +2451,109 @@ void V_DrawCenteredSmallStringAtFixed(fixed_t x, fixed_t y, INT32 option, const 
 	V_DrawSmallStringAtFixed(x, y, option, string);
 }
 
+void V_DrawThinStringAtFixed(fixed_t x, fixed_t y, INT32 option, const char *string)
+{
+	fixed_t cx = x, cy = y;
+	INT32 w, c, dupx, dupy, scrwidth, center = 0, left = 0;
+	const char *ch = string;
+	INT32 spacewidth = 4, charwidth = 0;
+	INT32 charflags = 0;
+	const UINT8 *colormap = NULL;
+	INT32 lowercase = (option & V_ALLOWLOWERCASE);
+	option &= ~V_FLIP; // which is also shared with V_ALLOWLOWERCASE...
+
+	if (option & V_NOSCALESTART)
+	{
+		dupx = vid.dupx;
+		dupy = vid.dupy;
+		scrwidth = vid.width;
+	}
+	else
+	{
+		dupx = dupy = 1;
+		scrwidth = vid.width/vid.dupx;
+		left = (scrwidth - BASEVIDWIDTH)/2;
+		scrwidth -= left;
+	}
+
+	switch (option & V_SPACINGMASK)
+	{
+		case V_MONOSPACE:
+			spacewidth = 8;
+			/* FALLTHRU */
+		case V_OLDSPACING:
+			charwidth = 8;
+			break;
+		case V_6WIDTHSPACE:
+			spacewidth = 6;
+		default:
+			break;
+	}
+	
+	charflags = (option & V_CHARCOLORMASK);
+	colormap = V_GetStringColormap(charflags);
+
+	for (;;ch++)
+	{
+		if (!*ch)
+			break;
+		if (*ch & 0x80) //color parsing -x 2.16.09
+		{
+			// manually set flags override color codes
+			if (!(option & V_CHARCOLORMASK))
+			{
+				charflags = ((*ch & 0x7f) << V_CHARCOLORSHIFT) & V_CHARCOLORMASK;
+				colormap = V_GetStringColormap(charflags);
+			}
+			continue;
+		}
+		if (*ch == '\n')
+		{
+			cx = x;
+
+			if (option & V_RETURN8)
+				cy += (8*dupy)<<FRACBITS;
+			else
+				cy += (12*dupy)<<FRACBITS;
+
+			continue;
+		}
+
+		c = *ch;
+		if (!lowercase)
+			c = toupper(c);
+		c -= HU_FONTSTART;
+
+		// character does not exist or is a space
+		if (c < 0 || c >= HU_FONTSIZE || !tny_font[c])
+		{
+			cx += (spacewidth * dupx)<<FRACBITS;
+			continue;
+		}
+
+		if (charwidth)
+		{
+			w = charwidth * dupx;
+			center = w/2 - SHORT(tny_font[c]->width)*(dupx/2);
+		}
+		else
+			w = SHORT(tny_font[c]->width) * dupx;
+
+		if ((cx>>FRACBITS) > scrwidth)
+			break;
+		if ((cx>>FRACBITS)+left + w < 0) //left boundary check
+		{
+			cx += w<<FRACBITS;
+			continue;
+		}
+
+		//V_DrawSciencePatch(cx + (center<<FRACBITS), cy, option, tny_font[c], FRACUNIT);
+		V_DrawFixedPatch(cx + (center<<FRACBITS), cy, FRACUNIT, option, tny_font[c], colormap);
+
+		cx += w<<FRACBITS;
+	}
+}
+
 // Draws a tallnum.  Replaces two functions in y_inter and st_stuff
 void V_DrawTallNum(INT32 x, INT32 y, INT32 flags, INT32 num)
 {
@@ -2321,6 +2596,27 @@ void V_DrawPaddedTallNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits)
 	{
 		x -= w;
 		V_DrawScaledPatch(x, y, flags, tallnum[num % 10]);
+		num /= 10;
+	} while (--digits);
+}
+
+// Draws a number with a set number of digits.
+// Does not handle negative numbers in a special way, don't try to feed it any.
+void V_DrawPaddedTallColorNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits, const UINT8 *colormap)
+{
+	INT32 w = SHORT(tallnum[0]->width);
+
+	if (flags & V_NOSCALESTART)
+		w *= vid.dupx;
+
+	if (num < 0)
+		num = -num;
+
+	// draw the number
+	do
+	{
+		x -= w;
+		V_DrawFixedPatch(x<<FRACBITS, y<<FRACBITS, FRACUNIT, flags, tallnum[num % 10], colormap);
 		num /= 10;
 	} while (--digits);
 }
@@ -2645,6 +2941,9 @@ INT32 V_ThinStringWidth(const char *string, INT32 option)
 	{
 		c = string[i];
 		if ((UINT8)c >= 0x80 && (UINT8)c <= 0x8F) //color parsing! -Inuyasha 2.16.09
+			continue;
+
+		if (c < HU_FONTSTART)
 			continue;
 
 		if (!lowercase || !tny_font[c-HU_FONTSTART])
@@ -3174,7 +3473,7 @@ void V_Init(void)
 
 #ifdef DEBUG
 	CONS_Debug(DBG_RENDER, "V_Init done:\n");
-	for (i = 0; i < NUMSCREENS+1; i++)
+	for (i = 0; i < NUMSCREENS; i++)
 		CONS_Debug(DBG_RENDER, " screens[%d] = %x\n", i, screens[i]);
 #endif
 }

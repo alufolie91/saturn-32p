@@ -142,6 +142,7 @@ D_FILES=$(D_DIR)/srb2.srb \
 	$(D_DIR)/sounds.kart \
 	$(D_DIR)/patch.kart \
 	$(D_DIR)/music.kart \
+	$(D_DIR)/neptune.kart \
 
 PKG_CONFIG?=pkg-config
 
@@ -271,11 +272,9 @@ endif
 ifdef NOHW
 	OPTS+=-DNOHW
 else
-	#Hurdler: not really supported and not tested recently
-	#OPTS+=-DUSE_PALETTED_TEXTURE
 	OPTS+=-DHWRENDER
 	OBJS+=$(OBJDIR)/hw_bsp.o $(OBJDIR)/hw_draw.o $(OBJDIR)/hw_light.o \
-		 $(OBJDIR)/hw_main.o $(OBJDIR)/hw_clip.o $(OBJDIR)/hw_md2.o $(OBJDIR)/hw_cache.o $(OBJDIR)/hw_trick.o \
+		 $(OBJDIR)/hw_main.o $(OBJDIR)/hw_clip.o $(OBJDIR)/hw_md2.o $(OBJDIR)/hw_cache.o \
 		 $(OBJDIR)/hw_md2load.o $(OBJDIR)/hw_md3load.o $(OBJDIR)/hw_model.o $(OBJDIR)/u_list.o $(OBJDIR)/hw_batching.o $(OBJDIR)/hw_shaders.o
 endif
 
@@ -392,9 +391,7 @@ CFLAGS+=-DHAVE_DISCORDRPC -DUSE_STUN
 OBJS+=$(OBJDIR)/discord.o $(OBJDIR)/stun.o
 endif
 
-ifndef NO_LUA
 	include blua/Makefile.cfg
-endif
 
 ifdef NOMD5
 	OPTS+=-DNOMD5
@@ -427,7 +424,6 @@ else
 endif
 	CFLAGS+= -Wall -DPARANOIA -DRANGECHECK -DPACKETDROP -DMOBJCONSISTANCY
 else
-
 
 	# build a normal optimised version
 	WINDRESFLAGS = -DNDEBUG
@@ -465,6 +461,7 @@ DBGNAME?=$(EXENAME).debug
 # SRB2kart kart.o on line 433 below
 OBJS:=$(i_main_o) \
 		$(OBJDIR)/comptime.o \
+		$(OBJDIR)/qs22j.o   \
 		$(OBJDIR)/string.o   \
 		$(OBJDIR)/d_main.o   \
 		$(OBJDIR)/d_protocol.o   \
@@ -725,9 +722,9 @@ $(OBJDIR)/depend.dep:
 ifndef NOHW
 	$(CC) $(CFLAGS) -MM hardware/*.c >> $(OBJDIR)/depend.ped
 endif
-ifndef NO_LUA
+
 	$(CC) $(CFLAGS) -MM blua/*.c >> $(OBJDIR)/depend.ped
-endif
+
 	@sed -e 's,\(.*\)\.o: ,$(subst /,\/,$(OBJDIR))\/&,g' < $(OBJDIR)/depend.ped > $(OBJDIR)/depend.dep
 	$(REMOVE) $(OBJDIR)/depend.ped
 	@echo "Created dependency file, depend.dep"

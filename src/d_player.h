@@ -339,6 +339,17 @@ typedef enum
 	k_slopeaccelboost,
 	k_trickspeedboost,
 	k_trickaccelboost,
+	
+	//Offroad nerf
+	k_realsneakertimer,
+	
+	//Health nametag
+	k_hphealth,
+	
+	//Panel Shit
+	k_paneltimer,
+	k_realpaneltimer,
+	k_panelstack,
 
 	NUMKARTSTUFF
 } kartstufftype_t;

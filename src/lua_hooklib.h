@@ -11,7 +11,5 @@
 
 #include "doomdef.h"
 
-#ifdef HAVE_BLUA
 void lib_expandHookArrays(UINT32 howMuch);
 void lib_initHookArrays(void);
-#endif

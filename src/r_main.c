@@ -109,7 +109,7 @@ INT32 viewangletox[FINEANGLES/2];
 // The xtoviewangleangle[] table maps a screen pixel
 // to the lowest viewangle that maps back to x ranges
 // from clipangle to -clipangle.
-angle_t xtoviewangle[MAXVIDWIDTH+1];
+angle_t *xtoviewangle;
 
 lighttable_t *scalelight[LIGHTLEVELS][MAXLIGHTSCALE];
 lighttable_t *scalelightfixed[MAXLIGHTSCALE];
@@ -145,13 +145,17 @@ static CV_PossibleValue_t drawdist_cons_t[] = {
 	{3072, "3072"},	{4096, "4096"},	{6144, "6144"},
 	{8192, "8192"},	{0, "Infinite"},	{0, NULL}};
 
-//static CV_PossibleValue_t precipdensity_cons_t[] = {{0, "None"}, {1, "Light"}, {2, "Moderate"}, {4, "Heavy"}, {6, "Thick"}, {8, "V.Thick"}, {0, NULL}};
-
+#if defined(__x86_64__) || defined(__amd64__) || defined(__aarch64__) || defined(__arm64__) // only for 64bit (idk how else to proper check lmao)
 static CV_PossibleValue_t drawdist_precip_cons_t[] = {
 	{256, "256"},	{512, "512"},	{768, "768"},
 	{1024, "1024"},	{1536, "1536"},	{2048, "2048"},
-	{3072, "3072"}, {0, "None"},	{0, NULL}};
-	
+	{3072, "3072"},	{4096, "4096"}, {0, "None"},	{0, NULL}};
+#else
+static CV_PossibleValue_t drawdist_precip_cons_t[] = {
+	{256, "256"},	{512, "512"},	{768, "768"},
+	{1024, "1024"},	{1536, "1536"},	{2048, "2048"},
+	{0, "None"},	{0, NULL}};
+#endif
 
 static CV_PossibleValue_t maxinterpdist_cons_t[] = {
        /*{256, "256"},*/       {512, "512"},   {768, "768"},
@@ -161,7 +165,6 @@ static CV_PossibleValue_t maxinterpdist_cons_t[] = {
 
 static CV_PossibleValue_t fov_cons_t[] = {{5*FRACUNIT, "MIN"}, {178*FRACUNIT, "MAX"}, {0, NULL}};
 
-//static CV_PossibleValue_t precipdensity_cons_t[] = {{0, "None"}, {1, "Light"}, {2, "Moderate"}, {4, "Heavy"}, {6, "Thick"}, {8, "V.Thick"}, {0, NULL}};
 static CV_PossibleValue_t translucenthud_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t maxportals_cons_t[] = {{0, "MIN"}, {12, "MAX"}, {0, NULL}}; // lmao rendering 32 portals, you're a card
 static CV_PossibleValue_t homremoval_cons_t[] = {{0, "No"}, {1, "Yes"}, {2, "Flash"}, {0, NULL}};
@@ -199,13 +202,12 @@ consvar_t cv_soniccd = {"soniccd", "Off", CV_NETVAR|CV_NOSHOWHELP, CV_OnOff, NUL
 consvar_t cv_allowmlook = {"allowmlook", "Yes", CV_NETVAR, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_showhud = {"showhud", "Yes", CV_CALL,  CV_YesNo, R_SetViewSize, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_translucenthud = {"translucenthud", "10", CV_SAVE, translucenthud_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_uncappedhud = {"uncappedhud", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_translucency = {"translucency", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_drawdist = {"drawdist", "Infinite", CV_SAVE, drawdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-//consvar_t cv_drawdist_nights = {"drawdist_nights", "2048", CV_SAVE, drawdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_drawdist_precip = {"drawdist_precip", "1024", CV_SAVE, drawdist_precip_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_lessprecip = {"lessweathereffects", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-//consvar_t cv_precipdensity = {"precipdensity", "Moderate", CV_SAVE, precipdensity_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_grmaxinterpdist = {"gr_maxinterpdist", "Infinite", CV_SAVE, maxinterpdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -216,6 +218,9 @@ consvar_t cv_fov = {"fov", "90", CV_FLOAT|CV_CALL|CV_SAVE, fov_cons_t, Fov_OnCha
 consvar_t cv_homremoval = {"homremoval", "Yes", CV_SAVE, homremoval_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_maxportals = {"maxportals", "2", CV_SAVE, maxportals_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t pointoangle_cons_t[] = {{0, "Ex"}, {1, "64"}, {0, NULL}};
+consvar_t cv_pointoangleexor64 = {"r_pointtoangle", "64", CV_SAVE, pointoangle_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 void SplitScreen_OnChange(void)
 {
@@ -333,7 +338,7 @@ static void FlipCam4_OnChange(void)
 //
 // killough 5/2/98: reformatted
 //
-INT32 R_PointOnSide(fixed_t x, fixed_t y, node_t *restrict node)
+PUREFUNC INT32 R_PointOnSide(fixed_t x, fixed_t y, const node_t *restrict node)
 {
 	if (!node->dx)
 		return x <= node->x ? node->dy > 0 : node->dy < 0;
@@ -352,7 +357,7 @@ INT32 R_PointOnSide(fixed_t x, fixed_t y, node_t *restrict node)
 }
 
 // killough 5/2/98: reformatted
-INT32 R_PointOnSegSide(fixed_t x, fixed_t y, seg_t *line)
+PUREFUNC INT32 R_PointOnSegSide(fixed_t x, fixed_t y, const seg_t *line)
 {
 	fixed_t lx = line->v1->x;
 	fixed_t ly = line->v1->y;
@@ -420,22 +425,6 @@ angle_t R_PointToAngle64(INT64 x, INT64 y)
 		0;
 }
 
-angle_t R_PointToAngle2(fixed_t pviewx, fixed_t pviewy, fixed_t x, fixed_t y)
-{
-	return (y -= pviewy, (x -= pviewx) || y) ?
-	x >= 0 ?
-	y >= 0 ?
-		(x > y) ? tantoangle[SlopeDiv(y,x)] :                          // octant 0
-		ANGLE_90-tantoangle[SlopeDiv(x,y)] :                           // octant 1
-		x > (y = -y) ? 0-tantoangle[SlopeDiv(y,x)] :                   // octant 8
-		ANGLE_270+tantoangle[SlopeDiv(x,y)] :                          // octant 7
-		y >= 0 ? (x = -x) > y ? ANGLE_180-tantoangle[SlopeDiv(y,x)] :  // octant 3
-		ANGLE_90 + tantoangle[SlopeDiv(x,y)] :                         // octant 2
-		(x = -x) > (y = -y) ? ANGLE_180+tantoangle[SlopeDiv(y,x)] :    // octant 4
-		ANGLE_270-tantoangle[SlopeDiv(x,y)] :                          // octant 5
-		0;
-}
-
 angle_t R_PointToAngleEx(INT32 x2, INT32 y2, INT32 x1, INT32 y1)
 {
 	INT64 dx = x1-x2;
@@ -459,38 +448,20 @@ angle_t R_PointToAngleEx(INT32 x2, INT32 y2, INT32 x1, INT32 y1)
 		0;
 }
 
-//
-// R_PointToPseudoAngle
-// ! Returns the pseudoangle between the line p1 to (infinity, p1.y) and the
-// line from p1 to p2. The pseudoangle has the property that the ordering of
-// points by true angle anround p1 and ordering of points by pseudoangle are the
-// same.
-//
-// For clipping exact angles are not needed. Only the ordering matters.
-// This is about as fast as the fixed point R_PointToAngle2 but without
-// the precision issues associated with that function.
-//
-
-angle_t R_PointToPseudoAngle(fixed_t x, fixed_t y)
+angle_t R_PointToAngle2(fixed_t pviewx, fixed_t pviewy, fixed_t x, fixed_t y)
 {
-	// Note: float won't work here as it's less precise than the BAM values being passed as parameters
-	double vecx = (double)x - viewx;
-	double vecy = (double)y - viewy;
-	double epsilon = 1e-9;
-
-	if (fabs(vecx) < epsilon && fabs(vecy) < epsilon)
-	{
-		return 0;
-	}
-	else
-	{
-		double result = vecy / (fabs(vecx) + fabs(vecy));
-		if (vecx < 0)
-		{
-			result = 2.0 - result;
-		}
-		return (angle_t)xs_CRoundToInt(result * (1 << 30));
-	}
+	return (y -= pviewy, (x -= pviewx) || y) ?
+	x >= 0 ?
+	y >= 0 ?
+		(x > y) ? tantoangle[SlopeDiv(y,x)] :                          // octant 0
+		ANGLE_90-tantoangle[SlopeDiv(x,y)] :                           // octant 1
+		x > (y = -y) ? 0-tantoangle[SlopeDiv(y,x)] :                   // octant 8
+		ANGLE_270+tantoangle[SlopeDiv(x,y)] :                          // octant 7
+		y >= 0 ? (x = -x) > y ? ANGLE_180-tantoangle[SlopeDiv(y,x)] :  // octant 3
+		ANGLE_90 + tantoangle[SlopeDiv(x,y)] :                         // octant 2
+		(x = -x) > (y = -y) ? ANGLE_180+tantoangle[SlopeDiv(y,x)] :    // octant 4
+		ANGLE_270-tantoangle[SlopeDiv(x,y)] :                          // octant 5
+		0;
 }
 
 fixed_t R_PointToDist2(fixed_t px2, fixed_t py2, fixed_t px1, fixed_t py1)
@@ -546,6 +517,11 @@ angle_t R_PlayerSliptideAngle(player_t *player)
 fixed_t R_PointToDist(fixed_t x, fixed_t y)
 {
 	return R_PointToDist2(viewx, viewy, x, y);
+}
+
+INT32 R_GetHudUncap(void)
+{
+	return cv_uncappedhud.value ? rendertimefrac & FRACMASK : 0;
 }
 
 //
@@ -731,7 +707,7 @@ static struct {
 	INT32 scrmapsize;
 
 	INT32 x1; // clip rendering horizontally for efficiency
-	INT16 ceilingclip[MAXVIDWIDTH], floorclip[MAXVIDWIDTH];
+	INT16 *ceilingclip, *floorclip;
 
 	boolean use;
 } viewmorph = {
@@ -742,7 +718,7 @@ static struct {
 	0,
 
 	0,
-	{}, {},
+	NULL, NULL,
 
 	false
 };
@@ -780,10 +756,10 @@ void R_CheckViewMorph(void)
 
 	if (viewmorph.scrmapsize != vid.width*vid.height)
 	{
-		if (viewmorph.scrmap)
-			free(viewmorph.scrmap);
-		viewmorph.scrmap = malloc(vid.width*vid.height * sizeof(INT32));
 		viewmorph.scrmapsize = vid.width*vid.height;
+		viewmorph.scrmap = realloc(viewmorph.scrmap, vid.width*vid.height * sizeof(INT32));
+		viewmorph.ceilingclip = realloc(viewmorph.ceilingclip, vid.width * sizeof(INT16));
+		viewmorph.floorclip = realloc(viewmorph.floorclip, vid.width * sizeof(INT16));
 	}
 
 	temp = FINECOSINE(rollangle);
@@ -973,18 +949,19 @@ void R_ExecuteSetViewSize(void)
 	// status bar overlay
 	st_overlay = cv_showhud.value;
 
-	scaledviewwidth = vid.width;
+	//scaledviewwidth = vid.width;
+	viewwidth = vid.width;
 	viewheight = vid.height;
 
 	if (splitscreen)
 		viewheight >>= 1;
 
-	viewwidth = scaledviewwidth;
+	//viewwidth = scaledviewwidth;
 
 	if (splitscreen > 1)
 	{
 		viewwidth >>= 1;
-		scaledviewwidth >>= 1;
+		//scaledviewwidth >>= 1;
 	}
 
 	centerx = viewwidth/2;
@@ -999,13 +976,17 @@ void R_ExecuteSetViewSize(void)
 
 	projection = projectiony = FixedDiv(centerxfrac, fovtan);
 
-	R_InitViewBuffer(scaledviewwidth, viewheight);
+	//R_InitViewBuffer(scaledviewwidth, viewheight);
+	R_InitViewBuffer(viewwidth, viewheight);
 
 	R_InitTextureMapping();
 
 	// thing clipping
 	for (i = 0; i < viewwidth; i++)
+	{
+		negonearray[i] = -1;
 		screenheightarray[i] = (INT16)viewheight;
+	}
 
 	// setup sky scaling
 	R_SetSkyScale();
@@ -1077,7 +1058,7 @@ void R_Init(void)
 	R_SetViewSize(); // setsizeneeded is set true
 
 	//I_OutputMsg("\nR_InitPlanes");
-	R_InitPlanes();
+	//R_InitPlanes();
 
 	// this is now done by SCR_Recalc() at the first mode set
 	//I_OutputMsg("\nR_InitLightTables");
@@ -1089,6 +1070,52 @@ void R_Init(void)
 	R_InitDrawNodes();
 
 	framecount = 0;
+}
+
+
+//
+// R_IsPointInSector
+//
+boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y)
+{
+	size_t i;
+	size_t passes = 0;
+
+	for (i = 0; i < sector->linecount; i++)
+	{
+		line_t *line = sector->lines[i];
+		vertex_t *v1, *v2;
+
+		if (line->frontsector == line->backsector)
+			continue;
+
+		v1 = line->v1;
+		v2 = line->v2;
+
+		// make sure v1 is below v2
+		if (v1->y > v2->y)
+		{
+			vertex_t *tmp = v1;
+			v1 = v2;
+			v2 = tmp;
+		}
+		else if (v1->y == v2->y)
+			// horizontal line, we can't match this
+			continue;
+
+		if (v1->y < y && y <= v2->y)
+		{
+			// if the y axis in inside the line, find the point where we intersect on the x axis...
+			fixed_t vx = v1->x + (INT64)(v2->x - v1->x) * (y - v1->y) / (v2->y - v1->y);
+
+			// ...and if that point is to the left of the point, count it as inside.
+			if (vx < x)
+				passes++;
+		}
+	}
+
+	// and odd number of passes means we're inside the polygon.
+	return passes % 2;
 }
 
 //
@@ -1376,7 +1403,7 @@ void R_SkyboxFrame(player_t *player)
 	// newview->sin = FINESINE(viewangle>>ANGLETOFINESHIFT);
 	// newview->cos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
 
-	R_InterpolateView(R_UsingFrameInterpolation() ? rendertimefrac : FRACUNIT);
+	R_InterpolateView(R_UsingFrameInterpolation() ? rendertimefrac : FRACUNIT, false);
 }
 
 void R_SetupFrame(player_t *player, boolean skybox)
@@ -1525,7 +1552,7 @@ void R_SetupFrame(player_t *player, boolean skybox)
 	// newview->sin = FINESINE(viewangle>>ANGLETOFINESHIFT);
 	// newview->cos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
 
-	R_InterpolateView(R_UsingFrameInterpolation() ? rendertimefrac : FRACUNIT);
+	R_InterpolateView(R_UsingFrameInterpolation() ? rendertimefrac : FRACUNIT, false);
 }
 
 #define ANGLED_PORTALS
@@ -1898,8 +1925,11 @@ void R_RegisterEngineStuff(void)
 
 	CV_RegisterVar(&cv_showhud);
 	CV_RegisterVar(&cv_translucenthud);
+	CV_RegisterVar(&cv_uncappedhud);
 
 	CV_RegisterVar(&cv_maxportals);
+	
+	CV_RegisterVar(&cv_pointoangleexor64);
 
 	CV_RegisterVar(&cv_grmaxinterpdist);
 
@@ -1910,4 +1940,5 @@ void R_RegisterEngineStuff(void)
 	// Frame interpolation/uncapped
 	CV_RegisterVar(&cv_fpscap);
 	CV_RegisterVar(&cv_precipinterp);
+	CV_RegisterVar(&cv_mobjssector);
 }

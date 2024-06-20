@@ -35,7 +35,6 @@
 #include "p_spec.h"
 #include "m_cheat.h"
 #include "d_clisrv.h"
-#include "v_video.h"
 #include "d_main.h"
 #include "m_random.h"
 #include "f_finale.h"
@@ -74,9 +73,6 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum);
 static void Got_ModifyVotecmd(UINT8 **cp, INT32 playernum);
 static void Got_PickVotecmd(UINT8 **cp, INT32 playernum);
 static void Got_RequestAddfilecmd(UINT8 **cp, INT32 playernum);
-#ifdef DELFILE
-static void Got_Delfilecmd(UINT8 **cp, INT32 playernum);
-#endif
 static void Got_Addfilecmd(UINT8 **cp, INT32 playernum);
 static void Got_Pause(UINT8 **cp, INT32 playernum);
 static void Got_Respawn(UINT8 **cp, INT32 playernum);
@@ -146,9 +142,6 @@ static void Command_Addfile(void);
 static void Command_Addskins(void);
 static void Command_GLocalSkin(void);
 static void Command_ListWADS_f(void);
-#ifdef DELFILE
-static void Command_Delfile(void);
-#endif
 static void Command_RunSOC(void);
 static void Command_Pause(void);
 static void Command_Respawn(void);
@@ -201,9 +194,7 @@ static void Command_SkinSearch(void);
 
 #ifdef _DEBUG
 static void Command_Togglemodified_f(void);
-#ifdef HAVE_BLUA
 static void Command_Archivetest_f(void);
-#endif
 #endif
 
 // =========================================================================
@@ -387,9 +378,12 @@ consvar_t cv_dualjawz = 			{"dualjawz", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, N
 
 //sneakerextender
 static CV_PossibleValue_t extensiontype_cons_t[] = {{1, "bs"}, {2, "zbl"}, {0, NULL}};
-consvar_t cv_sneakerextend = 				{"sneakerextend", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerextend = {"sneakerextend", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sneakerextendtype = {"sneakerextendtype", "zbl", CV_NETVAR|CV_CHEAT, extensiontype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+// I really need to add types to this chirst
+static CV_PossibleValue_t chainoffroadtype_cons_t[] = {{0, "Off"}, {1, "Both"}, {2, "Sneaker Only"}, {3, "Panel Only"}, {0, NULL}};
+consvar_t cv_chainoffroad = {"chainoffroad", "Both", CV_NETVAR|CV_CHEAT, chainoffroadtype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 //additiveminiturbos
 consvar_t cv_additivemt  = 				{"additivemt", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -400,11 +394,9 @@ consvar_t cv_bluesparktics = {"bluesparktics", "20", CV_NETVAR|CV_CHEAT, sparkti
 consvar_t cv_redsparktics = {"redsparktics", "50", CV_NETVAR|CV_CHEAT, sparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_rainbowsparktics = {"rainbowsparktics", "125", CV_NETVAR|CV_CHEAT, sparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-
-
 //stacking
-consvar_t cv_stacking  = 				{"stacking", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_stackingdim  = 				{"stackingdim", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stacking = {"stacking", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingdim = {"stackingdim", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t stackingdimval_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
 consvar_t cv_stackingdimval = {"stackingdimval", "1.20", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingdimval_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -413,9 +405,14 @@ static CV_PossibleValue_t sneakerstack_cons_t[] = {{1, "MIN"}, {INT32_MAX, "MAX"
 consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, sneakerstack_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
+consvar_t cv_panel = {"stacking_paneltimer", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_panelsharestack = {"stacking_panelsharestack", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_panelstack = {"stacking_panelstack", "2", CV_NETVAR|CV_CHEAT, sneakerstack_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+
+
 static CV_PossibleValue_t stackingbrakemod_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
 consvar_t cv_stackingbrakemod = {"stackingbrakemod", "0.05", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingbrakemod_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
 
 //Speed of boosts
 static CV_PossibleValue_t speed_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
@@ -451,7 +448,7 @@ consvar_t cv_speedcapval = {"stacking_speedcapval", "128", CV_NETVAR|CV_FLOAT|CV
 static CV_PossibleValue_t itemoddstype_cons_t[] = {{1, "Uranus"}, {2, "CEP"}, {0, NULL}};
 consvar_t cv_itemodds = {"itemoddsystem", "CEP", CV_NETVAR|CV_CHEAT, itemoddstype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t itemtable_cons_t[] = {{0, "MIN"}, {20, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t itemtable_cons_t[] = {{0, "MIN"}, {100, "MAX"}, {0, NULL}};
 //Item table customization 220 (Yes really)
 
 consvar_t cv_customodds = 				{"customodds", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -877,6 +874,48 @@ consvar_t cv_lessbattlevotes = {"lessbattlevotes", "No", CV_SAVE, CV_YesNo, NULL
 static CV_PossibleValue_t encorevotes_cons_t[] = {{0, "One"}, {1, "Except One"}, {0, NULL}};
 consvar_t cv_encorevotes = {"encorevotes", "One", CV_SAVE, encorevotes_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+static CV_PossibleValue_t nametagtrans_cons_t[] = {
+	{0, "Never"}, {1, "Far only"}, {2, "Dynamic"}, {3, "Always"}, {4, "HUD Trans."}, {0, NULL}};
+/*static CV_PossibleValue_t nametagscaling_cons_t[] = {
+	{0, "MIN"},  {320, "MAX"}, {0, NULL}};*/
+static CV_PossibleValue_t nametagdistance_cons_t[] = {
+	{0, "MIN"},  {640, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t nametagmaxplayer_cons_t[] = {
+    {1, "MIN"}, {MAXPLAYERS, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t nametagsize_cons_t[] = {
+	{0, "Off"}, {1, "Small"}, {2, "Minimal"}, {0, NULL}};
+static CV_PossibleValue_t nametagrestat_cons_t[] = {
+	{0, "Off"}, {1, "Restat"}, {2, "Always"}, {0, NULL}};
+
+consvar_t cv_nametag = {"kartnametag", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagtrans = {"kartnametagtransparency", "Dynamic", CV_SAVE, nametagtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagfacerank = {"kartnametagfacerank", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagrestat = {"kartnametagrestat", "Restat", CV_SAVE, nametagrestat_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagdist = {"kartnametagdist", "320", CV_SAVE, nametagdistance_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagmaxplayers = {"kartnametagmaxplayers", "3", CV_SAVE, nametagmaxplayer_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagmaxlenght = {"kartnametagmaxlenght", "12", CV_SAVE, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+//consvar_t cv_nametagscaling = {"nametagscaling", "160", CV_SAVE, nametagscaling_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_showownnametag = {"kartnametagshowown", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_smallnametags = {"kartnametagsmall", "Off", CV_SAVE, nametagsize_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametaghop = {"kartnametaghop", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametagscore = {"kartnametagscore", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nametaghealth = {"kartnametaghealth", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_shownametagfinish = {"kartshownametagfinished", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_shownametagspectator = {"kartshownametagspectator", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t driftgaugeoffset_cons_t[] = {
+	{-FRACUNIT*128, "MIN"}, {FRACUNIT*128, "MAX"}, {0, NULL}};
+
+static CV_PossibleValue_t driftgaugestyle_cons_t[] = {
+	{1, "Default"}, {2, "Small"}, {3, "Big Numbers"}, {4, "Numbers Only"}, {0, NULL}};
+
+consvar_t cv_driftgauge = {"kartdriftgauge", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftgaugeofs = {"kartdriftgaugeoffset", "-20", CV_FLOAT|CV_SAVE, driftgaugeoffset_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftgaugetrans = {"kartdriftgaugetransparency", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftgaugestyle = {"kartdriftgaugestyle", "1", CV_SAVE, driftgaugestyle_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_sneakerfire = {"kartsneakerfire", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 static CV_PossibleValue_t skinselectspin_cons_t[] = {
 	{0, "Off"}, {1, "Slow"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}, {7, "7"}, {8, "8"}, {9, "9"}, {10, "Fast"}, {SKINSELECTSPIN_PAIN, "Pain"}, {0, NULL}};
 consvar_t cv_skinselectspin = {"skinselectspin", "5", CV_SAVE, skinselectspin_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -938,7 +977,7 @@ const char *netxcmdnames[MAXNETXCMD - 1] =
 	"RANDOMSEED",
 	"RUNSOC",
 	"REQADDFILE",
-	"DELFILE",
+	"DELFILE", // sigh well this prob needs to be still here to not screw up maxnetxcmd
 	"SETMOTD",
 	"RESPAWN",
 	"DEMOTED",
@@ -946,10 +985,8 @@ const char *netxcmdnames[MAXNETXCMD - 1] =
 	"MODIFYVOTE",
 	"PICKVOTE",
 	"REMOVEPLAYER",
-#ifdef HAVE_BLUA
 	"LUACMD",
 	"LUAVAR"
-#endif
 };
 
 // =========================================================================
@@ -987,15 +1024,10 @@ void D_RegisterServerCommands(void)
 	RegisterNetXCmd(XD_EXITLEVEL, Got_ExitLevelcmd);
 	RegisterNetXCmd(XD_ADDFILE, Got_Addfilecmd);
 	RegisterNetXCmd(XD_REQADDFILE, Got_RequestAddfilecmd);
-#ifdef DELFILE
-	RegisterNetXCmd(XD_DELFILE, Got_Delfilecmd);
-#endif
 	RegisterNetXCmd(XD_PAUSE, Got_Pause);
 	RegisterNetXCmd(XD_RESPAWN, Got_Respawn);
 	RegisterNetXCmd(XD_RUNSOC, Got_RunSOCcmd);
-#ifdef HAVE_BLUA
 	RegisterNetXCmd(XD_LUACMD, Got_Luacmd);
-#endif
 
 	RegisterNetXCmd(XD_SETUPVOTE, Got_SetupVotecmd);
 	RegisterNetXCmd(XD_MODIFYVOTE, Got_ModifyVotecmd);
@@ -1032,9 +1064,6 @@ void D_RegisterServerCommands(void)
 	COM_AddCommand("localskin", Command_GLocalSkin);
 	COM_AddCommand("listwad", Command_ListWADS_f);
 
-#ifdef DELFILE
-	COM_AddCommand("delfile", Command_Delfile);
-#endif
 	COM_AddCommand("runsoc", Command_RunSOC);
 	COM_AddCommand("pause", Command_Pause);
 	COM_AddCommand("respawn", Command_Respawn);
@@ -1055,9 +1084,7 @@ void D_RegisterServerCommands(void)
 	COM_AddCommand("cheats", Command_Cheats_f); // test
 #ifdef _DEBUG
 	COM_AddCommand("togglemodified", Command_Togglemodified_f);
-#ifdef HAVE_BLUA
 	COM_AddCommand("archivetest", Command_Archivetest_f);
-#endif
 #endif
 
 	COM_AddCommand("replaymarker", Command_ReplayMarker);
@@ -1098,19 +1125,6 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_competitionboxes);
 	CV_RegisterVar(&cv_matchboxes);
 
-	/*CV_RegisterVar(&cv_recycler);
-	CV_RegisterVar(&cv_teleporters);
-	CV_RegisterVar(&cv_superring);
-	CV_RegisterVar(&cv_supersneakers);
-	CV_RegisterVar(&cv_invincibility);
-	CV_RegisterVar(&cv_jumpshield);
-	CV_RegisterVar(&cv_watershield);
-	CV_RegisterVar(&cv_ringshield);
-	CV_RegisterVar(&cv_forceshield);
-	CV_RegisterVar(&cv_bombshield);
-	CV_RegisterVar(&cv_1up);
-	CV_RegisterVar(&cv_eggmanbox);*/
-
 	K_RegisterKartStuff(); // SRB2kart
 
 	CV_RegisterVar(&cv_ringslinger);
@@ -1144,6 +1158,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_httpsource);
 #ifndef NONET
 	CV_RegisterVar(&cv_allownewplayer);
+	CV_RegisterVar(&cv_joinrefusemessage);
 	CV_RegisterVar(&cv_chatlogsize);
 #ifdef VANILLAJOINNEXTROUND
 	CV_RegisterVar(&cv_joinnextround);
@@ -1163,8 +1178,6 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_pingtimeout);
 	CV_RegisterVar(&cv_showping);
 	CV_RegisterVar(&cv_pingmeasurement);
-	CV_RegisterVar(&cv_pingicon);
-	CV_RegisterVar(&cv_pingstyle);
 
 #ifdef SEENAMES
 	CV_RegisterVar(&cv_allowseenames);
@@ -1187,8 +1200,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_recordmultiplayerdemos);
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
-	
-	CV_RegisterVar(&cv_cechotoggle);
+	CV_RegisterVar(&cv_keyboardlayout);
 }
 
 // =========================================================================
@@ -1267,6 +1279,9 @@ void D_RegisterClientCommands(void)
 #ifdef WALLSPLATS
 	CV_RegisterVar(&cv_splats);
 #endif
+	
+	// stacking boostflame color
+	CV_RegisterVar(&cv_stackingboostflamecolor);
 
 	// register these so it is saved to config
 	CV_RegisterVar(&cv_playername);
@@ -1306,6 +1321,11 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_timetic);
 	CV_RegisterVar(&cv_itemfinder);
 
+	CV_RegisterVar(&cv_pingicon);
+	CV_RegisterVar(&cv_pingstyle);
+
+	CV_RegisterVar(&cv_cechotoggle);
+
 	// time attack ghost options are also saved to config
 	CV_RegisterVar(&cv_ghost_besttime);
 	CV_RegisterVar(&cv_ghost_bestlap);
@@ -1314,42 +1334,8 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_ghost_staff);
 
 	COM_AddCommand("displayplayer", Command_Displayplayer_f);
-	
+
 	CV_RegisterVar(&cv_audbuffersize); 
-	
-#ifdef HAVE_OPENMPT
-	CV_RegisterVar(&cv_modfilter);
-	CV_RegisterVar(&cv_stereosep);
-	CV_RegisterVar(&cv_amigafilter);
-#if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
-	CV_RegisterVar(&cv_amigatype);
-#endif
-#endif
-
-	// FIXME: not to be here.. but needs be done for config loading
-	CV_RegisterVar(&cv_globalgamma);
-	CV_RegisterVar(&cv_globalsaturation);
-
-	CV_RegisterVar(&cv_rhue);
-	CV_RegisterVar(&cv_yhue);
-	CV_RegisterVar(&cv_ghue);
-	CV_RegisterVar(&cv_chue);
-	CV_RegisterVar(&cv_bhue);
-	CV_RegisterVar(&cv_mhue);
-
-	CV_RegisterVar(&cv_rgamma);
-	CV_RegisterVar(&cv_ygamma);
-	CV_RegisterVar(&cv_ggamma);
-	CV_RegisterVar(&cv_cgamma);
-	CV_RegisterVar(&cv_bgamma);
-	CV_RegisterVar(&cv_mgamma);
-
-	CV_RegisterVar(&cv_rsaturation);
-	CV_RegisterVar(&cv_ysaturation);
-	CV_RegisterVar(&cv_gsaturation);
-	CV_RegisterVar(&cv_csaturation);
-	CV_RegisterVar(&cv_bsaturation);
-	CV_RegisterVar(&cv_msaturation);
 
 	// m_menu.c
 	//CV_RegisterVar(&cv_compactscoreboard);
@@ -1362,16 +1348,18 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_chatbacktint);
 	CV_RegisterVar(&cv_songcredits);
 	CV_RegisterVar(&cv_showfreeplay);	
+	CV_RegisterVar(&cv_skinselectspin);
+	CV_RegisterVar(&cv_showallmaps);
 	
 	CV_RegisterVar(&cv_growmusic);
 	CV_RegisterVar(&cv_supermusic);
-			
+
 	CV_RegisterVar(&cv_showtrackaddon);
 	CV_RegisterVar(&cv_showviewpointtext);
-	
+
 	CV_RegisterVar(&cv_luaimmersion);
 	CV_RegisterVar(&cv_fakelocalskin);
-	
+
 	CV_RegisterVar(&cv_showlocalskinmenus);
 
 	//CV_RegisterVar(&cv_crosshair);
@@ -1418,6 +1406,18 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_lookbackaxis2);
 	CV_RegisterVar(&cv_lookbackaxis3);
 	CV_RegisterVar(&cv_lookbackaxis4);
+	CV_RegisterVar(&cv_custom1axis);
+	CV_RegisterVar(&cv_custom1axis2);
+	CV_RegisterVar(&cv_custom1axis3);
+	CV_RegisterVar(&cv_custom1axis4);
+	CV_RegisterVar(&cv_custom2axis);
+	CV_RegisterVar(&cv_custom2axis2);
+	CV_RegisterVar(&cv_custom2axis3);
+	CV_RegisterVar(&cv_custom2axis4);
+	CV_RegisterVar(&cv_custom3axis);
+	CV_RegisterVar(&cv_custom3axis2);
+	CV_RegisterVar(&cv_custom3axis3);
+	CV_RegisterVar(&cv_custom3axis4);
 	CV_RegisterVar(&cv_xdeadzone);
 	CV_RegisterVar(&cv_ydeadzone);
 	CV_RegisterVar(&cv_xdeadzone2);
@@ -1485,6 +1485,15 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_midimusicvolume);
 #endif
 	CV_RegisterVar(&cv_numChannels);
+	
+#ifdef HAVE_OPENMPT
+	CV_RegisterVar(&cv_modfilter);
+	CV_RegisterVar(&cv_stereosep);
+	CV_RegisterVar(&cv_amigafilter);
+#if OPENMPT_API_VERSION_MAJOR < 1 && OPENMPT_API_VERSION_MINOR > 4
+	CV_RegisterVar(&cv_amigatype);
+#endif
+#endif
 
 	// screen.c
 	CV_RegisterVar(&cv_fullscreen);
@@ -1497,17 +1506,39 @@ void D_RegisterClientCommands(void)
 
 	CV_RegisterVar(&cv_soundtest);
 	
-	CV_RegisterVar(&cv_skinselectspin);
+	CV_RegisterVar(&cv_nametag);
+	CV_RegisterVar(&cv_nametagtrans);
+	CV_RegisterVar(&cv_nametagfacerank);
+	CV_RegisterVar(&cv_nametagmaxplayers);
+	CV_RegisterVar(&cv_nametagmaxlenght);
+	//CV_RegisterVar(&cv_nametagscaling);
+	CV_RegisterVar(&cv_nametagdist);
+	CV_RegisterVar(&cv_showownnametag);
+	CV_RegisterVar(&cv_smallnametags);
+	CV_RegisterVar(&cv_nametagrestat);
+	CV_RegisterVar(&cv_nametaghop);
+	CV_RegisterVar(&cv_nametagscore);
+	
+	// If you take this for a vanilla-compat client remove hpmod stuff.
+	CV_RegisterVar(&cv_nametaghealth);
+	CV_RegisterVar(&cv_shownametagfinish);
+	CV_RegisterVar(&cv_shownametagspectator);
+	
+	CV_RegisterVar(&cv_driftgauge);
+	CV_RegisterVar(&cv_driftgaugeofs);
+	CV_RegisterVar(&cv_driftgaugetrans);
+	CV_RegisterVar(&cv_driftgaugestyle);
+
+	CV_RegisterVar(&cv_sneakerfire);
 
 	CV_RegisterVar(&cv_perfstats);
 	CV_RegisterVar(&cv_ps_thinkframe_page);
 	CV_RegisterVar(&cv_ps_samplesize);
 	CV_RegisterVar(&cv_ps_descriptor);
-	
+
 	//Value used to store last server player has joined
 	CV_RegisterVar(&cv_lastserver);
-	
-	CV_RegisterVar(&cv_showallmaps);
+
 	CV_RegisterVar(&cv_showmusicfilename);
 
 	// ingame object placing
@@ -1516,8 +1547,8 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_speed);
 	CV_RegisterVar(&cv_opflags);
 	CV_RegisterVar(&cv_mapthingnum);
-//	CV_RegisterVar(&cv_grid);
-//	CV_RegisterVar(&cv_snapto);
+	//CV_RegisterVar(&cv_grid);
+	//CV_RegisterVar(&cv_snapto);
 
 	// add cheat commands
 	COM_AddCommand("noclip", Command_CheatNoClip_f);
@@ -1543,7 +1574,7 @@ void D_RegisterClientCommands(void)
 #ifdef _DEBUG
 	COM_AddCommand("causecfail", Command_CauseCfail_f);
 #endif
-#if defined(HAVE_BLUA) && defined(LUA_ALLOW_BYTECODE)
+#if defined(LUA_ALLOW_BYTECODE)
 	COM_AddCommand("dumplua", Command_Dumplua_f);
 #endif
 
@@ -1552,6 +1583,8 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_discordstreamer);
 	CV_RegisterVar(&cv_discordasks);
 #endif
+
+	CV_RegisterVar(&cv_showspecstuff);
 
 	COM_AddCommand("listskins", Command_ListSkins);
 	COM_AddCommand("skinsearch", Command_SkinSearch);
@@ -3064,13 +3097,9 @@ void D_ModifyClientVote(SINT8 voted, UINT8 splitplayer)
 {
 	char buf[2];
 	char *p = buf;
-	UINT8 player = consoleplayer;
-
-	if (splitplayer > 0)
-		player = displayplayers[splitplayer];
 
 	WRITESINT8(p, voted);
-	WRITEUINT8(p, player);
+	WRITEUINT8(p, splitplayer);
 	SendNetXCmd(XD_MODIFYVOTE, &buf, 2);
 }
 
@@ -3368,9 +3397,7 @@ static void Got_Mapcmd(UINT8 **cp, INT32 playernum)
 	INT32 resetplayer = 1, lastgametype;
 	UINT8 skipprecutscene, FLS;
 	boolean pencoremode;
-/*#ifdef HAVE_BLUA
-	INT16 mapnumber;
-#endif*/
+	//INT16 mapnumber;
 
 	forceresetplayers = deferencoremode = false;
 
@@ -3436,10 +3463,8 @@ static void Got_Mapcmd(UINT8 **cp, INT32 playernum)
 	if (modeattacking) // i remember moving this here in internal fixed a heisenbug so
 		SetPlayerSkinByNum(0, cv_chooseskin.value-1);
 
-/*#ifdef HAVE_BLUA
-	mapnumber = M_MapNumber(mapname[3], mapname[4]);
-	LUAh_MapChange(mapnumber);
-#endif*/
+	//mapnumber = M_MapNumber(mapname[3], mapname[4]);
+	//LUAh_MapChange(mapnumber);
 
 	demo.savemode = (cv_recordmultiplayerdemos.value == 2) ? DSM_WILLAUTOSAVE : DSM_NOTSAVING;
 	demo.savebutton = 0;
@@ -4201,6 +4226,22 @@ static void Command_ServerTeamChange_f(void)
 	SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
 }
 
+void P_SetPlayerSpectator(INT32 playernum)
+{
+	//Make sure you're in the right gametype.
+	if (!G_GametypeHasTeams() && !G_GametypeHasSpectators())
+		return;
+
+	// Don't duplicate efforts.
+	if (players[playernum].spectator)
+		return;
+
+	players[playernum].spectator = true;
+	players[playernum].pflags &= ~PF_WANTSTOJOIN;
+
+	players[playernum].playerstate = PST_REBORN;
+}
+
 //todo: This and the other teamchange functions are getting too long and messy. Needs cleaning.
 static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 {
@@ -4330,81 +4371,34 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 
 	//Safety first!
 	// (not respawning spectators here...)
-	if (!players[playernum].spectator)
-	{
-		if (players[playernum].mo)
-		{
-			//if (!players[playernum].spectator)
-				P_DamageMobj(players[playernum].mo, NULL, NULL, 10000);
-			/*else
-			{
-				if (players[playernum].mo)
-				{
-					P_RemoveMobj(players[playernum].mo);
-					players[playernum].mo = NULL;
-				}
-				players[playernum].playerstate = PST_REBORN;
-			}*/
-		}
-		else
-			players[playernum].playerstate = PST_REBORN;
-	}
-	else
-		wasspectator = true;
+	wasspectator = (players[playernum].spectator == true);
 
-	players[playernum].pflags &= ~PF_WANTSTOJOIN;
+	if (!wasspectator)
+	{
+		if (gamestate == GS_LEVEL && players[playernum].mo)
+		{
+			P_DamageMobj(players[playernum].mo, NULL, NULL, 42000);
+		}
+
+		//...but because the above could return early under some contexts, we try again here
+		P_SetPlayerSpectator(playernum);
+	}
+
+	//players[playernum].pflags &= ~PF_WANTSTOJOIN;
 
 	//Now that we've done our error checking and killed the player
 	//if necessary, put the player on the correct team/status.
-	if (G_TagGametype())
-	{
-		if (!NetPacket.packet.newteam)
-		{
-			players[playernum].spectator = true;
-			players[playernum].pflags &= ~PF_TAGIT;
-			players[playernum].pflags &= ~PF_TAGGED;
-		}
-		else if (NetPacket.packet.newteam != 3) // .newteam == 1 or 2.
-		{
-			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
-			players[playernum].pflags &= ~PF_TAGGED;//Just in case.
 
-			if (NetPacket.packet.newteam == 1) //Make the player IT.
-				players[playernum].pflags |= PF_TAGIT;
-			else
-				players[playernum].pflags &= ~PF_TAGIT;
-		}
-		else // Just join the game.
-		{
-			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+	if (NetPacket.packet.newteam != 0)
+	{
+		// This serves us in both teamchange contexts.
+		players[playernum].pflags |= PF_WANTSTOJOIN;
+	}
 
-			//If joining after hidetime in normal tag, default to being IT.
-			if (gametype == GT_TAG && (leveltime > (hidetime * TICRATE)))
-			{
-				NetPacket.packet.newteam = 1; //minor hack, causes the "is it" message to be printed later.
-				players[playernum].pflags |= PF_TAGIT; //make the player IT.
-			}
-		}
-	}
-	else if (G_GametypeHasTeams())
+	if (G_GametypeHasTeams())
 	{
-		if (!NetPacket.packet.newteam)
-		{
-			players[playernum].ctfteam = 0;
-			players[playernum].spectator = true;
-		}
-		else
-		{
-			players[playernum].ctfteam = NetPacket.packet.newteam;
-			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
-		}
-	}
-	else if (G_GametypeHasSpectators())
-	{
-		if (!NetPacket.packet.newteam)
-			players[playernum].spectator = true;
-		else
-			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+		// This one is, of course, specific.
+		players[playernum].ctfteam = NetPacket.packet.newteam;
 	}
 
 	if (NetPacket.packet.autobalance)
@@ -4457,7 +4451,7 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 		}
 	}
 
-	if (gamestate != GS_LEVEL)
+	if (gamestate != GS_LEVEL || wasspectator == true)
 		return;
 
 	demo_extradata[playernum] |= DXD_PLAYSTATE;
@@ -5198,42 +5192,6 @@ static void Command_GLocalSkin (void)
 	}
 }
 
-#ifdef DELFILE
-/** removes the last added pwad at runtime.
-  * Searches for sounds, maps, music and images to remove
-  */
-static void Command_Delfile(void)
-{
-	if (gamestate == GS_LEVEL)
-	{
-		CONS_Printf(M_GetText("You must NOT be in a level to use this.\n"));
-		return;
-	}
-
-	if (netgame && !(server || adminplayer == consoleplayer))
-	{
-		CONS_Printf(M_GetText("Only the server or a remote admin can use this.\n"));
-		return;
-	}
-
-	if (numwadfiles <= mainwads)
-	{
-		CONS_Printf(M_GetText("No additional WADs are loaded.\n"));
-		return;
-	}
-
-	if (!(netgame || multiplayer))
-	{
-		P_DelWadFile();
-		if (mainwads == numwadfiles && modifiedgame)
-			modifiedgame = false;
-		return;
-	}
-
-	SendNetXCmd(XD_DELFILE, NULL, 0);
-}
-#endif
-
 static void Got_RequestAddfilecmd(UINT8 **cp, INT32 playernum)
 {
 	char filename[241];
@@ -5301,33 +5259,6 @@ static void Got_RequestAddfilecmd(UINT8 **cp, INT32 playernum)
 
 	COM_BufAddText(va("addfile %s\n", filename));
 }
-
-#ifdef DELFILE
-static void Got_Delfilecmd(UINT8 **cp, INT32 playernum)
-{
-	if (playernum != serverplayer && playernum != adminplayer)
-	{
-		CONS_Alert(CONS_WARNING, M_GetText("Illegal delfile command received from %s\n"), player_names[playernum]);
-		if (server)
-		{
-			UINT8 buf[2];
-
-			buf[0] = (UINT8)playernum;
-			buf[1] = KICK_MSG_CON_FAIL;
-			SendNetXCmd(XD_KICK, &buf, 2);
-		}
-		return;
-	}
-	(void)cp;
-
-	if (numwadfiles <= mainwads) //sanity
-		return;
-
-	P_DelWadFile();
-	if (mainwads == numwadfiles && modifiedgame)
-		modifiedgame = false;
-}
-#endif
 
 static void Got_Addfilecmd(UINT8 **cp, INT32 playernum)
 {
@@ -6244,7 +6175,6 @@ static void Command_Togglemodified_f(void)
 	modifiedgame = !modifiedgame;
 }
 
-#ifdef HAVE_BLUA
 extern UINT8 *save_p;
 static void Command_Archivetest_f(void)
 {
@@ -6288,7 +6218,6 @@ static void Command_Archivetest_f(void)
 	Z_Free(buf);
 	CONS_Printf("Done. No crash.\n");
 }
-#endif
 #endif
 
 /** Makes a change to ::cv_forceskin take effect immediately.

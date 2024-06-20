@@ -382,7 +382,7 @@ UINT32 P_GetScoreForGrade(INT16 map, UINT8 mare, UINT8 grade)
   * \sa ML_VERTEXES
   */
 
-static inline void P_LoadRawVertexes(UINT8 *data, size_t i)
+FUNCINLINE static ATTRINLINE void P_LoadRawVertexes(UINT8 *data, size_t i)
 {
 	mapvertex_t *ml;
 	vertex_t *li;
@@ -506,7 +506,7 @@ static void P_LoadSegs(lumpnum_t lumpnum)
   * \param lump Lump number of the SSECTORS resource.
   * \sa ::ML_SSECTORS
   */
-static inline void P_LoadRawSubsectors(void *data, size_t i)
+FUNCINLINE static ATTRINLINE void P_LoadRawSubsectors(void *data, size_t i)
 {
 	mapsubsector_t *ms;
 	subsector_t *ss;
@@ -753,15 +753,6 @@ static void P_LoadRawSectors(UINT8 *data, size_t i)
 
 		ss->floorspeed = 0;
 		ss->ceilspeed = 0;
-
-#ifdef HWRENDER // ----- for special tricks with HW renderer -----
-		ss->pseudoSector = false;
-		ss->virtualFloor = false;
-		ss->virtualCeiling = false;
-		ss->sectorLines = NULL;
-		ss->stackList = NULL;
-		ss->lineoutLength = -1.0l;
-#endif // ----- end special tricks -----
 	}
 
 	// set the sky flat num
@@ -1443,7 +1434,9 @@ static void P_LoadRawSideDefs2(void *data)
 			case 606: //SoM: 4/4/2000: Just colormap transfer
 				// SoM: R_CreateColormap will only create a colormap in software mode...
 				// Perhaps we should just call it instead of doing the calculations here.
-				if (rendermode == render_soft || rendermode == render_none)
+#ifdef HWRENDER
+				if (rendermode != render_opengl)
+#endif
 				{
 					if (msd->toptexture[0] == '#' || msd->bottomtexture[0] == '#')
 					{
@@ -2247,42 +2240,6 @@ static void P_LoadRawReject(UINT8 *data, size_t count, const char *lumpname)
 	}
 }
 
-#if 0
-static char *levellumps[] =
-{
-	"label",        // ML_LABEL,    A separator, name, MAPxx
-	"THINGS",       // ML_THINGS,   Enemies, items..
-	"LINEDEFS",     // ML_LINEDEFS, Linedefs, from editing
-	"SIDEDEFS",     // ML_SIDEDEFS, Sidedefs, from editing
-	"VERTEXES",     // ML_VERTEXES, Vertices, edited and BSP splits generated
-	"SEGS",         // ML_SEGS,     Linesegs, from linedefs split by BSP
-	"SSECTORS",     // ML_SSECTORS, Subsectors, list of linesegs
-	"NODES",        // ML_NODES,    BSP nodes
-	"SECTORS",      // ML_SECTORS,  Sectors, from editing
-	"REJECT",       // ML_REJECT,   LUT, sector-sector visibility
-};
-
-/** Checks a lump and returns whether it is a valid start-of-level marker.
-  *
-  * \param lumpnum Lump number to check.
-  * \return True if the lump is a valid level marker, false if not.
-  */
-static inline boolean P_CheckLevel(lumpnum_t lumpnum)
-{
-	UINT16 file, lump;
-	size_t i;
-
-	for (i = ML_THINGS; i <= ML_REJECT; i++)
-	{
-		file = WADFILENUM(lumpnum);
-		lump = LUMPNUM(lumpnum+1);
-		if (file > numwadfiles || lump < LUMPNUM(lumpnum) || lump > wadfiles[file]->numlumps ||
-			memcmp(wadfiles[file]->lumpinfo[lump].name, levellumps[i], 8) != 0)
-		return false;
-	}
-	return true; // all right
-}
-#endif
 
 /** Sets up a sky texture to use for the level.
   * The sky texture is used instead of F_SKY1.
@@ -2315,13 +2272,14 @@ lumpnum_t lastloadedmaplumpnum; // for comparative savegame
 //
 // Some player initialization for map start.
 //
-static void P_LevelInitStuff(void)
+static void P_LevelInitStuff(boolean reloadinggamestate)
 {
 	INT32 i;
 
 	leveltime = 0;
 
-	memset(localaiming, 0, sizeof(localaiming));
+	//I have no clue where to place this, uh oh
+	//memset(localaiming, 0, sizeof(localaiming));
 
 	// map object scale
 	mapobjectscale = mapheaderinfo[gamemap-1]->mobj_scale;
@@ -2350,7 +2308,10 @@ static void P_LevelInitStuff(void)
 	// circuit, race and competition stuff
 	circuitmap = false;
 	numstarposts = 0;
-	totalrings = timeinmap = 0;
+	totalrings = 0;
+
+	if (!reloadinggamestate)
+		timeinmap = 0;
 
 	// special stage
 	stagefailed = false;
@@ -2366,15 +2327,7 @@ static void P_LevelInitStuff(void)
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-#if 0
-		if ((netgame || multiplayer) && (gametype == GT_COMPETITION || players[i].lives <= 0))
-		{
-			// In Co-Op, replenish a user's lives if they are depleted.
-			players[i].lives = cv_startinglives.value;
-		}
-#else
 		players[i].lives = 1; // SRB2Kart
-#endif
 
 		players[i].realtime = racecountdown = exitcountdown = 0;
 		curlap = bestlap = 0; // SRB2Kart
@@ -2460,7 +2413,7 @@ void P_LoadThingsOnly(void)
 			P_RemoveMobj(mo);
 	}
 
-	P_LevelInitStuff();
+	P_LevelInitStuff(false);
 
 	if (W_IsLumpWad(lastloadedmaplumpnum)) // welp it's a map wad in a pk3
 	{ // HACK: Open wad file rather quickly so we can use the things lump
@@ -2699,47 +2652,6 @@ static void P_LoadRecordGhosts(void)
 	free(gpath);
 }
 
-/*static void P_LoadNightsGhosts(void)
-{
-	const size_t glen = strlen(srb2home)+1+strlen("replay")+1+strlen(timeattackfolder)+1+strlen("MAPXX")+1;
-	char *gpath = malloc(glen);
-
-	if (!gpath)
-		return;
-
-	sprintf(gpath,"%s"PATHSEP"replay"PATHSEP"%s"PATHSEP"%s", srb2home, timeattackfolder, G_BuildMapName(gamemap));
-
-	// Best Score ghost
-	if (cv_ghost_bestscore.value && FIL_FileExists(va("%s-score-best.lmp", gpath)))
-			G_AddGhost(va("%s-score-best.lmp", gpath));
-
-	// Best Time ghost
-	if (cv_ghost_besttime.value && FIL_FileExists(va("%s-time-best.lmp", gpath)))
-			G_AddGhost(va("%s-time-best.lmp", gpath));
-
-	// Last ghost
-	if (cv_ghost_last.value && FIL_FileExists(va("%s-last.lmp", gpath)))
-		G_AddGhost(va("%s-last.lmp", gpath));
-
-	// Guest ghost
-	if (cv_ghost_guest.value && FIL_FileExists(va("%s-guest.lmp", gpath)))
-		G_AddGhost(va("%s-guest.lmp", gpath));
-
-	// Staff Attack ghosts
-	if (cv_ghost_staff.value)
-	{
-		lumpnum_t l;
-		UINT8 i = 1;
-		while (i <= 99 && (l = W_CheckNumForName(va("%sS%02u",G_BuildMapName(gamemap),i))) != LUMPERROR)
-		{
-			G_AddGhost(va("%sS%02u",G_BuildMapName(gamemap),i));
-			i++;
-		}
-	}
-
-	free(gpath);
-}*/
-
 static void P_SetupCamera(UINT8 pnum, camera_t *cam)
 {
 	if (players[pnum].mo && (server || addedtogame))
@@ -2808,7 +2720,7 @@ static boolean P_CanSave(void)
   * \param skipprecip If true, don't spawn precipitation.
   * \todo Clean up, refactor, split up; get rid of the bloat.
   */
-boolean P_SetupLevel(boolean skipprecip)
+boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 {
 	// use gamemap to get map number.
 	// 99% of the things already did, so.
@@ -2846,7 +2758,7 @@ boolean P_SetupLevel(boolean skipprecip)
 	if (cv_runscripts.value && mapheaderinfo[gamemap-1]->scriptname[0] != '#')
 		P_RunLevelScript(mapheaderinfo[gamemap-1]->scriptname);
 
-	P_LevelInitStuff();
+	P_LevelInitStuff(reloadinggamestate);
 
 	for (i = 0; i <= splitscreen; i++)
 		postimgtype[i] = postimg_none;
@@ -2883,9 +2795,12 @@ boolean P_SetupLevel(boolean skipprecip)
 	// will be set by player think.
 	players[consoleplayer].viewz = 1;
 
+	// Cancel all d_main.c fadeouts (keep fade in though).
+	if (reloadinggamestate)
+		wipegamestate = gamestate; // Don't fade if reloading the gamestate
 	// Encore mode fade to pink to white
 	// This is handled BEFORE sounds are stopped.
-	if (encoremode && !prevencoremode && !demo.rewinding)
+	else if (encoremode && !prevencoremode && !demo.rewinding)
 	{
 		tic_t locstarttime, endtime, nowtime;
 
@@ -2944,13 +2859,14 @@ boolean P_SetupLevel(boolean skipprecip)
 
 	// As oddly named as this is, this handles music only.
 	// We should be fine starting it here.
-	S_Start();
+	if(!reloadinggamestate)
+		S_Start();
 
 	levelfadecol = (encoremode && !ranspecialwipe ? 122 : 120);
 
 	// Let's fade to white here
 	// But only if we didn't do the encore startup wipe
-	if (!ranspecialwipe && !demo.rewinding)
+	if (!ranspecialwipe && !demo.rewinding && !reloadinggamestate)
 	{
 		if(rendermode != render_none)
 		{
@@ -2985,9 +2901,7 @@ boolean P_SetupLevel(boolean skipprecip)
 		I_UpdateNoVsync();
 	}*/
 
-#ifdef HAVE_BLUA
 	LUA_InvalidateLevel();
-#endif
 
 	for (ss = sectors; sectors+numsectors != ss; ss++)
 	{
@@ -3033,6 +2947,8 @@ boolean P_SetupLevel(boolean skipprecip)
 
 	// SRB2 determines the sky texture to be used depending on the map header.
 	P_SetupLevelSky(mapheaderinfo[gamemap-1]->skynum, true);
+
+	P_InitSlopes();
 
 	P_MakeMapMD5(lastloadedmaplumpnum, &mapmd5);
 
@@ -3128,7 +3044,8 @@ boolean P_SetupLevel(boolean skipprecip)
 		P_PrepareThings(lastloadedmaplumpnum + ML_THINGS);
 	}
 
-	P_ResetDynamicSlopes();
+	P_ResetDynamicSlopes(fromnetsave);
+	P_LinkSlopeThinkers(); // Spawn slope thinkers just after plane move thinkers to avoid movement/update delays.
 
 	P_LoadThings();
 
@@ -3352,13 +3269,16 @@ boolean P_SetupLevel(boolean skipprecip)
 		CV_SetValue(&cv_analog, false);
 	}*/
 
+	if (!reloadinggamestate)
+		memset(localaiming, 0, sizeof(localaiming));
+
 	// clear special respawning que
 	iquehead = iquetail = 0;
 
 	P_MapEnd();
 
 	// Remove the loading shit from the screen
-	if (rendermode != render_none)
+	if (rendermode != render_none && (!reloadinggamestate))
 		V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, levelfadecol);
 
 	if (precache || dedicated)
@@ -3402,9 +3322,14 @@ boolean P_SetupLevel(boolean skipprecip)
 				G_CopyTiccmd(&players[i].cmd, &netcmds[buf][i], 1);
 		}
 		P_PreTicker(2);
-#ifdef HAVE_BLUA
 		LUAh_MapLoad();
-#endif
+	}
+
+	if (rendermode != render_none)
+	{
+		R_ResetViewInterpolation(0);
+		R_ResetViewInterpolation(0);
+		R_UpdateMobjInterpolators();
 	}
 
 	G_AddMapToBuffer(gamemap-1);
@@ -3416,8 +3341,6 @@ boolean P_SetupLevel(boolean skipprecip)
 void HWR_LoadLevel(void)
 {
 	HWR_FreeMipmapCache();
-	// Correct missing sidedefs & deep water trick
-	HWR_CorrectSWTricks();
 	HWR_CreatePlanePolygons((INT32)numnodes - 1);
 
 	if (HWR_ShouldUsePaletteRendering())
@@ -3682,31 +3605,3 @@ boolean P_MultiSetupWadFiles(boolean fullsetup)
 		return false;
 	}
 }
-
-#ifdef DELFILE
-boolean P_DelWadFile(void)
-{
-	sfxenum_t i;
-	const UINT16 wadnum = (UINT16)(numwadfiles - 1);
-	const lumpnum_t lumpnum = numwadfiles<<16;
-	//lumpinfo_t *lumpinfo = wadfiles[wadnum]->lumpinfo;
-	R_DelSkins(wadnum); // only used by DELFILE
-	R_DelSpriteDefs(wadnum); // only used by DELFILE
-	for (i = 0; i < NUMSFX; i++)
-	{
-		if (S_sfx[i].lumpnum != LUMPERROR && S_sfx[i].lumpnum >= lumpnum)
-		{
-			S_StopSoundByNum(i);
-			S_RemoveSoundFx(i);
-			if (S_sfx[i].lumpnum != LUMPERROR)
-			{
-				I_FreeSfx(&S_sfx[i]);
-				S_sfx[i].lumpnum = LUMPERROR;
-			}
-		}
-	}
-	W_UnloadWadFile(wadnum); // only used by DELFILE
-	R_LoadTextures();
-	return false;
-}
-#endif

@@ -34,6 +34,8 @@
 #include "b_bot.h"
 #include "p_slopes.h"
 
+#include "d_main.h" // stacking effect AAAAAAAAAAAAAAA
+
 #include "k_kart.h"
 
 // protos.
@@ -42,6 +44,8 @@
 #ifdef WALLSPLATS
 consvar_t cv_splats = {"splats", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
+
+consvar_t cv_stackingboostflamecolor = {"stacking_boostflamecolor", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 actioncache_t actioncachehead;
 
@@ -63,9 +67,8 @@ void P_RunCachedActions(void)
 	{
 		var1 = states[ac->statenum].var1;
 		var2 = states[ac->statenum].var2;
-#ifdef HAVE_BLUA
 		astate = &states[ac->statenum];
-#endif
+
 		if (ac->mobj && !P_MobjWasRemoved(ac->mobj)) // just in case...
 			states[ac->statenum].action.acp1(ac->mobj);
 		next = ac->next;
@@ -220,9 +223,8 @@ boolean P_SetPlayerMobjState(mobj_t *mobj, statenum_t state)
 		{
 			var1 = st->var1;
 			var2 = st->var2;
-#ifdef HAVE_BLUA
 			astate = st;
-#endif
+
 			st->action.acp1(mobj);
 
 			// woah. a player was removed by an action.
@@ -288,9 +290,8 @@ boolean P_SetMobjState(mobj_t *mobj, statenum_t state)
 		{
 			var1 = st->var1;
 			var2 = st->var2;
-#ifdef HAVE_BLUA
 			astate = st;
-#endif
+
 			st->action.acp1(mobj);
 			if (P_MobjWasRemoved(mobj))
 				return false;
@@ -590,29 +591,41 @@ void P_ExplodeMissile(mobj_t *mo)
 		P_RadiusAttack(mo, mo, 96*FRACUNIT);
 
 		explodemo = P_SpawnMobj(mo->x, mo->y, mo->z, MT_EXPLODE);
-		P_SetScale(explodemo, mo->scale);
-		explodemo->destscale = mo->destscale;
-		explodemo->momx += (P_RandomByte() % 32) * FixedMul(FRACUNIT/8, explodemo->scale);
-		explodemo->momy += (P_RandomByte() % 32) * FixedMul(FRACUNIT/8, explodemo->scale);
-		S_StartSound(explodemo, sfx_pop);
+		if (!P_MobjWasRemoved(explodemo))
+		{
+			P_SetScale(explodemo, mo->scale);
+			explodemo->destscale = mo->destscale;
+			explodemo->momx += (P_RandomByte() % 32) * FixedMul(FRACUNIT/8, explodemo->scale);
+			explodemo->momy += (P_RandomByte() % 32) * FixedMul(FRACUNIT/8, explodemo->scale);
+			S_StartSound(explodemo, sfx_pop);
+		}
 		explodemo = P_SpawnMobj(mo->x, mo->y, mo->z, MT_EXPLODE);
-		P_SetScale(explodemo, mo->scale);
-		explodemo->destscale = mo->destscale;
-		explodemo->momx += (P_RandomByte() % 64) * FixedMul(FRACUNIT/8, explodemo->scale);
-		explodemo->momy -= (P_RandomByte() % 64) * FixedMul(FRACUNIT/8, explodemo->scale);
-		S_StartSound(explodemo, sfx_dmpain);
+		if (!P_MobjWasRemoved(explodemo))
+		{
+			P_SetScale(explodemo, mo->scale);
+			explodemo->destscale = mo->destscale;
+			explodemo->momx += (P_RandomByte() % 64) * FixedMul(FRACUNIT/8, explodemo->scale);
+			explodemo->momy -= (P_RandomByte() % 64) * FixedMul(FRACUNIT/8, explodemo->scale);
+			S_StartSound(explodemo, sfx_dmpain);
+		}
 		explodemo = P_SpawnMobj(mo->x, mo->y, mo->z, MT_EXPLODE);
-		P_SetScale(explodemo, mo->scale);
-		explodemo->destscale = mo->destscale;
-		explodemo->momx -= (P_RandomByte() % 128) * FixedMul(FRACUNIT/8, explodemo->scale);
-		explodemo->momy += (P_RandomByte() % 128) * FixedMul(FRACUNIT/8, explodemo->scale);
-		S_StartSound(explodemo, sfx_pop);
+		if (!P_MobjWasRemoved(explodemo))
+		{
+			P_SetScale(explodemo, mo->scale);
+			explodemo->destscale = mo->destscale;
+			explodemo->momx -= (P_RandomByte() % 128) * FixedMul(FRACUNIT/8, explodemo->scale);
+			explodemo->momy += (P_RandomByte() % 128) * FixedMul(FRACUNIT/8, explodemo->scale);
+			S_StartSound(explodemo, sfx_pop);
+		}
 		explodemo = P_SpawnMobj(mo->x, mo->y, mo->z, MT_EXPLODE);
-		P_SetScale(explodemo, mo->scale);
-		explodemo->destscale = mo->destscale;
-		explodemo->momx -= (P_RandomByte() % 96) * FixedMul(FRACUNIT/8, explodemo->scale);
-		explodemo->momy -= (P_RandomByte() % 96) * FixedMul(FRACUNIT/8, explodemo->scale);
-		S_StartSound(explodemo, sfx_cybdth);
+		if (!P_MobjWasRemoved(explodemo))
+		{
+			P_SetScale(explodemo, mo->scale);
+			explodemo->destscale = mo->destscale;
+			explodemo->momx -= (P_RandomByte() % 96) * FixedMul(FRACUNIT/8, explodemo->scale);
+			explodemo->momy -= (P_RandomByte() % 96) * FixedMul(FRACUNIT/8, explodemo->scale);
+			S_StartSound(explodemo, sfx_cybdth);
+		}
 
 		// Hack: Release an animal.
 		P_DamageMobj(mo, NULL, NULL, 10000);
@@ -642,13 +655,8 @@ boolean P_InsideANonSolidFFloor(mobj_t *mobj, ffloor_t *rover)
 		|| ((rover->flags & FF_BLOCKOTHERS) && !mobj->player)))
 		return false;
 
-	topheight = *rover->topheight;
-	bottomheight = *rover->bottomheight;
-
-	if (*rover->t_slope)
-		topheight = P_GetZAt(*rover->t_slope, mobj->x, mobj->y);
-	if (*rover->b_slope)
-		bottomheight = P_GetZAt(*rover->b_slope, mobj->x, mobj->y);
+	topheight    = P_GetFFloorTopZAt   (rover, mobj->x, mobj->y);
+	bottomheight = P_GetFFloorBottomZAt(rover, mobj->x, mobj->y);
 
 	if (mobj->z > topheight)
 		return false;
@@ -791,7 +799,7 @@ fixed_t P_MobjFloorZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed_t
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -867,7 +875,7 @@ fixed_t P_MobjCeilingZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -920,6 +928,7 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 {
 	I_Assert(mobj != NULL);
 	I_Assert(sector != NULL);
+
 	if (sector->f_slope) {
 		fixed_t testx, testy;
 		pslope_t *slope = sector->f_slope;
@@ -944,7 +953,7 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -996,6 +1005,7 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 {
 	I_Assert(mobj != NULL);
 	I_Assert(sector != NULL);
+
 	if (sector->c_slope) {
 		fixed_t testx, testy;
 		pslope_t *slope = sector->c_slope;
@@ -1020,7 +1030,7 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -1502,7 +1512,7 @@ void P_XYMovement(mobj_t *mo)
 	fixed_t oldx, oldy; // reducing bobbing/momentum on ice when up against walls
 	boolean moved;
 	pslope_t *oldslope = NULL;
-	vector3_t slopemom;
+	vector3_t slopemom = {0,0,0};
 	fixed_t predictedz = 0;
 
 	I_Assert(mo != NULL);
@@ -3107,25 +3117,8 @@ void P_MobjCheckWater(mobj_t *mobj)
 				P_FlashPal(p, PAL_WHITE, 1);
 			}
 		}
-
-		// Drown timer setting
-		/* // SRB2kart - Can't drown.
-		if ((p->powers[pw_shield] & SH_NOSTACK) == SH_ELEMENTAL // Has elemental
-		 || (p->exiting) // Or exiting
-		 || (maptol & TOL_NIGHTS) // Or in NiGHTS mode
-		 || (mariomode)) // Or in Mario mode...
-		*/
-		{
-			// Can't drown.
-			p->powers[pw_underwater] = 0;
-		}
-		/*
-		else if (p->powers[pw_underwater] <= 0) // No underwater timer set
-		{
-			// Then we'll set it!
-			p->powers[pw_underwater] = underwatertics + 1;
-		}
-		*/
+		// Can't drown.
+		p->powers[pw_underwater] = 0;
 	}
 
 	// The rest of this code only executes on a water state change.
@@ -3351,11 +3344,9 @@ static boolean P_CameraCheckHeat(camera_t *thiscam)
 			if (!(rover->flags & FF_EXISTS))
 				continue;
 
-			if (halfheight >= (
-					*rover->t_slope ? P_GetZAt(*rover->t_slope, thiscam->x, thiscam->y) :
-					*rover->topheight) || halfheight <= (
-					*rover->b_slope ? P_GetZAt(*rover->b_slope, thiscam->x, thiscam->y) :
-					*rover->bottomheight))
+			if (halfheight >= P_GetFFloorTopZAt(rover, thiscam->x, thiscam->y))
+				continue;
+			if (halfheight <= P_GetFFloorBottomZAt(rover, thiscam->x, thiscam->y))
 				continue;
 
 			if (P_FindSpecialLineFromTag(13, rover->master->frontsector->tag, -1) != -1)
@@ -3383,11 +3374,9 @@ static boolean P_CameraCheckWater(camera_t *thiscam)
 			if (!(rover->flags & FF_EXISTS) || !(rover->flags & FF_SWIMMABLE) || rover->flags & FF_BLOCKOTHERS)
 				continue;
 
-			if (halfheight >= (
-					*rover->t_slope ? P_GetZAt(*rover->t_slope, thiscam->x, thiscam->y) :
-					*rover->topheight) || halfheight <= (
-					*rover->b_slope ? P_GetZAt(*rover->b_slope, thiscam->x, thiscam->y) :
-					*rover->bottomheight))
+			if (halfheight >= P_GetFFloorTopZAt(rover, thiscam->x, thiscam->y))
+				continue;
+			if (halfheight <= P_GetFFloorBottomZAt(rover, thiscam->x, thiscam->y))
 				continue;
 
 			return true;
@@ -3583,6 +3572,9 @@ static void P_PlayerMobjThinker(mobj_t *mobj)
 	I_Assert(mobj != NULL);
 	I_Assert(mobj->player != NULL);
 	I_Assert(!P_MobjWasRemoved(mobj));
+	
+	if (P_MobjWasRemoved(mobj))
+		return;
 
 	P_MobjCheckWater(mobj);
 
@@ -3742,9 +3734,7 @@ static void CalculatePrecipFloor(precipmobj_t *mobj)
 		mobjsecsubsec = mobj->subsector->sector;
 	else
 		return;
-	mobj->floorz =
-				mobjsecsubsec->f_slope ? P_GetZAt(mobjsecsubsec->f_slope, mobj->x, mobj->y) :
-				mobjsecsubsec->floorheight;
+	mobj->floorz = P_GetSectorFloorZAt(mobjsecsubsec, mobj->x, mobj->y);
 	if (mobjsecsubsec->ffloors)
 	{
 		ffloor_t *rover;
@@ -3759,10 +3749,7 @@ static void CalculatePrecipFloor(precipmobj_t *mobj)
 			if (!(rover->flags & FF_BLOCKOTHERS) && !(rover->flags & FF_SWIMMABLE))
 				continue;
 
-			if (*rover->t_slope)
-				topheight = P_GetZAt(*rover->t_slope, mobj->x, mobj->y);
-			else
-			topheight = *rover->topheight;
+			topheight = P_GetFFloorTopZAt(rover, mobj->x, mobj->y);;
 
 			if (topheight > mobj->floorz)
 				mobj->floorz = topheight;
@@ -5174,18 +5161,17 @@ static void P_Boss9Thinker(mobj_t *mobj)
 				mobj->angle -= InvAngle(angle)/8;
 
 			// Spawn energy particles
-			for (spawner = mobj->hnext; spawner; spawner = spawner->hnext) {
+			for (spawner = mobj->hnext; spawner; spawner = spawner->hnext)
+			{
 				dist = P_AproxDistance(spawner->x - mobj->x, spawner->y - mobj->y);
 				if (P_RandomRange(1,(dist>>FRACBITS)/16) == 1)
 					break;
 			}
-			if (spawner) {
+			if (spawner && dist)
+			{
 				mobj_t *missile = P_SpawnMissile(spawner, mobj, MT_MSGATHER);
 				missile->momz = FixedDiv(missile->momz, 7*FRACUNIT/4);
-				if (dist == 0)
-					missile->fuse = 0;
-				else
-					missile->fuse = (dist/P_AproxDistance(missile->momx, missile->momy));
+				missile->fuse = (dist/P_AproxDistance(missile->momx, missile->momy));
 				if (missile->fuse > mobj->fuse)
 					P_RemoveMobj(missile);
 			}
@@ -5775,10 +5761,8 @@ void P_SetScale(mobj_t *mobj, fixed_t newscale)
 
 	oldscale = mobj->scale; //keep for adjusting stuff below
 
-#ifdef HAVE_BLUA
 	if (LUAh_MobjScaleChange(mobj, newscale, oldscale) || P_MobjWasRemoved(mobj))
 		return;
-#endif // HAVE_BLUA
 
 	mobj->scale = newscale;
 
@@ -5989,6 +5973,7 @@ void P_RunOverlays(void)
 
 		if (!mo->target)
 			continue;
+
 		if (!splitscreen /*&& rendermode != render_soft*/)
 		{
 			angle_t viewingangle;
@@ -6264,6 +6249,9 @@ static void P_KoopaThinker(mobj_t *koopa)
 void P_RollPitchMobj(mobj_t* mobj)
 {
     boolean usedist = false;
+	
+	if (P_MobjWasRemoved(mobj))
+        return;
 
     if (cv_sloperolldist.value > 0)
         usedist = true;
@@ -6419,12 +6407,12 @@ void P_MobjThinker(mobj_t *mobj)
 	// Special thinker for scenery objects
 	if (mobj->flags & MF_SCENERY)
 	{
-#ifdef HAVE_BLUA
 		if (LUAh_MobjThinker(mobj))
 			return;
+
 		if (P_MobjWasRemoved(mobj))
 			return;
-#endif
+
 		switch (mobj->type)
 		{
 			case MT_HOOP:
@@ -7125,10 +7113,8 @@ void P_MobjThinker(mobj_t *mobj)
 					mobj->fuse--;
 					if (!mobj->fuse)
 					{
-#ifdef HAVE_BLUA
 						if (!LUAh_MobjFuse(mobj))
-#endif
-						P_RemoveMobj(mobj);
+							P_RemoveMobj(mobj);
 						return;
 					}
 				}
@@ -7139,7 +7125,6 @@ void P_MobjThinker(mobj_t *mobj)
 		return;
 	}
 
-#ifdef HAVE_BLUA
 	// Check for a Lua thinker first
 	if (!mobj->player)
 	{
@@ -7153,11 +7138,14 @@ void P_MobjThinker(mobj_t *mobj)
 		if (P_MobjWasRemoved(mobj))
 			return;
 	}
-#endif
+
 	// if it's pushable, or if it would be pushable other than temporary disablement, use the
 	// separate thinker
 	if (mobj->flags & MF_PUSHABLE || (mobj->info->flags & MF_PUSHABLE && mobj->fuse))
 	{
+		if (P_MobjWasRemoved(mobj))
+			return;
+
 		P_MobjCheckWater(mobj);
 		P_PushableThinker(mobj);
 
@@ -7171,7 +7159,6 @@ void P_MobjThinker(mobj_t *mobj)
 	}
 	else if (mobj->flags & MF_BOSS)
 	{
-#ifdef HAVE_BLUA
 		if (LUAh_BossThinker(mobj))
 		{
 			if (P_MobjWasRemoved(mobj))
@@ -7180,23 +7167,13 @@ void P_MobjThinker(mobj_t *mobj)
 		else if (P_MobjWasRemoved(mobj))
 			return;
 		else
-#endif
 		switch (mobj->type)
 		{
 			case MT_EGGMOBILE:
 				if (mobj->health < mobj->info->damage+1 && leveltime & 1 && mobj->health > 0)
 					P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_SMOKE);
 				if (mobj->flags2 & MF2_SKULLFLY)
-#if 1
 					P_SpawnGhostMobj(mobj);
-#else
-				{
-					mobj_t *spawnmobj;
-					spawnmobj = P_SpawnMobj(mobj->x, mobj->y, mobj->z, mobj->info->painchance);
-					P_SetTarget(&spawnmobj->target, mobj);
-					spawnmobj->color = SKINCOLOR_GREY;
-				}
-#endif
 				P_Boss1Thinker(mobj);
 				break;
 			case MT_EGGMOBILE2:
@@ -8149,7 +8126,7 @@ void P_MobjThinker(mobj_t *mobj)
 				P_RemoveMobj(mobj);
 				return;
 			}
-
+			
 			mobj->angle = mobj->target->angle;
 			P_MoveOrigin(mobj, mobj->target->x + P_ReturnThrustX(mobj, mobj->angle+ANGLE_180, mobj->target->radius),
 				mobj->target->y + P_ReturnThrustY(mobj, mobj->angle+ANGLE_180, mobj->target->radius), mobj->target->z);
@@ -8164,9 +8141,43 @@ void P_MobjThinker(mobj_t *mobj)
 
 				if (p)
 				{
-					if (p->kartstuff[k_sneakertimer] > mobj->movecount)
+					if (max(p->kartstuff[k_sneakertimer], p->kartstuff[k_paneltimer]) > mobj->movecount)
 						P_SetMobjState(mobj, S_BOOSTFLAME);
-					mobj->movecount = p->kartstuff[k_sneakertimer];
+					mobj->movecount = max(p->kartstuff[k_sneakertimer], p->kartstuff[k_paneltimer]);
+					
+					if (cv_stacking.value)
+					{
+						mobj->colorized = true; 
+						
+						if (cv_stackingboostflamecolor.value) // When stacking is on colorize effect based on stack count
+						{
+							switch(p->kartstuff[k_sneakerstack])
+							{
+								case 0:
+								case 1:
+									mobj->color = SKINCOLOR_FLAME;
+									break;
+								case 2:
+									mobj->color = SKINCOLOR_BLUEBERRY;
+									break;
+								case 3:
+									mobj->color = SKINCOLOR_PURPLE;
+									break;
+								case 4:
+									mobj->color = SKINCOLOR_MOONSLAM;
+									break;
+								case 5:
+									mobj->color = SKINCOLOR_WHITE;
+									break;
+								default:
+									mobj->color = SKINCOLOR_WHITE;
+									break;
+								
+							}
+						}
+						
+					}
+					
 				}
 			}
 
@@ -8185,6 +8196,29 @@ void P_MobjThinker(mobj_t *mobj)
 				P_Thrust(smoke, mobj->angle+FixedAngle(P_RandomRange(135, 225)<<FRACBITS), P_RandomRange(0, 8) * mobj->target->scale);
 			}
 			break;
+		case MT_BOOSTSTACK:	
+			if (!mobj->target || !mobj->target->health || (mobj->target->player && !mobj->target->player->kartstuff[k_totalstacks]))
+			{
+				P_RemoveMobj(mobj);
+				return;
+			}
+			
+			
+			// Thx 1ndev! (taken and modified from BoostStack)
+			P_MoveOrigin(mobj, mobj->target->x + FixedMul(cos(mobj->target->angle), FixedMul(30*FRACUNIT, mapobjectscale)), mobj->target->y + FixedMul(sin(mobj->target->angle), FixedMul(30*FRACUNIT, mapobjectscale)), mobj->target->z + mobj->target->spriteyoffset);
+
+			if (!cv_stackingeffect.value)
+				mobj->flags2 |= MF2_DONTDRAW;
+			else
+			{
+				// visibility (usually for hyudoro)
+				mobj->flags2 = (mobj->flags2 & ~MF2_DONTDRAW)|(mobj->target->flags2 & MF2_DONTDRAW);
+				mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP1)|(mobj->target->eflags & MFE_DRAWONLYFORP1);
+				mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP2)|(mobj->target->eflags & MFE_DRAWONLYFORP2);
+				mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP3)|(mobj->target->eflags & MFE_DRAWONLYFORP3);
+				mobj->eflags = (mobj->eflags & ~MFE_DRAWONLYFORP4)|(mobj->target->eflags & MFE_DRAWONLYFORP4);
+			}
+			break;	
 		case MT_SPARKLETRAIL:
 			if (!mobj->target)
 			{
@@ -9147,9 +9181,7 @@ void P_MobjThinker(mobj_t *mobj)
 			fixed_t x, y, z;
 			mobj_t *flagmo, *newmobj;
 
-#ifdef HAVE_BLUA
 			if (!LUAh_MobjFuse(mobj) && !P_MobjWasRemoved(mobj))
-#endif
 			switch (mobj->type)
 			{
 				// gargoyle and snowman handled in P_PushableThinker, not here
@@ -9330,7 +9362,7 @@ for (i = ((mobj->flags2 & MF2_STRONGBOX) ? strongboxamt : weakboxamt); i; --i) s
 
 						P_RemoveMobj(mobj);
 						return;
-					}
+					}			
 				default:
 					P_SetMobjState(mobj, mobj->info->xdeathstate); // will remove the mobj if S_NULL.
 					break;
@@ -9736,7 +9768,6 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 
 	mobj->colorized = false;
 
-#ifdef HAVE_BLUA
 	// DANGER! This can cause P_SpawnMobj to return NULL!
 	// Avoid using P_RemoveMobj on the newly created mobj in "MobjSpawn" Lua hooks!
 	if (LUAh_MobjSpawn(mobj))
@@ -9747,7 +9778,6 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	else if (P_MobjWasRemoved(mobj))
 		return NULL;
 	else
-#endif
 	switch (mobj->type)
 	{
 		case MT_CYBRAKDEMON_NAPALM_BOMB_LARGE:
@@ -10069,9 +10099,8 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 		{
 			var1 = st->var1;
 			var2 = st->var2;
-#ifdef HAVE_BLUA
 			astate = st;
-#endif
+
 			st->action.acp1(mobj);
 			// DANGER! This can cause P_SpawnMobj to return NULL!
 			// Avoid using MF_RUNSPAWNFUNC on mobjs whose spawn state expects target or tracer to already be set!
@@ -10184,9 +10213,8 @@ mobj_t *P_SpawnShadowMobj(mobj_t * caster)
 		{
 			var1 = st->var1;
 			var2 = st->var2;
-#ifdef HAVE_BLUA
 			astate = st;
-#endif
+
 			st->action.acp1(mobj);
 			// DANGER! This is the ONLY way for P_SpawnMobj to return NULL!
 			// Avoid using MF_RUNSPAWNFUNC on mobjs whose spawn state expects target or tracer to already be set!
@@ -10228,12 +10256,8 @@ static precipmobj_t *P_SpawnPrecipMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype
 	// set subsector and/or block links
 	P_SetPrecipitationThingPosition(mobj);
 
-	mobj->floorz = starting_floorz =
-				mobj->subsector->sector->f_slope ? P_GetZAt(mobj->subsector->sector->f_slope, x, y) :
-				mobj->subsector->sector->floorheight;
-	mobj->ceilingz =
-				mobj->subsector->sector->c_slope ? P_GetZAt(mobj->subsector->sector->c_slope, x, y) :
-				mobj->subsector->sector->ceilingheight;
+	mobj->floorz   = starting_floorz = P_GetSectorFloorZAt  (mobj->subsector->sector, x, y);
+	mobj->ceilingz                   = P_GetSectorCeilingZAt(mobj->subsector->sector, x, y);
 
 	mobj->z = z;
 	mobj->momz = mobjinfo[type].speed;
@@ -10283,16 +10307,13 @@ size_t iquehead, iquetail;
 void P_RemoveMobj(mobj_t *mobj)
 {
 	I_Assert(mobj != NULL);
-#ifdef HAVE_BLUA
+
 	if (P_MobjWasRemoved(mobj))
 		return; // something already removing this mobj.
 
 	mobj->thinker.function.acp1 = (actionf_p1)P_RemoveThinkerDelayed; // shh. no recursing.
 	LUAh_MobjRemoved(mobj);
 	mobj->thinker.function.acp1 = (actionf_p1)P_MobjThinker; // needed for P_UnsetThingPosition, etc. to work.
-#else
-	I_Assert(!P_MobjWasRemoved(mobj));
-#endif
 
 	// Rings only, please!
 	if (mobj->spawnpoint &&
@@ -10371,6 +10392,12 @@ void P_RemoveMobj(mobj_t *mobj)
 			P_SetTarget(&mobj->hprev, NULL);
 		}
 	}
+	
+	// clear the reference from the mapthing
+	if (mobj->spawnpoint)
+		mobj->spawnpoint->mobj = NULL;
+
+	R_RemoveMobjInterpolator(mobj);
 
 	// free block
 	// DBG: set everything in mobj_t to 0xFF instead of leaving it. debug memory error.
@@ -10403,8 +10430,6 @@ void P_RemoveMobj(mobj_t *mobj)
 #endif
 		P_RemoveThinker((thinker_t *)mobj);
 	}
-
-	R_RemoveMobjInterpolator(mobj);
 }
 
 // This does not need to be added to Lua.
@@ -10486,7 +10511,7 @@ void P_SpawnPrecipitation(void)
 	subsector_t *precipsector = NULL;
 	precipmobj_t *rainmo = NULL;
 
-	if (dedicated || /*!cv_precipdensity*/!cv_drawdist_precip.value || curWeather == PRECIP_NONE) // SRB2Kart
+	if (dedicated || !cv_drawdist_precip.value || curWeather == PRECIP_NONE) // SRB2Kart
 		return;
 
 	// Use the blockmap to narrow down our placing patterns
@@ -10497,16 +10522,11 @@ void P_SpawnPrecipitation(void)
 
 		//for (j = 0; j < cv_precipdensity.value; ++j) -- density is 1 for kart always
 		{
-			if (cv_lessprecip.value)
-			{
-				x = basex*1.5 + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
-				y = basey*1.5 + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
-			}
-			else
-			{
-				x = basex + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
-				y = basey + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3);
-			}
+			INT32 floorz;
+			INT32 ceilingz;
+
+			x = ((cv_lessprecip.value ? basex*1.5 : basex) + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3));
+			y = ((cv_lessprecip.value ? basey*1.5 : basey) + ((M_RandomKey(MAPBLOCKUNITS<<3)<<FRACBITS)>>3));
 
 			precipsector = R_IsPointInSubsector(x, y);
 
@@ -10538,8 +10558,19 @@ void P_SpawnPrecipitation(void)
 			else // everything else.
 				rainmo = P_SpawnRainMobj(x, y, height, MT_RAIN);
 
-			// Randomly assign a height, now that floorz is set.
-			rainmo->z = M_RandomRange(rainmo->floorz>>FRACBITS, rainmo->ceilingz>>FRACBITS)<<FRACBITS;
+			floorz = rainmo->floorz >> FRACBITS;
+			ceilingz = rainmo->ceilingz >> FRACBITS;
+
+			if (floorz < ceilingz)
+			{
+				// Randomly assign a height, now that floorz is set.
+				rainmo->z = M_RandomRange(floorz, ceilingz) << FRACBITS;
+			}
+			else
+			{
+				// ...except if the floor is above the ceiling.
+				rainmo->z = ceilingz << FRACBITS;
+			}
 		}
 	}
 
@@ -10822,37 +10853,22 @@ void P_RespawnSpecials(void)
 //
 void P_SpawnPlayer(INT32 playernum)
 {
-	UINT8 i, pcount = 0;
+	UINT8 i;
 	player_t *p = &players[playernum];
 	mobj_t *mobj;
+
+	boolean justjoined = (p->jointime <= 1);
 
 	if (p->playerstate == PST_REBORN)
 		G_PlayerReborn(playernum);
 
-	for (i = 0; i < MAXPLAYERS; i++)
-	{
-		if (i == playernum)
-			continue;
-		if (!playeringame[i] || players[i].spectator)
-			continue;
-		if (players[i].jointime <= 1) // Prevent splitscreen hosters/joiners from only adding 1 player at a time in empty servers
-			continue;
-		pcount++;
-	}
+	if (justjoined)
+		G_SpectatePlayerOnJoin(playernum);
 
-	// spawn as spectator determination
-	if (multiplayer && demo.playback); // Don't mess with spectator values since the demo setup handles them already.
-	else if (!G_GametypeHasSpectators())
-		p->spectator = false;
-	else if (netgame && p->jointime <= 1 && pcount)
-	{
-		p->spectator = true;
-		p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
-	}
-	else if (multiplayer && !netgame)
+	if (G_GametypeHasTeams())
 	{
 		// If you're in a team game and you don't have a team assigned yet...
-		if (G_GametypeHasTeams() && p->ctfteam == 0)
+		if (!p->spectator && p->ctfteam == 0)
 		{
 			changeteam_union NetPacket;
 			UINT16 usvalue;
@@ -10863,9 +10879,6 @@ void P_SpawnPlayer(INT32 playernum)
 			p->spectator = true;
 			p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
 
-			if (playernum&1) p->skincolor = skincolor_redteam;
-			else             p->skincolor = skincolor_blueteam;
-
 			// but immediately send a team change packet.
 			NetPacket.packet.playernum = playernum;
 			NetPacket.packet.verification = true;
@@ -10873,18 +10886,6 @@ void P_SpawnPlayer(INT32 playernum)
 
 			usvalue = SHORT(NetPacket.value.l|NetPacket.value.b);
 			SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
-		}
-		else // Otherwise, never spectator.
-			p->spectator = false;
-	}
-
-	if (G_GametypeHasTeams())
-	{
-		// Fix stupid non spectator spectators.
-		if (!p->spectator && !p->ctfteam)
-		{
-			p->spectator = true;
-			p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
 		}
 
 		// Fix team colors.
@@ -10941,6 +10942,16 @@ void P_SpawnPlayer(INT32 playernum)
 
 	if (G_BattleGametype()) // SRB2kart
 	{
+		UINT8 pcount = 0;
+		
+		for (i = 0; i < MAXPLAYERS; ++i)
+		{
+			if (G_CouldView(i))
+			{
+				pcount++;
+			}
+		}
+		
 		mobj_t *overheadarrow = P_SpawnMobj(mobj->x, mobj->y, mobj->z + P_GetPlayerHeight(p)+16*FRACUNIT, MT_PLAYERARROW);
 		P_SetTarget(&overheadarrow->target, mobj);
 		overheadarrow->flags2 |= MF2_DONTDRAW;

@@ -3111,14 +3111,10 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 		}
 
 		case 443: // Calls a named Lua function
-#ifdef HAVE_BLUA
 			if (line->text)
 				LUAh_LinedefExecute(line, mo, callsec);
 			else
 				CONS_Alert(CONS_WARNING, "Linedef %s is missing the hook name of the Lua function to call! (This should be given in the front texture fields)\n", sizeu1(line-lines));
-#else
-			CONS_Alert(CONS_ERROR, "The map is trying to run a Lua script, but this exe was not compiled with Lua support!\n");
-#endif
 			break;
 
 		case 444: // Earthquake camera
@@ -4066,7 +4062,12 @@ DoneSection2:
 					player->kartstuff[k_floorboost] = 3;
 				else
 					player->kartstuff[k_floorboost] = 2;
-				K_DoSneaker(player, 0);
+				
+				
+				if (cv_stacking.value && cv_panel.value)
+					K_DoPanel(player);
+				else
+					K_DoSneaker(player, 0);
 			}
 			break;
 
@@ -4987,9 +4988,6 @@ void P_UpdateSpecials(void)
 
 	// POINT LIMIT
 	P_CheckPointLimit();
-
-	// Dynamic slopeness
-	P_RunDynamicSlopes();
 
 	// ANIMATE TEXTURES
 	for (anim = anims; anim < lastanim; anim++)
@@ -7379,7 +7377,7 @@ void T_Friction(friction_t *f)
 		// (or at least MF_PUSHABLEs, which is all I care about anyway)
 		if ((!(thing->flags & (MF_NOGRAVITY | MF_NOCLIP)) && thing->z == thing->floorz) && (thing->player
 			&& (thing->player->kartstuff[k_invincibilitytimer] == 0 && thing->player->kartstuff[k_hyudorotimer] == 0
-			&& thing->player->kartstuff[k_sneakertimer] == 0 && thing->player->kartstuff[k_growshrinktimer] <= 0)))
+			&& thing->player->kartstuff[k_sneakertimer] == 0 && thing->player->kartstuff[k_paneltimer] == 0 && thing->player->kartstuff[k_growshrinktimer] <= 0)))
 		{
 			if (f->roverfriction)
 			{

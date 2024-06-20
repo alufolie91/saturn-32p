@@ -69,6 +69,9 @@
 #include "filesrch.h" // refreshdirmenu, pathisdirectory
 #include "d_protocol.h"
 #include "m_perfstats.h"
+#include "k_kart.h"
+
+#include "lua_script.h"
 
 #ifdef CMAKECONFIG
 #include "config.h"
@@ -82,10 +85,6 @@
 
 #ifdef HW3SOUND
 #include "hardware/hw3sound.h"
-#endif
-
-#ifdef HAVE_BLUA
-#include "lua_script.h"
 #endif
 
 #ifdef HAVE_DISCORDRPC
@@ -449,17 +448,14 @@ static void D_Display(void)
 										viewwindowx = 0;
 										viewwindowy = viewheight;
 									}
-									M_Memcpy(ylookup, ylookup2, viewheight*sizeof (ylookup[0]));
 									break;
 								case 2:
 									viewwindowx = 0;
 									viewwindowy = viewheight;
-									M_Memcpy(ylookup, ylookup3, viewheight*sizeof (ylookup[0]));
 									break;
 								case 3:
 									viewwindowx = viewwidth;
 									viewwindowy = viewheight;
-									M_Memcpy(ylookup, ylookup4, viewheight*sizeof (ylookup[0]));
 								default:
 									break;
 							}
@@ -469,9 +465,6 @@ static void D_Display(void)
 						}
 
 						R_RenderPlayerView(&players[displayplayers[i]]);
-
-						if (i > 0)
-							M_Memcpy(ylookup, ylookup1, viewheight*sizeof (ylookup[0]));
 					}
 				}
 			}
@@ -529,7 +522,7 @@ static void D_Display(void)
 		else
 			py = viewwindowy + 4;
 		patch = W_CachePatchName("M_PAUSE", PU_CACHE);
-		V_DrawScaledPatch(viewwindowx + (BASEVIDWIDTH - SHORT(patch->width))/2, py, 0, patch);
+		V_DrawScaledPatch(viewwindowx + (BASEVIDWIDTH - SHORT(patch->width))/2, py, V_SNAPTOTOP, patch);
 	}
 
 	if (demo.rewinding)
@@ -771,9 +764,7 @@ void D_SRB2Loop(void)
 		HW3S_EndFrameUpdate();
 #endif
 
-#ifdef HAVE_BLUA
 		LUA_Step();
-#endif
 
 #ifdef HAVE_DISCORDRPC
 		if (! dedicated)
@@ -1074,11 +1065,18 @@ static boolean AddIWAD(void)
 	}
 }
 
+// extra graphic patches for saturn specific thingies
 boolean found_extra_kart;
 boolean found_extra2_kart;
 boolean found_kv_kart;
+boolean found_extra3_kart;
 
-boolean snw_speedo; // snowy speedometer check
+boolean xtra_speedo; // extra speedometer check
+boolean xtra_speedo_clr; // extra speedometer colour check
+boolean xtra_speedo3; // 80x 11 extra speedometer check
+boolean xtra_speedo_clr3; // 80x 11 extra speedometer colour check
+boolean achi_speedo; // achiiro speedometer check
+boolean achi_speedo_clr; // extra speedometer colour check
 boolean clr_hud; // colour hud check
 boolean big_lap; // bigger lap counter
 boolean big_lap_color; // bigger lap counter but colour
@@ -1091,6 +1089,7 @@ static void IdentifyVersion(void)
 	found_extra_kart = false;
 	found_extra2_kart = false;
 	found_kv_kart = false;
+	found_extra3_kart = false;
 
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	// change to the directory where 'srb2.srb' is found
@@ -1137,6 +1136,10 @@ static void IdentifyVersion(void)
 #ifdef USE_PATCH_KART
 	D_AddFile(va(pandf,srb2waddir,"patch.kart"), startupwadfiles);
 #endif
+	
+	D_AddFile(va(pandf,srb2waddir,"neptune.kart"), startupwadfiles);
+
+	
 	// completely optional
 	if (FIL_ReadFileOK(va(pandf,srb2waddir,"extra.kart"))) {
 		D_AddFile(va(pandf,srb2waddir,"extra.kart"), startupwadfiles);
@@ -1149,10 +1152,16 @@ static void IdentifyVersion(void)
 		found_extra2_kart = true;
 	}
 	
-		// completely optional 3: Its about time
+
+	// completely optional 3: Its about time
 	if (FIL_ReadFileOK(va(pandf,srb2waddir,"kv.kart"))) {
 		D_AddFile(va(pandf,srb2waddir,"kv.kart"), startupwadfiles);
 		found_kv_kart = true;
+	}
+
+	if (FIL_ReadFileOK(va(pandf,srb2waddir,"extra3.kart"))) {
+		D_AddFile(va(pandf,srb2waddir,"extra3.kart"), startupwadfiles);
+		found_extra3_kart = true;
 	}
 
 #if !defined (HAVE_SDL) || defined (HAVE_MIXER)
@@ -1356,27 +1365,6 @@ void D_SRB2Main(void)
 	if (M_CheckParm("-password") && M_IsNextParm())
 		D_SetPassword(M_GetNextParm());
 
-	// FIND THEM
-	D_FindAddonsToAutoload();
-
-	// add any files specified on the command line with -file wadfile
-	// to the wad list
-	if (!(M_CheckParm("-connect") && !M_CheckParm("-server")))
-	{
-		if (M_CheckParm("-file"))
-		{
-			// the parms after p are wadfile/lump names,
-			// until end of parms or another - preceded parm
-			while (M_IsNextParm())
-			{
-				const char *s = M_GetNextParm();
-
-				if (s) // Check for NULL?
-					D_AddFile(s, startuppwads);
-			}
-		}
-	}
-
 	// get map from parms
 
 	if (M_CheckParm("-server") || dedicated)
@@ -1430,6 +1418,8 @@ void D_SRB2Main(void)
 #ifdef USE_PATCH_KART
 	mainwads++; W_VerifyFileMD5(mainwads, ASSET_HASH_PATCH_KART);		// patch.kart
 #endif
+	mainwads++; // Neptune.kart
+	
 #else
 #ifdef USE_PATCH_DTA
 	mainwads++;	// patch.dta
@@ -1441,10 +1431,16 @@ void D_SRB2Main(void)
 #ifdef USE_PATCH_KART
 	mainwads++;	// patch.kart
 #endif
+	mainwads++; // neptune.kart
 
 #endif //ifndef DEVELOP
 
-	if (found_extra_kart || found_extra2_kart || found_kv_kart) // found the funny, add it in!
+	// Possible value that changes depending on whether required files for speedometer are found or not
+	CV_PossibleValue_t speedo_cons_temp[NUMSPEEDOSTUFF] = {{1, "Default"}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}};
+	unsigned last_speedo_i = 0;
+#define PUSHSPEEDO(id, name) { ++last_speedo_i; speedo_cons_temp[last_speedo_i].value = id; speedo_cons_temp[last_speedo_i].strvalue = name; }
+
+	if (found_extra_kart || found_extra2_kart || found_extra3_kart || found_kv_kart) // found the funny, add it in!
 	{
 		// HAYA: These are seperated for a reason lmao
 		if (found_extra_kart) 
@@ -1453,10 +1449,28 @@ void D_SRB2Main(void)
 			mainwads++;
 		if (found_kv_kart)
 			mainwads++;
-		
-		// now check for speedometer stuff
+		if (found_extra3_kart)
+			mainwads++;
+
+		// now check for extra speedometer stuff
 		if (W_CheckMultipleLumps("SP_SMSTC", "K_TRNULL", "SP_MKMH", "SP_MMPH", "SP_MFRAC", "SP_MPERC", NULL))
-			snw_speedo = true;
+		{
+			xtra_speedo = true;
+			PUSHSPEEDO(2, "Small");
+		}
+
+		if (W_LumpExists("SC_SMSTC"))
+			xtra_speedo_clr = true;
+
+		// now check for achii speedometer stuff
+		if (W_CheckMultipleLumps("SP_AMSTC", "K_TRNULL", "SP_AKMH", "SP_AMPH", "SP_AFRAC", "SP_APERC", NULL))
+		{
+			achi_speedo = true;
+			PUSHSPEEDO(3, "Achii");
+		}
+
+		if (W_CheckMultipleLumps("SC_AMSTC", "K_TRNULL", "SC_AKMH", "SC_AMPH", "SC_AFRAC", "SC_APERC", NULL))
+			achi_speedo_clr = true;
 
 		// check for bigger lap count
 		if (W_CheckMultipleLumps("K_STLAPB", "K_STLA2B", NULL)) 
@@ -1464,7 +1478,7 @@ void D_SRB2Main(void)
 
 		// now check for colour hud stuff
 		if (W_CheckMultipleLumps("K_SCTIME", "K_SCTIMW", "K_SCLAPS", "K_SCLAPW", \
-			"K_SCBALN", "K_SCBALW", "K_SCKARM", "K_SCTOUT", "K_ISMULC", "K_ITMULC", "K_ITBC","K_ITBCD", "K_ISBC", "K_ISBCD", NULL))
+			"K_SCBALN", "K_SCBALW", "K_SCKARM", "K_SCTOUT", "K_ISMULC", "K_ITMULC", "K_ITBC", "K_ITBCD", "K_ISBC", "K_ISBCD", NULL))
 			clr_hud = true;
 
 		// check for bigger lap count but color** its color bitch
@@ -1475,14 +1489,33 @@ void D_SRB2Main(void)
 		if (W_CheckMultipleLumps("K_KZSP1", "K_KZSP2", "K_KZSP3", "K_KZSP4", "K_KZSP5", \
 			"K_KZSP6", "K_KZSP7", "K_KZSP8", "K_KZSP9", "K_KZSP10", "K_KZSP11", "K_KZSP12", \
 			"K_KZSP13", "K_KZSP14", "K_KZSP15", "K_KZSP16", "K_KZSP17", "K_KZSP18", "K_KZSP19", \
-			"K_KZSP20", "K_KZSP21", "K_KZSP22", "K_KZSP23", "K_KZSP24", "K_KZSP25", NULL)) 
+			"K_KZSP20", "K_KZSP21", "K_KZSP22", "K_KZSP23", "K_KZSP24", "K_KZSP25", NULL))
+		{
 			kartzspeedo = true;
+			PUSHSPEEDO(4, "P-Meter");
+		}
 
 		// stat display for extended player setup
 		if (W_CheckMultipleLumps("K_STATNB", "K_STATN1", "K_STATN2", "K_STATN3", "K_STATN4", \
 			"K_STATN5", "K_STATN6", NULL)) 
 			statdp = true;
-	}
+		
+		if (found_extra3_kart)
+		{
+			// 80x11 speedometer crap
+			if (W_LumpExists("SP_SM3TC"))
+			{
+				xtra_speedo3 = true;
+				PUSHSPEEDO(5, "Extra");
+			}
+
+			if (W_LumpExists("SC_SM3TC"))
+				xtra_speedo_clr3 = true;
+		}
+	}	
+
+#undef PUSHSPEEDO
+	memcpy(speedo_cons_t, speedo_cons_temp, sizeof(speedo_cons_t));
 
 	//
 	// search for maps
@@ -1509,10 +1542,6 @@ void D_SRB2Main(void)
 			}
 		}
 	}
-
-	if (!W_InitMultipleFiles(startuppwads, true))
-		CONS_Error("A PWAD file was not found or not valid.\nCheck the log to see which ones.\n");
-	D_CleanFile(startuppwads);
 
 	//
 	// search for maps... again.
@@ -1576,7 +1605,32 @@ void D_SRB2Main(void)
 	S_RegisterSoundStuff();
 
 	I_RegisterSysCommands();
+	
+	// FIND THEM
+	D_FindAddonsToAutoload();
 
+	// add any files specified on the command line with -file wadfile
+	// to the wad list
+	if (!(M_CheckParm("-connect") && !M_CheckParm("-server")))
+	{
+		if (M_CheckParm("-file"))
+		{
+			// the parms after p are wadfile/lump names,
+			// until end of parms or another - preceded parm
+			while (M_IsNextParm())
+			{
+				const char *s = M_GetNextParm();
+
+				if (s) // Check for NULL?
+					D_AddFile(s, startuppwads);
+			}
+		}
+	}
+	
+	if (!W_InitMultipleFiles(startuppwads, true))
+		CONS_Error("A PWAD file was not found or not valid.\nCheck the log to see which ones.\n");
+	D_CleanFile(startuppwads);
+	
 	//--------------------------------------------------------- CONFIG.CFG
 	M_FirstLoadConfig(); // WARNING : this do a "COM_BufExecute()"
 
@@ -1886,7 +1940,7 @@ void D_SRB2Main(void)
 		pagename = "TITLESKY";
 		levelstarttic = gametic;
 		G_SetGamestate(GS_LEVEL);
-		if (!P_SetupLevel(false))
+		if (!P_SetupLevel(false, false))
 			I_Quit(); // fail so reset game stuff
 	}
 
