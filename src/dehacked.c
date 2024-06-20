@@ -7895,7 +7895,8 @@ static const char *const KARTSTUFF_LIST[] = {
 	"HPHEALTH",
 	"PANELTIMER",
 	"REALPANELTIMER",
-	"PANELSTACK"
+	"PANELSTACK",
+	"CHAINSOUND"
 	
 };
 

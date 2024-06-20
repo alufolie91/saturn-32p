@@ -340,16 +340,19 @@ typedef enum
 	k_trickspeedboost,
 	k_trickaccelboost,
 	
-	//Offroad nerf
+	// Offroad nerf
 	k_realsneakertimer,
 	
-	//Health nametag
+	// Health nametag
 	k_hphealth,
 	
-	//Panel Shit
+	// Panel Shit
 	k_paneltimer,
 	k_realpaneltimer,
 	k_panelstack,
+	
+	// Used for chaining thats done by combining a sneaker and a drift
+	k_chainsound,
 
 	NUMKARTSTUFF
 } kartstufftype_t;

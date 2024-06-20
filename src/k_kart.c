@@ -25,6 +25,7 @@
 #include "r_fps.h"
 #include "s_sound.h"
 #include "screen.h"
+#include "sounds.h"
 #include "st_stuff.h"
 #include "tables.h"
 #include "v_video.h"
@@ -101,6 +102,8 @@ consvar_t cv_multisneakericon = {"multisneakericon", "Off", CV_SAVE, CV_OnOff, N
 consvar_t cv_stackingeffect = {"stacking_stackingeffect", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_stackingeffectscaling = {"stacking_stackingeffectscaling", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_sneakerstacksound = {"sneakerstacksound", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_coloredsneakertrail = {"sneakertrailcolor", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -1401,7 +1404,7 @@ CV_RegisterVar(&cv_DJAITBL10);
 	
 	CV_RegisterVar(&cv_lessflicker);
 	
-	//WTF
+	// WTF
 	CV_RegisterVar(&cv_mouseturn);
 	CV_RegisterVar(&cv_spectatestrafe);
 	
@@ -1413,6 +1416,9 @@ CV_RegisterVar(&cv_DJAITBL10);
 	//Stackingeffect
 	CV_RegisterVar(&cv_stackingeffect);
 	CV_RegisterVar(&cv_stackingeffectscaling);
+	
+	// Sneaker Stack Sound
+	CV_RegisterVar(&cv_sneakerstacksound);
 	
 	//Colored trails
 	CV_RegisterVar(&cv_coloredsneakertrail);
@@ -5653,39 +5659,26 @@ if (numplayers == 1) // With just 2 players, we just need to set the other playe
 	}
 }
 
-void K_DoSneaker(player_t *player, INT32 type)
+// Handle these else where to reduce code duplication between panels and sneakers
+static void K_SneakerPanelStackSound(player_t *player)
+{		
+	const sfxenum_t normalsfx = sfx_cdfm01;
+	const sfxenum_t smallsfx = sfx_cdfm40;
+	sfxenum_t sfx = normalsfx;
+
+	if (player->kartstuff[k_sneakerstack] && cv_sneakerstacksound.value)
+	{
+		// Use a less annoying sound when stacking sneakers.
+		sfx = smallsfx;
+	}
+
+	S_StopSoundByID(player->mo, normalsfx);
+	S_StopSoundByID(player->mo, smallsfx);
+	S_StartSound(player->mo, sfx);
+}
+
+static void K_SneakerPanelEffect(player_t *player, INT32 type)
 {
-	fixed_t intendedboost;
-
-	switch (gamespeed)
-	{
-		case 0:
-			intendedboost = 53740+768;
-			break;
-		case 2:
-			intendedboost = 17294+768;
-			break;
-		//expert
-		case 3:
-			intendedboost = 14706;
-			break;
-			
-		default:
-			intendedboost = 32768;
-			break;
-	}
-	
-	if (LUAh_KartSneaker(player, type))
-		return;
-
-	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
-	{
-		S_StartSound(player->mo, sfx_cdfm01);
-		K_SpawnDashDustRelease(player);
-		if (intendedboost > player->kartstuff[k_speedboost])
-			player->kartstuff[k_destboostcam] = FixedMul(FRACUNIT, FixedDiv((intendedboost - player->kartstuff[k_speedboost]), intendedboost));
-	}
-
 	if (!player->kartstuff[k_sneakertimer] && !player->kartstuff[k_paneltimer])
 	{
 		if (type == 2)
@@ -5715,15 +5708,52 @@ void K_DoSneaker(player_t *player, INT32 type)
 			K_FlipFromObject(overlay, player->mo);
 		}
 	}
-		player->kartstuff[k_sneakertimer] = sneakertime;
-		if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
-			player->kartstuff[k_realsneakertimer] = sneakertime;
-		
-		//Stacks
-		if (cv_stacking.value && player->kartstuff[k_sneakertimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
-		{	
-			player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
-		}
+}
+
+void K_DoSneaker(player_t *player, INT32 type)
+{
+	fixed_t intendedboost;
+
+	switch (gamespeed)
+	{
+		case 0:
+			intendedboost = 53740+768;
+			break;
+		case 2:
+			intendedboost = 17294+768;
+			break;
+		//expert
+		case 3:
+			intendedboost = 14706;
+			break;
+			
+		default:
+			intendedboost = 32768;
+			break;
+	}
+	
+	if (LUAh_KartSneaker(player, type))
+		return;
+
+	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
+	{
+		K_SneakerPanelStackSound(player);
+		K_SpawnDashDustRelease(player);
+		if (intendedboost > player->kartstuff[k_speedboost])
+			player->kartstuff[k_destboostcam] = FixedMul(FRACUNIT, FixedDiv((intendedboost - player->kartstuff[k_speedboost]), intendedboost));
+	}
+	
+	K_SneakerPanelEffect(player, type);
+
+	player->kartstuff[k_sneakertimer] = sneakertime;
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
+		player->kartstuff[k_realsneakertimer] = sneakertime;
+	
+	//Stacks
+	if (cv_stacking.value && player->kartstuff[k_sneakertimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
+	{	
+		player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
+	}
 	
 		
 	// set angle for spun out players:
@@ -5760,31 +5790,26 @@ void K_DoPanel(player_t *player)
 
 	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
 	{
-		S_StartSound(player->mo, sfx_cdfm01);
+		K_SneakerPanelStackSound(player);
 		K_SpawnDashDustRelease(player);
 		if (intendedboost > player->kartstuff[k_speedboost])
 			player->kartstuff[k_destboostcam] = FixedMul(FRACUNIT, FixedDiv((intendedboost - player->kartstuff[k_speedboost]), intendedboost));
 	}
 
-	if (!player->kartstuff[k_paneltimer] && !player->kartstuff[k_sneakertimer])
-	{
-			mobj_t *overlay = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_BOOSTFLAME);
-			P_SetTarget(&overlay->target, player->mo);
-			P_SetScale(overlay, (overlay->destscale = player->mo->scale));
-			K_FlipFromObject(overlay, player->mo);
+	K_SneakerPanelEffect(player, 1);
+	
+	player->kartstuff[k_paneltimer] = sneakertime;
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
+		player->kartstuff[k_realpaneltimer] = sneakertime;
+	
+	//Stacks
+	if (cv_stacking.value && player->kartstuff[k_paneltimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
+	{	
+		if (cv_panelsharestack.value)
+			player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
+		else
+			player->kartstuff[k_panelstack] = min(player->kartstuff[k_panelstack] + 1,cv_panelstack.value);
 	}
-		player->kartstuff[k_paneltimer] = sneakertime;
-		if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
-			player->kartstuff[k_realpaneltimer] = sneakertime;
-		
-		//Stacks
-		if (cv_stacking.value && player->kartstuff[k_paneltimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
-		{	
-			if (cv_panelsharestack.value)
-				player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
-			else
-				player->kartstuff[k_panelstack] = min(player->kartstuff[k_panelstack] + 1,cv_panelstack.value);
-		}
 	
 		
 	// set angle for spun out players:
@@ -7383,6 +7408,7 @@ static void K_KartDrift(player_t *player, boolean onground)
 	INT32 dsone = K_GetKartDriftSparkValue(player);
 	INT32 dstwo = dsone*2;
 	INT32 dsthree = dstwo*2;
+	boolean startsound = false;
 
 	// Grown players taking yellow spring panels will go below minspeed for one tic,
 	// and will then wrongdrift or have their sparks removed because of this.
@@ -7419,7 +7445,7 @@ static void K_KartDrift(player_t *player, boolean onground)
 		}
 			
 			
-		S_StartSound(player->mo, sfx_s23c);
+		startsound = true;
 		//K_SpawnDashDustRelease(player);
 		player->kartstuff[k_driftcharge] = 0;
 	}
@@ -7438,7 +7464,7 @@ static void K_KartDrift(player_t *player, boolean onground)
 				player->kartstuff[k_driftboost] = cv_redsparktics.value;
 		}
 			
-		S_StartSound(player->mo, sfx_s23c);
+		startsound = true;
 		//K_SpawnDashDustRelease(player);
 		player->kartstuff[k_driftcharge] = 0;
 	}
@@ -7457,9 +7483,21 @@ static void K_KartDrift(player_t *player, boolean onground)
 				player->kartstuff[k_driftboost] = cv_rainbowsparktics.value;
 		}
 		
-		S_StartSound(player->mo, sfx_s23c);
+		startsound = true;
 		//K_SpawnDashDustRelease(player);
 		player->kartstuff[k_driftcharge] = 0;
+	}
+	
+	if (startsound) // doing this because duplication is silly lel
+	{
+		
+		if ((player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && cv_sneakerextend.value)
+		{
+			S_StartSound(player->mo, sfx_bstchn);
+			player->kartstuff[k_chainsound] = 1;
+		}
+		else
+			S_StartSound(player->mo, sfx_s23c);
 	}
 
 	// Drifting: left or right?
@@ -8523,6 +8561,22 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
 		player->mo->salty_zoffset = 0;
 		player->mo->salty_momz = 0;
 	}
+	
+	if (cv_sneakerextend.value)
+	{
+		if ((player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && player->kartstuff[k_driftboost] && !(player->kartstuff[k_chainsound]))
+		{
+			S_StartSound(player->mo, sfx_bstchn);
+			player->kartstuff[k_chainsound] = 1;
+		}
+		
+		if ((player->kartstuff[k_sneakertimer] == 0 && player->kartstuff[k_paneltimer] == 0) 
+			&& player->kartstuff[k_driftboost] == 0)
+				player->kartstuff[k_chainsound] = 0;
+	}
+	
+
+	
 }
 
 void K_CalculateBattleWanted(void)
