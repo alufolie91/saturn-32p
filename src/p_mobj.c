@@ -8206,6 +8206,10 @@ void P_MobjThinker(mobj_t *mobj)
 			}
 			break;
 		case MT_BOOSTSTACK:	
+			
+			if (!mobj || P_MobjWasRemoved(mobj))
+				return;
+
 			if (!mobj->target || !mobj->target->health || (mobj->target->player && !mobj->target->player->kartstuff[k_totalstacks]))
 			{
 				P_RemoveMobj(mobj);
