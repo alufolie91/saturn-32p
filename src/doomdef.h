@@ -210,7 +210,7 @@ extern char  logfilename[1024];
 // NOTE: it needs more than this to increase the number of players...
 
 #define MAXPLAYERS 32
-#define MAXSKINS UINT16_MAX
+#define MAXSKINS UINT16_MAX-1
 #define PLAYERSMASK (MAXPLAYERS-1)
 #define MAXPLAYERNAME 21
 
