@@ -448,14 +448,17 @@ static void D_Display(void)
 										viewwindowx = 0;
 										viewwindowy = viewheight;
 									}
+									M_Memcpy(ylookup, ylookup2, viewheight*sizeof (ylookup[0]));
 									break;
 								case 2:
 									viewwindowx = 0;
 									viewwindowy = viewheight;
+									M_Memcpy(ylookup, ylookup3, viewheight*sizeof (ylookup[0]));
 									break;
 								case 3:
 									viewwindowx = viewwidth;
 									viewwindowy = viewheight;
+									M_Memcpy(ylookup, ylookup4, viewheight*sizeof (ylookup[0]));
 								default:
 									break;
 							}
@@ -465,6 +468,9 @@ static void D_Display(void)
 						}
 
 						R_RenderPlayerView(&players[displayplayers[i]]);
+
+						if (i > 0)
+							M_Memcpy(ylookup, ylookup1, viewheight*sizeof (ylookup[0]));
 					}
 				}
 			}
