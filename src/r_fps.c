@@ -34,7 +34,7 @@ static CV_PossibleValue_t fpscap_cons_t[] = {
 #else
 	{TICRATE, "MIN"},
 #endif
-	{300, "MAX"},
+	{500, "MAX"},
 	{-1, "Unlimited"},
 	{0, "Match refresh rate"},
 	{0, NULL}
@@ -366,7 +366,7 @@ void R_InterpolatePrecipMobjState(precipmobj_t *mobj, fixed_t frac, interpmobjst
 		out->x = mobj->x;
 		out->y = mobj->y;
 		out->z = mobj->z;
-		out->scale = FRACUNIT;
+		out->scale = mapobjectscale;
 		out->subsector = mobj->subsector;
 		out->angle = mobj->angle;
 		out->spritexscale = mobj->spritexscale;
@@ -379,7 +379,7 @@ void R_InterpolatePrecipMobjState(precipmobj_t *mobj, fixed_t frac, interpmobjst
 		out->x = R_LerpFixed(mobj->old_x, mobj->x, frac);
 		out->y = R_LerpFixed(mobj->old_y, mobj->y, frac);
 		out->z = R_LerpFixed(mobj->old_z, mobj->z, frac);
-		out->scale = FRACUNIT;
+		out->scale = mapobjectscale;
 		out->spritexscale = mobj->spritexscale;
 		out->spriteyscale = mobj->spriteyscale;
 		out->spritexoffset = mobj->spritexoffset;

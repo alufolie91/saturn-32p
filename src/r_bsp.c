@@ -72,11 +72,22 @@ void R_ClearDrawSegs(void)
 }
 
 // Fix from boom.
-#define MAXSEGS (MAXVIDWIDTH/2+1)
+static UINT32 maxsegs;
 
 // newend is one past the last valid seg
 static cliprange_t *newend;
-static cliprange_t solidsegs[MAXSEGS];
+static cliprange_t *solidsegs;
+
+void R_AllocClipSegMemory(void)
+{
+	UINT32 newendpos = newend - solidsegs;
+
+	maxsegs = max(BASEVIDWIDTH/2+1, viewwidth/2+1);
+
+	solidsegs = Z_Realloc(solidsegs, sizeof(*solidsegs) * maxsegs, PU_STATIC, NULL);
+
+	newend = solidsegs + newendpos;
+}
 
 //
 // R_ClipSolidWallSegment
@@ -103,7 +114,7 @@ static void R_ClipSolidWallSegment(INT32 first, INT32 last)
 			next = newend;
 			newend++;
 			// NO MORE CRASHING!
-			if (newend - solidsegs > MAXSEGS)
+			if (newend - solidsegs > maxsegs)
 				I_Error("R_ClipSolidWallSegment: Solid Segs overflow!\n");
 
 			while (next != start)
@@ -158,7 +169,7 @@ crunch:
 	newend = start + 1;
 
 	// NO MORE CRASHING!
-	if (newend - solidsegs > MAXSEGS)
+	if (newend - solidsegs > maxsegs)
 		I_Error("R_ClipSolidWallSegment: Solid Segs overflow!\n");
 }
 
@@ -632,7 +643,21 @@ static boolean R_CheckBBox(const fixed_t *bspcoord)
 	cliprange_t *start;
 
 	// Find the corners of the box that define the edges from current viewpoint.
-	if ((boxpos = (viewx <= bspcoord[BOXLEFT] ? 0 : viewx < bspcoord[BOXRIGHT] ? 1 : 2) + (viewy >= bspcoord[BOXTOP] ? 0 : viewy > bspcoord[BOXBOTTOM] ? 4 : 8)) == 5)
+	if (viewx <= bspcoord[BOXLEFT])
+		boxpos = 0;
+	else if (viewx < bspcoord[BOXRIGHT])
+		boxpos = 1;
+	else
+		boxpos = 2;
+
+	if (viewy >= bspcoord[BOXTOP])
+		boxpos |= 0;
+	else if (viewy > bspcoord[BOXBOTTOM])
+		boxpos |= 1<<2;
+	else
+		boxpos |= 2<<2;
+
+	if (boxpos == 5)
 		return true;
 
 	check = checkcoord[boxpos];
@@ -669,7 +694,8 @@ static boolean R_CheckBBox(const fixed_t *bspcoord)
 	sx2 = viewangletox[angle2];
 
 	// Does not cross a pixel.
-	if (sx1 >= sx2) return false;
+	if (sx1 >= sx2)
+		return false;
 
 	start = solidsegs;
 	while (start->last < sx2)

@@ -46,6 +46,7 @@
 #define MAXVISPLANES ((1<<VISPLANEHASHBITS)+1)
 
 static visplane_t *visplanes[MAXVISPLANES];
+
 static visplane_t *freetail;
 static visplane_t **freehead = &freetail;
 
@@ -69,14 +70,14 @@ INT16 *openings, *lastopening; /// \todo free leak
 //  floorclip starts out SCREENHEIGHT
 //  ceilingclip starts out -1
 //
-INT16 floorclip[MAXVIDWIDTH], ceilingclip[MAXVIDWIDTH];
-fixed_t frontscale[MAXVIDWIDTH];
+INT16 *floorclip, *ceilingclip;
+fixed_t *frontscale;
 
 //
 // spanstart holds the start of a plane span
 // initialized to 0 at start
 //
-static INT32 spanstart[MAXVIDHEIGHT];
+static INT32 *spanstart;
 
 //
 // texture mapping
@@ -91,26 +92,64 @@ static fixed_t planeheight;
 //                (this is to calculate yslopes only when really needed)
 //                (when mouselookin', yslope is moving into yslopetab)
 //                Check R_SetupFrame, R_SetViewSize for more...
-fixed_t yslopetab[MAXVIDHEIGHT*16];
+fixed_t *yslopetab;
 fixed_t *yslope;
 
 fixed_t basexscale, baseyscale;
 
-fixed_t cachedheight[MAXVIDHEIGHT];
-fixed_t cacheddistance[MAXVIDHEIGHT];
-fixed_t cachedxstep[MAXVIDHEIGHT];
-fixed_t cachedystep[MAXVIDHEIGHT];
-
 static fixed_t xoffs, yoffs;
 
-//
-// R_InitPlanes
-// Only at game startup.
-//
-void R_InitPlanes(void)
+static INT16 *ffloor_f_clip;
+static INT16 *ffloor_c_clip;
+
+static void R_ReallocPlaneBounds(visplane_t *pl)
 {
-	// FIXME: unused
+	pl->top_memory = Z_Realloc(pl->top_memory, sizeof(UINT16) * (viewwidth + 2), PU_STATIC, NULL);
+	pl->bottom_memory = Z_Realloc(pl->bottom_memory, sizeof(UINT16) * (viewwidth + 2), PU_STATIC, NULL);
+	pl->top = pl->top_memory + 1;
+	pl->bottom = pl->bottom_memory + 1;
 }
+
+void R_AllocPlaneMemory(void)
+{
+	visplane_t *check;
+
+	// Alloc visplane top/bottom bounds
+	for (unsigned i = 0; i < MAXVISPLANES; i++)
+	{
+		check = visplanes[i];
+
+		while (check)
+		{
+			R_ReallocPlaneBounds(check);
+			check = check->next;
+		}
+	}
+
+	// Need to do it for "freed" visplanes too
+	check = freetail;
+
+	while (check)
+	{
+		R_ReallocPlaneBounds(check);
+		check = check->next;
+	}
+
+	// Alloc ffloor clip tables
+	ffloor_f_clip = Z_Realloc(ffloor_f_clip, sizeof(*ffloor_f_clip) * (viewwidth * MAXFFLOORS), PU_STATIC, NULL);
+	ffloor_c_clip = Z_Realloc(ffloor_c_clip, sizeof(*ffloor_c_clip) * (viewwidth * MAXFFLOORS), PU_STATIC, NULL);
+
+	for (unsigned i = 0; i < MAXFFLOORS; i++)
+	{
+		ffloor[i].f_clip = ffloor_f_clip + (i * viewwidth);
+		ffloor[i].c_clip = ffloor_c_clip + (i * viewwidth);
+	}
+
+	yslopetab = Z_Realloc(yslopetab, sizeof(*yslopetab) * (viewheight * 16), PU_STATIC, NULL);
+
+	spanstart = Z_Realloc(spanstart, sizeof(*spanstart) * viewheight, PU_STATIC, NULL);
+}
+
 
 // R_PortalStoreClipValues
 // Saves clipping values for later. -Red
@@ -229,32 +268,18 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 		planecos = FINECOSINE(angle);
 		planesin = FINESINE(angle);
 
-		if (planeheight != cachedheight[y])
+		// [RH] Notice that I dumped the caching scheme used by Doom.
+		// It did not offer any appreciable speedup.
+		distance = FixedMul(planeheight, yslope[y]);
+		span = abs(centery - y);
+
+		if (span) // Don't divide by zero
 		{
-			cachedheight[y] = planeheight;
-			cacheddistance[y] = distance = FixedMul(planeheight, yslope[y]);
-			span = abs(centery - y);
-
-			if (span) // don't divide by zero
-			{
-				ds_xstep = FixedMul(planesin, planeheight) / span;
-				ds_ystep = FixedMul(planecos, planeheight) / span;
-			}
-			else
-			{
-				ds_xstep = FixedMul(distance, basexscale);
-				ds_ystep = FixedMul(distance, baseyscale);
-			}
-
-			cachedxstep[y] = ds_xstep;
-			cachedystep[y] = ds_ystep;
+			ds_xstep = FixedMul(planesin, planeheight) / span;
+			ds_ystep = FixedMul(planecos, planeheight) / span;
 		}
 		else
-		{
-			distance = cacheddistance[y];
-			ds_xstep = cachedxstep[y];
-			ds_ystep = cachedystep[y];
-		}
+			ds_xstep = ds_ystep = FRACUNIT;
 
 		ds_xfrac = xoffs + FixedMul(planecos, distance) + (x1 - centerx) * ds_xstep;
 		ds_yfrac = yoffs - FixedMul(planesin, distance) + (x1 - centerx) * ds_ystep;
@@ -332,16 +357,15 @@ void R_ClearPlanes(void)
 	numffloors = 0;
 
 	for (i = 0; i < MAXVISPLANES; i++)
-	for (*freehead = visplanes[i], visplanes[i] = NULL;
-		freehead && *freehead ;)
 	{
-		freehead = &(*freehead)->next;
+		for (*freehead = visplanes[i], visplanes[i] = NULL;
+			freehead && *freehead ;)
+		{
+			freehead = &(*freehead)->next;
+		}
 	}
 
 	lastopening = openings;
-
-	// texture calculation
-	memset(cachedheight, 0, sizeof (cachedheight));
 
 	// left to right mapping
 	angle = (viewangle-ANGLE_90)>>ANGLETOFINESHIFT;
@@ -356,8 +380,13 @@ static visplane_t *new_visplane(unsigned hash)
 	visplane_t *check = freetail;
 	if (!check)
 	{
-		check = malloc(sizeof (*check));
-		if (check == NULL) I_Error("%s: Out of memory", "new_visplane"); // FIXME: ugly
+		check = calloc(1, sizeof (*check));
+		if (check == NULL)
+			I_Error("new_visplane: Out of memory");
+		check->top_memory = Z_Malloc(sizeof(UINT16) * (viewwidth + 2), PU_STATIC, NULL);
+		check->bottom_memory = Z_Malloc(sizeof(UINT16) * (viewwidth + 2), PU_STATIC, NULL);
+		check->top = check->top_memory + 1;
+		check->bottom = check->bottom_memory + 1;
 	}
 	else
 	{
@@ -470,8 +499,8 @@ visplane_t *R_FindPlane(fixed_t height, INT32 picnum, INT32 lightlevel,
 	check->slope = slope;
 	check->noencore = noencore;
 
-	memset(check->top, 0xff, sizeof (check->top));
-	memset(check->bottom, 0x00, sizeof (check->bottom));
+	memset(check->top, 0xff, sizeof(*check->top) * viewwidth);
+	memset(check->bottom, 0x00, sizeof(*check->bottom) * viewwidth);
 
 	return check;
 }
@@ -526,8 +555,7 @@ visplane_t *R_CheckPlane(visplane_t *pl, INT32 start, INT32 stop)
 		}
 		else
 		{
-			unsigned hash =
-				visplane_hash(pl->picnum, pl->lightlevel, pl->height);
+			unsigned hash = visplane_hash(pl->picnum, pl->lightlevel, pl->height);
 			new_pl = new_visplane(hash);
 		}
 
@@ -549,8 +577,8 @@ visplane_t *R_CheckPlane(visplane_t *pl, INT32 start, INT32 stop)
 		pl = new_pl;
 		pl->minx = start;
 		pl->maxx = stop;
-		memset(pl->top, 0xff, sizeof pl->top);
-		memset(pl->bottom, 0x00, sizeof pl->bottom);
+		memset(pl->top, 0xff, sizeof(*pl->top) * viewwidth);
+		memset(pl->bottom, 0x00, sizeof(*pl->bottom) * viewwidth);
 	}
 	return pl;
 }
@@ -814,7 +842,8 @@ void R_DrawSinglePlane(visplane_t *pl)
 #endif
 	spanfunc = basespanfunc;
 
-	if (pl->polyobj && pl->polyobj->translucency != 0) {
+	if (pl->polyobj && pl->polyobj->translucency != 0)
+	{
 		spanfunc = R_DrawTranslucentSpan_8;
 
 		// Hacked up support for alpha value in software mode Tails 09-24-2002 (sidenote: ported to polys 10-15-2014, there was no time travel involved -Red)
@@ -834,8 +863,8 @@ void R_DrawSinglePlane(visplane_t *pl)
 		else
 			light = LIGHTLEVELS-1;
 
-	} else
-	if (pl->ffloor)
+	}
+	else if (pl->ffloor)
 	{
 		// Don't draw planes that shouldn't be drawn.
 		for (rover = pl->ffloor->target->ffloors; rover; rover = rover->next)
@@ -936,13 +965,13 @@ void R_DrawSinglePlane(visplane_t *pl)
 	else light = (pl->lightlevel >> LIGHTSEGSHIFT);
 
 	if (!pl->slope) // Don't mess with angle on slopes! We'll handle this ourselves later
-	if (viewangle != pl->viewangle+pl->plangle)
 	{
-		memset(cachedheight, 0, sizeof (cachedheight));
-		angle = (pl->viewangle+pl->plangle-ANGLE_90)>>ANGLETOFINESHIFT;
-		basexscale = FixedDiv(FINECOSINE(angle),centerxfrac);
-		baseyscale = -FixedDiv(FINESINE(angle),centerxfrac);
-		viewangle = pl->viewangle+pl->plangle;
+		if (viewangle != pl->viewangle+pl->plangle)
+		{
+			angle = (pl->viewangle+pl->plangle-ANGLE_90)>>ANGLETOFINESHIFT;
+			basexscale = FixedDiv(FINECOSINE(angle),centerxfrac);
+			baseyscale = -FixedDiv(FINESINE(angle),centerxfrac);
+		}
 	}
 
 	currentplane = pl;
@@ -1099,9 +1128,9 @@ void R_DrawSinglePlane(visplane_t *pl)
 			spanfunc = R_DrawTiltedSpan_8;
 
 		planezlight = scalelight[light];
-	} else
-
-	planezlight = zlight[light];
+	}
+	else
+		planezlight = zlight[light];
 
 	// set the maximum value for unsigned
 	pl->top[pl->maxx+1] = 0xffff;
@@ -1210,9 +1239,9 @@ void R_PlaneBounds(visplane_t *plane)
 	for (i = plane->minx + 1; i <= plane->maxx; i++)
 	{
 		if (plane->top[i] < hi)
-		hi = plane->top[i];
+			hi = plane->top[i];
 		if (plane->bottom[i] > low)
-		low = plane->bottom[i];
+			low = plane->bottom[i];
 	}
 	plane->high = hi;
 	plane->low = low;

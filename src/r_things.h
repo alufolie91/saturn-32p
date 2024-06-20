@@ -44,8 +44,8 @@
 
 // Constant arrays used for psprite clipping
 //  and initializing clipping.
-extern INT16 negonearray[MAXVIDWIDTH];
-extern INT16 screenheightarray[MAXVIDWIDTH];
+extern INT16 *negonearray;
+extern INT16 *screenheightarray;
 
 // vars for R_DrawMaskedColumn
 extern INT16 *mfloorclip;
@@ -179,8 +179,7 @@ typedef struct vissprite_s
 	fixed_t spritexscale, spriteyscale;
 	fixed_t spritexoffset, spriteyoffset;
 
-	INT16 clipbot[MAXVIDWIDTH], cliptop[MAXVIDWIDTH];
-
+	INT16 *clipbot, *cliptop;
 	boolean precip;
 	boolean vflip; // Flip vertically
 	boolean isScaled;
@@ -190,6 +189,8 @@ typedef struct vissprite_s
 extern UINT32 visspritecount, numvisiblesprites;
 
 void R_ClipSprites(void);
+
+void R_AllocVisSpriteMemory(void);
 
 UINT8 *R_GetSpriteTranslation(vissprite_t *vis);
 
@@ -220,8 +221,8 @@ extern UINT8 skinstatscount[9][9];
 extern UINT8 skinsorted[MAXSKINS];
 
 void sortSkinGrid(void);
-extern skin_t localskins[MAXSKINS];
-extern skin_t allskins[MAXSKINS*2];
+extern skin_t localskins[MAXLOCALSKINS];
+extern skin_t allskins[MAXSKINS+MAXLOCALSKINS];
 
 boolean SetPlayerSkin(INT32 playernum,const char *skinname);
 void SetPlayerSkinByNum(INT32 playernum,INT32 skinnum); // Tails 03-16-2002

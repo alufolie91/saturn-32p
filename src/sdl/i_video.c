@@ -1955,7 +1955,7 @@ INT32 VID_SetMode(INT32 modeNum)
 
 static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 {
-	int flags = 0;
+	int flags = SDL_WINDOW_ALLOW_HIGHDPI;
 
 	if (rendermode == render_none) // dedicated
 		return SDL_TRUE; // Monster Iestyn -- not sure if it really matters what we return here tbh
@@ -2026,7 +2026,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 #ifdef _WIN32
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
 #else
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
 #endif
 
 		renderer = SDL_CreateRenderer(window, -1, flags);
@@ -2447,9 +2447,12 @@ UINT32 I_GetRefreshRate(void)
 
 static void Impl_SetVsync(void)
 {
-#if SDL_VERSION_ATLEAST(2,0,18)
-	if (renderer)
-		SDL_RenderSetVSync(renderer, cv_vidwait.value);
+	if (renderer && rendermode == render_soft)
+	{
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+		SDL_RenderSetVSync(renderer, cv_vidwait.value ? 1 : 0);
 #endif
+	}
 }
+
 #endif

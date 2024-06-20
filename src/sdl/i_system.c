@@ -41,16 +41,11 @@ typedef DWORD (WINAPI *p_timeGetTime) (void);
 typedef UINT (WINAPI *p_timeEndPeriod) (UINT);
 typedef HANDLE (WINAPI *p_OpenFileMappingA) (DWORD, BOOL, LPCSTR);
 typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
-#endif
 
-// A little more than the minimum sleep duration on Windows.
-// May be incorrect for other platforms, but we don't currently have a way to
-// query the scheduler granularity. SDL will do what's needed to make this as
-// low as possible though.
-#if defined(_WIN32)
-#define MIN_SLEEP_DURATION_MS 1.6
-#else
-#define MIN_SLEEP_DURATION_MS 2.1
+// This is for RtlGenRandom.
+#define SystemFunction036 NTAPI SystemFunction036
+#include <ntsecapi.h>
+#undef SystemFunction036
 #endif
 
 #include <stdio.h>
@@ -66,7 +61,6 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
 #include <fcntl.h>
 #endif
 
-#include <stdio.h>
 #ifdef _WIN32
 #include <conio.h>
 #endif
@@ -201,6 +195,16 @@ static char returnWadPath[256];
 // Mumble context string
 #include "../d_clisrv.h"
 #include "../byteptr.h"
+#endif
+
+// A little more than the minimum sleep duration on Windows.
+// May be incorrect for other platforms, but we don't currently have a way to
+// query the scheduler granularity. SDL will do what's needed to make this as
+// low as possible though.
+#if defined(_WIN32)
+#define MIN_SLEEP_DURATION_MS 1.6
+#else
+#define MIN_SLEEP_DURATION_MS 2.1
 #endif
 
 #ifdef HAVE_LIBBACKTRACE
@@ -3272,7 +3276,7 @@ void I_Sleep(UINT32 ms)
 
 void I_SleepDuration(precise_t duration)
 {
-#if defined(__linux__) || defined(__FreeBSD__)
+	#if defined(__linux__) || defined(__FreeBSD__)
 	UINT64 precision = I_GetPrecisePrecision();
 	struct timespec ts = {
 		.tv_sec = duration / precision,
@@ -3281,7 +3285,7 @@ void I_SleepDuration(precise_t duration)
 	int status;
 	do status = clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, &ts);
 	while (status == EINTR);
-#else
+	#else
 	UINT64 precision = I_GetPrecisePrecision();
 	INT32 sleepvalue = cv_sleep.value;
 	UINT64 delaygranularity;
@@ -3313,7 +3317,7 @@ void I_SleepDuration(precise_t duration)
 
 		cur = I_GetPreciseTime();
 	}
-#endif
+	#endif
 }
 
 #ifdef NEWSIGNALHANDLER
@@ -3782,6 +3786,38 @@ INT32 I_PutEnv(char *variable)
 	return SDL_putenv(variable);
 #else
 	return putenv(variable);
+#endif
+}
+
+size_t I_GetRandomBytes(char *destination, size_t count)
+{
+#if defined (__unix__) || defined (UNIXCOMMON) || defined(__APPLE__)
+	FILE *rndsource;
+	size_t actual_bytes;
+
+	if (!(rndsource = fopen("/dev/urandom", "r")))
+		if (!(rndsource = fopen("/dev/random", "r")))
+			actual_bytes = 0;
+
+	if (rndsource)
+	{
+		actual_bytes = fread(destination, 1, count, rndsource);
+		fclose(rndsource);
+	}
+
+	if (actual_bytes == 0)
+		I_OutputMsg("I_GetRandomBytes(): couldn't get any random bytes");
+
+	return actual_bytes;
+#elif defined (_WIN32)
+	if (RtlGenRandom(destination, count))
+		return count;
+
+	I_OutputMsg("I_GetRandomBytes(): couldn't get any random bytes");
+	return 0;
+#else
+	#warning SDL I_GetRandomBytes is not implemented on this platform.
+	return 0;
 #endif
 }
 

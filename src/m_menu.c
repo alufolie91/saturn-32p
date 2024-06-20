@@ -82,6 +82,9 @@
 // protocol handling
 #include "d_protocol.h"
 
+#include "z_zone.h"
+#include "mserv.h"
+
 #if defined(HAVE_SDL)
 #include "SDL.h"
 #if SDL_VERSION_ATLEAST(2,0,0)
@@ -4100,7 +4103,11 @@ void M_Drawer(void)
 	{
 		// now that's more readable with a faded background (yeah like Quake...)
 		if (!WipeInAction && currentMenu != &PlaybackMenuDef) // Replay playback has its own background
+		{
+			if ((!netgame) && gamestate == GS_LEVEL) //only paused when not in netgame
+				V_DrawVhsEffect(false);
 			V_DrawFadeScreen(0xFF00, 16);
+		}
 
 		if (currentMenu->drawroutine)
 		{
@@ -5172,7 +5179,7 @@ static void M_DrawGenericMenu(void)
 	
 	if (currentMenu == &OP_NametagDef)
 	{
-		if (!(OP_NametagTooltips[itemOn] == NULL)) 
+		if (!(OP_NametagTooltips[itemOn] == NULL))
 		{
 			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_NametagTooltips[itemOn], coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
@@ -5182,7 +5189,7 @@ static void M_DrawGenericMenu(void)
 	
 	if (currentMenu == &OP_DriftGaugeDef)
 	{
-		if (!(OP_DriftGaugeTooltips[itemOn] == NULL)) 
+		if (!(OP_DriftGaugeTooltips[itemOn] == NULL))
 		{
 			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_DriftGaugeTooltips[itemOn], coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
@@ -10131,6 +10138,7 @@ static void M_StartServerMenu(INT32 choice)
 	levellistmode = LLM_CREATESERVER;
 	M_PrepareLevelSelect();
 	M_SetupNextMenu(&MP_ServerDef);
+	Get_rules();
 	M_PopupMasterServerRules();
 }
 
@@ -11663,7 +11671,7 @@ static void M_SetupMultiPlayer4(INT32 choice)
 
 	//change the y offsets of the menu depending on cvar settings
 	SKINSELECTMENUEDIT
-	
+
 	sortSkinGrid();
 
 	MP_PlayerSetupDef.prevMenu = currentMenu;

@@ -102,6 +102,7 @@ ifeq ($(OS),Windows_NT) # all windows are Windows_NT...
  MINGW=1
  SDL=1
  WINDOWSHELL=1
+ HAVE_DISCORDRPC=0
  NOUPX=1
 
 else # if you on the *nix
@@ -295,7 +296,7 @@ else
 endif
 else
 ifdef X86_64
-	ARCHOPTS?=-march=nocona
+	ARCHOPTS?=-march=native
 endif
 endif
 

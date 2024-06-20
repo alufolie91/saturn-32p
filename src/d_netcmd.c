@@ -1133,7 +1133,7 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_scr_height);
 
 	CV_RegisterVar(&cv_soundtest);
-	
+
 	CV_RegisterVar(&cv_nametag);
 	CV_RegisterVar(&cv_nametagtrans);
 	CV_RegisterVar(&cv_nametagfacerank);
@@ -1148,7 +1148,7 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_nametagscore);
 	CV_RegisterVar(&cv_shownametagfinish);
 	CV_RegisterVar(&cv_shownametagspectator);
-	
+
 	CV_RegisterVar(&cv_driftgauge);
 	CV_RegisterVar(&cv_driftgaugeofs);
 	CV_RegisterVar(&cv_driftgaugetrans);

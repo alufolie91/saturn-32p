@@ -207,6 +207,7 @@ extern char  logfilename[1024];
 
 #define MAXPLAYERS 32
 #define MAXSKINS 383
+#define MAXLOCALSKINS 32
 #define PLAYERSMASK (MAXPLAYERS-1)
 #define MAXPLAYERNAME 21
 
@@ -578,6 +579,11 @@ void M_StartupLocale(void);
 #define M_GetText(x) (x)
 #endif
 void *M_Memcpy(void* dest, const void* src, size_t n);
+#if defined(_WIN32) && defined(__MINGW64__)
+void *memcpy_fast(void *destination, const void *source, size_t size);
+#else
+#define memcpy_fast(dest, src, n) memcpy(dest, src, n)
+#endif
 char *va(const char *format, ...) FUNCPRINTF;
 char *M_GetToken(const char *inputString);
 char *sizeu1(size_t num);
@@ -715,7 +721,7 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 
 /// Sprite rotation
 #define ROTSPRITE
-#define ROTANGLES 72 // Needs to be a divisor of 360 (45, 60, 90, 120...)
+#define ROTANGLES 180 // Needs to be a divisor of 360 (45, 60, 90, 120...)
 #define ROTANGDIFF (360 / ROTANGLES)
 
 #if defined (HAVE_CURL) && ! defined (NONET)

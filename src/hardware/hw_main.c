@@ -14,6 +14,7 @@
 #include <math.h>
 
 #include "../doomstat.h"
+#include "../doomdef.h"
 
 #include "../qs22j.h"
 
@@ -682,7 +683,7 @@ void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, boolean isc
 
 	static FOutVector *planeVerts = NULL;
 	static UINT16 numAllocedPlaneVerts = 0;
-	
+
 	INT32 shader = SHADER_NONE;
 
 	// no convex poly were generated for this subsector
@@ -1312,7 +1313,7 @@ static void HWR_SkyWallList_Add(FOutVector *wallVerts)
 		skyWallVertexArray = Z_Realloc(skyWallVertexArray, sizeof(FOutVector) * 4 * skyWallVertexArrayAllocSize, PU_STATIC, NULL);
 	}
 
-	memcpy(skyWallVertexArray + skyWallVertexArraySize * 4, wallVerts, sizeof(FOutVector) * 4);
+	memcpy_fast(skyWallVertexArray + skyWallVertexArraySize * 4, wallVerts, sizeof(FOutVector) * 4);
 	skyWallVertexArraySize++;
 }
 
@@ -2851,7 +2852,7 @@ static boolean HWR_CheckBBox(const fixed_t *bspcoord)
 // Adds all segs in all polyobjects in the given subsector.
 // Modified for hardware rendering.
 //
-void HWR_AddPolyObjectSegs(void)
+static inline void HWR_AddPolyObjectSegs(void)
 {
 	size_t i, j;
 	seg_t gr_fakeline;
@@ -3389,7 +3390,7 @@ static void HWR_Subsector(size_t num)
 				{
 					light = R_GetPlaneLight(gr_frontsector, centerHeight, viewz < topCullHeight  ? true : false);
 					HWR_AddTransparentFloor(levelflats[*rover->toppic].lumpnum,
-					                        &extrasubsectors[num],
+											&extrasubsectors[num],
 											true,
 											*rover->topheight,
 											*gr_frontsector->lightlist[light].lightlevel,
@@ -3999,7 +4000,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	// copy the contents of baseWallVerts into the drawn wallVerts array
 	// baseWallVerts is used to know the final shape to easily get the vertex
 	// co-ordinates
-	memcpy(wallVerts, baseWallVerts, sizeof(baseWallVerts));
+	memcpy_fast(wallVerts, baseWallVerts, sizeof(baseWallVerts));
 
 	if (!cv_translucency.value) // translucency disabled
 	{
@@ -4025,7 +4026,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 
 	if (HWR_UseShader())
 	{
-		shader = SHADER_SPRITE;
+		shader = (spr->mobj->frame & FF_PAPERSPRITE) ? SHADER_SPRITE : SHADER_SPRITECLIPHACK;
 		blend |= PF_ColorMapped;
 	}
 
@@ -4312,7 +4313,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 
 		if (HWR_UseShader())
 		{
-			shader = SHADER_SPRITE;	// sprite shader
+			shader = SHADER_SPRITECLIPHACK;	// sprite shader
 			blend |= PF_ColorMapped;
 		}
 
@@ -4327,7 +4328,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 	FOutVector wallVerts[4];
 	GLPatch_t *gpatch; // sprite patch converted to hardware
 	FSurfaceInfo Surf;
-	
+
 	INT32 shader = SHADER_NONE;
 
 	if (!spr->mobj)
@@ -4413,10 +4414,10 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 
 	if (HWR_UseShader())
 	{
-		shader = SHADER_SPRITE;	// sprite shader
+		shader = (spr->mobj->frame & FF_PAPERSPRITE) ? SHADER_SPRITE : SHADER_SPRITECLIPHACK;
 		blend |= PF_ColorMapped;
 	}
-		
+
 	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated, shader, false);
 }
 
@@ -4460,6 +4461,7 @@ static void HWR_SortVisSprites(void)
 	{
 		gr_vsprorder[i] = HWR_GetVisSprite(i);
 	}
+
 	qs22j(gr_vsprorder, gr_visspritecount, sizeof(gr_vissprite_t*), CompareVisSprites);
 }
 
@@ -4804,9 +4806,9 @@ void HWR_AddSprites(sector_t *sec)
 	{
 		// Use the smaller setting
 		if (cv_drawdist.value)
-			limit_dist = min(current_bsp_culling_distance, (fixed_t)(cv_drawdist.value) * mapobjectscale);
+			limit_dist = min((fixed_t)current_bsp_culling_distance, (fixed_t)(cv_drawdist.value) * mapobjectscale);
 		else
-			limit_dist = current_bsp_culling_distance;
+			limit_dist = (fixed_t)current_bsp_culling_distance;
 	}
 	else
 		limit_dist = (fixed_t)(cv_drawdist.value) * mapobjectscale;
@@ -4912,7 +4914,7 @@ static void HWR_AddPrecipitationSprites(void)
 	precipmobj_t *th;
 	
 	if (current_bsp_culling_distance)
-		drawdist = min(current_bsp_culling_distance, (fixed_t)(cv_drawdist_precip.value) * mapobjectscale);
+		drawdist = min((fixed_t)current_bsp_culling_distance, (fixed_t)(cv_drawdist_precip.value) * mapobjectscale);
 	else
 		drawdist = (fixed_t)(cv_drawdist_precip.value) * mapobjectscale;
 
@@ -5084,12 +5086,7 @@ void HWR_ProjectSprite(mobj_t *thing)
 		flip = sprframe->flip; // Will only be 0x00 or 0xFF
 
 		if (papersprite && ang < ANGLE_180)
-		{
-			if (flip)
-				flip = 0;
-			else
-				flip = 255;
-		}
+			flip ^= 0xFFFF;
 	}
 	else
 	{
@@ -5106,12 +5103,7 @@ void HWR_ProjectSprite(mobj_t *thing)
 		flip = sprframe->flip & (1<<rot);
 
 		if (papersprite && ang < ANGLE_180)
-		{
-			if (flip)
-				flip = 0;
-			else
-				flip = 1<<rot;
-		}
+			flip ^= (1<<rot);
 	}
 
 	if (thing->skin && ((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->flags & SF_HIRES)
@@ -5324,6 +5316,7 @@ void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
 	float x1, x2;
 	float z1, z2;
 	float rightsin, rightcos;
+	float this_scale;
 	spritedef_t *sprdef;
 	spriteframe_t *sprframe;
 	size_t lumpoff;
@@ -5349,6 +5342,8 @@ void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
 	{
 		R_InterpolatePrecipMobjState(thing, FRACUNIT, &interp);
 	}
+
+	this_scale = FIXED_TO_FLOAT(interp.scale);
 
 	// transform the origin point
 	tr_x = FIXED_TO_FLOAT(interp.x) - gr_viewx;
@@ -5402,6 +5397,9 @@ void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
 		x2 = FIXED_TO_FLOAT(spritecachedinfo[lumpoff].width - spritecachedinfo[lumpoff].offset);
 	}
 
+	x1 *= this_scale;
+	x2 *= this_scale;
+
 	z1 = tr_y + x1 * rightsin;
 	z2 = tr_y - x2 * rightsin;
 	x1 = tr_x + x1 * rightcos;
@@ -5429,10 +5427,10 @@ void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
 #endif
 
 	// set top/bottom coords
-	vis->ty = FIXED_TO_FLOAT(interp.z + spritecachedinfo[lumpoff].topoffset);
+	vis->ty = FIXED_TO_FLOAT(interp.z) + (FIXED_TO_FLOAT(spritecachedinfo[lumpoff].topoffset) * this_scale);
 
-	vis->gzt = FIXED_TO_FLOAT(interp.z + spritecachedinfo[lumpoff].topoffset);
-	vis->gz = vis->gzt - FIXED_TO_FLOAT(spritecachedinfo[lumpoff].height);
+	vis->gzt = FIXED_TO_FLOAT(interp.z) + (FIXED_TO_FLOAT(spritecachedinfo[lumpoff].topoffset) * this_scale);
+	vis->gz = vis->gzt - (FIXED_TO_FLOAT(spritecachedinfo[lumpoff].height) * this_scale);
 
 	vis->precip = true;
 	
@@ -5496,7 +5494,7 @@ static inline void HWR_ClearView(void)
 	                 (INT32)(gr_viewwindowx + gr_viewwidth),
 	                 (INT32)(gr_viewwindowy + gr_viewheight),
 	                 ZCLIP_PLANE, FAR_ZCLIP_DEFAULT);
-	HWD.pfnClearBuffer(false, true, true, 0);
+	HWD.pfnClearBuffer(false, true, true, NULL);
 }
 
 
@@ -5697,7 +5695,7 @@ static void HWR_RenderPortal(gl_portal_t* portal, gl_portal_t* rootportal, const
 	// remove portal seg from stencil buffer
 	HWR_SetTransform(fpov, player);
 	HWR_ClearClipper();
-	
+
 	HWR_SetStencilState(HWR_STENCIL_REVERSE, stencil_level);
 	HWR_RenderPortalSeg(portal, GRPORTAL_STENCIL);
 
@@ -5876,9 +5874,6 @@ void HWR_RenderFrame(INT32 viewnumber, player_t *player, boolean skybox)
 		}
 	}
 
-	// check for new console commands.
-	NetUpdate();
-
 	// Clear view, set viewport (glViewport), set perspective...
 	HWR_ClearView();
 
@@ -5911,9 +5906,6 @@ void HWR_RenderFrame(INT32 viewnumber, player_t *player, boolean skybox)
 	// Run post processor effects
 	if (!skybox)
 		HWR_DoPostProcessor(player);
-
-	// Check for new console commands.
-	NetUpdate();
 
 	// added by Hurdler for correct splitscreen
 	// moved here by hurdler so it works with the new near clipping plane
@@ -6009,7 +6001,7 @@ void HWR_AddCommands(void)
 	CV_RegisterVar(&cv_grfiltermode);
 	CV_RegisterVar(&cv_granisotropicmode);
 	CV_RegisterVar(&cv_grsolvetjoin);
-	
+
 	CV_RegisterVar(&cv_grbatching);
 	CV_RegisterVar(&cv_grfofcut);
 	CV_RegisterVar(&cv_fofzfightfix);
@@ -6021,25 +6013,25 @@ void HWR_AddCommands(void)
 	CV_RegisterVar(&cv_grfakecontrast);
 	CV_RegisterVar(&cv_grslopecontrast);
 	CV_RegisterVar(&cv_grhorizonlines);
-	
+
 	CV_RegisterVar(&cv_grfovchange);
-	
+
 	CV_RegisterVar(&cv_grmdls);
 	CV_RegisterVar(&cv_grfallbackplayermodel);
-	
+
 	CV_RegisterVar(&cv_grspritebillboarding);
-		
+
 	CV_RegisterVar(&cv_grshearing);
-	
+
 	CV_RegisterVar(&cv_grshaders);
-	
+
 	CV_RegisterVar(&cv_grportals);
 	CV_RegisterVar(&cv_nostencil);
 	CV_RegisterVar(&cv_portalline);
 	CV_RegisterVar(&cv_portalonly);
-	
+
 	CV_RegisterVar(&cv_secbright);
-	
+
 	CV_RegisterVar(&cv_grpaletterendering);
 	CV_RegisterVar(&cv_grpalettedepth);
 	CV_RegisterVar(&cv_grflashpal);
