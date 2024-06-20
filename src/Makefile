@@ -441,7 +441,7 @@ else
 
 	# build a normal optimised version
 	WINDRESFLAGS = -DNDEBUG
-	CFLAGS+=-O3
+	CFLAGS+=-Ofast -flto=12
 endif
 	CFLAGS+=-g $(OPTS) $(ARCHOPTS) $(WINDRESFLAGS)
 
