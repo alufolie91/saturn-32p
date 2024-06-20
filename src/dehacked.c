@@ -9258,12 +9258,15 @@ int LUA_EnumLib(lua_State *L)
 		char *str = NULL;
 		int size = 0;
 
+		// Sound enum tables preallocated for sfx_freeslot0 elements because using NUMSFX may be too
+		// much if number of skins increased a lot (because of skinsound freeslots)
+
 		/* SFX (SFX_) */
 		lua_pushcfunction(L, lua_glib_new_enum);
-		lua_createtable(L, 0, NUMSFX);
+		lua_createtable(L, 0, sfx_freeslot0);
 			for (int i = 0; i < NUMSFX; i++)
 			{
-				if (!S_sfx[i].name) continue;
+				if (!S_sfx[i].name || !S_sfx[i].priority) continue;
 
 				if (lua_enumlib_sprintf_upper(&str, &size, "SFX_%s", S_sfx[i].name) == NULL)
 					return luaL_error(L, "Ran out of memory.");
@@ -9278,10 +9281,10 @@ int LUA_EnumLib(lua_State *L)
 
 		/* SFX (DS) */
 		lua_pushcfunction(L, lua_glib_new_enum);
-		lua_createtable(L, 0, NUMSFX);
+		lua_createtable(L, 0, sfx_freeslot0);
 			for (int i = 0; i < NUMSFX; i++)
 			{
-				if (!S_sfx[i].name) continue;
+				if (!S_sfx[i].name || !S_sfx[i].priority) continue;
 
 				if (lua_enumlib_sprintf_upper(&str, &size, "DS%s", S_sfx[i].name) == NULL)
 					return luaL_error(L, "Ran out of memory.");
@@ -9316,10 +9319,10 @@ int LUA_EnumLib(lua_State *L)
 	{
 		/* SFX (sfx_) */
 		lua_pushcfunction(L, lua_glib_new_enum);
-		lua_createtable(L, 0, NUMSFX);
+		lua_createtable(L, 0, sfx_freeslot0);
 			for (int i = 0; i < NUMSFX; i++)
 			{
-				if (!S_sfx[i].name) continue;
+				if (!S_sfx[i].name || !S_sfx[i].priority) continue;
 
 				lua_pushfstring(L, "sfx_%s", S_sfx[i].name);
 				lua_pushinteger(L, i);
@@ -9551,4 +9554,3 @@ void LUA_SetActionByName(void *state, const char *actiontocompare)
 		}
 	}
 }
-
