@@ -4379,6 +4379,7 @@ static void P_HandleFollower(player_t *player)
 	fixed_t fh = INT32_MIN, ch = INT32_MAX;
 	angle_t destAngle;
 	INT32 angleDiff;
+	UINT8 color;
 
 	if (!player->followerready)
 		return;	// we aren't ready to perform anything follower related yet.
@@ -4454,25 +4455,39 @@ static void P_HandleFollower(player_t *player)
 			break;
 		}
 	}
+	
+	// Set follower colour
+
+	switch (player->followercolor)
+	{
+		case MAXSKINCOLORS: // "Match"
+			color = player->skincolor;
+			break;
+		case MAXSKINCOLORS+1: // "Opposite"
+			color = KartColor_Opposite[player->skincolor];
+			break;
+		default:
+
+			color = player->followercolor;
+			if (!color || color > MAXSKINCOLORS+2) // Make sure this isn't garbage
+				color = player->skincolor; // "Match" as fallback.
+
+			break;
+	}
 
 	if (!player->follower)	// follower doesn't exist / isn't valid
 	{
 		//CONS_Printf("Spawning follower...\n");
+
 		// so let's spawn one!
 		P_SetTarget(&player->follower, P_SpawnMobj(sx, sy, sz, MT_FOLLOWER));
-		P_SetFollowerState(player->follower, fl.idlestate);
-		P_SetTarget(&player->follower->target, player->mo);	// we need that to know when we need to disappear
-		player->follower->angle = player->mo->angle;
+		if (player->follower == NULL)
+			return;
 
-		player->follower->extravalue1 = 0;	// extravalue1 is used to know what "state set" to use.
-		/*
-			0 = idle
-			1 = forwards
-			2 = hurt
-			3 = win
-			4 = lose
-			5 = hitconfirm (< this one uses ->movecount as timer to know when to end, and goes back to normal states afterwards, unless hurt)
-		*/
+		K_UpdateFollowerState(player->follower, fl.idlestate, FOLLOWERSTATE_IDLE);
+
+		P_SetTarget(&player->follower->target, player->mo); // we need that to know when we need to disappear
+		player->follower->angle = player->follower->old_angle = player->mo->angle;
 	}
 	else	// follower exists, woo!
 	{
@@ -4516,6 +4531,27 @@ static void P_HandleFollower(player_t *player)
 			player->follower->momz = FixedDiv(sz - player->follower->z, fl.vertlag);
 		}
 		
+		if (player->mo->colorized)
+		{
+			player->follower->color = player->mo->color;
+		}
+		else
+		{
+			player->follower->color = color;
+		}
+
+		player->follower->colorized = player->mo->colorized;
+		
+		P_SetScale(player->follower, FixedMul(fl.scale, player->mo->scale));
+		K_GenericExtraFlagsNoZAdjust(player->follower, player->mo); // Not K_MatchGenericExtraFlag because the Z adjust it has only works properly if master & mo have the same Z height.
+		
+		// For comeback in battle.
+		player->follower->flags2 = (player->follower->flags2 & ~MF2_SHADOW)|(player->mo->flags2 & MF2_SHADOW);
+
+		// Make the follower invisible if we no contest'd rather than removing it. No one will notice the diff seriously.
+
+		if (player->pflags & PF_TIMEOVER)	// there is more to it than that to check for a full no contest but this isn't used for anything else.
+			player->follower->flags2 &= MF2_DONTDRAW;
 		
 		// if we're moving let's make the angle the direction we're moving towards. This is to avoid drifting / reverse looking awkward.
 		if (FixedHypot(player->follower->momx, player->follower->momy) >= player->mo->scale)
@@ -4528,11 +4564,11 @@ static void P_HandleFollower(player_t *player)
 			destAngle = player->mo->angle;
 		}
 		
-		// Sal: Turn the follower around when looking backwards.
+		/*// Sal: Turn the follower around when looking backwards.
 		if ( player->cmd.buttons & BT_LOOKBACK )
 		{
 			destAngle += ANGLE_180;
-		}
+		}*/
 		
 		// Sal: Smoothly rotate angle to the destination value.
 		angleDiff = AngleDeltaSigned(destAngle, player->follower->angle);
@@ -4580,21 +4616,6 @@ static void P_HandleFollower(player_t *player)
 
 			P_RollPitchMobj(player->follower);
 		}
-		
-		//player->follower->angle = player->mo->angle;
-		player->follower->color = player->mo->color;
-		player->follower->colorized = player->mo->colorized;
-
-		P_SetScale(player->follower, FixedMul(fl.scale, player->mo->scale));
-		K_GenericExtraFlagsNoZAdjust(player->follower, player->mo); // Not K_MatchGenericExtraFlag because the Z adjust it has only works properly if master & mo have the same Z height.
-
-		// For comeback in battle.
-		player->follower->flags2 = (player->follower->flags2 & ~MF2_SHADOW)|(player->mo->flags2 & MF2_SHADOW);
-
-		// Make the follower invisible if we no contest'd rather than removing it. No one will notice the diff seriously.
-
-		if (player->pflags & PF_TIMEOVER)	// there is more to it than that to check for a full no contest but this isn't used for anything else.
-			player->follower->flags2 &= MF2_DONTDRAW;
 		
 		if (player->follower->threshold)
 		{

@@ -301,8 +301,9 @@ extern UINT8 demo_writerng;
 #define DXD_NAME 0x04 // name changed
 #define DXD_COLOR 0x08 // color changed
 #define DXD_PLAYSTATE 0x10 // state changed between playing, spectating, or not in-game
+#define DXD_FOLLOWER   0x20 // follower was changed
 
-#define DXD_ADDPLAYER (DXD_PLAYSTATE|DXD_COLOR|DXD_NAME|DXD_SKIN)
+#define DXD_ADDPLAYER (DXD_PLAYSTATE|DXD_COLOR|DXD_NAME|DXD_SKIN|DXD_FOLLOWER)
 
 #define DXD_PST_PLAYING 0x01
 #define DXD_PST_SPECTATING 0x02

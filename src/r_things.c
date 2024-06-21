@@ -3334,6 +3334,9 @@ void SetFollower(INT32 playernum, INT32 skinnum)
 		}
 		
 		player->followerskin = skinnum;
+		
+		// for replays: We have changed our follower mid-game; let the game know so it can do the same in the replay!
+		demo_extradata[playernum] |= DXD_FOLLOWER;
 
 		return;
 	}

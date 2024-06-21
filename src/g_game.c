@@ -2483,6 +2483,7 @@ void G_PlayerReborn(INT32 player)
 	UINT8 kartspeed;
 	UINT8 kartweight;
 	boolean followerready;
+	UINT8 followercolor;
 	INT32 followerskin;
 	mobj_t *follower;	// old follower, will probably be removed by the time we're dead but you never know.
 	//
@@ -2564,6 +2565,7 @@ void G_PlayerReborn(INT32 player)
 	kartweight = players[player].kartweight;
 	follower = players[player].follower;
 	followerready = players[player].followerready;
+	followercolor = players[player].followercolor;
 	followerskin = players[player].followerskin;
 	//
 	charflags = players[player].charflags;
@@ -2698,7 +2700,9 @@ void G_PlayerReborn(INT32 player)
 
 	p->followerready = followerready;
 	p->followerskin = followerskin;
-	p->follower = NULL;	// respawn a new one with you, it looks better.
+	p->followercolor = followercolor;
+	//p->follower = NULL;	// respawn a new one with you, it looks better.
+	// ^ Not necessary anyway since it will be respawned regardless considering it doesn't exist anymore.
 
 	p->spectatorreentry = spectatorreentry;
 	p->grieftime = grieftime;
@@ -5115,6 +5119,23 @@ void G_ReadDemoExtraData(void)
 			M_Memcpy(player_names[p],demo_p,16);
 			demo_p += 16;
 		}
+		if (extradata & DXD_FOLLOWER)
+		{
+			// Set our follower
+			M_Memcpy(name, demo_p, 16);
+			demo_p += 16;
+			SetPlayerFollower(p, name);
+
+			// Follower's color
+			M_Memcpy(name, demo_p, 16);
+			demo_p += 16;
+			for (i = 0; i < MAXSKINCOLORS; i++)
+				if (!stricmp(KartColor_Names[i], name))				// SRB2kart
+				{
+					players[p].followercolor = i;
+					break;
+				}
+		}
 		if (extradata & DXD_PLAYSTATE)
 		{
 			extradata = READUINT8(demo_p);
@@ -5232,6 +5253,24 @@ void G_WriteDemoExtraData(void)
 				memcpy(name, player_names[i], 15); // Keeping 1 null byte for safety, sorry players with name containing more than 15 characters
 				M_Memcpy(demo_p,name,16);
 				demo_p += 16;
+			}
+			if (demo_extradata[i] & DXD_FOLLOWER)
+			{
+				// write follower
+				memset(name, 0, 16);
+				if (players[i].followerskin == -1)
+					strncpy(name, "None", 16);
+				else
+					strncpy(name, followers[players[i].followerskin].skinname, 16);
+				M_Memcpy(demo_p, name, 16);
+				demo_p += 16;
+
+				// write follower color
+				memset(name, 0, 16);
+				strncpy(name, Followercolor_cons_t[players[i].followercolor].strvalue, 16);	// Not KartColor_Names because followercolor has extra values such as "Match"
+				M_Memcpy(demo_p,name,16);
+				demo_p += 16;
+
 			}
 			if (demo_extradata[i] & DXD_PLAYSTATE)
 			{
@@ -5894,6 +5933,8 @@ void G_GhostTicker(void)
 					g->p += 16; // Same tbh
 				if (ziptic & DXD_NAME)
 					g->p += 16; // yea
+				if (ziptic & DXD_FOLLOWER)
+					g->p += 32; // ok (32 because there's both the skin and the colour)
 				if (ziptic & DXD_PLAYSTATE && READUINT8(g->p) != DXD_PST_PLAYING)
 					I_Error("Ghost is not a record attack ghost"); //@TODO lmao don't blow up like this
 			}
@@ -6688,6 +6729,25 @@ void G_BeginRecording(void)
 			strncpy(name, KartColor_Names[player->skincolor], 16);
 			M_Memcpy(demo_p,name,16);
 			demo_p += 16;
+			
+			// Save follower's skin name
+			// PS: We must check for 'follower' to determine if the followerskin is valid. It's going to be 0 if we don't have a follower, but 0 is also absolutely a valid follower!
+			// Doesn't really matter if the follower mobj is valid so long as it exists in a way or another.
+
+			memset(name, 0, 16);
+			if (player->follower)
+				strncpy(name, followers[player->followerskin].skinname, 16);
+			else
+				strncpy(name, "None", 16);	// Say we don't have one, then.
+
+			M_Memcpy(demo_p,name,16);
+			demo_p += 16;
+
+			// Save follower's colour
+			memset(name, 0, 16);
+			strncpy(name, Followercolor_cons_t[player->followercolor].strvalue, 16);	// Not KartColor_Names because followercolor has extra values such as "Match"
+			M_Memcpy(demo_p, name, 16);
+			demo_p += 16;
 
 			// Score, since Kart uses this to determine where you start on the map
 			WRITEUINT32(demo_p, player->score);
@@ -7285,7 +7345,7 @@ void G_DoPlayDemo(char *defdemoname)
 {
 	UINT8 i, p;
 	lumpnum_t l;
-	char skin[17],color[17],*n,*pdemoname;
+	char skin[17],color[17],follower[17],*n,*pdemoname;
 	UINT8 version,subversion;
 	UINT32 randseed;
 	char msg[1024];
@@ -7298,6 +7358,7 @@ void G_DoPlayDemo(char *defdemoname)
 	G_InitDemoRewind();
 
 	skin[16] = '\0';
+	follower[16] = '\0';
 	color[16] = '\0';
 
 	// No demo name means we're restarting the current demo
@@ -7734,6 +7795,23 @@ void G_DoPlayDemo(char *defdemoname)
 				break;
 			}
 
+		// Follower
+		M_Memcpy(follower, demo_p, 16);
+		demo_p += 16;
+		SetPlayerFollower(p, follower);
+
+		// Follower colour
+		M_Memcpy(color, demo_p, 16);
+		demo_p += 16;
+		for (i = 0; i < MAXSKINCOLORS +2; i++)	// +2 because of Match and Opposite
+		{
+				if (!stricmp(Followercolor_cons_t[i].strvalue, color))
+				{
+						players[p].followercolor = i;
+						break;
+				}
+		}	
+		
 		// Score, since Kart uses this to determine where you start on the map
 		players[p].score = READUINT32(demo_p);
 
@@ -8011,6 +8089,9 @@ void G_AddGhost(char *defdemoname)
 	// Color
 	M_Memcpy(color, p, 16);
 	p += 16;
+	
+	// Follower data was here, skip it, we don't care about it for ghosts.
+	p += 32;	// followerskin (16) + followercolor (16)
 
 	p += 4; // score
 

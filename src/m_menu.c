@@ -11374,13 +11374,12 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	if (setupm_fakefollower > -1 && setupm_fakefollower < numfollowers)
 	{
 		// animate the follower
-
-		if (--follower_tics <= 0)
+		if (renderisnewtic)
 		{
-
-			// FF_ANIMATE; cycle through FRAMES and get back afterwards. This will be prominent amongst followers hence why it's being supported here.
-			if (renderisnewtic)
+			if (--follower_tics <= 0)
 			{
+
+				// FF_ANIMATE; cycle through FRAMES and get back afterwards. This will be prominent amongst followers hence why it's being supported here.
 				if (follower_state->frame & FF_ANIMATE)
 				{
 					follower_frame++;

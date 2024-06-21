@@ -39,6 +39,7 @@ int player_skincolor_setter(lua_State *L);
 int player_axis_setter(lua_State *L);
 int player_capsule_setter(lua_State *L);
 int player_awayviewmobj_setter(lua_State *L);
+int player_follower_setter(lua_State *L);
 int player_awayviewtics_setter(lua_State *L);
 int player_bot_noset(lua_State *L);
 int player_splitscreenindex_noset(lua_State *L);
@@ -79,6 +80,10 @@ static const udata_field_t player_fields[] = {
     FIELD(player_t, dashtime,         udatalib_getter_int32,       udatalib_setter_int32),
     FIELD(player_t, kartspeed,        udatalib_getter_uint8,       udatalib_setter_uint8),
     FIELD(player_t, kartweight,       udatalib_getter_uint8,       udatalib_setter_uint8),
+	FIELD(player_t, followerskin,     udatalib_getter_int32,       udatalib_setter_int32),
+	FIELD(player_t, followerready,    udatalib_getter_boolean,     udatalib_setter_boolean),
+	FIELD(player_t, followercolor,    udatalib_getter_uint8,       udatalib_setter_uint8),
+	FIELD(player_t, follower,         udatalib_getter_mobj,        player_follower_setter),
 	FIELD(player_t, interpoints,      udatalib_getter_int32,       udatalib_setter_int32),
 	FIELD(player_t, mashstop,      	  udatalib_getter_boolean,     udatalib_setter_boolean),
     FIELD(player_t, charflags,        udatalib_getter_uint32,      udatalib_setter_uint32),
@@ -344,6 +349,19 @@ int player_awayviewmobj_setter(lua_State *L)
     if (!lua_isnil(L, 2))
         mo = *((mobj_t **)luaL_checkudata(L, 2, META_MOBJ));
     P_SetTarget(&plr->awayviewmobj, mo);
+
+    return 0;
+}
+
+// Probably can do same thing as with axis1 and axis2
+int player_follower_setter(lua_State *L)
+{
+    player_t *plr = GETPLAYER();
+
+    mobj_t *mo = NULL;
+    if (!lua_isnil(L, 2))
+        mo = *((mobj_t **)luaL_checkudata(L, 2, META_MOBJ));
+    P_SetTarget(&plr->follower, mo);
 
     return 0;
 }
