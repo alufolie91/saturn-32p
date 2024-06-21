@@ -633,6 +633,13 @@ fixed_t P_GetZAt(pslope_t *slope, fixed_t x, fixed_t y)
    return slope->o.z + FixedMul(dist, slope->zdelta);
 }
 
+// Like P_GetZAt but falls back to z if slope is NULL
+fixed_t P_GetZAtorZ(pslope_t *slope, fixed_t x, fixed_t y, fixed_t z)
+{
+	return slope ? P_GetZAt(slope, x, y) : z;
+}
+
+
 // Returns the height of the sector floor at (x, y)
 fixed_t P_GetSectorFloorZAt(const sector_t *sector, fixed_t x, fixed_t y)
 {

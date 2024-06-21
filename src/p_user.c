@@ -4349,6 +4349,38 @@ static void P_SetFollowerState(mobj_t *f, statenum_t state)
 	}
 }
 
+UINT8 K_GetEffectiveFollowerColor(UINT8 followercolor, follower_t *follower, UINT8 playercolor, skin_t *playerskin)
+{
+	if (followercolor == SKINCOLOR_NONE && follower != NULL) // "Default"
+	{
+		followercolor = follower->defaultcolor;
+	}
+
+	if (followercolor > SKINCOLOR_NONE && followercolor < MAXSKINCOLORS) // bog standard
+	{
+		return followercolor;
+	}
+
+	if (playercolor == SKINCOLOR_NONE) // get default color
+	{
+		if (playerskin == NULL)
+		{
+			// Nothing from this line down is valid if playerskin is invalid, just guess Sonic?
+			playerskin = &skins[0];
+		}
+
+		playercolor = playerskin->prefcolor;
+	}
+
+	if (followercolor == FOLLOWERCOLOR_OPPOSITE) // "Opposite"
+	{
+		return KartColor_Opposite[playercolor];
+	}
+
+	// "Match"
+	return playercolor;
+}
+
 static void K_UpdateFollowerState(mobj_t *f, statenum_t state, followerstate_t type)
 {
 	if (f == NULL || P_MobjWasRemoved(f) == true)
@@ -4458,22 +4490,7 @@ static void P_HandleFollower(player_t *player)
 	
 	// Set follower colour
 
-	switch (player->followercolor)
-	{
-		case MAXSKINCOLORS: // "Match"
-			color = player->skincolor;
-			break;
-		case MAXSKINCOLORS+1: // "Opposite"
-			color = KartColor_Opposite[player->skincolor];
-			break;
-		default:
-
-			color = player->followercolor;
-			if (!color || color > MAXSKINCOLORS+2) // Make sure this isn't garbage
-				color = player->skincolor; // "Match" as fallback.
-
-			break;
-	}
+	color = K_GetEffectiveFollowerColor(player->followercolor, &fl, player->skincolor, &skins[player->skin]);
 
 	if (!player->follower)	// follower doesn't exist / isn't valid
 	{
@@ -4532,13 +4549,9 @@ static void P_HandleFollower(player_t *player)
 		}
 		
 		if (player->mo->colorized)
-		{
 			player->follower->color = player->mo->color;
-		}
 		else
-		{
 			player->follower->color = color;
-		}
 
 		player->follower->colorized = player->mo->colorized;
 		
@@ -4589,7 +4602,7 @@ static void P_HandleFollower(player_t *player)
 				{
 					// Ground bounce
 					player->follower->momz = P_GetMobjZMovement(player->mo) + FixedMul(fl.bobamp, player->follower->scale);
-					player->follower->extravalue1 = 1;
+					player->follower->extravalue1 = FOLLOWERSTATE_RESET;
 				}
 				else if (player->follower->momz < 0)
 				{
@@ -4605,7 +4618,7 @@ static void P_HandleFollower(player_t *player)
 				{
 					// Ground bounce
 					player->follower->momz = P_GetMobjZMovement(player->mo) - FixedMul(fl.bobamp, player->follower->scale);
-					player->follower->extravalue1 = 1;
+					player->follower->extravalue1 = FOLLOWERSTATE_RESET;
 				}
 				else if (player->follower->momz > 0)
 				{
@@ -4614,7 +4627,13 @@ static void P_HandleFollower(player_t *player)
 				}
 			}
 
-			P_RollPitchMobj(player->follower);
+			K_CalculateFollowerSlope(
+				player->follower,
+				player->follower->x, player->follower->y, player->follower->z,
+				player->follower->radius, ourheight,
+				(player->mo->eflags & MFE_VERTICALFLIP),
+				false
+			);
 		}
 		
 		if (player->follower->threshold)

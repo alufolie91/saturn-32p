@@ -557,6 +557,7 @@ static void readfollower(MYFILE *f)
 	followers[numfollowers].bobspeed = TICRATE*2;
 	followers[numfollowers].bobamp = 4;
 	followers[numfollowers].hitconfirmtime = TICRATE;
+	followers[numfollowers].defaultcolor = FOLLOWERCOLOR_MATCH;
 
 	do
 	{
@@ -591,6 +592,14 @@ static void readfollower(MYFILE *f)
 				strcpy(followers[numfollowers].name, word2);
 				nameset = true;
 			}
+			else if (fastcmp(word, "ICON"))
+			{
+				deh_warning("Follower \"%s\": icon is unsupported. Please consider removing it from your SOC file.", followers[numfollowers].name);
+			}
+			else if (fastcmp(word, "CATEGORY"))
+			{
+				deh_warning("Follower \"%s\": category is unsupported. Please consider removing it from your SOC file.", followers[numfollowers].name);
+			}
 			else if (fastcmp(word, "MODE"))
 			{
 				if (word2)
@@ -603,10 +612,31 @@ static void readfollower(MYFILE *f)
 				else
 					deh_warning("Follower %d: unknown follower mode '%s'", numfollowers, word2);
 			}
+			else if (fastcmp(word, "DEFAULTCOLOR"))
+			{
+				INT32 j;
+				for (j = 0; j < MAXSKINCOLORS +2; j++)	// +2 because of Match and Opposite
+				{
+					if (!stricmp(Followercolor_cons_t[j].strvalue, word2))
+					{
+						followers[numfollowers].defaultcolor = Followercolor_cons_t[j].value;
+						break;
+					}
+				}
+
+				if (j == MAXSKINCOLORS+2)
+				{
+					deh_warning("Follower %d: unknown follower color '%s'", numfollowers, word2);
+				}
+			}
 			else if (fastcmp(word, "SCALE"))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].scale), UNDO_NONE);
 				followers[numfollowers].scale = get_number(word2);
+			}
+			else if (fastcmp(word, "HORNSOUND"))
+			{
+				deh_warning("Follower \"%s\": hornsound is unsupported. Please consider removing it from your SOC file.", followers[numfollowers].name);
 			}
 			else if (fastcmp(word, "ATANGLE"))
 			{

@@ -115,6 +115,9 @@ extern CV_PossibleValue_t Forceskin_cons_t[];
 // We'll define these here because they're really just a mobj that'll follow some rules behind a player
 //
 
+#define FOLLOWERCOLOR_MATCH UINT8_MAX
+#define FOLLOWERCOLOR_OPPOSITE (UINT8_MAX-1)
+
 typedef enum
 {
 	FOLLOWERMODE_FLOAT,		// Default behavior, floats in the position you set it to.
@@ -139,6 +142,7 @@ typedef struct follower_s
 	char skinname[SKINNAMESIZE+1];	// Skin Name. This is what to refer to when asking the commands anything.
 	char name[SKINNAMESIZE+1];		// Name. This is used for the menus. We'll just follow the same rules as skins for this.
 
+	UINT8 defaultcolor;	// default color for menus.
 	followermode_t mode;			// Follower behavior modifier.
 	
 	fixed_t scale;			// Scale relative to the player's.
@@ -168,6 +172,8 @@ typedef struct follower_s
 	INT32 hitconfirmstate;	// state for hit confirm
 	INT32 hitconfirmtime;	// time to keep the above playing for
 } follower_t;
+
+UINT8 K_GetEffectiveFollowerColor(UINT8 followercolor, follower_t *follower, UINT8 playercolor, skin_t *playerskin);
 
 // -----------
 // NOT SKINS STUFF !

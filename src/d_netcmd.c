@@ -296,16 +296,16 @@ consvar_t cv_skin2 = {"skin2", DEFAULTSKIN2, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Sk
 consvar_t cv_skin3 = {"skin3", DEFAULTSKIN3, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin3_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_skin4 = {"skin4", DEFAULTSKIN4, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 // player's followers. Also saved.
-consvar_t cv_follower = {"follower", "-1", CV_SAVE|CV_CALL, NULL, Follower_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_follower2 = {"follower2", "-1", CV_SAVE|CV_CALL, NULL, Follower2_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_follower3 = {"follower3", "-1", CV_SAVE|CV_CALL, NULL, Follower3_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_follower4 = {"follower4", "-1", CV_SAVE|CV_CALL, NULL, Follower4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower = {"follower", "-1", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower2 = {"follower2", "-1", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower2_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower3 = {"follower3", "-1", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower3_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower4 = {"follower4", "-1", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 // player's follower color. Also saved...
-consvar_t cv_followercolor = {"followercolor", "Match", CV_SAVE|CV_CALL, Followercolor_cons_t, Followercolor_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_followercolor2 = {"followercolor2", "Match", CV_SAVE|CV_CALL, Followercolor_cons_t, Followercolor2_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_followercolor3 = {"followercolor3", "Match", CV_SAVE|CV_CALL, Followercolor_cons_t, Followercolor3_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_followercolor4 = {"followercolor4", "Match", CV_SAVE|CV_CALL, Followercolor_cons_t, Followercolor4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_followercolor = {"followercolor", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_followercolor2 = {"followercolor2", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor2_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_followercolor3 = {"followercolor3", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor3_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_followercolor4 = {"followercolor4", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 // haha I've beaten you now, ONLINE
 consvar_t cv_localskin = {"internal___localskin", "none", CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1042,17 +1042,18 @@ void D_RegisterServerCommands(void)
 		Forceskin_cons_t[i].strvalue = NULL;
 	}
 
+	// Prepare skincolor material.
 	for (i = 0; i < MAXSKINCOLORS; i++)
 	{
-		Color_cons_t[i].value = Followercolor_cons_t[i].value = i;
-		Color_cons_t[i].strvalue = Followercolor_cons_t[i].strvalue = KartColor_Names[i];
+		Color_cons_t[i].value = Followercolor_cons_t[i+2].value = i;
+		Color_cons_t[i].strvalue = Followercolor_cons_t[i+2].strvalue =  KartColor_Names[i];
 	}
 
-	Followercolor_cons_t[MAXSKINCOLORS].value = MAXSKINCOLORS;
-	Followercolor_cons_t[MAXSKINCOLORS].strvalue = "Match"; // Add "Match" option, which will make the follower color match the player's
+	Followercolor_cons_t[1].value = FOLLOWERCOLOR_MATCH;
+	Followercolor_cons_t[1].strvalue = "Match"; // Add "Match" option, which will make the follower color match the player's
 
-	Followercolor_cons_t[MAXSKINCOLORS+1].value = MAXSKINCOLORS+1;
-	Followercolor_cons_t[MAXSKINCOLORS+1].strvalue = "Opposite"; // Add "Opposite" option, ...which is like "Match", but for coloropposite.
+	Followercolor_cons_t[0].value = FOLLOWERCOLOR_OPPOSITE;
+	Followercolor_cons_t[0].strvalue = "Opposite"; // Add "Opposite" option, ...which is like "Match", but for coloropposite.
 
 	Color_cons_t[MAXSKINCOLORS].value = Followercolor_cons_t[MAXSKINCOLORS+2].value = 0;
 	Color_cons_t[MAXSKINCOLORS].strvalue = Followercolor_cons_t[MAXSKINCOLORS+2].strvalue = NULL;
@@ -2033,10 +2034,11 @@ static void SendNameAndColor(void)
 		strcpy(player_names[consoleplayer], cv_playername.zstring);
 
 		players[consoleplayer].skincolor = cv_playercolor.value;
+		
+		players[consoleplayer].followercolor = cv_followercolor.value;
 
 		if (players[consoleplayer].mo)
 			players[consoleplayer].mo->color = players[consoleplayer].skincolor;
-
 		
 		if (cv_follower.value >= -1 && cv_follower.value != players[consoleplayer].followerskin)
 			SetFollower(consoleplayer, cv_follower.value);
@@ -2184,6 +2186,7 @@ static void SendNameAndColor2(void)
 
 		// don't use displayplayers[1]: the second player must be 1
 		players[secondplaya].skincolor = cv_playercolor2.value;
+		players[secondplaya].followercolor = cv_followercolor2.value;
 		if (players[secondplaya].mo)
 			players[secondplaya].mo->color = players[secondplaya].skincolor;
 		
@@ -2317,6 +2320,7 @@ static void SendNameAndColor3(void)
 
 		// don't use displayplayers[2]: the third player must be 2
 		players[thirdplaya].skincolor = cv_playercolor3.value;
+		players[thirdplaya].followercolor = cv_followercolor3.value;
 		if (players[thirdplaya].mo)
 			players[thirdplaya].mo->color = players[thirdplaya].skincolor;
 		
@@ -2459,6 +2463,7 @@ static void SendNameAndColor4(void)
 
 		// don't use displayplayers[3]: the second player must be 4
 		players[fourthplaya].skincolor = cv_playercolor4.value;
+		players[fourthplaya].followercolor = cv_followercolor4.value;
 		if (players[fourthplaya].mo)
 			players[fourthplaya].mo->color = players[fourthplaya].skincolor;
 		

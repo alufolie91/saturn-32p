@@ -6255,6 +6255,137 @@ void K_RepairOrbitChain(mobj_t *orbit)
 	}
 }
 
+// Simplified version of a code bit in P_MobjFloorZ
+static fixed_t K_FollowerSlopeZ(pslope_t *slope, fixed_t x, fixed_t y, fixed_t z, fixed_t radius, boolean ceiling)
+{
+	fixed_t testx, testy;
+
+	if (slope == NULL)
+	{
+		testx = x;
+		testy = y;
+	}
+	else
+	{
+		if (slope->d.x < 0)
+			testx = radius;
+		else
+			testx = -radius;
+
+		if (slope->d.y < 0)
+			testy = radius;
+		else
+			testy = -radius;
+
+		if ((slope->zdelta > 0) ^ !!(ceiling))
+		{
+			testx = -testx;
+			testy = -testy;
+		}
+
+		testx += x;
+		testy += y;
+	}
+
+	return P_GetZAtorZ(slope, testx, testy, z);
+}
+
+void K_CalculateFollowerSlope(mobj_t *mobj, fixed_t x, fixed_t y, fixed_t z, fixed_t radius, fixed_t height, boolean flip, boolean player)
+{
+	fixed_t newz;
+	sector_t *sec;
+	pslope_t *slope = NULL;
+
+	sec = R_PointInSubsector(x, y)->sector;
+
+	if (flip)
+	{
+		slope = sec->c_slope;
+		newz = K_FollowerSlopeZ(slope, x, y, sec->ceilingheight, radius, true);
+	}
+	else
+	{
+		slope = sec->f_slope;
+		newz = K_FollowerSlopeZ(slope, x, y, sec->floorheight, radius, true);
+	}
+
+	// Check FOFs for a better suited slope
+	if (sec->ffloors)
+	{
+		ffloor_t *rover;
+
+		for (rover = sec->ffloors; rover; rover = rover->next)
+		{
+			fixed_t top, bottom;
+			fixed_t d1, d2;
+
+			if (!(rover->flags & FF_EXISTS))
+				continue;
+
+			if ((!(((rover->flags & FF_BLOCKPLAYER && player)
+				|| (rover->flags & FF_BLOCKOTHERS && !player))
+				|| (rover->flags & FF_QUICKSAND))
+				|| (rover->flags & FF_SWIMMABLE)))
+				continue;
+
+			top = K_FollowerSlopeZ(*rover->t_slope, x, y, *rover->topheight, radius, false);
+			bottom = K_FollowerSlopeZ(*rover->b_slope, x, y, *rover->bottomheight, radius, true);
+
+			if (flip)
+			{
+				if (rover->flags & FF_QUICKSAND)
+				{
+					if (z < top && (z + height) > bottom)
+					{
+						if (newz > (z + height))
+						{
+							newz = (z + height);
+							slope = NULL;
+						}
+					}
+					continue;
+				}
+
+				d1 = (z + height) - (top + ((bottom - top)/2));
+				d2 = z - (top + ((bottom - top)/2));
+
+				if (bottom < newz && abs(d1) < abs(d2))
+				{
+					newz = bottom;
+					slope = *rover->b_slope;
+				}
+			}
+			else
+			{
+				if (rover->flags & FF_QUICKSAND)
+				{
+					if (z < top && (z + height) > bottom)
+					{
+						if (newz < z)
+						{
+							newz = z;
+							slope = NULL;
+						}
+					}
+					continue;
+				}
+
+				d1 = z - (bottom + ((top - bottom)/2));
+				d2 = (z + height) - (bottom + ((top - bottom)/2));
+
+				if (top > newz && abs(d1) < abs(d2))
+				{
+					newz = top;
+					slope = *rover->t_slope;
+				}
+			}
+		}
+	}
+
+	//mobj->standingslope = slope;
+	P_RollPitchMobj(mobj);
+}
+
 // Move the hnext chain!
 static void K_MoveHeldObjects(player_t *player)
 {

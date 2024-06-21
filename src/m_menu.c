@@ -11425,7 +11425,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 				) >> ANGLETOFINESHIFT) & FINEMASK));
 			clampedheight = clampedheight > 25 ? 25 : clampedheight; // clamp max so it doesn't look stupid
 			//clampedheight = clampedheight < MY_MIN ? MY_MIN : clampedheight;
-			UINT8 *colormap = R_GetTranslationColormap(-1, setupm_fakecolor, 0);
+			UINT8 *colormap = R_GetTranslationColormap(-1, K_GetEffectiveFollowerColor(fl.defaultcolor, &fl, setupm_fakecolor, &skins[skintodisplay]), 0);
 			V_DrawFixedPatch((mx+55)*FRACUNIT, ((my+131-clampedheight))*FRACUNIT+sine, fl.scale, flags, patch, colormap);
 			Z_Free(colormap);
 		}
