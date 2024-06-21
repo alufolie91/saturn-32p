@@ -508,18 +508,24 @@ void Y_IntermissionDrawer(void)
 		if (data.match.encore)
 			V_DrawCenteredString(-4 + x + BASEVIDWIDTH/2, 12-8, hilicol, "ENCORE MODE");
 
-		if (data.match.numplayers > NUMFORNEWCOLUMN)
+		if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 		{
 			V_DrawFill(x+101, 24, 1, 158, 0);
 			V_DrawFill(x+207, 24, 1, 158, 0);
 			V_DrawFill((x-3) - duptweak, 182, dupadjust-2, 1, 0);
 
-			//V_DrawCenteredString(x+6+(BASEVIDWIDTH/2), 24, hilicol, "#");
-			//V_DrawString(x+36+(BASEVIDWIDTH/2), 24, hilicol, "NAME");
+			V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
+			y = 37;
+		}
+		else if (data.match.numplayers > NUMFORNEWCOLUMN)
+		{
+			V_DrawFill(x+156, 24, 1, 158, 0);
+			V_DrawFill((x-3) - duptweak, 182, dupadjust-2, 1, 0);
+
+			V_DrawCenteredString(x+6+(BASEVIDWIDTH/2), 24, hilicol, "#");
+			V_DrawString(x+36+(BASEVIDWIDTH/2), 24, hilicol, "NAME");
 
 			V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
-			//V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
-			y = 37;
 		}
 		else
 		{
@@ -547,7 +553,7 @@ void Y_IntermissionDrawer(void)
 				if (dojitter)
 					y--;
 
-				if (data.match.numplayers > NUMFORNEWCOLUMN)
+				if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 					V_DrawPingNum(x+6, y+2, 0, data.match.pos[i], NULL);
 				else
 					V_DrawCenteredString(x+6, y, 0, va("%d", data.match.pos[i]));
@@ -556,9 +562,10 @@ void Y_IntermissionDrawer(void)
 				{
 					UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
 
-					if (data.match.numplayers > NUMFORNEWCOLUMN)
+					if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 					{
-						if (!players[data.match.num[i]].skinlocal) {
+						if (!players[data.match.num[i]].skinlocal)
+						{
 							if (!players[data.match.num[i]].localskin)
 								if (cv_highresportrait.value)
 									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, facewantprefix[*data.match.character[i]], colormap);
@@ -569,7 +576,9 @@ void Y_IntermissionDrawer(void)
 									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
 								else
 									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
-						} else {
+						}
+						else
+						{
 							if (cv_highresportrait.value)
 								V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
 							else
@@ -578,7 +587,8 @@ void Y_IntermissionDrawer(void)
 					}
 					else
 					{
-						if (!players[data.match.num[i]].skinlocal) {
+						if (!players[data.match.num[i]].skinlocal)
+						{
 							if (!players[data.match.num[i]].localskin)
 								if (cv_highresportrait.value)
 									V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[*data.match.character[i]], colormap);
@@ -589,7 +599,9 @@ void Y_IntermissionDrawer(void)
 									V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
 								else
 									V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
-						} else {
+						}
+						else
+						{
 							if (cv_highresportrait.value)
 								V_DrawSmallMappedPatch(x+16, y-4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
 							else
@@ -598,33 +610,7 @@ void Y_IntermissionDrawer(void)
 					}
 				}
 
-				/*if (data.match.numplayers > NUMFORNEWCOLUMN)
-						V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
-					else
-						V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], 
-
-				{
-					UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
-					// i fucking hate this i fucking hate this i hate this so much
-					if (!players[data.match.num[i]].skinlocal)
-					{
-						int skinIndex = players[data.match.num[i]].localskin ? players[data.match.num[i]].localskin - 1 : *data.match.character[i];
-
-						if (cv_highresportrait.value)
-							V_DrawSmallMappedPatch(x + 16, y - 4, 0, facewantprefix[skinIndex], colormap);
-						else
-							V_DrawMappedPatch(x + 16, y - 4, 0, facerankprefix[skinIndex], colormap);
-					}
-					else
-					{
-						if (cv_highresportrait.value)
-							V_DrawSmallMappedPatch(x + 16, y - 4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
-						else
-							V_DrawMappedPatch(x + 16, y - 4, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
-					}
-				}*/
-
-				if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN)
+				if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN*2)
 				{
 					UINT8 cursorframe = (intertic / 4) % 8;
 					V_DrawScaledPatch(x+16, y-4, 0, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_CACHE));
@@ -633,6 +619,8 @@ void Y_IntermissionDrawer(void)
 				STRBUFCPY(strtime, data.match.name[i]);
 
 				if (data.match.numplayers > NUMFORNEWCOLUMN)
+					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+				else if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 					V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 				else
 					V_DrawString(x+36, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
@@ -646,8 +634,10 @@ void Y_IntermissionDrawer(void)
 						else
 							snprintf(strtime, sizeof strtime, "(+  %d)", data.match.increase[data.match.num[i]]);
 
-						if (data.match.numplayers > NUMFORNEWCOLUMN)
+						if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 							V_DrawRightAlignedThinString(x+83+gutter, y, V_6WIDTHSPACE, strtime);
+						else if (data.match.numplayers > NUMFORNEWCOLUMN)
+							V_DrawRightAlignedThinString(x+135+gutter, y-1, V_6WIDTHSPACE, strtime);
 						else
 							V_DrawRightAlignedString(x+120+gutter, y, 0, strtime);
 					}
@@ -656,13 +646,15 @@ void Y_IntermissionDrawer(void)
 
 					if (data.match.numplayers > NUMFORNEWCOLUMN)
 						V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
+					else if (data.match.numplayers > NUMFORNEWCOLUMN)
+						V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, strtime);
 					else
 						V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
 				}
 				else
 				{
 					if (data.match.val[i] == (UINT32_MAX-1))
-						V_DrawRightAlignedThinString(x+(data.match.numplayers > NUMFORNEWCOLUMN ? 100 : 152)+gutter, y, (data.match.numplayers > NUMFORNEWCOLUMN ? V_6WIDTHSPACE : 0), "NO CONTEST.");
+						V_DrawRightAlignedThinString(x+(data.match.numplayers > NUMFORNEWCOLUMN*2 ? 100 : 152)+gutter, y, (data.match.numplayers > NUMFORNEWCOLUMN ? V_6WIDTHSPACE : 0), "NO CONTEST.");
 					else
 					{
 						if (intertype == int_race)
@@ -671,8 +663,10 @@ void Y_IntermissionDrawer(void)
 							G_TicsToSeconds(data.match.val[i]), G_TicsToCentiseconds(data.match.val[i]));
 							strtime[sizeof strtime - 1] = '\0';
 
-							if (data.match.numplayers > NUMFORNEWCOLUMN)
+							if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 								V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
+							else if (data.match.numplayers > NUMFORNEWCOLUMN)
+								V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, strtime);
 							else
 								V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
 						}
@@ -692,13 +686,25 @@ void Y_IntermissionDrawer(void)
 			else
 				data.match.num[i] = MAXPLAYERS; // this should be the only field setting in this function
 
-			y += (data.match.numplayers > NUMFORNEWCOLUMN) ? 10 : 18;
+			y += (data.match.numplayers > NUMFORNEWCOLUMN*2) ? 10 : 18;
 
-			if (i % 14 == 13)
+			if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 			{
-				y = 37;
-				x += BASEVIDWIDTH/3;
+				if (i % 14 == 13)
+				{
+					y = 37;
+					x += BASEVIDWIDTH/3;
+				}
 			}
+			else
+			{
+				if (i == NUMFORNEWCOLUMN-1)
+				{
+					y = 41;
+					x += BASEVIDWIDTH/2;
+				}
+			}
+
 #undef NUMFORNEWCOLUMN
 		}
 	}
