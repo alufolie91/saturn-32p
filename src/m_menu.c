@@ -182,6 +182,7 @@ INT16 startmap; // Mario, NiGHTS, or just a plain old normal game?
 
 static INT16 itemOn = 1; // menu item skull is on, Hack by Tails 09-18-2002
 static INT16 skullAnimCounter = 10; // skull animation counter
+static tic_t followertimer = 0;		// Used for smooth follower floating
 static boolean interpTimerHackAllow = 0;
 
 static  UINT8 setupcontrolplayer;
@@ -2235,8 +2236,9 @@ static menuitem_t OP_NeptuneTwoMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Stacking Effect", 		&cv_stackingeffect,	 	30},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Effect Scaling", 			&cv_stackingeffectscaling,	35},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Boostflame color", 		&cv_stackingboostflamecolor,40},
-
-
+	{IT_STRING | IT_CVAR, NULL, "Stacking Sneaker Sound", 		&cv_sneakerstacksound,45},
+	
+	{IT_STRING | IT_CVAR, NULL, "Synched Lookback", 		&cv_synchedlookback,55},
 };
 
 static const char* OP_NeptuneTwoTooltips[] =
@@ -2251,6 +2253,9 @@ static const char* OP_NeptuneTwoTooltips[] =
 	"Effect that is shown when a stack is active.",
 	"Scaling for stacking effect.",
 	"Change boostflame color based on sneaker stack count.",
+	"Sneakers change sound when stacking.",
+	
+	"Allows you to see when others look back.\nThis may introduce input lag to lookback button when active.",
 
 };
 
@@ -2264,6 +2269,8 @@ enum
 	pmt_stackefx,
 	pmt_stackefxsc,
 	pmt_stackbfc,
+	pmt_sstacksfx,
+	pmt_synclb,
 };
 
 
@@ -4583,6 +4590,8 @@ void M_Ticker(void)
 
 	if (--skullAnimCounter <= 0)
 		skullAnimCounter = 8;
+	
+	followertimer++;
 
 	if (currentMenu == &PlaybackMenuDef)
 	{
@@ -10407,7 +10416,7 @@ Update the maxplayers label...
 
 			V_DrawFixedPatch(x<<FRACBITS, y<<FRACBITS, FRACUNIT, trans, facewantprefix[pskin], colmap);
 
-			if (itemOn == 2 && i == setupm_pselect)
+			if (itemOn == 3 && i == setupm_pselect)
 			{
 				static fixed_t cursorframe = 0;
 
@@ -10629,6 +10638,11 @@ static void M_HandleConnectIP(INT32 choice)
 static fixed_t    multi_tics;
 static state_t   *multi_state;
 
+// used for follower display on player setup menu
+static INT32 follower_tics;
+static UINT32 follower_frame;	// used for FF_ANIMATE garbo
+static state_t *follower_state;
+
 // this is set before entering the MultiPlayer setup menu,
 // for either player 1 or 2
 static char       setupm_name[MAXPLAYERNAME+1];
@@ -10636,9 +10650,11 @@ static player_t  *setupm_player;
 static consvar_t *setupm_cvskin;
 static consvar_t *setupm_cvcolor;
 static consvar_t *setupm_cvname;
+static consvar_t *setupm_cvfollower;
 static UINT8      setupm_skinxpos;
 static INT32      setupm_fakeskin;
 static INT32      setupm_fakecolor;
+static INT32	  setupm_fakefollower;	// -1 is for none, our followers start at 0
 
 //variables used for other skin select menus
 static UINT8 setupm_skinypos;
@@ -10681,6 +10697,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	UINT8 s, w;
 	const UINT8 *flashcol = V_GetStringColormap(highlightflags);
 	INT32 statx, staty;
+	char *fname;
 	UINT32 speenframe;
 	INT32 sltw, actw, hetw;
 	UINT16 skintodisplay;
@@ -10735,15 +10752,15 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			speed = skins[selectedskin].kartspeed;
 			weight = skins[selectedskin].kartweight;		
 				
-			V_DrawString((mx+(tw/2)) - (st/2), my + 37,
+			V_DrawString(mx, my + 35,
 				((MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0) | highlightflags | V_ALLOWLOWERCASE,
 				GETSELECTEDSKINNAME);
-			if (statdp == true)
-				statoffset = 50;
-			else
-				statoffset = 113;
+			//if (statdp == true)
+			statoffset = 50;
+			//else
+				//statoffset = 113;
 				
-			V_DrawString(statx - statoffset, staty - 10, V_6WIDTHSPACE, va("\x84%dS \x87%dW", GETSELECTEDSPEED, GETSELECTEDWEIGHT));
+			V_DrawString(statx - statoffset, staty - 15, V_6WIDTHSPACE, va("\x84%dS \x87%dW", GETSELECTEDSPEED, GETSELECTEDWEIGHT));
 #undef GETSELECTEDSKINNAME
 #undef GETSELECTEDSPEED
 #undef GETSELECTEDWEIGHT
@@ -10752,7 +10769,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 #define GETSELECTEDSKINNAME (itemOn == 1 && setupm_skinselect < numskins ? skins[skinsorted[setupm_skinselect]].realname : skins[setupm_fakeskin].realname)
 			tw = V_StringWidth("Character", 0);//V_StringWidth(GETSELECTEDSKINNAME, 0);
 			st = V_StringWidth(GETSELECTEDSKINNAME, 0);
-			V_DrawString((mx+(tw/2)) - (st/2), my + 37,
+			V_DrawString(mx, my + 35,
 				((MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0) | highlightflags | V_ALLOWLOWERCASE,
 				GETSELECTEDSKINNAME);
 #undef GETSELECTEDSKINNAME
@@ -10767,7 +10784,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 
 			tw = V_StringWidth("Character", 0);
 			st = V_StringWidth(skins[skintodisplay].realname, 0);
-			V_DrawString((mx+(tw/2)) - (st/2), my + 37,
+			V_DrawString(mx, my + 35,
 				((MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0) | highlightflags | V_ALLOWLOWERCASE,
 				skins[skintodisplay].realname);
 			// the menu is now 2d, no need for scroll arrows...
@@ -10793,6 +10810,49 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			}
 			break;
 	}
+	
+	// draw follower string
+	fname = malloc(SKINNAMESIZE+1);
+
+	if (setupm_fakefollower == -1)
+		strcpy(fname, "None");
+	else
+		strcpy(fname, followers[setupm_fakefollower].name);
+
+	st = V_StringWidth(fname, 0);
+	
+	
+	switch (cv_skinselectmenu.value)
+	{
+		case SKINMENUTYPE_EXTENDED:
+		case SKINMENUTYPE_GRID:
+		case SKINMENUTYPE_2D:
+			V_DrawString(mx, my + 56, highlightflags | V_ALLOWLOWERCASE, fname); // SRB2kart
+			if (itemOn == 2)
+			{
+				V_DrawCharacter(mx - 10/* - st*/ - (skullAnimCounter/5), my + 56,
+					'\x1C' | highlightflags, false); // left arrow
+				V_DrawCharacter(mx + 2 + st + (skullAnimCounter/5), my + 56,
+					'\x1D' | highlightflags, false); // right arrow
+			}
+			break;
+			
+		default:
+			V_DrawString(BASEVIDWIDTH - mx - st, my + 26,
+	             ((MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0)|highlightflags|V_ALLOWLOWERCASE,
+	             fname);
+			if (itemOn == 2)
+			{
+				V_DrawCharacter(BASEVIDWIDTH - mx - 10 - st - (skullAnimCounter/5), my + 26,
+					'\x1C' | highlightflags, false); // left arrow
+				V_DrawCharacter(BASEVIDWIDTH - mx + 2 + (skullAnimCounter/5), my + 26,
+					'\x1D' | highlightflags, false); // right arrow
+			}
+			
+		
+	}
+	
+	
 	// draw the name of the color you have chosen
 	// Just so people don't go thinking that "Default" is Green.
 	st = V_StringWidth(KartColor_Names[setupm_fakecolor], 0);
@@ -10800,7 +10860,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	{
 		case SKINMENUTYPE_EXTENDED:
 			V_DrawString(mx, my + 164, highlightflags | V_ALLOWLOWERCASE, KartColor_Names[setupm_fakecolor]); // SRB2kart
-			if (itemOn == 2)
+			if (itemOn == 3)
 			{
 				V_DrawCharacter(mx - 10/* - st*/ - (skullAnimCounter/5), my + 164,
 					'\x1C' | highlightflags, false); // left arrow
@@ -10811,7 +10871,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 		case SKINMENUTYPE_GRID:
 		case SKINMENUTYPE_2D:
 			V_DrawString(mx, my + 152, highlightflags | V_ALLOWLOWERCASE, KartColor_Names[setupm_fakecolor]); // SRB2kart
-			if (itemOn == 2)
+			if (itemOn == 3)
 			{
 				V_DrawCharacter(mx - 10/* - st*/ - (skullAnimCounter/5), my + 152,
 					'\x1C' | highlightflags, false); // left arrow
@@ -10821,7 +10881,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			break;
 		default:
 			V_DrawString(BASEVIDWIDTH - mx - st, my + 152, highlightflags|V_ALLOWLOWERCASE, KartColor_Names[setupm_fakecolor]);	// SRB2kart
-			if (itemOn == 2)
+			if (itemOn == 3)
 			{
 				V_DrawCharacter(BASEVIDWIDTH - mx - 10 - st - (skullAnimCounter/5), my + 152,
 					'\x1C' | highlightflags, false); // left arrow
@@ -11309,7 +11369,89 @@ static void M_DrawSetupMultiPlayerMenu(void)
 		else
 			V_DrawMappedPatch(mx+36, my+131, flags, patch, colormap);
 	}
+	
+		// draw their follower if there is one
+	if (setupm_fakefollower > -1 && setupm_fakefollower < numfollowers)
+	{
+		// animate the follower
+
+		if (--follower_tics <= 0)
+		{
+
+			// FF_ANIMATE; cycle through FRAMES and get back afterwards. This will be prominent amongst followers hence why it's being supported here.
+			if (renderisnewtic)
+			{
+				if (follower_state->frame & FF_ANIMATE)
+				{
+					follower_frame++;
+					follower_tics = follower_state->var2;
+					if (follower_frame > (follower_state->frame & FF_FRAMEMASK) + follower_state->var1)	// that's how it works, right?
+						follower_frame = follower_state->frame & FF_FRAMEMASK;
+				}
+				else
+				{
+					st = follower_state->nextstate;
+					if (st != S_NULL)
+						follower_state = &states[st];
+					follower_tics = follower_state->tics;
+					if (follower_tics == -1)
+						follower_tics = 15;	// er, what?
+							// get spritedef:
+					follower_frame = follower_state->frame & FF_FRAMEMASK;
+				}
+			}
+		}
+		sprdef = &sprites[follower_state->sprite];
+
+		// draw the follower
+
+		if (follower_frame >= sprdef->numframes)
+			follower_frame = 0;	// frame doesn't exist, we went beyond it... what?
+		sprframe = &sprdef->spriteframes[follower_frame];
+		patch = W_CachePatchNum(sprframe->lumppat[1], PU_CACHE);
+		if (sprframe->flip & 2) // Only for first sprite
+			flags |= V_FLIP; // This sprite is left/right flipped!
+
+		// @TODO: Reminder that followers on the menu right now do NOT support the 'followercolor' command, considering this whole menu is getting remade anyway, I see no point in incorporating it in right now.
+
+		// draw follower sprite
+		if (setupm_fakecolor) // inverse should never happen
+		{
+			// Fake the follower's in game appearance by now also applying some of its variables! coolio, eh?
+			follower_t fl = followers[setupm_fakefollower];	// shortcut for our sanity
+			INT32 clampedheight = fl.zoffs; // base height for current follower
+			fixed_t sine = FixedMul(fl.bobamp,
+				FINESINE(((
+					FixedMul(4 * M_TAU_FIXED, fl.bobspeed) * followertimer
+				) >> ANGLETOFINESHIFT) & FINEMASK));
+			clampedheight = clampedheight > 25 ? 25 : clampedheight; // clamp max so it doesn't look stupid
+			//clampedheight = clampedheight < MY_MIN ? MY_MIN : clampedheight;
+			UINT8 *colormap = R_GetTranslationColormap(-1, setupm_fakecolor, 0);
+			V_DrawFixedPatch((mx+55)*FRACUNIT, ((my+131-clampedheight))*FRACUNIT+sine, fl.scale, flags, patch, colormap);
+			Z_Free(colormap);
+		}
+	}
 #undef charw
+}
+
+// follower state update. This is its own function so that it's at least somewhat clean
+static void M_GetFollowerState(void)
+{
+	if (setupm_fakefollower <= -1 || setupm_fakefollower > numfollowers-1)	// yikes, there's none!
+		return;
+	// ^ we don't actually need to set anything since it won't be displayed anyway.
+
+	//followertimer = 0;	// reset timer. not like it'll overflow anytime soon but whatever.
+
+	// set follower state
+	follower_state = cv_skinselectspin.value == SKINSELECTSPIN_PAIN ?&states[followers[setupm_fakefollower].hurtstate] : &states[followers[setupm_fakefollower].followstate];
+
+	if (follower_state->frame & FF_ANIMATE)
+		follower_tics = follower_state->var2;	// support for FF_ANIMATE
+	else
+		follower_tics = follower_state->tics;
+
+	follower_frame = follower_state->frame & FF_FRAMEMASK;
 }
 
 // Handle 1P/2P MP Setup
@@ -11318,7 +11460,7 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 	size_t   l;
 	boolean  exitmenu = false;  // exit to previous menu and send name change
 
-	if ((choice == gamecontrol[gc_fire][0] || choice == gamecontrol[gc_fire][1]) && itemOn == 2)
+	if ((choice == gamecontrol[gc_fire][0] || choice == gamecontrol[gc_fire][1]) && itemOn == 3)
 		choice = KEY_BACKSPACE; // Hack to allow resetting prefcolor on controllers
 
 #define BREAKWHENLOCKED {\
@@ -11387,7 +11529,7 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				BREAKWHENLOCKED
 				if (itemOn == 1 && setupm_skinypos > 0)
 					setupm_skinypos--;
-				else if (itemOn == 2)
+				else if (itemOn == 3)
 				{
 					setupm_skinypos = MAXSTAT - 1;
 					M_PrevOpt();
@@ -11413,7 +11555,7 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 					}
 					S_StartSound(NULL, sfx_menu1);
 				}
-				else if (itemOn == 2)
+				else if (itemOn == 3)
 				{
 					setupm_skinselect = numskins - 1;
 					if (cv_skinselectmenu.value == SKINMENUTYPE_GRID){
@@ -11482,7 +11624,13 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				S_StartSound(NULL,sfx_menu1); // Tails
 				setupm_fakeskin--;
 			}
-			else if (itemOn == 2) // player color
+			else if (itemOn == 2)       //follower
+			{
+				S_StartSound(NULL,sfx_menu1); // Tails
+				setupm_fakefollower--;
+				M_GetFollowerState();	// update follower state
+			}
+			else if (itemOn == 3) // player color
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
 				setupm_fakecolor--;
@@ -11537,7 +11685,13 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				S_StartSound(NULL,sfx_menu1); // Tails
 				setupm_fakeskin++;
 			}
-			else if (itemOn == 2) // player color
+			if (itemOn == 2)       //follower
+			{
+				S_StartSound(NULL,sfx_menu1); // Tails
+				setupm_fakefollower++;
+				M_GetFollowerState();	// update follower state
+			}
+			else if (itemOn == 3) // player color
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
 				setupm_fakecolor++;
@@ -11573,7 +11727,12 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				sortSkinGrid();
 				S_StartSound(NULL, sfx_menu1);
 			}
-			else if (itemOn == 2)
+			else if (itemOn == 2) // follower
+			{
+				S_StartSound(NULL,sfx_menu1);
+				setupm_fakefollower = -1;
+			}
+			else if (itemOn == 3)
 			{
 				UINT8 col = skins[setupm_fakeskin].prefcolor;
 				if (setupm_fakecolor != col)
@@ -11647,6 +11806,18 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			setupm_fakeskin = numskins-1;
 		if (setupm_fakeskin > numskins-1)
 			setupm_fakeskin = 0;
+	
+		// check followers:
+		if (setupm_fakefollower < -1)
+		{
+			setupm_fakefollower = numfollowers-1;
+			M_GetFollowerState();	// update follower state
+		}
+		if (setupm_fakefollower > numfollowers-1)
+		{
+			setupm_fakefollower = -1;
+			M_GetFollowerState();	// update follower state
+		}
 
 		// check color
 		if (setupm_fakecolor < 1)
@@ -11670,25 +11841,29 @@ switch (cv_skinselectmenu.value)\
 case SKINMENUTYPE_2D:\
 	MP_PlayerSetupMenu[0].alphaKey = 0;\
 	MP_PlayerSetupMenu[1].alphaKey = 25;\
-	MP_PlayerSetupMenu[2].alphaKey = 164;\
+	MP_PlayerSetupMenu[2].alphaKey = 46;\
+	MP_PlayerSetupMenu[3].alphaKey = 164;\
 	MP_PlayerSetupDef.y = 6;\
 	break;\
 case SKINMENUTYPE_EXTENDED:\
 	MP_PlayerSetupMenu[0].alphaKey = 6;\
 	MP_PlayerSetupMenu[1].alphaKey = 25;\
-	MP_PlayerSetupMenu[2].alphaKey = 152;\
+	MP_PlayerSetupMenu[2].alphaKey = 46;\
+	MP_PlayerSetupMenu[3].alphaKey = 152;\
 	MP_PlayerSetupDef.y = 6;\
 	break;\
 case SKINMENUTYPE_GRID:\
 	MP_PlayerSetupMenu[0].alphaKey = 6;\
 	MP_PlayerSetupMenu[1].alphaKey = 25;\
-	MP_PlayerSetupMenu[2].alphaKey = 164;\
+	MP_PlayerSetupMenu[2].alphaKey = 46;\
+	MP_PlayerSetupMenu[3].alphaKey = 164;\
 	MP_PlayerSetupDef.y = 6;\
 	break;\
 default:\
 	MP_PlayerSetupMenu[0].alphaKey = 0;\
 	MP_PlayerSetupMenu[1].alphaKey = 16;\
-	MP_PlayerSetupMenu[2].alphaKey = 152;\
+	MP_PlayerSetupMenu[2].alphaKey = 26;\
+	MP_PlayerSetupMenu[3].alphaKey = 152;\
 	MP_PlayerSetupDef.y = 14;\
 	break;\
 }\
@@ -11708,6 +11883,15 @@ static void M_SetupMultiPlayer(INT32 choice)
 	setupm_cvskin = &cv_skin;
 	setupm_cvcolor = &cv_playercolor;
 	setupm_cvname = &cv_playername;
+	setupm_cvfollower = &cv_follower;
+	
+	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
+
+	// yikes, we don't want none of that...
+	if (setupm_fakefollower > numfollowers-1)
+		setupm_fakefollower = -1;
+
+	M_GetFollowerState();	// update follower state
 
 	setupm_skinxpos = 4;
 	setupm_skinypos = 0;
@@ -11750,6 +11934,16 @@ static void M_SetupMultiPlayer2(INT32 choice)
 	setupm_cvskin = &cv_skin2;
 	setupm_cvcolor = &cv_playercolor2;
 	setupm_cvname = &cv_playername2;
+	setupm_cvfollower = &cv_follower2;
+	
+	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
+
+	// yikes, we don't want none of that...
+	if (setupm_fakefollower > numfollowers-1)
+		setupm_fakefollower = -1;
+
+	M_GetFollowerState();	// update follower state
+	
 	setupm_skinxpos = 4;
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
@@ -11791,6 +11985,16 @@ static void M_SetupMultiPlayer3(INT32 choice)
 	setupm_cvskin = &cv_skin3;
 	setupm_cvcolor = &cv_playercolor3;
 	setupm_cvname = &cv_playername3;
+	setupm_cvfollower = &cv_follower3;
+	
+	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
+
+	// yikes, we don't want none of that...
+	if (setupm_fakefollower > numfollowers-1)
+		setupm_fakefollower = -1;
+
+	M_GetFollowerState();	// update follower state
+	
 	setupm_skinxpos = 4;
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
@@ -11832,6 +12036,16 @@ static void M_SetupMultiPlayer4(INT32 choice)
 	setupm_cvskin = &cv_skin4;
 	setupm_cvcolor = &cv_playercolor4;
 	setupm_cvname = &cv_playername4;
+	setupm_cvfollower = &cv_follower4;
+	
+	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
+
+	// yikes, we don't want none of that...
+	if (setupm_fakefollower > numfollowers-1)
+		setupm_fakefollower = -1;
+
+	M_GetFollowerState();	// update follower state
+	
 	setupm_skinxpos = 4;
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
@@ -11872,6 +12086,7 @@ static boolean M_QuitMultiPlayerMenu(void)
 	// you know what? always putting these in the buffer won't hurt anything.
 	COM_BufAddText (va("%s \"%s\"\n",setupm_cvskin->name,skins[setupm_fakeskin].name));
 	COM_BufAddText (va("%s %d\n",setupm_cvcolor->name,setupm_fakecolor));	
+	COM_BufAddText (va("%s %d\n",setupm_cvfollower->name,setupm_fakefollower));
 	return true;
 }
 

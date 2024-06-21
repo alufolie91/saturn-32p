@@ -1422,6 +1422,8 @@ CV_RegisterVar(&cv_DJAITBL10);
 	
 	//Colored trails
 	CV_RegisterVar(&cv_coloredsneakertrail);
+	
+	CV_RegisterVar(&cv_synchedlookback);
 }
 
 //}
@@ -3127,6 +3129,20 @@ void K_MatchGenericExtraFlags(mobj_t *mo, mobj_t *master)
 	// flipping
 	// handle z shifting from there too. This is here since there's no reason not to flip us if needed when we do this anyway;
 	K_FlipFromObject(mo, master);
+
+	// visibility (usually for hyudoro)
+	mo->flags2 = (mo->flags2 & ~MF2_DONTDRAW)|(master->flags2 & MF2_DONTDRAW);
+	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP1)|(master->eflags & MFE_DRAWONLYFORP1);
+	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP2)|(master->eflags & MFE_DRAWONLYFORP2);
+	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP3)|(master->eflags & MFE_DRAWONLYFORP3);
+	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP4)|(master->eflags & MFE_DRAWONLYFORP4);
+}
+
+void K_GenericExtraFlagsNoZAdjust(mobj_t *mo, mobj_t *master)
+{
+	// flipping
+	mo->eflags = (mo->eflags & ~MFE_VERTICALFLIP)|(master->eflags & MFE_VERTICALFLIP);
+	mo->flags2 = (mo->flags2 & ~MF2_OBJECTFLIP)|(master->flags2 & MF2_OBJECTFLIP);
 
 	// visibility (usually for hyudoro)
 	mo->flags2 = (mo->flags2 & ~MF2_DONTDRAW)|(master->flags2 & MF2_DONTDRAW);

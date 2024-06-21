@@ -3332,6 +3332,8 @@ void SetFollower(INT32 playernum, INT32 skinnum)
 			P_RemoveMobj(player->follower);
 			P_SetTarget(&player->follower, NULL);
 		}
+		
+		player->followerskin = skinnum;
 
 		return;
 	}

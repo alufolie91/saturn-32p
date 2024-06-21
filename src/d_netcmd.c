@@ -108,6 +108,9 @@ static void Skin2_OnChange(void);
 static void Skin3_OnChange(void);
 static void Skin4_OnChange(void);
 static void Follower_OnChange(void);
+static void Follower2_OnChange(void);
+static void Follower3_OnChange(void);
+static void Follower4_OnChange(void);
 static void Color_OnChange(void);
 static void Color2_OnChange(void);
 static void Color3_OnChange(void);
@@ -289,6 +292,9 @@ consvar_t cv_skin3 = {"skin3", DEFAULTSKIN3, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Sk
 consvar_t cv_skin4 = {"skin4", DEFAULTSKIN4, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 // player's followers. Also saved.
 consvar_t cv_follower = {"follower", "-1", CV_SAVE|CV_CALL, NULL, Follower_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower2 = {"follower2", "-1", CV_SAVE|CV_CALL, NULL, Follower2_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower3 = {"follower3", "-1", CV_SAVE|CV_CALL, NULL, Follower3_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower4 = {"follower4", "-1", CV_SAVE|CV_CALL, NULL, Follower4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 // haha I've beaten you now, ONLINE
 consvar_t cv_localskin = {"internal___localskin", "none", CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1302,14 +1308,17 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_playername2);
 	CV_RegisterVar(&cv_playercolor2);
 	CV_RegisterVar(&cv_skin2);
+	CV_RegisterVar(&cv_follower2);
 	// third player
 	CV_RegisterVar(&cv_playername3);
 	CV_RegisterVar(&cv_playercolor3);
 	CV_RegisterVar(&cv_skin3);
+	CV_RegisterVar(&cv_follower3);
 	// fourth player
 	CV_RegisterVar(&cv_playername4);
 	CV_RegisterVar(&cv_playercolor4);
 	CV_RegisterVar(&cv_skin4);
+	CV_RegisterVar(&cv_follower4);
 	// preferred number of players
 	CV_RegisterVar(&cv_splitplayers);
 
@@ -2108,6 +2117,10 @@ static void SendNameAndColor2(void)
 			CV_StealthSet(&cv_playercolor2, cv_playercolor2.defaultvalue);
 	}
 
+	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
+	if (cv_follower2.value > numfollowers-1 || cv_follower2.value < -1)
+		CV_StealthSet(&cv_follower2, "-1");
+	
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
@@ -2132,6 +2145,9 @@ static void SendNameAndColor2(void)
 		players[secondplaya].skincolor = cv_playercolor2.value;
 		if (players[secondplaya].mo)
 			players[secondplaya].mo->color = players[secondplaya].skincolor;
+		
+		if (cv_follower.value >= -1 && cv_follower2.value != players[secondplaya].followerskin)
+			SetFollower(secondplaya, cv_follower2.value);
 
 		if ((foundskin = R_SkinAvailable(cv_skin2.string)) != -1)
 		{
@@ -2194,6 +2210,7 @@ static void SendNameAndColor2(void)
 	WRITESTRINGN(p, cv_playername2.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor2.value);
 	WRITEUINT16(p, (UINT16)cv_skin2.value);
+	WRITESINT8(p, (SINT8)cv_follower2.value);
 	SendNetXCmd2(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2235,6 +2252,10 @@ static void SendNameAndColor3(void)
 		else
 			CV_StealthSet(&cv_playercolor3, cv_playercolor3.defaultvalue);
 	}
+	
+	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
+	if (cv_follower3.value > numfollowers-1 || cv_follower3.value < -1)
+		CV_StealthSet(&cv_follower3, "-1");
 
 	// We'll handle it later if we're not playing.
 	if (!Playing())
@@ -2252,6 +2273,10 @@ static void SendNameAndColor3(void)
 		players[thirdplaya].skincolor = cv_playercolor3.value;
 		if (players[thirdplaya].mo)
 			players[thirdplaya].mo->color = players[thirdplaya].skincolor;
+		
+		
+		if (cv_follower3.value >= -1 && cv_follower3.value != players[thirdplaya].followerskin)
+			SetFollower(thirdplaya, cv_follower3.value);
 
 		if ((foundskin = R_SkinAvailable(cv_skin3.string)) != -1)
 		{
@@ -2314,6 +2339,7 @@ static void SendNameAndColor3(void)
 	WRITESTRINGN(p, cv_playername3.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor3.value);
 	WRITEUINT16(p, (UINT16)cv_skin3.value);
+	WRITESINT8(p, (SINT8)cv_follower3.value);
 	SendNetXCmd3(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2356,6 +2382,10 @@ static void SendNameAndColor4(void)
 			CV_StealthSet(&cv_playercolor4, cv_playercolor4.defaultvalue);
 	}
 
+	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
+	if (cv_follower4.value > numfollowers-1 || cv_follower4.value < -1)
+		CV_StealthSet(&cv_follower4, "-1");
+	
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
@@ -2380,6 +2410,9 @@ static void SendNameAndColor4(void)
 		players[fourthplaya].skincolor = cv_playercolor4.value;
 		if (players[fourthplaya].mo)
 			players[fourthplaya].mo->color = players[fourthplaya].skincolor;
+		
+		if (cv_follower.value >= -1 && cv_follower.value != players[consoleplayer].followerskin)
+			SetFollower(consoleplayer, cv_follower.value);
 
 		if ((foundskin = R_SkinAvailable(cv_skin4.string)) != -1)
 		{
@@ -2442,6 +2475,7 @@ static void SendNameAndColor4(void)
 	WRITESTRINGN(p, cv_playername4.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor4.value);
 	WRITEUINT16(p, (UINT16)cv_skin4.value);
+	WRITESINT8(p, (SINT8)cv_follower4.value);
 	SendNetXCmd4(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -6322,6 +6356,29 @@ static void Follower_OnChange(void)
 	SendNameAndColor();
 }
 
+static void Follower2_OnChange(void)
+{
+	if (!Playing())
+		return; // do whatever you want
+
+	SendNameAndColor2();
+}
+
+static void Follower3_OnChange(void)
+{
+	if (!Playing())
+		return; // do whatever you want
+
+	SendNameAndColor3();
+}
+
+static void Follower4_OnChange(void)
+{
+	if (!Playing())
+		return; // do whatever you want
+
+	SendNameAndColor4();
+}
 
 /** Sends a skin change for the console player, unless that player is moving.
   * \sa cv_skin, Skin2_OnChange, Color_OnChange

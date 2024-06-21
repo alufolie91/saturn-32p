@@ -101,6 +101,8 @@ FUNCMATH angle_t FixedAngle(fixed_t fa);
 // and with a factor, with +factor for (fa/factor) and -factor for (fa*factor)
 FUNCMATH angle_t FixedAngleC(fixed_t fa, fixed_t factor);
 
+FUNCMATH INT32 AngleDeltaSigned(angle_t a1, angle_t a2);
+
 /// The FixedAcos function
 FUNCMATH angle_t FixedAcos(fixed_t x);
 

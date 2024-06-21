@@ -13017,3 +13017,25 @@ void P_FlashPal(player_t *pl, UINT16 type, UINT16 duration)
 	pl->flashcount = duration;
 	pl->flashpal = type;
 }
+
+//
+// P_GetMobjZMovement
+// Returns the Z momentum of the object, accounting for slopes if the object is grounded
+//
+fixed_t P_GetMobjZMovement(mobj_t *mo)
+{
+	pslope_t *slope = mo->standingslope;
+	angle_t angDiff;
+	fixed_t speed;
+
+	if (!P_IsObjectOnGround(mo))
+		return mo->momz;
+
+	if (!slope)
+		return 0;
+
+	angDiff = R_PointToAngle2(0, 0, mo->momx, mo->momy) - slope->xydirection;
+	speed = FixedHypot(mo->momx, mo->momy);
+
+	return P_ReturnThrustY(mo, slope->zangle, P_ReturnThrustX(mo, angDiff, speed));
+}

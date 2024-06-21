@@ -114,22 +114,46 @@ extern CV_PossibleValue_t Forceskin_cons_t[];
 //
 // We'll define these here because they're really just a mobj that'll follow some rules behind a player
 //
+
+typedef enum
+{
+	FOLLOWERMODE_FLOAT,		// Default behavior, floats in the position you set it to.
+	FOLLOWERMODE_GROUND,	// Snaps to the ground & rotates with slopes.
+	FOLLOWERMODE__MAX
+} followermode_t;
+
+typedef enum
+{
+	FOLLOWERSTATE_RESET, // Set to this to reset the state entirely.
+	FOLLOWERSTATE_IDLE,
+	FOLLOWERSTATE_FOLLOW,
+	FOLLOWERSTATE_HURT,
+	FOLLOWERSTATE_WIN,
+	FOLLOWERSTATE_LOSE,
+	FOLLOWERSTATE_HITCONFIRM, // Uses movecount as a timer for how long to play this state.
+	FOLLOWERSTATE__MAX
+} followerstate_t;
+
 typedef struct follower_s
 {
 	char skinname[SKINNAMESIZE+1];	// Skin Name. This is what to refer to when asking the commands anything.
 	char name[SKINNAMESIZE+1];		// Name. This is used for the menus. We'll just follow the same rules as skins for this.
 
+	followermode_t mode;			// Follower behavior modifier.
+	
 	fixed_t scale;			// Scale relative to the player's.
 
 	// some position shenanigans:
 	INT32 atangle;			// angle the object will be at around the player. The object itself will always face the same direction as the player.
 	INT32 dist;				// distance relative to the player. (In a circle)
+	fixed_t height;			// height of the follower, this is mostly important for Z flipping.
 	INT32 zoffs;			// Z offset relative to the player's height. Cannot be negative.
 
 	// movement options
 
 	INT32 horzlag;			// Lag for X/Y displacement. Default is 2. Must be > 0 because we divide by this number.
 	INT32 vertlag;			// not Vert from Neptunia lagging, this is for Z displacement lag Default is 6. Must be > 0 because we divide by this number.
+	INT32 anglelag;			// Lag for Turn angle
 	INT32 bobamp;			// Bob amplitude. Default is 4.
 	INT32 bobspeed;			// Arbitrary modifier for bobbing speed, default is TICRATE*2 (70).
 
@@ -144,7 +168,6 @@ typedef struct follower_s
 	INT32 hitconfirmstate;	// state for hit confirm
 	INT32 hitconfirmtime;	// time to keep the above playing for
 } follower_t;
-
 
 // -----------
 // NOT SKINS STUFF !

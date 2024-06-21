@@ -37,6 +37,8 @@ extern consvar_t cv_stackingeffectscaling;
 extern consvar_t cv_coloredsneakertrail;
 extern consvar_t cv_alwaysshowitemstacks;
 extern consvar_t cv_battlespeedo;
+extern consvar_t cv_sneakerstacksound;
+extern consvar_t cv_synchedlookback;
 
 #define NUMSPEEDOSTUFF 6
 extern CV_PossibleValue_t speedo_cons_t[NUMSPEEDOSTUFF];
@@ -46,6 +48,7 @@ boolean K_IsPlayerWanted(player_t *player);
 void K_KartBouncing(mobj_t *mobj1, mobj_t *mobj2, boolean bounce, boolean solid);
 void K_FlipFromObject(mobj_t *mo, mobj_t *master);
 void K_MatchGenericExtraFlags(mobj_t *mo, mobj_t *master);
+void K_GenericExtraFlagsNoZAdjust(mobj_t *mo, mobj_t *master);
 void K_RespawnChecker(player_t *player);
 void K_KartMoveAnimation(player_t *player);
 void K_KartPlayerHUDUpdate(player_t *player);

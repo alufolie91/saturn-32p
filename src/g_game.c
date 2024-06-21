@@ -11,6 +11,7 @@
 /// \file  g_game.c
 /// \brief game loop functions, events handling
 
+#include "d_ticcmd.h"
 #include "doomdef.h"
 #include "console.h"
 #include "d_main.h"
@@ -25,6 +26,7 @@
 #include "am_map.h"
 #include "m_random.h"
 #include "p_local.h"
+#include "p_tick.h"
 #include "r_draw.h"
 #include "r_main.h"
 #include "s_sound.h"
@@ -1380,7 +1382,12 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	axis = JoyAxis(AXISFIRE, ssplayer);
 	if (InputDown(gc_fire, ssplayer) || (usejoystick && axis > 0))
 		cmd->buttons |= BT_ATTACK;
-
+	
+	// look back with any button/key
+	axis = JoyAxis(AXISLOOKBACK, ssplayer);
+	if (InputDown(gc_lookback, ssplayer) || (usejoystick && axis > 0))
+		cmd->buttons |= BT_LOOKBACK;
+	
 	// drift with any button/key
 	axis = JoyAxis(AXISDRIFT, ssplayer);
 	if (InputDown(gc_drift, ssplayer) || (usejoystick && axis > 0))
@@ -2684,7 +2691,10 @@ void G_PlayerReborn(INT32 player)
 	p->kartstuff[k_starpostflip] = respawnflip;
 
 	if (follower)
+	{
 		P_RemoveMobj(follower);
+		P_SetTarget(&p->follower, NULL);
+	}
 
 	p->followerready = followerready;
 	p->followerskin = followerskin;

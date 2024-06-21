@@ -548,11 +548,12 @@ static void readfollower(MYFILE *f)
 
 	// Ready the default variables for followers. We will overwrite them as we go! We won't set the name or states RIGHT HERE as this is handled down instead.
 	followers[numfollowers].scale = FRACUNIT;
-	followers[numfollowers].atangle = 230;
-	followers[numfollowers].dist = 16;
-	followers[numfollowers].zoffs = 32;
-	followers[numfollowers].horzlag = 2;
-	followers[numfollowers].vertlag = 6;
+	followers[numfollowers].atangle =  FixedAngle(230 * FRACUNIT);
+	followers[numfollowers].dist = 32*FRACUNIT;
+	followers[numfollowers].zoffs = 32*FRACUNIT;
+	followers[numfollowers].horzlag = 3*FRACUNIT;
+	followers[numfollowers].vertlag = 6*FRACUNIT;
+	followers[numfollowers].anglelag = 8*FRACUNIT;
 	followers[numfollowers].bobspeed = TICRATE*2;
 	followers[numfollowers].bobamp = 4;
 	followers[numfollowers].hitconfirmtime = TICRATE;
@@ -590,6 +591,18 @@ static void readfollower(MYFILE *f)
 				strcpy(followers[numfollowers].name, word2);
 				nameset = true;
 			}
+			else if (fastcmp(word, "MODE"))
+			{
+				if (word2)
+					strupr(word2);
+
+				if (fastcmp(word2, "FLOAT") || fastcmp(word2, "DEFAULT"))
+					followers[numfollowers].mode = FOLLOWERMODE_FLOAT;
+				else if (fastcmp(word2, "GROUND"))
+					followers[numfollowers].mode = FOLLOWERMODE_GROUND;
+				else
+					deh_warning("Follower %d: unknown follower mode '%s'", numfollowers, word2);
+			}
 			else if (fastcmp(word, "SCALE"))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].scale), UNDO_NONE);
@@ -598,37 +611,46 @@ static void readfollower(MYFILE *f)
 			else if (fastcmp(word, "ATANGLE"))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].atangle), UNDO_NONE);
-				followers[numfollowers].atangle = (INT32)atoi(word2);
+				followers[numfollowers].atangle = (angle_t)(get_number(word2) * ANG1);
 			}
 			else if (fastcmp(word, "HORZLAG"))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].horzlag), UNDO_NONE);
-				followers[numfollowers].horzlag = (INT32)atoi(word2);
+				followers[numfollowers].horzlag = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "VERTLAG"))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].vertlag), UNDO_NONE);
-				followers[numfollowers].vertlag = (INT32)atoi(word2);
+				followers[numfollowers].vertlag = (fixed_t)get_number(word2);
+			}
+			else if (fastcmp(word, "ANGLELAG"))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].anglelag), UNDO_NONE);
+				followers[numfollowers].anglelag = (fixed_t)get_number(word2);;
 			}
 			else if (fastcmp(word, "BOBSPEED"))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].bobspeed), UNDO_NONE);
-				followers[numfollowers].bobspeed = (INT32)atoi(word2);
+				followers[numfollowers].bobspeed = (tic_t)get_number(word2);
 			}
 			else if (fastcmp(word, "BOBAMP"))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].bobamp), UNDO_NONE);
-				followers[numfollowers].bobamp = (INT32)atoi(word2);
+				followers[numfollowers].bobamp = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "ZOFFSET") || (fastcmp(word, "ZOFFS")))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].zoffs), UNDO_NONE);
-				followers[numfollowers].zoffs = (INT32)atoi(word2);
+				followers[numfollowers].zoffs = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "DISTANCE") || (fastcmp(word, "DIST")))
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].dist), UNDO_NONE);
-				followers[numfollowers].dist = (INT32)atoi(word2);
+				followers[numfollowers].dist = (fixed_t)get_number(word2);
+			}
+			else if (fastcmp(word, "HEIGHT"))
+			{
+				followers[numfollowers].height = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "IDLESTATE"))
 			{
@@ -718,6 +740,13 @@ static void readfollower(MYFILE *f)
 
 	// fallbacks for variables
 	// Print a warning if the variable is on a weird value and set it back to the minimum available if that's the case.
+	
+	if (followers[numfollowers].mode < FOLLOWERMODE_FLOAT || followers[numfollowers].mode >= FOLLOWERMODE__MAX)
+	{
+		followers[numfollowers].mode = FOLLOWERMODE_FLOAT;
+		deh_warning("Follower '%s': Value for 'mode' should be between %d and %d.", testname, FOLLOWERMODE_FLOAT, FOLLOWERMODE__MAX-1);
+	}
+	
 #define FALLBACK(field, field2, threshold, set) \
 if (followers[numfollowers].field < threshold) \
 { \
@@ -727,10 +756,12 @@ if (followers[numfollowers].field < threshold) \
 
 	FALLBACK(dist, "DIST", 0, 0);
 	FALLBACK(zoffs, "ZOFFS", 0, 0);
-	FALLBACK(horzlag, "HORZLAG", 1, 1);
-	FALLBACK(vertlag, "VERTLAG", 1, 1);
+	FALLBACK(horzlag, "HORZLAG", FRACUNIT, FRACUNIT);
+	FALLBACK(vertlag, "VERTLAG", FRACUNIT, FRACUNIT);
+	FALLBACK(anglelag, "ANGLELAG", FRACUNIT, FRACUNIT);
 	FALLBACK(bobamp, "BOBAMP", 0, 0);
 	FALLBACK(bobspeed, "BOBSPEED", 0, 0);
+	FALLBACK(scale, "SCALE", 1, 1);		
 	FALLBACK(hitconfirmtime, "HITCONFIRMTIME", 1, 1);
 #undef FALLBACK
 

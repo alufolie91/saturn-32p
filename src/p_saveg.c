@@ -55,6 +55,7 @@ typedef enum
 	AWAYVIEW   = 0x08,
 	FIRSTAXIS  = 0x10,
 	SECONDAXIS = 0x20,
+	FOLLOWER = 0x40,
 } player_saveflags;
 
 //
@@ -244,6 +245,9 @@ static void P_NetArchivePlayers(void)
 
 		if (players[i].axis2)
 			flags |= SECONDAXIS;
+		
+		if (players[i].follower)
+			flags |= FOLLOWER;
 
 		WRITEINT16(save_p, players[i].lastsidehit);
 		WRITEINT16(save_p, players[i].lastlinehit);
@@ -283,6 +287,8 @@ static void P_NetArchivePlayers(void)
 		
 		WRITEUINT8(save_p, players[i].followerskin);
 		WRITEUINT8(save_p, players[i].followerready);	// booleans are really just numbers eh??
+		if (flags & FOLLOWER)
+			WRITEUINT32(save_p, players[i].follower->mobjnum);
 		
 		//
 
@@ -464,6 +470,9 @@ static void P_NetUnArchivePlayers(void)
 		players[i].kartweight = READUINT8(save_p);
 		players[i].followerskin = READUINT8(save_p);
 		players[i].followerready = READUINT8(save_p);
+		if (flags & FOLLOWER)
+			players[i].follower = (mobj_t *)(size_t)READUINT32(save_p);
+		
 		//
 
 		for (j = 0; j < MAXPREDICTTICS; j++)
@@ -3198,6 +3207,13 @@ static void P_RelinkPointers(void)
 			mobj->player->awayviewmobj = NULL;
 			if (!P_SetTarget(&mobj->player->awayviewmobj, P_FindNewPosition(temp)))
 				CONS_Debug(DBG_GAMELOGIC, "awayviewmobj not found on %d\n", mobj->type);
+		}
+		if (mobj->player && mobj->player->follower)
+		{
+			temp = (UINT32)(size_t)mobj->player->follower;
+			mobj->player->follower = NULL;
+			if (!P_SetTarget(&mobj->player->follower, P_FindNewPosition(temp)))
+				CONS_Debug(DBG_GAMELOGIC, "follower not found on %d\n", mobj->type);
 		}
 	}
 }
