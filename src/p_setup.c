@@ -3318,17 +3318,6 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 	return true;
 }
 
-#ifdef HWRENDER
-void HWR_LoadLevel(void)
-{
-	HWR_FreeMipmapCache();
-	HWR_CreatePlanePolygons((INT32)numnodes - 1);
-
-	if (HWR_ShouldUsePaletteRendering())
-		HWR_SetMapPalette();
-}
-#endif
-
 //
 // P_RunSOC
 //
