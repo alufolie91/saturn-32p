@@ -53,6 +53,7 @@ static lua_CFunction liblist[] = {
 	LUA_InfoLib, // info.h stuff: mobjinfo_t, mobjinfo[], state_t, states[]
 	LUA_MobjLib, // mobj_t, mapthing_t
 	LUA_PlayerLib, // player_t
+	LUA_FollowerLib, // follower_t, followers[]
 	LUA_SkinLib, // skin_t, skins[]
 	LUA_ThinkerLib, // thinker_t
 	LUA_MapLib, // line_t, side_t, sector_t, subsector_t

@@ -10,6 +10,7 @@
 /// \file  dehacked.c
 /// \brief Load dehacked file and change tables and text
 
+#include "d_ticcmd.h"
 #include "doomdef.h"
 #include "d_main.h" // for srb2home
 #include "g_game.h"
@@ -538,9 +539,9 @@ static void readfollower(MYFILE *f)
 	INT32 res;
 	INT32 i;
 
-	if (numfollowers > MAXSKINS)
+	if (numfollowers > MAXFOLLOWERS)
 	{
-		deh_warning("Error: Too many followers, cannot add anymore.\n");
+		I_Error("Out of Followers\nLoad less addons to fix this.");
 		return;
 	}
 
@@ -633,6 +634,10 @@ static void readfollower(MYFILE *f)
 			{
 				DEH_WriteUndoline(word, va("%d", followers[numfollowers].scale), UNDO_NONE);
 				followers[numfollowers].scale = get_number(word2);
+			}
+			else if (fastcmp(word, "BUBBLESCALE"))
+			{
+				deh_warning("Follower \"%s\": bubblescale is unsupported. Please consider removing it from your SOC file.", followers[numfollowers].name);
 			}
 			else if (fastcmp(word, "HORNSOUND"))
 			{
@@ -8611,6 +8616,7 @@ struct {
 	{"BT_ATTACK",BT_ATTACK},
 	{"BT_FORWARD",BT_FORWARD},
 	{"BT_BACKWARD",BT_BACKWARD},
+	{"BT_LOOKBACK",BT_LOOKBACK},
 	{"BT_CUSTOM1",BT_CUSTOM1}, // Lua customizable
 	{"BT_CUSTOM2",BT_CUSTOM2}, // Lua customizable
 	{"BT_CUSTOM3",BT_CUSTOM3}, // Lua customizable
@@ -8742,6 +8748,11 @@ struct {
 	{"FEATURE_INTERMISSIONHUD",1},
 	{"FEATURE_VOTEHUD",1},
 	{"FEATURE_TITLEHUD",1},
+	
+	// followermode_t
+	{"FOLLOWERMODE_FLOAT",FOLLOWERMODE_FLOAT},
+	{"FOLLOWERMODE_GROUND",FOLLOWERMODE_GROUND},
+
 
 	{NULL,0}
 };

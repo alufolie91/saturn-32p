@@ -3170,7 +3170,7 @@ void R_DrawMasked(void)
 // ==========================================================================
 
 INT32 numskins = 0;
-follower_t followers[MAXSKINS];
+follower_t followers[MAXFOLLOWERS];
 // default followers are defined in SOC_FLWR in followers.kart / gfx.kart (depending on what exe this is, at this point)
 
 INT32 numallskins = 0;

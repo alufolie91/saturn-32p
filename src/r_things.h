@@ -285,7 +285,7 @@ extern INT32 numallskins;
 extern skin_t skins[MAXSKINS];
 
 extern INT32 numfollowers;
-extern follower_t followers[MAXSKINS];	// again, use the same rules as skins, no reason not to.
+extern follower_t followers[MAXFOLLOWERS];	// again, use the same rules as skins, no reason not to.
 
 extern UINT16 skinstats[9][9][MAXSKINS];
 extern UINT16 skinstatscount[9][9];

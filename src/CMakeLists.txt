@@ -239,6 +239,7 @@ if(${SRB2_CONFIG_HAVE_BLUA})
 		lua_mathlib.c
 		lua_mobjlib.c
 		lua_playerlib.c
+		lua_followerlib.c
 		lua_script.c
 		lua_skinlib.c
 		lua_thinkerlib.c
