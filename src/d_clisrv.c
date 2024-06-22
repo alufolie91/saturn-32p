@@ -2162,6 +2162,8 @@ static void CL_ConnectToServer(void)
 	DEBFILE(va("Synchronisation Finished\n"));
 
 	displayplayers[0] = consoleplayer;
+
+	LUAh_ServerJoin();
 }
 
 #ifndef NONET
