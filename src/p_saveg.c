@@ -1634,6 +1634,7 @@ static void SavePolywaypointThinker(const thinker_t *th, UINT8 type)
 	WRITEFIXED(save_p, ht->diffx);
 	WRITEFIXED(save_p, ht->diffy);
 	WRITEFIXED(save_p, ht->diffz);
+	WRITEUINT32(save_p, SaveMobjnum(ht->target));
 }
 
 //
@@ -2681,6 +2682,7 @@ static inline void LoadPolywaypointThinker(actionf_p1 thinker)
 	ht->diffx = READFIXED(save_p);
 	ht->diffy = READFIXED(save_p);
 	ht->diffz = READFIXED(save_p);
+	ht->target = LoadMobj(READUINT32(save_p));
 	P_AddThinker(&ht->thinker);
 }
 
@@ -2933,6 +2935,7 @@ static void P_NetUnArchiveThinkers(void)
 
 			case tc_polywaypoint:
 				LoadPolywaypointThinker((actionf_p1)T_PolyObjWaypoint);
+				restoreNum = true;
 				break;
 
 			case tc_polyslidedoor:
@@ -2972,6 +2975,7 @@ static void P_NetUnArchiveThinkers(void)
 	if (restoreNum)
 	{
 		executor_t *delay = NULL;
+		polywaypoint_t *polywp = NULL;
 		UINT32 mobjnum;
 		for (currentthinker = thinkercap.next; currentthinker != &thinkercap;
 			currentthinker = currentthinker->next)
@@ -2982,6 +2986,16 @@ static void P_NetUnArchiveThinkers(void)
 				if ((mobjnum = (UINT32)(size_t)delay->caller))
 					delay->caller = P_FindNewPosition(mobjnum);
 			}
+		}
+		for (currentthinker = thinkercap.next; currentthinker != &thinkercap;
+			 currentthinker = currentthinker->next)
+		{
+			if (currentthinker->function.acp1 != (actionf_p1)T_PolyObjWaypoint)
+				continue;
+			polywp = (void *)currentthinker;
+			if (!(mobjnum = (UINT32)(size_t)polywp->target))
+				continue;
+			polywp->target = P_FindNewPosition(mobjnum);
 		}
 	}
 }
