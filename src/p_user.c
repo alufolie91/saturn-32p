@@ -4532,15 +4532,9 @@ static void P_HandleFollower(player_t *player)
 				player->follower->momz = player->mo->momz;
 			}
 			else
-			{
-				fixed_t fg = P_GetMobjGravity(player->mo);
-				fixed_t fz = P_GetMobjZMovement(player->follower);
-
-				player->follower->momz = fz;
-
-				// Player is on the ground ... try to get the follower
-				// back to the ground also if it is above it.
-				player->follower->momz += FixedDiv(fg * 6, fl.vertlag); // Scaled against the default value of vertlag
+			{	
+				// Other wise match current fllor
+				player->follower->momz = sz - player->follower->z;
 			}
 		}
 		else
@@ -4594,39 +4588,6 @@ static void P_HandleFollower(player_t *player)
 		// Ground follower slope rotation
 		if (fl.mode == FOLLOWERMODE_GROUND)
 		{
-			if (player->follower->z <= fh)
-			{
-				player->follower->z = fh;
-
-				if (!(player->mo->eflags & MFE_VERTICALFLIP) && player->follower->momz <= 0 && fl.bobamp != 0)
-				{
-					// Ground bounce
-					player->follower->momz = P_GetMobjZMovement(player->mo) + FixedMul(fl.bobamp, player->follower->scale);
-					player->follower->extravalue1 = FOLLOWERSTATE_RESET;
-				}
-				else if (player->follower->momz < 0)
-				{
-					// Ceiling clip
-					player->follower->momz = 0;
-				}
-			}
-			else if (player->follower->z >= ch)
-			{
-				player->follower->z = ch;
-
-				if ((player->mo->eflags & MFE_VERTICALFLIP) && player->follower->momz >= 0 && fl.bobamp != 0)
-				{
-					// Ground bounce
-					player->follower->momz = P_GetMobjZMovement(player->mo) - FixedMul(fl.bobamp, player->follower->scale);
-					player->follower->extravalue1 = FOLLOWERSTATE_RESET;
-				}
-				else if (player->follower->momz > 0)
-				{
-					// Ceiling clip
-					player->follower->momz = 0;
-				}
-			}
-
 			K_CalculateFollowerSlope(
 				player->follower,
 				player->follower->x, player->follower->y, player->follower->z,

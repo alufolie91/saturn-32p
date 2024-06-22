@@ -16,6 +16,7 @@
 #include "m_random.h"
 #include "m_menu.h" // ffdhidshfuisduifigergho9igj89dgodhfih AAAAAAAAAA
 #include "p_local.h"
+#include "p_mobj.h"
 #include "p_slopes.h"
 #include "r_defs.h"
 #include "r_draw.h"
@@ -4962,7 +4963,7 @@ static void K_QuiteSaltyHop(player_t *p)
 
 #define SLOPEROLL_DIV 3
 
-void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance)
+void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance, pslope_t *slope)
 {
     I_Assert(mo->subsector != NULL);
     I_Assert(mo->subsector->sector != NULL);
@@ -4973,7 +4974,7 @@ void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance)
     fixed_t rolldist = cv_sloperolldist.value * mapobjectscale;
 
     // lifted from hw_md2
-    if (mo->standingslope)
+    if (slope)
     {
         fixed_t tempz = mo->standingslope->normal.z;
         fixed_t tempy = mo->standingslope->normal.y;
@@ -6382,7 +6383,7 @@ void K_CalculateFollowerSlope(mobj_t *mobj, fixed_t x, fixed_t y, fixed_t z, fix
 		}
 	}
 
-	//mobj->standingslope = slope;
+	mobj->standingslope = slope;
 	P_RollPitchMobj(mobj);
 }
 
@@ -8589,7 +8590,7 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
 	if ((cv_spriteroll.value) && (cv_sloperoll.value))
 	{
 		if ((!player->mo->salty_jump)) // seeing a character rotate mid-hop looks really janky
-			K_RollMobjBySlopes(player->mo, usedist);
+			K_RollMobjBySlopes(player->mo, usedist, player->mo->standingslope);
 	}
 	else
 	{

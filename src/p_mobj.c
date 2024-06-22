@@ -6267,7 +6267,7 @@ void P_RollPitchMobj(mobj_t* mobj)
 
     if ((cv_spriteroll.value) && (cv_sloperoll.value == 2))
     {
-        K_RollMobjBySlopes(mobj, usedist);
+        K_RollMobjBySlopes(mobj, usedist, mobj->standingslope);
     }
     else
     {

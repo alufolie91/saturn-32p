@@ -2009,10 +2009,6 @@ static void SendNameAndColor(void)
 	// ditto for follower colour:
 	if (!cv_followercolor.value)
 		CV_StealthSet(&cv_followercolor, "Match"); // set it to "Match". I don't care about your stupidity!
-	
-	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
-	if (cv_follower.value > numfollowers-1 || cv_follower.value < -1)
-		CV_StealthSet(&cv_follower, "-1");
 
 	if (!strcmp(cv_playername.string, player_names[consoleplayer])
 		&& cv_playercolor.value == players[consoleplayer].skincolor
@@ -2160,10 +2156,6 @@ static void SendNameAndColor2(void)
 	if (!cv_followercolor2.value)
 		CV_StealthSet(&cv_followercolor2, "Match"); // set it to "Match". I don't care about your stupidity!
 	
-	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
-	if (cv_follower2.value > numfollowers-1 || cv_follower2.value < -1)
-		CV_StealthSet(&cv_follower2, "-1");
-	
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
@@ -2301,10 +2293,6 @@ static void SendNameAndColor3(void)
 	// ditto for follower colour:
 	if (!cv_followercolor3.value)
 		CV_StealthSet(&cv_followercolor3, "Match"); // set it to "Match". I don't care about your stupidity!
-	
-	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
-	if (cv_follower3.value > numfollowers-1 || cv_follower3.value < -1)
-		CV_StealthSet(&cv_follower3, "-1");
 
 	// We'll handle it later if we're not playing.
 	if (!Playing())
@@ -2436,10 +2424,6 @@ static void SendNameAndColor4(void)
 	// ditto for follower colour:
 	if (!cv_followercolor4.value)
 		CV_StealthSet(&cv_followercolor4, "Match"); // set it to "Match". I don't care about your stupidity!
-	
-	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
-	if (cv_follower4.value > numfollowers-1 || cv_follower4.value < -1)
-		CV_StealthSet(&cv_follower4, "-1");
 	
 	// We'll handle it later if we're not playing.
 	if (!Playing())
