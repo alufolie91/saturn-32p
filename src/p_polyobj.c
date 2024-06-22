@@ -1814,24 +1814,7 @@ void T_PolyObjWaypoint(polywaypoint_t *th)
 	if (po->thinker == NULL)
 		po->thinker = &th->thinker;
 
-	// Find out target first.
-	// We redo this each tic to make savegame compatibility easier.
-	for (wp = thinkercap.next; wp != &thinkercap; wp = wp->next)
-	{
-		if (wp->function.acp1 != (actionf_p1)P_MobjThinker) // Not a mobj thinker
-			continue;
-
-		mo2 = (mobj_t *)wp;
-
-		if (mo2->type != MT_TUBEWAYPOINT)
-			continue;
-
-		if (mo2->threshold == th->sequence && mo2->health == th->pointnum)
-		{
-			target = mo2;
-			break;
-		}
-	}
+	target = th->target;
 
 	if (!target)
 	{
@@ -2012,6 +1995,8 @@ void T_PolyObjWaypoint(polywaypoint_t *th)
 
 			target = waypoint;
 			th->pointnum = target->health;
+			// Set the mobj as your target! -- Monster Iestyn 27/12/19
+			P_SetTarget(&th->target, target);
 
 			// calculate MOMX/MOMY/MOMZ for next waypoint
 			// change slope
@@ -2625,6 +2610,9 @@ INT32 EV_DoPolyObjWaypoint(polywaypointdata_t *pwdata)
 
 	// Set pointnum
 	th->pointnum = target->health;
+	th->target = NULL; // set to NULL first so the below doesn't go wrong
+	// Set the mobj as your target! -- Monster Iestyn 27/12/19
+	P_SetTarget(&th->target, target);
 
 	// We don't deal with the mirror crap here, we'll
 	// handle that in the T_Thinker function.
