@@ -97,7 +97,7 @@ static void ReconfigureViaVertexes (pslope_t *slope, const vector3_t v1, const v
 		/// \note Using fixed point for vectorial products easily leads to overflows so we work around by downscaling them.
 		fixed_t m = max(
 			max(max(abs(vec1.x), abs(vec1.y)), abs(vec1.z)),
-			max(max(abs(vec2.x), abs(vec2.y)), abs(vec2.z))
+						max(max(abs(vec2.x), abs(vec2.y)), abs(vec2.z))
 		) >> 5; // shifting right by 5 is good enough.
 
 		FV3_Cross(
@@ -122,7 +122,7 @@ static void ReconfigureViaVertexes (pslope_t *slope, const vector3_t v1, const v
 
 		// Z delta
 		slope->zdelta = FixedDiv(m, slope->normal.z);
-		
+
 		// Get angles
 		slope->real_xydirection = R_PointToAngle2(0, 0, slope->d.x, slope->d.y)+ANGLE_180;
 		slope->real_zangle = InvAngle(R_PointToAngle2(0, 0, FRACUNIT, slope->zdelta));
@@ -146,28 +146,28 @@ void T_DynamicSlopeLine (dynplanethink_t* th)
 	fixed_t zdelta;
 
 	switch(th->type) {
-	case DP_FRONTFLOOR:
-		zdelta = srcline->backsector->floorheight - srcline->frontsector->floorheight;
-		slope->o.z = srcline->frontsector->floorheight;
-		break;
+		case DP_FRONTFLOOR:
+			zdelta = srcline->backsector->floorheight - srcline->frontsector->floorheight;
+			slope->o.z = srcline->frontsector->floorheight;
+			break;
 
-	case DP_FRONTCEIL:
-		zdelta = srcline->backsector->ceilingheight - srcline->frontsector->ceilingheight;
-		slope->o.z = srcline->frontsector->ceilingheight;
-		break;
+		case DP_FRONTCEIL:
+			zdelta = srcline->backsector->ceilingheight - srcline->frontsector->ceilingheight;
+			slope->o.z = srcline->frontsector->ceilingheight;
+			break;
 
-	case DP_BACKFLOOR:
-		zdelta = srcline->frontsector->floorheight - srcline->backsector->floorheight;
-		slope->o.z = srcline->backsector->floorheight;
-		break;
+		case DP_BACKFLOOR:
+			zdelta = srcline->frontsector->floorheight - srcline->backsector->floorheight;
+			slope->o.z = srcline->backsector->floorheight;
+			break;
 
-	case DP_BACKCEIL:
-		zdelta = srcline->frontsector->ceilingheight - srcline->backsector->ceilingheight;
-		slope->o.z = srcline->backsector->ceilingheight;
-		break;
+		case DP_BACKCEIL:
+			zdelta = srcline->frontsector->ceilingheight - srcline->backsector->ceilingheight;
+			slope->o.z = srcline->backsector->ceilingheight;
+			break;
 
-	default:
-		return;
+		default:
+			return;
 	}
 
 	if (slope->zdelta != FixedDiv(zdelta, th->extent)) {
@@ -203,15 +203,15 @@ FUNCINLINE static ATTRINLINE void P_AddDynSlopeThinker (pslope_t* slope, dynplan
 	dynplanethink_t* th = Z_Calloc(sizeof (*th), PU_LEVSPEC, NULL);
 	switch (type)
 	{
-	case DP_VERTEX:
-		th->thinker.function.acp1 = (actionf_p1)T_DynamicSlopeVert;
-		memcpy(th->tags, tags, sizeof(th->tags));
-		memcpy(th->vex, vx, sizeof(th->vex));
-		break;
-	default:
-		th->thinker.function.acp1 = (actionf_p1)T_DynamicSlopeLine;
-		th->sourceline = sourceline;
-		th->extent = extent;
+		case DP_VERTEX:
+			th->thinker.function.acp1 = (actionf_p1)T_DynamicSlopeVert;
+			memcpy(th->tags, tags, sizeof(th->tags));
+			memcpy(th->vex, vx, sizeof(th->vex));
+			break;
+		default:
+			th->thinker.function.acp1 = (actionf_p1)T_DynamicSlopeLine;
+			th->sourceline = sourceline;
+			th->extent = extent;
 	}
 
 	th->slope = slope;
@@ -241,7 +241,7 @@ static inline pslope_t* Slope_Add (const UINT8 flags)
 
 /// Alocates and fill the contents of a slope structure.
 static pslope_t *MakeViaVectors(const vector3_t *o, const vector2_t *d,
-                             const fixed_t zdelta, UINT8 flags)
+								const fixed_t zdelta, UINT8 flags)
 {
 	pslope_t *ret = Slope_Add(flags);
 
@@ -368,7 +368,12 @@ static void line_SpawnViaLine(const int linenum, const boolean spawnthinker)
 			// In P_SpawnSlopeLine the origin is the centerpoint of the sourcelinedef
 
 			fslope = line->frontsector->f_slope =
-            MakeViaVectors(&point, &direction, dz, flags);
+			MakeViaVectors(&point, &direction, dz, flags);
+
+			// Now remember that f_slope IS a vector
+			// fslope->o = origin      3D point 1 of the vector
+			// fslope->d = destination 3D point 2 of the vector
+			// fslope->normal is a 3D line perpendicular to the 3D vector
 
 			fslope->zangle = R_PointToAngle2(0, origin.z, extent, point.z);
 			fslope->xydirection = R_PointToAngle2(origin.x, origin.y, point.x, point.y);
@@ -388,7 +393,7 @@ static void line_SpawnViaLine(const int linenum, const boolean spawnthinker)
 			dz = FixedDiv(origin.z - point.z, extent);
 
 			cslope = line->frontsector->c_slope =
-            MakeViaVectors(&point, &direction, dz, flags);
+			MakeViaVectors(&point, &direction, dz, flags);
 
 			cslope->zangle = R_PointToAngle2(0, origin.z, extent, point.z);
 			cslope->xydirection = R_PointToAngle2(origin.x, origin.y, point.x, point.y);
@@ -431,7 +436,7 @@ static void line_SpawnViaLine(const int linenum, const boolean spawnthinker)
 			dz = FixedDiv(origin.z - point.z, extent);
 
 			fslope = line->backsector->f_slope =
-            MakeViaVectors(&point, &direction, dz, flags);
+			MakeViaVectors(&point, &direction, dz, flags);
 
 			fslope->zangle = R_PointToAngle2(0, origin.z, extent, point.z);
 			fslope->xydirection = R_PointToAngle2(origin.x, origin.y, point.x, point.y);
@@ -451,7 +456,7 @@ static void line_SpawnViaLine(const int linenum, const boolean spawnthinker)
 			dz = FixedDiv(origin.z - point.z, extent);
 
 			cslope = line->backsector->c_slope =
-            MakeViaVectors(&point, &direction, dz, flags);
+			MakeViaVectors(&point, &direction, dz, flags);
 
 			cslope->zangle = R_PointToAngle2(0, origin.z, extent, point.z);
 			cslope->xydirection = R_PointToAngle2(origin.x, origin.y, point.x, point.y);
@@ -531,23 +536,23 @@ static void line_SpawnViaVertexes(const int linenum, const boolean spawnthinker)
 
 	switch(line->special)
 	{
-	case 704:
-		slopetoset = &line->frontsector->f_slope;
-		side = &sides[line->sidenum[0]];
-		break;
-	case 705:
-		slopetoset = &line->frontsector->c_slope;
-		side = &sides[line->sidenum[0]];
-		break;
-	case 714:
-		slopetoset = &line->backsector->f_slope;
-		side = &sides[line->sidenum[1]];
-		break;
-	case 715:
-		slopetoset = &line->backsector->c_slope;
-		side = &sides[line->sidenum[1]];
-	default:
-		return;
+		case 704:
+			slopetoset = &line->frontsector->f_slope;
+			side = &sides[line->sidenum[0]];
+			break;
+		case 705:
+			slopetoset = &line->frontsector->c_slope;
+			side = &sides[line->sidenum[0]];
+			break;
+		case 714:
+			slopetoset = &line->backsector->f_slope;
+			side = &sides[line->sidenum[1]];
+			break;
+		case 715:
+			slopetoset = &line->backsector->c_slope;
+			side = &sides[line->sidenum[1]];
+		default:
+			return;
 	}
 
 	if (line->flags & ML_NOKNUX)
@@ -576,7 +581,7 @@ void P_CopySectorSlope(line_t *line)
 	int i, special = line->special;
 
 	// Check for copy linedefs
-	for(i = -1; (i = P_FindSectorFromLineTag(line, i)) >= 0;)
+	for (i = -1; (i = P_FindSectorFromLineTag(line, i)) >= 0;)
 	{
 		sector_t *srcsec = sectors + i;
 
@@ -609,8 +614,7 @@ pslope_t *P_SlopeById(UINT16 id)
 }
 
 /// Reset slopes and read them from special lines.
-void P_ResetDynamicSlopes(const boolean fromsave)
-{
+void P_SpawnSlopes(const boolean fromsave) {
 	size_t i;
 
 	/// Generates line special-defined slopes.
@@ -651,7 +655,6 @@ void P_InitSlopes(void)
 	dynthinklist = NULL;
 	dynthinknum = 0;
 }
-
 
 // ============================================================================
 //
