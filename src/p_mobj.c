@@ -9690,6 +9690,10 @@ static void P_DefaultMobjShadowScale(mobj_t *thing)
 		case MT_THUNDERSHIELD:
 		case MT_ROCKETSNEAKER:
 		case MT_SPB:
+		case MT_ADVENTURESPIKEA:
+		case MT_ADVENTURESPIKEB:
+		case MT_ADVENTURESPIKEC:
+		case MT_CDUFO:
 			thing->shadowscale = 4*FRACUNIT/3;
 			thing->haveshadow = true;
 			break;
@@ -9697,24 +9701,119 @@ static void P_DefaultMobjShadowScale(mobj_t *thing)
 			thing->shadowscale = 12*FRACUNIT/5;
 			thing->haveshadow = true;
 			break;
-		/*case MT_RANDOMITEM:
+		case MT_RANDOMITEM:
 			thing->shadowscale = FRACUNIT/2;
 			thing->whiteshadow = false;
+			thing->haveshadow = true;
 			break;
 		case MT_EGGMANITEM:
 			thing->shadowscale = FRACUNIT;
 			thing->whiteshadow = false;
+			thing->haveshadow = true;
 			break;
 		case MT_EGGMANITEM_SHIELD:
 			thing->shadowscale = 3*FRACUNIT/2;
 			thing->whiteshadow = false;
-			break;*/
+			thing->haveshadow = true;
+			break;
 		case MT_FLOATINGITEM:
 			thing->shadowscale = FRACUNIT/2;
 			thing->haveshadow = true;
 			break;
+		case MT_BLUEFRUIT:
+		case MT_ORANGEFRUIT:
+		case MT_REDFRUIT:
+		case MT_PINKFRUIT:
+		case MT_RANDOMAUDIENCE:
+		case MT_DOOD_BOX:
+		case MT_DOOD_BALLOON:
+		case MT_BLUECRAWLA:
+		case MT_REDCRAWLA:
+		case MT_GFZFISH: // Greenflower Fish
+		case MT_GOLDBUZZ:
+		case MT_REDBUZZ:
+		case MT_AQUABUZZ: // AquaBuzz for ATZ
+		case MT_JETTBOMBER: // Jetty-Syn Bomber
+		case MT_JETTGUNNER: // Jetty-Syn Gunner
+		case MT_CRAWLACOMMANDER: // Crawla Commander
+		case MT_DETON: // Deton
+		case MT_SKIM: // Skim mine dropper
+		case MT_TURRET:
+		case MT_POPUPTURRET:
+		case MT_SHARP: // Sharp
+		case MT_JETJAW: // Jet Jaw
+		case MT_SNAILER: // Snailer
+		case MT_VULTURE: // Vulture
+		case MT_POINTY: // Pointy
+		case MT_POINTYBALL: // Pointy Ball
+		case MT_ROBOHOOD: // Robo-Hood
+		case MT_FACESTABBER: // CastleBot FaceStabber
+		case MT_EGGGUARD: // Egg Guard
+		case MT_EGGSHIELD: // Egg Shield for Egg Guard
+		case MT_GSNAPPER: // Green Snapper
+		case MT_MINUS: // Minus
+		case MT_SPRINGSHELL: // Spring Shell
+		case MT_YELLOWSHELL: // Spring Shell (yellow)
+		case MT_UNIDUS: // Unidus
+		case MT_UNIBALL: // Unidus Ball
+		case MT_GOOMBA:
+		case MT_BLUEGOOMBA:
+		case MT_KOOPA:
+		case MT_MONOKUMA:
+		case MT_ARIDTOAD:
+		case MT_SRB1_CRAWLA:
+		case MT_SRB1_BAT:
+		case MT_SRB1_ROBOFISH:
+		case MT_SRB1_VOLCANOGUY:
+		case MT_SRB1_HOPPY:
+		case MT_SRB1_HOPPYWATER:
+		case MT_SRB1_HOPPYSKYLAB:
+		case MT_SRB1_MMZFLYING:
+		case MT_SRB1_UFO:
+		case MT_SRB1_GRAYBOT:
+		case MT_SRB1_ROBOTOPOLIS:
+		case MT_SRB1_RBZBUZZ:
+		case MT_SRB1_RBZSPIKES:
+		case MT_SRB1_METALSONIC:
+		case MT_SRB1_GOLDBOT:
+		case MT_SRB1_GENREX:
+			thing->shadowscale = FRACUNIT;
+			thing->haveshadow = true;
+			break;
+		case MT_RING:
+		case MT_FLINGRING:
+		case MT_COIN:
+		case MT_FLINGCOIN:
+		case MT_REDTEAMRING:
+		case MT_BLUETEAMRING:
+		case MT_REDFLAG:
+		case MT_BLUEFLAG:
+		case MT_BOUNCERING:
+		case MT_AUTOMATICRING:
+		case MT_INFINITYRING:
+		case MT_RAILRING:
+		case MT_EXPLOSIONRING:
+		case MT_SCATTERRING:
+		case MT_GRENADERING:
+		case MT_BOUNCEPICKUP:
+		case MT_RAILPICKUP:
+		case MT_AUTOPICKUP:
+		case MT_EXPLODEPICKUP:
+		case MT_SCATTERPICKUP:
+		case MT_GRENADEPICKUP:
+		case MT_REDRING:
+		case MT_THROWNBOUNCE:
+		case MT_THROWNINFINITY:
+		case MT_THROWNAUTOMATIC:
+		case MT_THROWNSCATTER:
+		case MT_THROWNEXPLOSION:
+		case MT_THROWNGRENADE:
+		case MT_EMBLEM:
+			thing->shadowscale = 2*FRACUNIT/3;
+			thing->haveshadow = true;
+			break;
 		default:
-			thing->shadowscale = 4*FRACUNIT/3;;
+			thing->shadowscale = 4*FRACUNIT/3;
 			break;
 	}
 }

@@ -4487,6 +4487,10 @@ static void P_HandleFollower(player_t *player)
 		// first of all, handle states following the same model as above:
 		if (player->follower->tics == 1)
 			P_SetFollowerState(player->follower, player->follower->state->nextstate);
+		
+		// Spawn Follower Shadow
+		player->follower->haveshadow = true;
+		player->follower->shadowscale = player->follower->scale;
 
 		// move the follower next to us (yes, this is really basic maths but it looks pretty damn clean in practice)!
 		player->follower->momx = FixedDiv(sx - player->follower->x, fl.horzlag);
@@ -4496,7 +4500,7 @@ static void P_HandleFollower(player_t *player)
 		
 		if (fl.mode == FOLLOWERMODE_GROUND)
 		{
-			sector_t *sec = R_PointInSubsector(sx, sy)->sector;
+			sector_t *sec = player->follower->subsector->sector;
 
 			fh = min(fh, P_GetFloorZ(player->follower, sec, sx, sy, NULL));
 			ch = max(ch, P_GetCeilingZ(player->follower, sec, sx, sy, NULL) - ourheight);
