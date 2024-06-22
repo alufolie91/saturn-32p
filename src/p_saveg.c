@@ -3208,13 +3208,14 @@ static void P_RelinkPointers(void)
 				if (!P_SetTarget(&mobj->player->awayviewmobj, P_FindNewPosition(temp)))
 					CONS_Debug(DBG_GAMELOGIC, "awayviewmobj not found on %d\n", mobj->type);
 			}
-		}
-		if (mobj->player && mobj->player->follower)
-		{
-			temp = (UINT32)(size_t)mobj->player->follower;
-			mobj->player->follower = NULL;
-			if (!P_SetTarget(&mobj->player->follower, P_FindNewPosition(temp)))
-				CONS_Debug(DBG_GAMELOGIC, "follower not found on %d\n", mobj->type);
+			
+			if (mobj->player && mobj->player->follower)
+			{
+				temp = (UINT32)(size_t)mobj->player->follower;
+				mobj->player->follower = NULL;
+				if (!P_SetTarget(&mobj->player->follower, P_FindNewPosition(temp)))
+					CONS_Debug(DBG_GAMELOGIC, "follower not found on %d\n", mobj->type);
+			}
 		}
 	}
 }
