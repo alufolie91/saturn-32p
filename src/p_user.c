@@ -59,7 +59,8 @@
 #include "hardware/hw_main.h"
 #endif
 
-consvar_t cv_synchedlookback = {"synchedlookback", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //toggle for deciding if to use other players lookback inputs or not
+consvar_t cv_synchedlookback = {"synchedlookback", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; // Toggle for deciding if to use other players lookback inputs or not
+consvar_t cv_hidefollowers = {"hidefollowers", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; // Toggle for Follower visibility
 
 //
 // Movement.
@@ -4559,6 +4560,9 @@ static void P_HandleFollower(player_t *player)
 
 		if (player->pflags & PF_TIMEOVER)	// there is more to it than that to check for a full no contest but this isn't used for anything else.
 			player->follower->flags2 &= MF2_DONTDRAW;
+		
+		if (cv_hidefollowers.value) // hide em for people who don't want them
+			player->follower->flags2 |= MF2_DONTDRAW;
 		
 		// if we're moving let's make the angle the direction we're moving towards. This is to avoid drifting / reverse looking awkward.
 		if (FixedHypot(player->follower->momx, player->follower->momy) >= player->mo->scale)

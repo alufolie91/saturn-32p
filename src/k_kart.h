@@ -40,6 +40,7 @@ extern consvar_t cv_alwaysshowitemstacks;
 extern consvar_t cv_battlespeedo;
 extern consvar_t cv_sneakerstacksound;
 extern consvar_t cv_synchedlookback;
+extern consvar_t cv_hidefollowers;
 
 #define NUMSPEEDOSTUFF 6
 extern CV_PossibleValue_t speedo_cons_t[NUMSPEEDOSTUFF];

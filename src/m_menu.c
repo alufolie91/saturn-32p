@@ -10651,15 +10651,18 @@ static consvar_t *setupm_cvskin;
 static consvar_t *setupm_cvcolor;
 static consvar_t *setupm_cvname;
 static consvar_t *setupm_cvfollower;
+static consvar_t *setupm_cvfollowercolor;
 static UINT8      setupm_skinxpos;
 static INT32      setupm_fakeskin;
 static INT32      setupm_fakecolor;
 static INT32	  setupm_fakefollower;	// -1 is for none, our followers start at 0
+static INT32      setupm_fakefollowercolor;
 
 //variables used for other skin select menus
 static UINT8 setupm_skinypos;
 static INT32 setupm_skinselect;
 static boolean setupm_skinlockedselect;
+static INT32 setupm_colormode;
 
 #define SELECTEDSTATSCOUNT skinstatscount[setupm_skinxpos][setupm_skinypos]
 #define LASTSELECTEDSTAT skinstats[setupm_skinxpos][setupm_skinypos][skinstatscount[setupm_skinxpos][setupm_skinypos]]
@@ -11202,15 +11205,25 @@ static void M_DrawSetupMultiPlayerMenu(void)
 #define indexwidth 8
 	{
 		INT32 colwidth = ((BASEVIDWIDTH-(2*mx))-charw)/(2*indexwidth);
-		
-		if (cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED)
-			colwidth = colwidth - 10;
-		
 		INT32 j = -colwidth;
-		INT16 col = setupm_fakecolor - colwidth;
+		INT16 colormode;
+		INT16 col;
 		INT32 x = mx;
 		INT32 cw = indexwidth;
 		UINT8 ch;
+		
+		if (setupm_colormode == 0)
+			colormode = setupm_fakecolor;
+		else
+			colormode = setupm_fakefollowercolor;
+		
+		if (cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED)
+		{
+			colwidth = colwidth - 10;
+			j = -colwidth;
+		}
+		
+		col = colormode - colwidth;
 
 		while (col < 1)
 			col += MAXSKINCOLORS-1;
@@ -11414,7 +11427,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 		// @TODO: Reminder that followers on the menu right now do NOT support the 'followercolor' command, considering this whole menu is getting remade anyway, I see no point in incorporating it in right now.
 
 		// draw follower sprite
-		if (setupm_fakecolor) // inverse should never happen
+		if (setupm_fakefollower > -1) // inverse should never happen
 		{
 			// Fake the follower's in game appearance by now also applying some of its variables! coolio, eh?
 			follower_t fl = followers[setupm_fakefollower];	// shortcut for our sanity
@@ -11425,7 +11438,15 @@ static void M_DrawSetupMultiPlayerMenu(void)
 				) >> ANGLETOFINESHIFT) & FINEMASK));
 			clampedheight = clampedheight > 25 ? 25 : clampedheight; // clamp max so it doesn't look stupid
 			//clampedheight = clampedheight < MY_MIN ? MY_MIN : clampedheight;
-			UINT8 *colormap = R_GetTranslationColormap(-1, K_GetEffectiveFollowerColor(fl.defaultcolor, &fl, setupm_fakecolor, &skins[skintodisplay]), 0);
+			
+			INT32 color;
+			
+			if (setupm_colormode == 0)
+				color = fl.defaultcolor;
+			else
+				color = setupm_fakefollowercolor;
+			
+			UINT8 *colormap = R_GetTranslationColormap(-1, K_GetEffectiveFollowerColor(color, &fl, setupm_fakecolor, &skins[skintodisplay]), 0);
 			V_DrawFixedPatch((mx+55)*FRACUNIT, ((my+131-clampedheight))*FRACUNIT+sine, fl.scale, flags, patch, colormap);
 			Z_Free(colormap);
 		}
@@ -11461,6 +11482,9 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 
 	if ((choice == gamecontrol[gc_fire][0] || choice == gamecontrol[gc_fire][1]) && itemOn == 3)
 		choice = KEY_BACKSPACE; // Hack to allow resetting prefcolor on controllers
+		
+	if ((choice == gamecontrol[gc_drift][0] || choice == gamecontrol[gc_drift][1]) && itemOn == 3)
+		choice = KEY_RSHIFT; // Hack to allow swtiching prefcolor mode on controllers
 
 #define BREAKWHENLOCKED {\
 	if (setupm_skinlockedselect) \
@@ -11632,7 +11656,15 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			else if (itemOn == 3) // player color
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
-				setupm_fakecolor--;
+				
+				if (setupm_colormode == 0)
+					setupm_fakecolor--;
+				else
+				{
+					setupm_fakefollowercolor--;
+					M_GetFollowerState();	// update follower state
+				}
+				
 			}
 			break;
 
@@ -11693,7 +11725,13 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			else if (itemOn == 3) // player color
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
-				setupm_fakecolor++;
+				if (setupm_colormode == 0)
+					setupm_fakecolor++;
+				else
+				{
+					setupm_fakefollowercolor++;
+					M_GetFollowerState();	// update follower state
+				}
 			}
 			break;
 
@@ -11730,6 +11768,7 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			{
 				S_StartSound(NULL,sfx_menu1);
 				setupm_fakefollower = -1;
+				M_GetFollowerState();	// update follower state
 			}
 			else if (itemOn == 3)
 			{
@@ -11740,6 +11779,16 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 					setupm_fakecolor = col;
 				}
 			}
+			break;
+		case KEY_RSHIFT: // Toggle Colormode
+				if (setupm_colormode == 0)
+					setupm_colormode = 1;
+				else if (setupm_colormode == 1)
+					setupm_colormode = 0;
+				
+				M_GetFollowerState();	// update follower state
+			
+				S_StartSound(NULL,sfx_menu1);
 			break;
 		case KEY_DEL:
 			if (cv_skinselectmenu.value)
@@ -11823,6 +11872,12 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			setupm_fakecolor = MAXSKINCOLORS-1;
 		if (setupm_fakecolor > MAXSKINCOLORS-1)
 			setupm_fakecolor = 1;
+	
+		// check follower color
+		if (setupm_fakefollowercolor < 1)
+			setupm_fakefollowercolor = Followercolor_cons_t[MAXSKINCOLORS+2].value;
+		if (setupm_fakefollowercolor > MAXSKINCOLORS+2)
+			setupm_fakefollowercolor = 1;
 
 		if (exitmenu)
 		{
@@ -11883,6 +11938,7 @@ static void M_SetupMultiPlayer(INT32 choice)
 	setupm_cvcolor = &cv_playercolor;
 	setupm_cvname = &cv_playername;
 	setupm_cvfollower = &cv_follower;
+	setupm_cvfollowercolor = &cv_followercolor;
 	
 	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
 
@@ -11895,12 +11951,14 @@ static void M_SetupMultiPlayer(INT32 choice)
 	setupm_skinxpos = 4;
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
+	setupm_colormode = 0;
 
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
 	if (setupm_fakeskin == -1)
 		setupm_fakeskin = 0;
 	setupm_fakecolor = setupm_cvcolor->value;
+	setupm_fakefollowercolor = setupm_cvfollowercolor->value;
 
 	// disable skin changes if we can't actually change skins
 	if (!CanChangeSkin(consoleplayer))
@@ -11934,6 +11992,7 @@ static void M_SetupMultiPlayer2(INT32 choice)
 	setupm_cvcolor = &cv_playercolor2;
 	setupm_cvname = &cv_playername2;
 	setupm_cvfollower = &cv_follower2;
+	setupm_cvfollowercolor = &cv_followercolor2;
 	
 	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
 
@@ -11946,6 +12005,7 @@ static void M_SetupMultiPlayer2(INT32 choice)
 	setupm_skinxpos = 4;
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
+	setupm_colormode = 0;
 
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
@@ -11985,6 +12045,7 @@ static void M_SetupMultiPlayer3(INT32 choice)
 	setupm_cvcolor = &cv_playercolor3;
 	setupm_cvname = &cv_playername3;
 	setupm_cvfollower = &cv_follower3;
+	setupm_cvfollowercolor = &cv_followercolor3;
 	
 	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
 
@@ -11997,6 +12058,7 @@ static void M_SetupMultiPlayer3(INT32 choice)
 	setupm_skinxpos = 4;
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
+	setupm_colormode = 0;
 
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
@@ -12036,6 +12098,7 @@ static void M_SetupMultiPlayer4(INT32 choice)
 	setupm_cvcolor = &cv_playercolor4;
 	setupm_cvname = &cv_playername4;
 	setupm_cvfollower = &cv_follower4;
+	setupm_cvfollowercolor = &cv_followercolor4;
 	
 	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
 
@@ -12048,6 +12111,7 @@ static void M_SetupMultiPlayer4(INT32 choice)
 	setupm_skinxpos = 4;
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
+	setupm_colormode = 0;
 
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
@@ -12086,6 +12150,7 @@ static boolean M_QuitMultiPlayerMenu(void)
 	COM_BufAddText (va("%s \"%s\"\n",setupm_cvskin->name,skins[setupm_fakeskin].name));
 	COM_BufAddText (va("%s %d\n",setupm_cvcolor->name,setupm_fakecolor));	
 	COM_BufAddText (va("%s %d\n",setupm_cvfollower->name,setupm_fakefollower));
+	COM_BufAddText (va("%s %d\n",setupm_cvfollowercolor->name,setupm_fakefollowercolor));
 	return true;
 }
 

@@ -1056,269 +1056,270 @@ void K_RegisterKartStuff(void)
 	
 	//Uranus Calc numbers
 	CV_RegisterVar(&cv_uranusdistvar);
+	
 	//Sneaker
-CV_RegisterVar(&cv_SITBL1);
-CV_RegisterVar(&cv_SITBL2);
-CV_RegisterVar(&cv_SITBL3);
-CV_RegisterVar(&cv_SITBL4);
-CV_RegisterVar(&cv_SITBL5);
-CV_RegisterVar(&cv_SITBL6);
-CV_RegisterVar(&cv_SITBL7);
-CV_RegisterVar(&cv_SITBL8);
-CV_RegisterVar(&cv_SITBL9);
-CV_RegisterVar(&cv_SITBL10);
+	CV_RegisterVar(&cv_SITBL1);
+	CV_RegisterVar(&cv_SITBL2);
+	CV_RegisterVar(&cv_SITBL3);
+	CV_RegisterVar(&cv_SITBL4);
+	CV_RegisterVar(&cv_SITBL5);
+	CV_RegisterVar(&cv_SITBL6);
+	CV_RegisterVar(&cv_SITBL7);
+	CV_RegisterVar(&cv_SITBL8);
+	CV_RegisterVar(&cv_SITBL9);
+	CV_RegisterVar(&cv_SITBL10);
 
-//Rocket Sneaker
-CV_RegisterVar(&cv_RSITBL1);
-CV_RegisterVar(&cv_RSITBL2);
-CV_RegisterVar(&cv_RSITBL3);
-CV_RegisterVar(&cv_RSITBL4);
-CV_RegisterVar(&cv_RSITBL5);
-CV_RegisterVar(&cv_RSITBL6);
-CV_RegisterVar(&cv_RSITBL7);
-CV_RegisterVar(&cv_RSITBL8);
-CV_RegisterVar(&cv_RSITBL9);
-CV_RegisterVar(&cv_RSITBL10);
+	//Rocket Sneaker
+	CV_RegisterVar(&cv_RSITBL1);
+	CV_RegisterVar(&cv_RSITBL2);
+	CV_RegisterVar(&cv_RSITBL3);
+	CV_RegisterVar(&cv_RSITBL4);
+	CV_RegisterVar(&cv_RSITBL5);
+	CV_RegisterVar(&cv_RSITBL6);
+	CV_RegisterVar(&cv_RSITBL7);
+	CV_RegisterVar(&cv_RSITBL8);
+	CV_RegisterVar(&cv_RSITBL9);
+	CV_RegisterVar(&cv_RSITBL10);
 
-//Invincivility
-CV_RegisterVar(&cv_INITBL1);
-CV_RegisterVar(&cv_INITBL2);
-CV_RegisterVar(&cv_INITBL3);
-CV_RegisterVar(&cv_INITBL4);
-CV_RegisterVar(&cv_INITBL5);
-CV_RegisterVar(&cv_INITBL6);
-CV_RegisterVar(&cv_INITBL7);
-CV_RegisterVar(&cv_INITBL8);
-CV_RegisterVar(&cv_INITBL9);
-CV_RegisterVar(&cv_INITBL10);
+	//Invincivility
+	CV_RegisterVar(&cv_INITBL1);
+	CV_RegisterVar(&cv_INITBL2);
+	CV_RegisterVar(&cv_INITBL3);
+	CV_RegisterVar(&cv_INITBL4);
+	CV_RegisterVar(&cv_INITBL5);
+	CV_RegisterVar(&cv_INITBL6);
+	CV_RegisterVar(&cv_INITBL7);
+	CV_RegisterVar(&cv_INITBL8);
+	CV_RegisterVar(&cv_INITBL9);
+	CV_RegisterVar(&cv_INITBL10);
 
-//Banana
-CV_RegisterVar(&cv_BANITBL1);
-CV_RegisterVar(&cv_BANITBL2);
-CV_RegisterVar(&cv_BANITBL3);
-CV_RegisterVar(&cv_BANITBL4);
-CV_RegisterVar(&cv_BANITBL5);
-CV_RegisterVar(&cv_BANITBL6);
-CV_RegisterVar(&cv_BANITBL7);
-CV_RegisterVar(&cv_BANITBL8);
-CV_RegisterVar(&cv_BANITBL9);
-CV_RegisterVar(&cv_BANITBL10);
+	//Banana
+	CV_RegisterVar(&cv_BANITBL1);
+	CV_RegisterVar(&cv_BANITBL2);
+	CV_RegisterVar(&cv_BANITBL3);
+	CV_RegisterVar(&cv_BANITBL4);
+	CV_RegisterVar(&cv_BANITBL5);
+	CV_RegisterVar(&cv_BANITBL6);
+	CV_RegisterVar(&cv_BANITBL7);
+	CV_RegisterVar(&cv_BANITBL8);
+	CV_RegisterVar(&cv_BANITBL9);
+	CV_RegisterVar(&cv_BANITBL10);
 
-//Eggmanbomb
-CV_RegisterVar(&cv_EGGITBL1);
-CV_RegisterVar(&cv_EGGITBL2);
-CV_RegisterVar(&cv_EGGITBL3);
-CV_RegisterVar(&cv_EGGITBL4);
-CV_RegisterVar(&cv_EGGITBL5);
-CV_RegisterVar(&cv_EGGITBL6);
-CV_RegisterVar(&cv_EGGITBL7);
-CV_RegisterVar(&cv_EGGITBL8);
-CV_RegisterVar(&cv_EGGITBL9);
-CV_RegisterVar(&cv_EGGITBL10);
+	//Eggmanbomb
+	CV_RegisterVar(&cv_EGGITBL1);
+	CV_RegisterVar(&cv_EGGITBL2);
+	CV_RegisterVar(&cv_EGGITBL3);
+	CV_RegisterVar(&cv_EGGITBL4);
+	CV_RegisterVar(&cv_EGGITBL5);
+	CV_RegisterVar(&cv_EGGITBL6);
+	CV_RegisterVar(&cv_EGGITBL7);
+	CV_RegisterVar(&cv_EGGITBL8);
+	CV_RegisterVar(&cv_EGGITBL9);
+	CV_RegisterVar(&cv_EGGITBL10);
 
-//Orbinaut
-CV_RegisterVar(&cv_ORBITBL1);
-CV_RegisterVar(&cv_ORBITBL2);
-CV_RegisterVar(&cv_ORBITBL3);
-CV_RegisterVar(&cv_ORBITBL4);
-CV_RegisterVar(&cv_ORBITBL5);
-CV_RegisterVar(&cv_ORBITBL6);
-CV_RegisterVar(&cv_ORBITBL7);
-CV_RegisterVar(&cv_ORBITBL8);
-CV_RegisterVar(&cv_ORBITBL9);
-CV_RegisterVar(&cv_ORBITBL10);
+	//Orbinaut
+	CV_RegisterVar(&cv_ORBITBL1);
+	CV_RegisterVar(&cv_ORBITBL2);
+	CV_RegisterVar(&cv_ORBITBL3);
+	CV_RegisterVar(&cv_ORBITBL4);
+	CV_RegisterVar(&cv_ORBITBL5);
+	CV_RegisterVar(&cv_ORBITBL6);
+	CV_RegisterVar(&cv_ORBITBL7);
+	CV_RegisterVar(&cv_ORBITBL8);
+	CV_RegisterVar(&cv_ORBITBL9);
+	CV_RegisterVar(&cv_ORBITBL10);
 
-//Jawz
-CV_RegisterVar(&cv_JAWITBL1);
-CV_RegisterVar(&cv_JAWITBL2);
-CV_RegisterVar(&cv_JAWITBL3);
-CV_RegisterVar(&cv_JAWITBL4);
-CV_RegisterVar(&cv_JAWITBL5);
-CV_RegisterVar(&cv_JAWITBL6);
-CV_RegisterVar(&cv_JAWITBL7);
-CV_RegisterVar(&cv_JAWITBL8);
-CV_RegisterVar(&cv_JAWITBL9);
-CV_RegisterVar(&cv_JAWITBL10);
+	//Jawz
+	CV_RegisterVar(&cv_JAWITBL1);
+	CV_RegisterVar(&cv_JAWITBL2);
+	CV_RegisterVar(&cv_JAWITBL3);
+	CV_RegisterVar(&cv_JAWITBL4);
+	CV_RegisterVar(&cv_JAWITBL5);
+	CV_RegisterVar(&cv_JAWITBL6);
+	CV_RegisterVar(&cv_JAWITBL7);
+	CV_RegisterVar(&cv_JAWITBL8);
+	CV_RegisterVar(&cv_JAWITBL9);
+	CV_RegisterVar(&cv_JAWITBL10);
 
-//MINE
-CV_RegisterVar(&cv_MINITBL1);
-CV_RegisterVar(&cv_MINITBL2);
-CV_RegisterVar(&cv_MINITBL3);
-CV_RegisterVar(&cv_MINITBL4);
-CV_RegisterVar(&cv_MINITBL5);
-CV_RegisterVar(&cv_MINITBL6);
-CV_RegisterVar(&cv_MINITBL7);
-CV_RegisterVar(&cv_MINITBL8);
-CV_RegisterVar(&cv_MINITBL9);
-CV_RegisterVar(&cv_MINITBL10);
+	//MINE
+	CV_RegisterVar(&cv_MINITBL1);
+	CV_RegisterVar(&cv_MINITBL2);
+	CV_RegisterVar(&cv_MINITBL3);
+	CV_RegisterVar(&cv_MINITBL4);
+	CV_RegisterVar(&cv_MINITBL5);
+	CV_RegisterVar(&cv_MINITBL6);
+	CV_RegisterVar(&cv_MINITBL7);
+	CV_RegisterVar(&cv_MINITBL8);
+	CV_RegisterVar(&cv_MINITBL9);
+	CV_RegisterVar(&cv_MINITBL10);
 
-//Ball Hog
-CV_RegisterVar(&cv_BALITBL1);
-CV_RegisterVar(&cv_BALITBL2);
-CV_RegisterVar(&cv_BALITBL3);
-CV_RegisterVar(&cv_BALITBL4);
-CV_RegisterVar(&cv_BALITBL5);
-CV_RegisterVar(&cv_BALITBL6);
-CV_RegisterVar(&cv_BALITBL7);
-CV_RegisterVar(&cv_BALITBL8);
-CV_RegisterVar(&cv_BALITBL9);
-CV_RegisterVar(&cv_BALITBL10);
+	//Ball Hog
+	CV_RegisterVar(&cv_BALITBL1);
+	CV_RegisterVar(&cv_BALITBL2);
+	CV_RegisterVar(&cv_BALITBL3);
+	CV_RegisterVar(&cv_BALITBL4);
+	CV_RegisterVar(&cv_BALITBL5);
+	CV_RegisterVar(&cv_BALITBL6);
+	CV_RegisterVar(&cv_BALITBL7);
+	CV_RegisterVar(&cv_BALITBL8);
+	CV_RegisterVar(&cv_BALITBL9);
+	CV_RegisterVar(&cv_BALITBL10);
 
-//SPB
-CV_RegisterVar(&cv_SPBITBL1);
-CV_RegisterVar(&cv_SPBITBL2);
-CV_RegisterVar(&cv_SPBITBL3);
-CV_RegisterVar(&cv_SPBITBL4);
-CV_RegisterVar(&cv_SPBITBL5);
-CV_RegisterVar(&cv_SPBITBL6);
-CV_RegisterVar(&cv_SPBITBL7);
-CV_RegisterVar(&cv_SPBITBL8);
-CV_RegisterVar(&cv_SPBITBL9);
-CV_RegisterVar(&cv_SPBITBL10);
+	//SPB
+	CV_RegisterVar(&cv_SPBITBL1);
+	CV_RegisterVar(&cv_SPBITBL2);
+	CV_RegisterVar(&cv_SPBITBL3);
+	CV_RegisterVar(&cv_SPBITBL4);
+	CV_RegisterVar(&cv_SPBITBL5);
+	CV_RegisterVar(&cv_SPBITBL6);
+	CV_RegisterVar(&cv_SPBITBL7);
+	CV_RegisterVar(&cv_SPBITBL8);
+	CV_RegisterVar(&cv_SPBITBL9);
+	CV_RegisterVar(&cv_SPBITBL10);
 
-//Grow
-CV_RegisterVar(&cv_GROITBL1);
-CV_RegisterVar(&cv_GROITBL2);
-CV_RegisterVar(&cv_GROITBL3);
-CV_RegisterVar(&cv_GROITBL4);
-CV_RegisterVar(&cv_GROITBL5);
-CV_RegisterVar(&cv_GROITBL6);
-CV_RegisterVar(&cv_GROITBL7);
-CV_RegisterVar(&cv_GROITBL8);
-CV_RegisterVar(&cv_GROITBL9);
-CV_RegisterVar(&cv_GROITBL10);
+	//Grow
+	CV_RegisterVar(&cv_GROITBL1);
+	CV_RegisterVar(&cv_GROITBL2);
+	CV_RegisterVar(&cv_GROITBL3);
+	CV_RegisterVar(&cv_GROITBL4);
+	CV_RegisterVar(&cv_GROITBL5);
+	CV_RegisterVar(&cv_GROITBL6);
+	CV_RegisterVar(&cv_GROITBL7);
+	CV_RegisterVar(&cv_GROITBL8);
+	CV_RegisterVar(&cv_GROITBL9);
+	CV_RegisterVar(&cv_GROITBL10);
 
-//Shrink
-CV_RegisterVar(&cv_SHRITBL1);
-CV_RegisterVar(&cv_SHRITBL2);
-CV_RegisterVar(&cv_SHRITBL3);
-CV_RegisterVar(&cv_SHRITBL4);
-CV_RegisterVar(&cv_SHRITBL5);
-CV_RegisterVar(&cv_SHRITBL6);
-CV_RegisterVar(&cv_SHRITBL7);
-CV_RegisterVar(&cv_SHRITBL8);
-CV_RegisterVar(&cv_SHRITBL9);
-CV_RegisterVar(&cv_SHRITBL10);
+	//Shrink
+	CV_RegisterVar(&cv_SHRITBL1);
+	CV_RegisterVar(&cv_SHRITBL2);
+	CV_RegisterVar(&cv_SHRITBL3);
+	CV_RegisterVar(&cv_SHRITBL4);
+	CV_RegisterVar(&cv_SHRITBL5);
+	CV_RegisterVar(&cv_SHRITBL6);
+	CV_RegisterVar(&cv_SHRITBL7);
+	CV_RegisterVar(&cv_SHRITBL8);
+	CV_RegisterVar(&cv_SHRITBL9);
+	CV_RegisterVar(&cv_SHRITBL10);
 
-//Thundershield
-CV_RegisterVar(&cv_THUITBL1);
-CV_RegisterVar(&cv_THUITBL2);
-CV_RegisterVar(&cv_THUITBL3);
-CV_RegisterVar(&cv_THUITBL4);
-CV_RegisterVar(&cv_THUITBL5);
-CV_RegisterVar(&cv_THUITBL6);
-CV_RegisterVar(&cv_THUITBL7);
-CV_RegisterVar(&cv_THUITBL8);
-CV_RegisterVar(&cv_THUITBL9);
-CV_RegisterVar(&cv_THUITBL10);
+	//Thundershield
+	CV_RegisterVar(&cv_THUITBL1);
+	CV_RegisterVar(&cv_THUITBL2);
+	CV_RegisterVar(&cv_THUITBL3);
+	CV_RegisterVar(&cv_THUITBL4);
+	CV_RegisterVar(&cv_THUITBL5);
+	CV_RegisterVar(&cv_THUITBL6);
+	CV_RegisterVar(&cv_THUITBL7);
+	CV_RegisterVar(&cv_THUITBL8);
+	CV_RegisterVar(&cv_THUITBL9);
+	CV_RegisterVar(&cv_THUITBL10);
 
-//Hyuu
-CV_RegisterVar(&cv_HYUITBL1);
-CV_RegisterVar(&cv_HYUITBL2);
-CV_RegisterVar(&cv_HYUITBL3);
-CV_RegisterVar(&cv_HYUITBL4);
-CV_RegisterVar(&cv_HYUITBL5);
-CV_RegisterVar(&cv_HYUITBL6);
-CV_RegisterVar(&cv_HYUITBL7);
-CV_RegisterVar(&cv_HYUITBL8);
-CV_RegisterVar(&cv_HYUITBL9);
-CV_RegisterVar(&cv_HYUITBL10);
+	//Hyuu
+	CV_RegisterVar(&cv_HYUITBL1);
+	CV_RegisterVar(&cv_HYUITBL2);
+	CV_RegisterVar(&cv_HYUITBL3);
+	CV_RegisterVar(&cv_HYUITBL4);
+	CV_RegisterVar(&cv_HYUITBL5);
+	CV_RegisterVar(&cv_HYUITBL6);
+	CV_RegisterVar(&cv_HYUITBL7);
+	CV_RegisterVar(&cv_HYUITBL8);
+	CV_RegisterVar(&cv_HYUITBL9);
+	CV_RegisterVar(&cv_HYUITBL10);
 
-// Pogo spring
-CV_RegisterVar(&cv_POGITBL1);
-CV_RegisterVar(&cv_POGITBL2);
-CV_RegisterVar(&cv_POGITBL3);
-CV_RegisterVar(&cv_POGITBL4);
-CV_RegisterVar(&cv_POGITBL5);
-CV_RegisterVar(&cv_POGITBL6);
-CV_RegisterVar(&cv_POGITBL7);
-CV_RegisterVar(&cv_POGITBL8);
-CV_RegisterVar(&cv_POGITBL9);
-CV_RegisterVar(&cv_POGITBL10);
+	// Pogo spring
+	CV_RegisterVar(&cv_POGITBL1);
+	CV_RegisterVar(&cv_POGITBL2);
+	CV_RegisterVar(&cv_POGITBL3);
+	CV_RegisterVar(&cv_POGITBL4);
+	CV_RegisterVar(&cv_POGITBL5);
+	CV_RegisterVar(&cv_POGITBL6);
+	CV_RegisterVar(&cv_POGITBL7);
+	CV_RegisterVar(&cv_POGITBL8);
+	CV_RegisterVar(&cv_POGITBL9);
+	CV_RegisterVar(&cv_POGITBL10);
 
-//Kitchen Sink
-CV_RegisterVar(&cv_KITITBL1);
-CV_RegisterVar(&cv_KITITBL2);
-CV_RegisterVar(&cv_KITITBL3);
-CV_RegisterVar(&cv_KITITBL4);
-CV_RegisterVar(&cv_KITITBL5);
-CV_RegisterVar(&cv_KITITBL6);
-CV_RegisterVar(&cv_KITITBL7);
-CV_RegisterVar(&cv_KITITBL8);
-CV_RegisterVar(&cv_KITITBL9);
-CV_RegisterVar(&cv_KITITBL10);
+	//Kitchen Sink
+	CV_RegisterVar(&cv_KITITBL1);
+	CV_RegisterVar(&cv_KITITBL2);
+	CV_RegisterVar(&cv_KITITBL3);
+	CV_RegisterVar(&cv_KITITBL4);
+	CV_RegisterVar(&cv_KITITBL5);
+	CV_RegisterVar(&cv_KITITBL6);
+	CV_RegisterVar(&cv_KITITBL7);
+	CV_RegisterVar(&cv_KITITBL8);
+	CV_RegisterVar(&cv_KITITBL9);
+	CV_RegisterVar(&cv_KITITBL10);
 
-//Triple Sneaker
-CV_RegisterVar(&cv_TSITBL1);
-CV_RegisterVar(&cv_TSITBL2);
-CV_RegisterVar(&cv_TSITBL3);
-CV_RegisterVar(&cv_TSITBL4);
-CV_RegisterVar(&cv_TSITBL5);
-CV_RegisterVar(&cv_TSITBL6);
-CV_RegisterVar(&cv_TSITBL7);
-CV_RegisterVar(&cv_TSITBL8);
-CV_RegisterVar(&cv_TSITBL9);
-CV_RegisterVar(&cv_TSITBL10);
+	//Triple Sneaker
+	CV_RegisterVar(&cv_TSITBL1);
+	CV_RegisterVar(&cv_TSITBL2);
+	CV_RegisterVar(&cv_TSITBL3);
+	CV_RegisterVar(&cv_TSITBL4);
+	CV_RegisterVar(&cv_TSITBL5);
+	CV_RegisterVar(&cv_TSITBL6);
+	CV_RegisterVar(&cv_TSITBL7);
+	CV_RegisterVar(&cv_TSITBL8);
+	CV_RegisterVar(&cv_TSITBL9);
+	CV_RegisterVar(&cv_TSITBL10);
 
-//Triplebanana
-CV_RegisterVar(&cv_TBAITBL1);
-CV_RegisterVar(&cv_TBAITBL2);
-CV_RegisterVar(&cv_TBAITBL3);
-CV_RegisterVar(&cv_TBAITBL4);
-CV_RegisterVar(&cv_TBAITBL5);
-CV_RegisterVar(&cv_TBAITBL6);
-CV_RegisterVar(&cv_TBAITBL7);
-CV_RegisterVar(&cv_TBAITBL8);
-CV_RegisterVar(&cv_TBAITBL9);
-CV_RegisterVar(&cv_TBAITBL10);
+	//Triplebanana
+	CV_RegisterVar(&cv_TBAITBL1);
+	CV_RegisterVar(&cv_TBAITBL2);
+	CV_RegisterVar(&cv_TBAITBL3);
+	CV_RegisterVar(&cv_TBAITBL4);
+	CV_RegisterVar(&cv_TBAITBL5);
+	CV_RegisterVar(&cv_TBAITBL6);
+	CV_RegisterVar(&cv_TBAITBL7);
+	CV_RegisterVar(&cv_TBAITBL8);
+	CV_RegisterVar(&cv_TBAITBL9);
+	CV_RegisterVar(&cv_TBAITBL10);
 
-//DecaBanana
-CV_RegisterVar(&cv_TENITBL1);
-CV_RegisterVar(&cv_TENITBL2);
-CV_RegisterVar(&cv_TENITBL3);
-CV_RegisterVar(&cv_TENITBL4);
-CV_RegisterVar(&cv_TENITBL5);
-CV_RegisterVar(&cv_TENITBL6);
-CV_RegisterVar(&cv_TENITBL7);
-CV_RegisterVar(&cv_TENITBL8);
-CV_RegisterVar(&cv_TENITBL9);
-CV_RegisterVar(&cv_TENITBL10);
+	//DecaBanana
+	CV_RegisterVar(&cv_TENITBL1);
+	CV_RegisterVar(&cv_TENITBL2);
+	CV_RegisterVar(&cv_TENITBL3);
+	CV_RegisterVar(&cv_TENITBL4);
+	CV_RegisterVar(&cv_TENITBL5);
+	CV_RegisterVar(&cv_TENITBL6);
+	CV_RegisterVar(&cv_TENITBL7);
+	CV_RegisterVar(&cv_TENITBL8);
+	CV_RegisterVar(&cv_TENITBL9);
+	CV_RegisterVar(&cv_TENITBL10);
 
-//Triple Orbi
-CV_RegisterVar(&cv_TORITBL1);
-CV_RegisterVar(&cv_TORITBL2);
-CV_RegisterVar(&cv_TORITBL3);
-CV_RegisterVar(&cv_TORITBL4);
-CV_RegisterVar(&cv_TORITBL5);
-CV_RegisterVar(&cv_TORITBL6);
-CV_RegisterVar(&cv_TORITBL7);
-CV_RegisterVar(&cv_TORITBL8);
-CV_RegisterVar(&cv_TORITBL9);
-CV_RegisterVar(&cv_TORITBL10);
+	//Triple Orbi
+	CV_RegisterVar(&cv_TORITBL1);
+	CV_RegisterVar(&cv_TORITBL2);
+	CV_RegisterVar(&cv_TORITBL3);
+	CV_RegisterVar(&cv_TORITBL4);
+	CV_RegisterVar(&cv_TORITBL5);
+	CV_RegisterVar(&cv_TORITBL6);
+	CV_RegisterVar(&cv_TORITBL7);
+	CV_RegisterVar(&cv_TORITBL8);
+	CV_RegisterVar(&cv_TORITBL9);
+	CV_RegisterVar(&cv_TORITBL10);
 
-//Quad orbi
-CV_RegisterVar(&cv_QUOITBL1);
-CV_RegisterVar(&cv_QUOITBL2);
-CV_RegisterVar(&cv_QUOITBL3);
-CV_RegisterVar(&cv_QUOITBL4);
-CV_RegisterVar(&cv_QUOITBL5);
-CV_RegisterVar(&cv_QUOITBL6);
-CV_RegisterVar(&cv_QUOITBL7);
-CV_RegisterVar(&cv_QUOITBL8);
-CV_RegisterVar(&cv_QUOITBL9);
-CV_RegisterVar(&cv_QUOITBL10);
+	//Quad orbi
+	CV_RegisterVar(&cv_QUOITBL1);
+	CV_RegisterVar(&cv_QUOITBL2);
+	CV_RegisterVar(&cv_QUOITBL3);
+	CV_RegisterVar(&cv_QUOITBL4);
+	CV_RegisterVar(&cv_QUOITBL5);
+	CV_RegisterVar(&cv_QUOITBL6);
+	CV_RegisterVar(&cv_QUOITBL7);
+	CV_RegisterVar(&cv_QUOITBL8);
+	CV_RegisterVar(&cv_QUOITBL9);
+	CV_RegisterVar(&cv_QUOITBL10);
 
-//Dual Jawz
-CV_RegisterVar(&cv_DJAITBL1);
-CV_RegisterVar(&cv_DJAITBL2);
-CV_RegisterVar(&cv_DJAITBL3);
-CV_RegisterVar(&cv_DJAITBL4);
-CV_RegisterVar(&cv_DJAITBL5);
-CV_RegisterVar(&cv_DJAITBL6);
-CV_RegisterVar(&cv_DJAITBL7);
-CV_RegisterVar(&cv_DJAITBL8);
-CV_RegisterVar(&cv_DJAITBL9);
-CV_RegisterVar(&cv_DJAITBL10);
+	//Dual Jawz
+	CV_RegisterVar(&cv_DJAITBL1);
+	CV_RegisterVar(&cv_DJAITBL2);
+	CV_RegisterVar(&cv_DJAITBL3);
+	CV_RegisterVar(&cv_DJAITBL4);
+	CV_RegisterVar(&cv_DJAITBL5);
+	CV_RegisterVar(&cv_DJAITBL6);
+	CV_RegisterVar(&cv_DJAITBL7);
+	CV_RegisterVar(&cv_DJAITBL8);
+	CV_RegisterVar(&cv_DJAITBL9);
+	CV_RegisterVar(&cv_DJAITBL10);
 	
 	
 	CV_RegisterVar(&cv_kartminimap);
@@ -1409,22 +1410,26 @@ CV_RegisterVar(&cv_DJAITBL10);
 	CV_RegisterVar(&cv_mouseturn);
 	CV_RegisterVar(&cv_spectatestrafe);
 	
-	//multisneakericon
+	// multisneakericon
 	CV_RegisterVar(&cv_multisneakericon);
 	
 	CV_RegisterVar(&cv_alwaysshowitemstacks);
 	
-	//Stackingeffect
+	// Stackingeffect
 	CV_RegisterVar(&cv_stackingeffect);
 	CV_RegisterVar(&cv_stackingeffectscaling);
 	
 	// Sneaker Stack Sound
 	CV_RegisterVar(&cv_sneakerstacksound);
 	
-	//Colored trails
+	// Colored trails
 	CV_RegisterVar(&cv_coloredsneakertrail);
 	
+	// Look back
 	CV_RegisterVar(&cv_synchedlookback);
+	
+	// Hide followers
+	CV_RegisterVar(&cv_hidefollowers);
 }
 
 //}
