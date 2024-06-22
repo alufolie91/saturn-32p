@@ -485,6 +485,38 @@ static void P_NetUnArchivePlayers(void)
 	}
 }
 
+static void P_NetArchiveWaypoints(void)
+{
+	INT32 i, j;
+
+	for (i = 0; i < NUMWAYPOINTSEQUENCES; i++)
+	{
+		WRITEUINT16(save_p, numwaypoints[i]);
+		for (j = 0; j < numwaypoints[i]; j++)
+			WRITEUINT32(save_p, waypoints[i][j] ? waypoints[i][j]->mobjnum : 0);
+	}
+}
+
+static void P_NetUnArchiveWaypoints(void)
+{
+	INT32 i, j;
+	UINT32 mobjnum;
+
+	for (i = 0; i < NUMWAYPOINTSEQUENCES; i++)
+	{
+		numwaypoints[i] = READUINT16(save_p);
+		for (j = 0; j < numwaypoints[i]; j++)
+		{
+			mobjnum = READUINT32(save_p);
+			waypoints[i][j] = (mobjnum == 0) ? NULL : P_FindNewPosition(mobjnum);
+		}
+	}
+}
+
+///
+/// World Archiving
+///
+
 #define SD_FLOORHT  0x01
 #define SD_CEILHT   0x02
 #define SD_FLOORPIC 0x04
@@ -3603,6 +3635,7 @@ void P_SaveNetGame(boolean resending)
 		P_ArchivePolyObjects();
 		P_NetArchiveThinkers();
 		P_NetArchiveSpecials();
+		P_NetArchiveWaypoints();
 	}
 
 	LUA_Archive();
@@ -3643,6 +3676,7 @@ boolean P_LoadNetGame(boolean reloading)
 		P_UnArchivePolyObjects();
 		P_NetUnArchiveThinkers();
 		P_NetUnArchiveSpecials();
+		P_NetUnArchiveWaypoints();
 		P_RelinkPointers();
 		P_FinishMobjs();
 	}
