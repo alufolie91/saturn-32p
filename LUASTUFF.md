@@ -1,6 +1,19 @@
-# SRB2Kart Planeptune: Custom lua features
+# SRB2Kart Neptune: Custom lua features
 
 # New Stuff from Neptune
+
+## Titlescreen thinker, HUD hook and hud.disable and hud.enable stuff
+
+New hooks
+New "TitleThinker" Thinker
+New "title" HUD hook
+
+New set of things that can be enabled/disabled on title screen
+"titlecheckl"
+"titlecheckr"
+"titlelogo"
+"titlebanner"
+"titleflash"
 
 ## OS library time and date functions
 
@@ -9,11 +22,19 @@ os.time
 os.date
 os.difftime
 
+## Follower data
+
+Data from the followers_t is now usable from lua
+
+Example:
+
+followers[player.follower].name
+
 # New stuff from Saturn:
 
 ## mobj.localskin and player.localskin fields
 
-Allow reading and assigning localskins to players. Local skins for other objects aren't supported currently.
+Allow reading and assigning localskins to players.
 
 ## mobj.rollsum field
 
@@ -180,6 +201,10 @@ debug.getupvalue
 debug.sethook
 debug.traceback
 
+## ServerJoin
+
+allows you to run code when a player joins
+
 # Stuff from Uranus
 
 ## Interpoints (p.interpoints)
@@ -207,16 +232,3 @@ Changes scale of specific mobj type.
 ## KartSneaker
 
 Lets you do a sneaker and choose what type visually.
-
-## Titlescreen thinker, HUD hook and hud.disable and hud.enable stuff
-
-New hooks
-New "TitleThinker" Thinker
-New "title" HUD hook
-
-New set of things that can be enabled/disabled on title screen
-"titlecheckl"
-"titlecheckr"
-"titlelogo"
-"titlebanner"
-"titleflash"
