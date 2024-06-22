@@ -4103,11 +4103,12 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	{
 		float sprdist = sqrtf((spr->x1 - gr_viewx)*(spr->x1 - gr_viewx) + (spr->z1 - gr_viewy)*(spr->z1 - gr_viewy) + (spr->ty - gr_viewz)*(spr->ty - gr_viewz));
 		float distfact = ((2.0f*spr->dispoffset) + 20.0f) / sprdist;
+		size_t i;
 		for (i = 0; i < 4; i++)
 		{
-			baseWallVerts[i].x += (gr_viewx - baseWallVerts[i].x)*distfact;
-			baseWallVerts[i].z += (gr_viewy - baseWallVerts[i].z)*distfact;
-			baseWallVerts[i].y += (gr_viewz - baseWallVerts[i].y)*distfact;
+			wallVerts[i].x += (gr_viewx - wallVerts[i].x)*distfact;
+			wallVerts[i].z += (gr_viewy - wallVerts[i].z)*distfact;
+			wallVerts[i].y += (gr_viewz - wallVerts[i].y)*distfact;
 		}
 	}
 
