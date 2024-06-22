@@ -51,7 +51,7 @@
 // Free slot names
 // The crazy word-reading stuff uses these.
 static char *FREE_STATES[NUMSTATEFREESLOTS];
-static char *FREE_MOBJS[NUMMOBJFREESLOTS];
+char *FREE_MOBJS[NUMMOBJFREESLOTS];
 static UINT8 used_spr[(NUMSPRITEFREESLOTS / 8) + 1]; // Bitwise flag for sprite freeslot in use! I would use ceil() here if I could, but it only saves 1 byte of memory anyway.
 #define initfreeslots() {\
 memset(FREE_STATES,0,sizeof(char *) * NUMSTATEFREESLOTS);\
@@ -6815,7 +6815,7 @@ static const char *const STATE_LIST[] = { // array length left dynamic for sanit
 // RegEx to generate this from info.h: ^\tMT_([^,]+), --> \t"MT_\1",
 // I am leaving the prefixes solely for clarity to programmers,
 // because sadly no one remembers this place while searching for full state names.
-static const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for sanity testing later.
+const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for sanity testing later.
 	"MT_NULL",
 	"MT_UNKNOWN",
 
