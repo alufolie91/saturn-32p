@@ -1142,9 +1142,9 @@ void P_SpawnShieldOrb(player_t *player)
 	}
 
 	// blaze through the thinkers to see if an orb already exists!
-	for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
+	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
-		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue;
 
 		shieldobj = (mobj_t *)th;
@@ -1873,9 +1873,9 @@ void P_Telekinesis(player_t *player, fixed_t thrust, fixed_t range)
 	if (player->powers[pw_super]) // increase range when super
 		range *= 2;
 
-	for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
+	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
-		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue;
 
 		mo2 = (mobj_t *)th;
@@ -2625,9 +2625,9 @@ static void P_DoZoomTube(player_t *player)
 		CONS_Debug(DBG_GAMELOGIC, "Looking for next waypoint...\n");
 
 		// Find next waypoint
-		for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
+		for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		{
-			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+			if (th->function.acp1 != (actionf_p1)P_MobjThinker) // Not a mobj thinker
 				continue;
 
 			mo2 = (mobj_t *)th;
@@ -2718,10 +2718,10 @@ void P_NukeEnemies(mobj_t *inflictor, mobj_t *source, fixed_t radius)
 		}
 	}
 
-	for (think = thlist[THINK_MOBJ].next; think != &thlist[THINK_MOBJ]; think = think->next)
+	for (think = thinkercap.next; think != &thinkercap; think = think->next)
 	{
-		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-				continue;
+		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue; // not a mobj thinker
 
 		mo = (mobj_t *)think;
 
@@ -2798,10 +2798,10 @@ boolean P_LookForEnemies(player_t *player)
 	mobj_t *closestmo = NULL;
 	angle_t an;
 
-	for (think = thlist[THINK_MOBJ].next; think != &thlist[THINK_MOBJ]; think = think->next)
+	for (think = thinkercap.next; think != &thinkercap; think = think->next)
 	{
-		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-				continue;
+		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue; // not a mobj thinker
 
 		mo = (mobj_t *)think;
 		if (!(mo->flags & (MF_ENEMY|MF_BOSS|MF_MONITOR|MF_SPRING)))
@@ -2923,9 +2923,9 @@ void P_FindEmerald(void)
 
 	// scan the remaining thinkers
 	// to find all emeralds
-	for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
+	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
-		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue;
 
 		mo2 = (mobj_t *)th;
@@ -5004,9 +5004,9 @@ void P_PlayerThink(player_t *player)
 		fixed_t y = player->mo->y;
 		fixed_t z = player->mo->z;
 
-		for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
+		for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		{
-			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 				continue;
 
 			mo2 = (mobj_t *)th;
