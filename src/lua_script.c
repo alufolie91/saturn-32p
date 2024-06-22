@@ -1637,14 +1637,17 @@ void LUA_Archive(void)
 		ArchiveExtVars(&players[i], "player");
 	}
 
-	for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
+	if (gamestate == GS_LEVEL)
 	{
-		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-			continue;
+		for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
+		{
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+				continue;
 
-		// archive function will determine when to skip mobjs,
-		// and write mobjnum in otherwise.
-		ArchiveExtVars(th, "mobj");
+			// archive function will determine when to skip mobjs,
+			// and write mobjnum in otherwise.
+			ArchiveExtVars(th, "mobj");
+		}
 	}
 
 	WRITEUINT32(save_p, UINT32_MAX); // end of mobjs marker, replaces mobjnum.
@@ -1673,7 +1676,7 @@ void LUA_UnArchive(void)
 	}
 
 	do {
-		mobjnum = READUINT32(save_p); // read a mobjnum
+		mobjnum = READUINT32(save_p); // read a mobjnum	
 		for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
 		{
 			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)

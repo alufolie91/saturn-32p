@@ -10403,6 +10403,7 @@ size_t iquehead, iquetail;
 void P_RemoveMobj(mobj_t *mobj)
 {
 	I_Assert(mobj != NULL);
+
 	if (P_MobjWasRemoved(mobj))
 		return; // something already removing this mobj.
 
@@ -10458,7 +10459,6 @@ void P_RemoveMobj(mobj_t *mobj)
 		P_DelSeclist(sector_list);
 		sector_list = NULL;
 	}
-
 	mobj->flags |= MF_NOSECTOR|MF_NOBLOCKMAP;
 	mobj->subsector = NULL;
 	mobj->state = NULL;
@@ -10472,12 +10472,22 @@ void P_RemoveMobj(mobj_t *mobj)
 	// Remove any references to other mobjs.
 	P_SetTarget(&mobj->target, P_SetTarget(&mobj->tracer, NULL));
 
-	if (mobj->hnext && !P_MobjWasRemoved(mobj->hnext))
-		P_SetTarget(&mobj->hnext->hprev, mobj->hprev);
-	if (mobj->hprev && !P_MobjWasRemoved(mobj->hprev))
-		P_SetTarget(&mobj->hprev->hnext, mobj->hnext);
+	// repair hnext chain
+	{
+		mobj_t *cachenext = mobj->hnext;
 
-	P_SetTarget(&mobj->hnext, P_SetTarget(&mobj->hprev, NULL));
+		if (mobj->hnext && !P_MobjWasRemoved(mobj->hnext))
+		{
+			P_SetTarget(&mobj->hnext->hprev, mobj->hprev);
+			P_SetTarget(&mobj->hnext, NULL);
+		}
+
+		if (mobj->hprev && !P_MobjWasRemoved(mobj->hprev))
+		{
+			P_SetTarget(&mobj->hprev->hnext, cachenext);
+			P_SetTarget(&mobj->hprev, NULL);
+		}
+	}
 	
 	// clear the reference from the mapthing
 	if (mobj->spawnpoint)
@@ -10486,9 +10496,9 @@ void P_RemoveMobj(mobj_t *mobj)
 	R_RemoveMobjInterpolator(mobj);
 
 	// free block
-	if (!mobj->thinker.next)
+	// DBG: set everything in mobj_t to 0xFF instead of leaving it. debug memory error.
+	if (mobj->flags & MF_NOTHINK && !mobj->thinker.next)
 	{ // Uh-oh, the mobj doesn't think, P_RemoveThinker would never go through!
-		INT32 prevreferences;
 		if (!mobj->thinker.references)
 		{
 			// no references, dump it directly in the mobj cache
@@ -10503,14 +10513,15 @@ void P_RemoveMobj(mobj_t *mobj)
 	}
 
 	P_RemoveThinker((thinker_t *)mobj);
-
+	
 	// DBG: set everything in mobj_t to 0xFF instead of leaving it. debug memory error.
 #ifdef SCRAMBLE_REMOVED
-	// Invalidate mobj_t data to cause crashes if accessed!
-	memset((UINT8 *)mobj + sizeof(thinker_t), 0xff, sizeof(mobj_t) - sizeof(thinker_t));
+		// Invalidate mobj_t data to cause crashes if accessed!
+		memset((UINT8 *)mobj + sizeof(thinker_t), 0xff, sizeof(mobj_t) - sizeof(thinker_t));
 #endif
+		P_RemoveThinker((thinker_t *)mobj);
+	}
 }
-
 
 // This does not need to be added to Lua.
 // To test it in Lua, check mobj.valid
@@ -12193,8 +12204,8 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 
 			mobj = P_SpawnMobj(finalx, finaly, finalz, MT_HOOP);
 
-			if (P_MobjWasRemoved(mobj))
-				continue;
+			//if (maptol & TOL_XMAS)
+				//P_SetMobjState(mobj, mobj->info->seestate + (i & 1));
 
 			mobj->z -= mobj->height/2;
 			P_SetTarget(&mobj->target, hoopcenter); // Link the sprite to the center.
@@ -12205,9 +12216,11 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 			{
 				P_SetTarget(&mobj->hprev, nextmobj);
 				P_SetTarget(&mobj->hprev->hnext, mobj);
+				//mobj->hprev = nextmobj;
+				//mobj->hprev->hnext = mobj;
 			}
 			else
-				P_SetTarget(&mobj->hprev, P_SetTarget(&mobj->hnext, NULL));
+				mobj->hprev = mobj->hnext = NULL;
 
 			nextmobj = mobj;
 		}
@@ -12230,16 +12243,14 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 			finalz = z + v[2];
 
 			mobj = P_SpawnMobj(finalx, finaly, finalz, MT_HOOPCOLLIDE);
-
-			if (P_MobjWasRemoved(mobj))
-				continue;
-			
 			mobj->z -= mobj->height/2;
 
 			// Link all the collision sprites together.
-			P_SetTarget(&mobj->hnext, NULL);
+			mobj->hnext = NULL;
 			P_SetTarget(&mobj->hprev, nextmobj);
 			P_SetTarget(&mobj->hprev->hnext, mobj);
+			//mobj->hprev = nextmobj;
+			//mobj->hprev->hnext = mobj;
 
 			nextmobj = mobj;
 		}
@@ -12261,16 +12272,14 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 			finalz = z + v[2];
 
 			mobj = P_SpawnMobj(finalx, finaly, finalz, MT_HOOPCOLLIDE);
-
-			if (P_MobjWasRemoved(mobj))
-				continue;
-
 			mobj->z -= mobj->height/2;
 
 			// Link all the collision sprites together.
-			P_SetTarget(&mobj->hnext, NULL);
+			mobj->hnext = NULL;
 			P_SetTarget(&mobj->hprev, nextmobj);
 			P_SetTarget(&mobj->hprev->hnext, mobj);
+			//mobj->hprev = nextmobj;
+			//mobj->hprev->hnext = mobj;
 
 			nextmobj = mobj;
 		}
@@ -12341,8 +12350,8 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 
 			mobj = P_SpawnMobj(finalx, finaly, finalz, MT_HOOP);
 
-			if (P_MobjWasRemoved(mobj))
-				continue;
+			//if (maptol & TOL_XMAS)
+				//P_SetMobjState(mobj, mobj->info->seestate + (i & 1));
 
 			mobj->z -= mobj->height/2;
 			P_SetTarget(&mobj->target, hoopcenter); // Link the sprite to the center.
@@ -12353,9 +12362,11 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 			{
 				P_SetTarget(&mobj->hprev, nextmobj);
 				P_SetTarget(&mobj->hprev->hnext, mobj);
+				//mobj->hprev = nextmobj;
+				//mobj->hprev->hnext = mobj;
 			}
 			else
-				P_SetTarget(&mobj->hprev, P_SetTarget(&mobj->hnext, NULL));
+				mobj->hprev = mobj->hnext = NULL;
 
 			nextmobj = mobj;
 		}
@@ -12389,16 +12400,14 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 				finalz = z + v[2];
 
 				mobj = P_SpawnMobj(finalx, finaly, finalz, MT_HOOPCOLLIDE);
-
-				if (P_MobjWasRemoved(mobj))
-					continue;
-
 				mobj->z -= mobj->height/2;
 
 				// Link all the collision sprites together.
-				P_SetTarget(&mobj->hnext, NULL);
+				mobj->hnext = NULL;
 				P_SetTarget(&mobj->hprev, nextmobj);
 				P_SetTarget(&mobj->hprev->hnext, mobj);
+				//mobj->hprev = nextmobj;
+				//mobj->hprev->hnext = mobj;
 
 				nextmobj = mobj;
 			}
