@@ -2403,7 +2403,7 @@ static INT32 P_MakeBufferMD5(const char *buffer, size_t len, void *resblock)
 #endif
 }
 
-static void P_MakeMapMD5(virtres_t* virt, void *dest)
+static void P_MakeMapMD5(virtres_t *virt, void *dest)
 {
 	unsigned char linemd5[16];
 	unsigned char sectormd5[16];
@@ -2428,6 +2428,24 @@ static void P_MakeMapMD5(virtres_t* virt, void *dest)
 		resmd5[i] = (linemd5[i] + sectormd5[i] + thingmd5[i] + sidedefmd5[i]) & 0xFF;
 
 	M_Memcpy(dest, &resmd5, 16);
+}
+
+static void P_LoadMapFromFile(void)
+{
+	virtres_t *virt = vres_GetMap(lastloadedmaplumpnum);
+
+	P_LoadMapData(virt);
+	P_LoadMapBSP(virt);
+	P_LoadMapLUT(virt);
+
+	P_LoadLineDefs2();
+	P_GroupLines();
+
+	P_PrepareRawThings(vres_Find(virt, "THINGS")->data);
+
+	P_MakeMapMD5(virt, &mapmd5);
+
+	vres_Free(virt);
 }
 
 static void P_RunLevelScript(const char *scriptname)
@@ -2876,9 +2894,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 
 	// internal game map
 	maplumpname = G_BuildMapName(gamemap);
-	//lastloadedmaplumpnum = LUMPERROR;
 	lastloadedmaplumpnum = W_CheckNumForName(maplumpname);
-
 	if (lastloadedmaplumpnum == INT16_MAX)
 		I_Error("Map %s not found.\n", maplumpname);
 
@@ -2888,8 +2904,6 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 
 	// SRB2 determines the sky texture to be used depending on the map header.
 	P_SetupLevelSky(mapheaderinfo[gamemap-1]->skynum, true);
-
-	P_InitSlopes();
 
 	numdmstarts = numredctfstarts = numbluectfstarts = 0;
 
@@ -2903,23 +2917,11 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 
 	P_MapStart();
 
+	P_InitSlopes();
+
 	if (lastloadedmaplumpnum)
-	{
-		virtres_t* virt = vres_GetMap(lastloadedmaplumpnum);
+		P_LoadMapFromFile();
 
-		P_LoadMapData(virt);
-		P_LoadMapBSP(virt);
-		P_LoadMapLUT(virt);
-
-		P_LoadLineDefs2();
-		P_GroupLines();
-
-		P_PrepareRawThings(vres_Find(virt, "THINGS")->data);
-
-		P_MakeMapMD5(virt, &mapmd5);
-
-		vres_Free(virt);
-	}
 
 	P_ResetDynamicSlopes(fromnetsave);
 	P_LinkSlopeThinkers(); // Spawn slope thinkers just after plane move thinkers to avoid movement/update delays.
