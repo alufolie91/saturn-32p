@@ -290,6 +290,7 @@ void R_InterpolateMobjState(mobj_t *mobj, fixed_t frac, interpmobjstate_t *out)
 		out->x = mobj->x;
 		out->y = mobj->y;
 		out->z = mobj->z;
+		out->floorz = mobj->floorz;
 		out->scale = mobj->scale;
 		out->subsector = mobj->subsector;
 		out->angle = mobj->player ? mobj->player->frameangle : mobj->angle;
@@ -312,6 +313,14 @@ void R_InterpolateMobjState(mobj_t *mobj, fixed_t frac, interpmobjstate_t *out)
 
 	IFCHANGED(z, old_z)
 		out->z = R_LerpFixed(mobj->old_z, mobj->z, frac);
+
+	if (!(cv_sloperoll.value && cv_spriteroll.value))
+	{
+		IFCHANGED(floorz, old_floorz)
+			out->floorz = R_LerpFixed(mobj->old_floorz, mobj->floorz, frac);
+	}
+	else
+		out->floorz = mobj->floorz;
 
 	IFCHANGED(spritexscale, old_spritexscale)
 		out->spritexscale = mobj->resetinterp ? mobj->spritexscale : R_LerpFixed(mobj->old_spritexscale, mobj->spritexscale, frac);
@@ -366,6 +375,7 @@ void R_InterpolatePrecipMobjState(precipmobj_t *mobj, fixed_t frac, interpmobjst
 		out->x = mobj->x;
 		out->y = mobj->y;
 		out->z = mobj->z;
+		out->floorz = mobj->floorz;
 		out->scale = FRACUNIT;
 		out->subsector = mobj->subsector;
 		out->angle = mobj->angle;
@@ -379,6 +389,7 @@ void R_InterpolatePrecipMobjState(precipmobj_t *mobj, fixed_t frac, interpmobjst
 		out->x = R_LerpFixed(mobj->old_x, mobj->x, frac);
 		out->y = R_LerpFixed(mobj->old_y, mobj->y, frac);
 		out->z = R_LerpFixed(mobj->old_z, mobj->z, frac);
+		out->floorz = mobj->floorz;
 		out->scale = FRACUNIT;
 		out->spritexscale = mobj->spritexscale;
 		out->spriteyscale = mobj->spriteyscale;
@@ -857,6 +868,7 @@ void R_ResetMobjInterpolationState(mobj_t *mobj)
 	mobj->old_x = mobj->x;
 	mobj->old_y = mobj->y;
 	mobj->old_z = mobj->z;
+	mobj->old_floorz = mobj->floorz;
 	mobj->old_angle = mobj->angle;
 
 	// rotation humor, again
@@ -897,6 +909,7 @@ void R_ResetPrecipitationMobjInterpolationState(precipmobj_t *mobj)
 	mobj->old_x = mobj->x;
 	mobj->old_y = mobj->y;
 	mobj->old_z = mobj->z;
+	mobj->old_floorz = mobj->floorz;
 	mobj->old_angle = mobj->angle;
 	mobj->old_spritexscale = mobj->spritexscale;
 	mobj->old_spriteyscale = mobj->spriteyscale;

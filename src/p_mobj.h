@@ -275,7 +275,7 @@ typedef struct mobj_s
 
 	// Info for drawing: position.
 	fixed_t x, y, z;
-	fixed_t old_x, old_y, old_z; // position interpolation
+	fixed_t old_x, old_y, old_z, old_floorz; // position interpolation
 	fixed_t old_x2, old_y2, old_z2;
 
 	// More list: links in sector (if needed)
@@ -398,6 +398,11 @@ typedef struct mobj_s
 
 	boolean resetinterp; // if true, some fields should not be interpolated (see R_InterpolateMobjState implementation)
 	boolean colorized; // Whether the mobj uses the rainbow colormap
+
+	boolean haveshadow;
+	fixed_t shadowscale; // If this object casts a shadow, and the size relative to radius
+	boolean whiteshadow; // Use white shadow, set to true by default for fullbright objects
+
 	boolean mirrored; // The object's rotations will be mirrored left to right, e.g., see frame AL from the right and AR from the left
 	boolean rollmodel; // OpenGL: Should this model rotate?
 
@@ -428,7 +433,7 @@ typedef struct precipmobj_s
 
 	// Info for drawing: position.
 	fixed_t x, y, z;
-	fixed_t old_x, old_y, old_z; // position interpolation
+	fixed_t old_x, old_y, old_z, old_floorz; // position interpolation
 	fixed_t old_x2, old_y2, old_z2;
 
 	// More list: links in sector (if needed)

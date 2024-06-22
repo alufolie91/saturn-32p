@@ -780,7 +780,16 @@ static void R_DrawVisSprite(vissprite_t *vis)
 
 	colfunc = basecolfunc; // hack: this isn't resetting properly somewhere.
 	dc_colormap = vis->colormap;
-	if ((vis->mobj->flags & MF_BOSS) && (vis->mobj->flags2 & MF2_FRET) && (leveltime & 1)) // Bosses "flash"
+
+	// Hack: Use a special column function for drop shadows that bypasses
+	// invalid memory access crashes caused by R_ProjectDropShadow putting wrong values
+	// in dc_texturemid and dc_iscale when the shadow is sloped.
+	if (vis->cut & SC_SHADOW)
+	{
+		colfunc = dropshadowcolfunc;
+		dc_transmap = vis->transmap;
+	}
+	else if ((vis->mobj->flags & MF_BOSS) && (vis->mobj->flags2 & MF2_FRET) && (leveltime & 1)) // Bosses "flash"
 	{
 		// translate certain pixels to white
 		colfunc = transcolfunc;
@@ -849,16 +858,18 @@ static void R_DrawVisSprite(vissprite_t *vis)
 		this_scale = FixedMul(this_scale, ((skin_t *)vis->mobj->localskin)->highresscale);
 	else if (vis->mobj->skin && ((skin_t *)vis->mobj->skin)->flags & SF_HIRES)
 		this_scale = FixedMul(this_scale, ((skin_t *)vis->mobj->skin)->highresscale);
+
 	if (this_scale <= 0)
 		this_scale = 1;
+
 	if (this_scale != FRACUNIT)
 	{
-		if (!vis->isScaled)
+		if (!(vis->cut & SC_ISSCALED))
 		{
 			vis->scale = FixedMul(vis->scale, this_scale);
 			vis->scalestep = FixedMul(vis->scalestep, this_scale);
-			vis->xiscale = FixedDiv(vis->xiscale, this_scale);
-			vis->isScaled = true;
+			vis->xiscale = FixedDiv(vis->xiscale,this_scale);
+			vis->cut |= SC_ISSCALED;
 		}
 		dc_texturemid = FixedDiv(dc_texturemid, this_scale);
 	}
@@ -868,6 +879,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	if (!(vis->scalestep))
 	{
 		sprtopscreen = centeryfrac - FixedMul(dc_texturemid, spryscale);
+		sprtopscreen += vis->shear.tan * vis->shear.offset;
 		dc_iscale = FixedDiv(FRACUNIT, vis->scale);
 	}
 
@@ -1091,19 +1103,46 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 	}
 }
 
+//
 // R_GetShadowZ(thing, shadowslope)
 // Get the first visible floor below the object for shadows
 // shadowslope is filled with the floor's slope, if provided
 //
-fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
+fixed_t R_GetShadowZ(
+	mobj_t *thing, pslope_t **shadowslope)
 {
+	fixed_t halfHeight;
 	boolean isflipped = thing->eflags & MFE_VERTICALFLIP;
+	fixed_t floorz;
+	fixed_t ceilingz;
 	fixed_t z, groundz = isflipped ? INT32_MAX : INT32_MIN;
 	pslope_t *slope, *groundslope = NULL;
 	msecnode_t *node;
 	sector_t *sector;
 	ffloor_t *rover;
-#define CHECKZ (isflipped ? z > thing->z+thing->height/2 && z < groundz : z < thing->z+thing->height/2 && z > groundz)
+	INT32 dist = -1;
+
+	// for frame interpolation
+	interpmobjstate_t interp = {0};
+
+	if (cv_grmaxinterpdist.value)
+		dist = R_QuickCamDist(thing->x, thing->y);
+
+	// do interpolation
+	if (R_UsingFrameInterpolation() && !paused && (!cv_grmaxinterpdist.value || dist < cv_grmaxinterpdist.value))
+	{
+		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+	}
+	else
+	{
+		R_InterpolateMobjState(thing, FRACUNIT, &interp);
+	}
+
+	halfHeight = interp.z + (thing->height >> 1);
+	floorz = P_GetFloorZ(thing, interp.subsector->sector, interp.x, interp.y, NULL);
+	ceilingz = P_GetCeilingZ(thing, interp.subsector->sector, interp.x, interp.y, NULL);
+
+#define CHECKZ (isflipped ? z > halfHeight && z < groundz : z < halfHeight && z > groundz)
 
 	for (node = thing->touching_sectorlist; node; node = node->m_sectorlist_next)
 	{
@@ -1114,7 +1153,7 @@ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
 		if (sector->heightsec != -1)
 			z = isflipped ? sectors[sector->heightsec].ceilingheight : sectors[sector->heightsec].floorheight;
 		else
-			z = isflipped ? P_GetSectorCeilingZAt(sector, thing->x, thing->y) : P_GetSectorFloorZAt(sector, thing->x, thing->y);
+			z = isflipped ? P_GetSectorCeilingZAt(sector, interp.x, interp.y) : P_GetSectorFloorZAt(sector, interp.x, interp.y);
 
 		if CHECKZ
 		{
@@ -1128,7 +1167,7 @@ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
 				if (!(rover->flags & FF_EXISTS) || !(rover->flags & FF_RENDERPLANES) || (rover->alpha < 90 && !(rover->flags & FF_SWIMMABLE)))
 					continue;
 
-				z = isflipped ? P_GetFFloorBottomZAt(rover, thing->x, thing->y) : P_GetFFloorTopZAt(rover, thing->x, thing->y);
+				z = isflipped ? P_GetFFloorBottomZAt(rover, interp.x, interp.y) : P_GetFFloorTopZAt(rover, interp.x, interp.y);
 				if CHECKZ
 				{
 					groundz = z;
@@ -1137,18 +1176,178 @@ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
 			}
 	}
 
-	if (isflipped ? (thing->ceilingz < groundz - (!groundslope ? 0 : FixedMul(abs(groundslope->zdelta), thing->radius*3/2)))
-		: (thing->floorz > groundz + (!groundslope ? 0 : FixedMul(abs(groundslope->zdelta), thing->radius*3/2))))
+	if (isflipped ? (ceilingz < groundz - (!groundslope ? 0 : FixedMul(abs(groundslope->zdelta), thing->radius*3/2)))
+		: (floorz > groundz + (!groundslope ? 0 : FixedMul(abs(groundslope->zdelta), thing->radius*3/2))))
 	{
-		groundz = isflipped ? thing->ceilingz : thing->floorz;
+		groundz = isflipped ? ceilingz : floorz;
 		groundslope = NULL;
 	}
 
 	if (shadowslope != NULL)
 		*shadowslope = groundslope;
 
-	return groundz;
 #undef CHECKZ
+
+	return groundz;
+}
+
+static void R_SkewShadowSprite(
+			mobj_t *thing, pslope_t *groundslope,
+			fixed_t groundz, INT32 spriteheight, fixed_t scalemul,
+			fixed_t *shadowyscale, fixed_t *shadowskew)
+{
+	// haha let's try some dumb stuff
+	fixed_t xslope, zslope;
+	angle_t sloperelang;
+
+	// for frame interpolation
+	interpmobjstate_t interp = {0};
+
+	if (R_UsingFrameInterpolation() && !paused)
+	{
+		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+	}
+	else
+	{
+		R_InterpolateMobjState(thing, FRACUNIT, &interp);
+	}
+
+	sloperelang = (R_PointToAngle(interp.x, interp.y) - groundslope->xydirection) >> ANGLETOFINESHIFT;
+
+	xslope = FixedMul(FINESINE(sloperelang), groundslope->zdelta);
+	zslope = FixedMul(FINECOSINE(sloperelang), groundslope->zdelta);
+
+	//CONS_Printf("Shadow is sloped by %d %d\n", xslope, zslope);
+
+	if (viewz < groundz)
+		*shadowyscale += FixedMul(FixedMul(thing->radius*2 / spriteheight, scalemul), zslope);
+	else
+		*shadowyscale -= FixedMul(FixedMul(thing->radius*2 / spriteheight, scalemul), zslope);
+
+	*shadowyscale = abs(*shadowyscale);
+	*shadowskew = xslope;
+}
+
+static void R_ProjectDropShadow(mobj_t *thing, vissprite_t *vis, fixed_t tx, fixed_t tz, fixed_t scale)
+{
+	vissprite_t *shadow;
+	patch_t *patch;
+	fixed_t xscale, yscale, shadowxscale, shadowyscale, shadowskew, x1, x2;
+	fixed_t scalemul;
+	fixed_t floordiff;
+	fixed_t groundz;
+	pslope_t *groundslope;
+	boolean isflipped = thing->eflags & MFE_VERTICALFLIP;
+	INT32 dist = -1;
+	interpmobjstate_t interp = {0};
+
+	groundz = R_GetShadowZ(thing, &groundslope);
+
+	if (abs(groundz-viewz)/tz > 4) return; // Prevent stretchy shadows and possible crashes
+
+	if (cv_grmaxinterpdist.value)
+		dist = R_QuickCamDist(thing->x, thing->y);
+
+	// do interpolation
+	if (R_UsingFrameInterpolation() && !paused && (!cv_grmaxinterpdist.value || dist < cv_grmaxinterpdist.value))
+	{
+		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+	}
+	else
+	{
+		R_InterpolateMobjState(thing, FRACUNIT, &interp);
+	}
+
+	floordiff = abs((isflipped ? thing->height : 0) + interp.z - groundz);
+
+	scalemul = FixedMul(FRACUNIT - floordiff/640, scale);
+
+	patch = W_CachePatchNum(sprites[SPR_SHAD].spriteframes[0].lumppat[0], PU_CACHE);
+	xscale = FixedDiv(projection, tz);
+	yscale = FixedDiv(projectiony, tz);
+	shadowxscale = FixedMul(thing->radius*2, scalemul);
+	shadowyscale = FixedMul(FixedMul(thing->radius*2, scalemul), FixedDiv(abs(groundz - viewz), tz));
+	shadowyscale = min(shadowyscale, shadowxscale) / SHORT(patch->height);
+	shadowxscale /= SHORT(patch->width);
+	shadowskew = 0;
+
+	if (groundslope && cv_sloperoll.value && cv_spriteroll.value)
+		R_SkewShadowSprite(thing, groundslope, groundz, SHORT(patch->height), scalemul, &shadowyscale, &shadowskew); // idk whats up with this thing
+
+	tx -= SHORT(patch->width) * shadowxscale/2;
+	x1 = (centerxfrac + FixedMul(tx,xscale))>>FRACBITS;
+	if (x1 >= viewwidth) return;
+
+	tx += SHORT(patch->width) * shadowxscale;
+	x2 = ((centerxfrac + FixedMul(tx,xscale))>>FRACBITS); x2--;
+	if (x2 < 0 || x2 <= x1) return;
+
+	if (shadowyscale < FRACUNIT/SHORT(patch->height)) return; // fix some crashes?
+
+	shadow = R_NewVisSprite();
+	shadow->patch = patch;
+	shadow->heightsec = vis->heightsec;
+
+	shadow->thingheight = FRACUNIT;
+	shadow->pz = groundz + (isflipped ? -shadow->thingheight : 0);
+	shadow->pzt = shadow->pz + shadow->thingheight;
+
+	shadow->mobjflags = 0;
+	shadow->sortscale = vis->sortscale;
+	shadow->dispoffset = vis->dispoffset - 5;
+	shadow->gx = interp.x;
+	shadow->gy = interp.y;
+	shadow->gzt = (isflipped ? shadow->pzt : shadow->pz) + SHORT(patch->height) * shadowyscale / 2;
+	shadow->gz = shadow->gzt - SHORT(patch->height) * shadowyscale;
+	shadow->texturemid = FixedMul(interp.scale, FixedDiv(shadow->gzt - viewz, shadowyscale));
+	if (thing->skin && ((skin_t *)thing->skin)->flags & SF_HIRES)
+		shadow->texturemid = FixedMul(shadow->texturemid, ((skin_t *)thing->skin)->highresscale);
+	shadow->scalestep = 0;
+	shadow->shear.tan = shadowskew; // repurposed variable
+
+	shadow->mobj = thing; // Easy access! Tails 06-07-2002
+
+	shadow->x1 = x1 < 0 ? 0 : x1;
+	shadow->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
+
+	// PORTAL SEMI-CLIPPING
+	if (portalrender && portalclipline)
+	{
+		if (shadow->x1 < portalclipstart)
+			shadow->x1 = portalclipstart;
+		if (shadow->x2 >= portalclipend)
+			shadow->x2 = portalclipend-1;
+	}
+
+	shadow->xscale = FixedMul(xscale, shadowxscale); //SoM: 4/17/2000
+	shadow->scale = FixedMul(yscale, shadowyscale);
+	shadow->thingscale = interp.scale;
+	shadow->sector = vis->sector;
+	shadow->szt = (INT16)((centeryfrac - FixedMul(shadow->gzt - viewz, yscale))>>FRACBITS);
+	shadow->sz = (INT16)((centeryfrac - FixedMul(shadow->gz - viewz, yscale))>>FRACBITS);
+	shadow->cut = SC_ISSCALED|SC_SHADOW; //check this
+
+	shadow->startfrac = 0;
+	//shadow->xiscale = 0x7ffffff0 / (shadow->xscale/2);
+	shadow->xiscale = (SHORT(patch->width)<<FRACBITS)/(x2-x1+1); // fuck it
+
+	if (shadow->x1 > x1)
+		shadow->startfrac += shadow->xiscale*(shadow->x1-x1);
+
+	// reusing x1 variable
+	x1 += (x2-x1)/2;
+	shadow->shear.offset = shadow->x1-x1;
+
+	shadow->extra_colormap = NULL;
+
+	shadow->transmap = transtables + (tr_trans20<<FF_TRANSSHIFT);
+
+	if (thing->whiteshadow)
+		shadow->colormap = scalelight[LIGHTLEVELS - 1][0]; // full bright!
+	else
+		shadow->colormap = scalelight[0][0]; // full dark!
+
+	objectsdrawn++;
 }
 
 //
@@ -1190,7 +1389,10 @@ static void R_ProjectSprite(mobj_t *thing)
 	fixed_t iscale;
 	fixed_t scalestep; // toast '16
 	fixed_t offset, offset2;
-	boolean papersprite = (thing->frame & FF_PAPERSPRITE);
+
+	fixed_t basetx, basetz; // drop shadows
+
+	boolean papersprite = !!(thing->frame & FF_PAPERSPRITE);
 	fixed_t paperoffset = 0, paperdistance = 0; angle_t centerangle = 0;
 
 	//SoM: 3/17/2000
@@ -1239,7 +1441,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	gxt = FixedMul(tr_x, viewcos);
 	gyt = -FixedMul(tr_y, viewsin);
 
-	tz = gxt-gyt;
+	basetz = tz = gxt-gyt;
 
 	// thing is behind view plane?
 	if (!papersprite && (tz < FixedMul(MINZ, this_scale))) // papersprite clipping is handled later
@@ -1247,7 +1449,7 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	gxt = -FixedMul(tr_x, viewsin);
 	gyt = FixedMul(tr_y, viewcos);
-	tx = -(gyt + gxt);
+	basetx = tx = -(gyt + gxt);
 
 	// too far off the side?
 	if (!papersprite && abs(tx) > tz<<2) // papersprite clipping is handled later
@@ -1407,10 +1609,10 @@ static void R_ProjectSprite(mobj_t *thing)
 
 			if (rotsprite != NULL)
 			{
-				spr_width = rotsprite->width << FRACBITS;
-				spr_height = rotsprite->height << FRACBITS;
-				spr_offset = rotsprite->leftoffset << FRACBITS;
-				spr_topoffset = rotsprite->topoffset << FRACBITS;
+				spr_width = SHORT(rotsprite->width) << FRACBITS;
+				spr_height = SHORT(rotsprite->height) << FRACBITS;
+				spr_offset = SHORT(rotsprite->leftoffset) << FRACBITS;
+				spr_topoffset = SHORT(rotsprite->topoffset) << FRACBITS;
 				spr_topoffset += FEETADJUST;
 
 				// flip -> rotate, not rotate -> flip
@@ -1679,6 +1881,8 @@ static void R_ProjectSprite(mobj_t *thing)
 	vis->paperoffset = paperoffset;
 	vis->paperdistance = paperdistance;
 	vis->centerangle = centerangle;
+	vis->shear.tan = 0;
+	vis->shear.offset = 0;
 
 	vis->mobj = thing; // Easy access! Tails 06-07-2002
 
@@ -1778,10 +1982,14 @@ static void R_ProjectSprite(mobj_t *thing)
 	else
 		vis->vflip = false;
 
-	vis->isScaled = false;
-
 	if (thing->subsector->sector->numlights)
 		R_SplitSprite(vis, thing);
+
+	if (cv_dropshadow.value)
+	{
+		if (oldthing->haveshadow)
+			R_ProjectDropShadow(oldthing, vis, basetx, basetz, oldthing->shadowscale);
+	}
 
 	// Debug
 	++objectsdrawn;
@@ -1924,6 +2132,8 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->texturemid = vis->gzt - viewz;
 	vis->scalestep = 0;
 	vis->paperdistance = 0;
+	vis->shear.tan = 0;
+	vis->shear.offset = 0;
 
 	vis->x1 = x1 < 0 ? 0 : x1;
 	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
@@ -1971,7 +2181,6 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->colormap = colormaps;
 	vis->precip = true;
 	vis->vflip = false;
-	vis->isScaled = false;
 	
 weatherthink:
 	// okay... this is a hack, but weather isn't networked, so it should be ok

@@ -50,7 +50,7 @@ consvar_t cv_stackingboostflamecolor = {"stacking_boostflamecolor", "On", CV_SAV
 actioncache_t actioncachehead;
 
 static mobj_t *overlaycap = NULL;
-static mobj_t *shadowcap = NULL;
+//static mobj_t *shadowcap = NULL;
 mobj_t *waypointcap = NULL;
 mobj_t *mobjcache = NULL;
 
@@ -3596,11 +3596,15 @@ static void P_PlayerMobjThinker(mobj_t *mobj)
 		mobj->z += mobj->momz;
 		P_SetThingPosition(mobj);
 		P_CheckPosition(mobj, mobj->x, mobj->y);
+		mobj->floorz = tmfloorz;
+		mobj->ceilingz = tmceilingz;
 		goto animonly;
 	}
 	else if (mobj->player->pflags & PF_MACESPIN && mobj->tracer)
 	{
 		P_CheckPosition(mobj, mobj->x, mobj->y);
+		mobj->floorz = tmfloorz;
+		mobj->ceilingz = tmceilingz;
 		goto animonly;
 	}
 
@@ -6080,7 +6084,7 @@ static void P_RemoveOverlay(mobj_t *thing)
 	}
 }
 
-void P_RunShadows(void)
+/*void P_RunShadows(void)
 {
 	mobj_t *mobj, *next, *dest;
 
@@ -6147,11 +6151,11 @@ void P_RunShadows(void)
 			P_SetScale(mobj, mobj->scale/3);
 	}
 	P_SetTarget(&shadowcap, NULL);
-}
+}*/
 
 // called whenever shadows think
 // It must be done this way so that level changes don't break when the shadowcap can't be reset
-static void P_AddShadow(mobj_t *thing)
+/*static void P_AddShadow(mobj_t *thing)
 {
 	I_Assert(thing != NULL);
 
@@ -6191,7 +6195,7 @@ static void P_RemoveShadow(mobj_t *thing)
 		P_SetTarget(&thing->hnext, NULL);
 		return;
 	}
-}
+}*/
 
 void A_BossDeath(mobj_t *mo);
 // AI for the Koopa boss.
@@ -6484,7 +6488,7 @@ void P_MobjThinker(mobj_t *mobj)
 
 				P_AddOverlay(mobj);
 				break;
-			case MT_SHADOW:
+			/*case MT_SHADOW:
 				if (!mobj->target)
 				{
 					P_RemoveMobj(mobj);
@@ -6497,15 +6501,6 @@ void P_MobjThinker(mobj_t *mobj)
 					mobj->sloperoll = mobj->target->sloperoll;
 				}
 				P_AddShadow(mobj);
-				break;
-			/*case MT_BLACKORB:
-			case MT_WHITEORB:
-			case MT_GREENORB:
-			case MT_YELLOWORB:
-			case MT_BLUEORB:
-			case MT_PITYORB:
-				if (!P_AddShield(mobj))
-					return;
 				break;*/
 			//{ SRB2kart mobs
 			case MT_ORBINAUT_SHIELD: // Kart orbit/trail items
@@ -9671,6 +9666,65 @@ void P_SceneryThinker(mobj_t *mobj)
 // GAME SPAWN FUNCTIONS
 //
 
+static void P_DefaultMobjShadowScale(mobj_t *thing)
+{
+	thing->shadowscale = 0;
+	thing->whiteshadow = (thing->frame & FF_FULLBRIGHT);
+
+	// Those have shadow by default
+	switch (thing->type)
+	{
+		case MT_PLAYER:
+		case MT_SMALLMACE:
+		case MT_BIGMACE:
+		case MT_PUMA:
+		case MT_BIGPUMA:
+		case MT_FALLINGROCK:
+		case MT_SMK_MOLE:
+		case MT_SMK_THWOMP:
+		case MT_BATTLEBUMPER:
+		case MT_BANANA:
+		case MT_ORBINAUT:
+		case MT_ORBINAUT_SHIELD:
+		case MT_JAWZ:
+		case MT_JAWZ_DUD:
+		case MT_JAWZ_SHIELD:
+		case MT_SSMINE:
+		case MT_SSMINE_SHIELD:
+		case MT_BALLHOG:
+		case MT_SINK:
+		case MT_THUNDERSHIELD:
+		case MT_ROCKETSNEAKER:
+		case MT_SPB:
+			thing->shadowscale = 4*FRACUNIT/3;
+			thing->haveshadow = true;
+			break;
+		case MT_BANANA_SHIELD:
+			thing->shadowscale = 12*FRACUNIT/5;
+			thing->haveshadow = true;
+			break;
+		/*case MT_RANDOMITEM:
+			thing->shadowscale = FRACUNIT/2;
+			thing->whiteshadow = false;
+			break;
+		case MT_EGGMANITEM:
+			thing->shadowscale = FRACUNIT;
+			thing->whiteshadow = false;
+			break;
+		case MT_EGGMANITEM_SHIELD:
+			thing->shadowscale = 3*FRACUNIT/2;
+			thing->whiteshadow = false;
+			break;*/
+		case MT_FLOATINGITEM:
+			thing->shadowscale = FRACUNIT/2;
+			thing->haveshadow = true;
+			break;
+		default:
+			thing->shadowscale = 4*FRACUNIT/3;;
+			break;
+	}
+}
+
 //
 // P_SpawnMobj
 //
@@ -9792,6 +9846,9 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 		mobj->z = z;
 
 	mobj->colorized = false;
+
+	// Set shadowscale here, before spawn hook so that Lua can change it
+	P_DefaultMobjShadowScale(mobj);
 
 	// DANGER! This can cause P_SpawnMobj to return NULL!
 	// Avoid using P_RemoveMobj on the newly created mobj in "MobjSpawn" Lua hooks!
@@ -10086,7 +10143,7 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	if (!(mobj->flags & MF_NOTHINK))
 		P_AddThinker(THINK_MOBJ, &mobj->thinker); // Needs to come before the shadow spawn, or else the shadow's reference gets forgotten
 
-	switch (mobj->type)
+	/*switch (mobj->type)
 	{
 		case MT_PLAYER:
 		case MT_SMALLMACE:		case MT_BIGMACE:
@@ -10107,7 +10164,7 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 			P_SpawnShadowMobj(mobj);
 		default:
 			break;
-	}
+	}*/
 
 	// Call action functions when the state is set
 	if (st->action.acp1 && (mobj->flags & MF_RUNSPAWNFUNC))
@@ -10146,7 +10203,7 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 // P_SpawnShadowMobj
 // warning: Do not send a shadow mobj as a caster into here, or try to spawn spawn shadows for shadows in P_SpawnMobj, we do not want recursive shadows
 //
-mobj_t *P_SpawnShadowMobj(mobj_t * caster)
+/*mobj_t *P_SpawnShadowMobj(mobj_t * caster)
 {
 	const mobjinfo_t *info = &mobjinfo[MT_SHADOW];
 	state_t *st;
@@ -10268,7 +10325,7 @@ mobj_t *P_SpawnShadowMobj(mobj_t * caster)
 	R_AddMobjInterpolator(mobj);
 
 	return mobj;
-}
+}*/
 
 static precipmobj_t *P_SpawnPrecipMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 {
@@ -10384,8 +10441,8 @@ void P_RemoveMobj(mobj_t *mobj)
 	if (mobj->type == MT_OVERLAY)
 		P_RemoveOverlay(mobj);
 
-	if (mobj->type == MT_SHADOW)
-		P_RemoveShadow(mobj);
+	//if (mobj->type == MT_SHADOW)
+		//P_RemoveShadow(mobj);
 
 	if (mobj->type == MT_SPB)
 		spbplace = -1;

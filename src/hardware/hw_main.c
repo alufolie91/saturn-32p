@@ -46,6 +46,7 @@
 #include "../i_system.h"
 #include "../m_cheat.h"
 #include "../m_argv.h" // parm functions for msaa
+#include "../r_things.h" // R_GetShadowZ
 #include "../p_slopes.h"
 
 #include <stdlib.h> // qsort
@@ -3817,6 +3818,129 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float t
 	}
 }
 
+static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+{
+	GLPatch_t *gpatch;
+	FOutVector shadowVerts[4];
+	FSurfaceInfo sSurf;
+	float fscale; float fx; float fy; float offset;
+	float ph;
+	FBITFIELD blendmode = 0;
+	INT32 shader = SHADER_NONE;
+	UINT8 i;
+	SINT8 flip = P_MobjFlip(thing);
+	UINT8 lightlevel = 0;
+	INT32 dist = -1;
+
+	fixed_t scalemul;
+	fixed_t floordiff;
+	fixed_t groundz;
+	fixed_t slopez;
+	pslope_t *groundslope;
+
+	// uncapped/interpolation
+	interpmobjstate_t interp = {0};
+
+	if (cv_grmaxinterpdist.value)
+		dist = R_QuickCamDist(thing->x, thing->y);
+
+	// do interpolation
+	if (R_UsingFrameInterpolation() && !paused && (!cv_grmaxinterpdist.value || dist < cv_grmaxinterpdist.value))
+	{
+		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+	}
+	else
+	{
+		R_InterpolateMobjState(thing, FRACUNIT, &interp);
+	}
+
+	if (cv_sloperoll.value && cv_spriteroll.value)
+		groundz = R_GetShadowZ(thing, &groundslope);
+	else
+		groundz = interp.floorz;
+
+	floordiff = abs((flip < 0 ? thing->height : 0) + interp.z - groundz);
+
+	if (thing->whiteshadow)
+		gpatch = W_CachePatchNum(sprites[SPR_SHAD].spriteframes[1].lumppat[0], PU_CACHE);
+	else
+		gpatch = W_CachePatchNum(sprites[SPR_SHAD].spriteframes[0].lumppat[0], PU_CACHE);
+
+	if (!(gpatch && gpatch->mipmap->format)) return;
+	HWR_GetPatch(gpatch);
+
+	scalemul = FixedMul(FRACUNIT - floordiff/640, scale);
+	scalemul = FixedMul(scalemul, (thing->radius*2) / SHORT(gpatch->height));
+
+	ph = (float)gpatch->height;
+
+	fscale = FIXED_TO_FLOAT(scalemul);
+	fx = FIXED_TO_FLOAT(interp.x);
+	fy = FIXED_TO_FLOAT(interp.y);
+
+	if (fscale > 0.0)
+	{
+		offset = (ph / 2) * fscale;
+	}
+	else
+	{
+		return;
+	}
+
+	//  3--2
+	//  | /|
+	//  |/ |
+	//  0--1
+
+	shadowVerts[2].x = shadowVerts[3].x = fx + offset;
+	shadowVerts[1].x = shadowVerts[0].x = fx - offset;
+	shadowVerts[1].z = shadowVerts[2].z = fy - offset;
+	shadowVerts[0].z = shadowVerts[3].z = fy + offset;
+
+	for (i = 0; i < 4; i++)
+	{
+		float oldx = shadowVerts[i].x;
+		float oldy = shadowVerts[i].z;
+		shadowVerts[i].x = fx + ((oldx - fx) * gr_viewcos) - ((oldy - fy) * gr_viewsin);
+		shadowVerts[i].z = fy + ((oldx - fx) * gr_viewsin) + ((oldy - fy) * gr_viewcos);
+	}
+
+	if (groundslope && cv_sloperoll.value && cv_spriteroll.value)
+	{
+		for (i = 0; i < 4; i++)
+		{
+			slopez = P_GetZAt(groundslope, FLOAT_TO_FIXED(shadowVerts[i].x), FLOAT_TO_FIXED(shadowVerts[i].z));
+			shadowVerts[i].y = FIXED_TO_FLOAT(slopez) + 3 + flip * 0.05f;
+		}
+	}
+	else
+	{
+		for (i = 0; i < 4; i++)
+			shadowVerts[i].y = FIXED_TO_FLOAT(groundz) + 3 + flip * 0.05f;
+	}
+
+	shadowVerts[0].s = shadowVerts[3].s = 0;
+	shadowVerts[2].s = shadowVerts[1].s = gpatch->max_s;
+
+	shadowVerts[3].t = shadowVerts[2].t = 0;
+	shadowVerts[0].t = shadowVerts[1].t = gpatch->max_t;
+
+	if (thing->whiteshadow)
+		lightlevel = 255; // make crap FULLBRIGHT
+
+	HWR_Lighting(&sSurf, lightlevel, NULL);
+
+	sSurf.PolyColor.s.alpha = 0x80;
+
+	if (HWR_UseShader())
+	{
+		shader = SHADER_SHADOW;
+		blendmode |= PF_ColorMapped;
+	}
+
+	HWR_ProcessPolygon(&sSurf, shadowVerts, 4, blendmode|PF_Translucent|PF_Modulated, shader, false); // sprite shader
+}
+
 // This is expecting a pointer to an array containing 4 wallVerts for a sprite
 static void HWR_RotateSpritePolyToAim(gr_vissprite_t *spr, FOutVector *wallVerts, const boolean precip)
 {
@@ -4749,36 +4873,42 @@ void HWR_DrawSprites(void)
 		gr_vissprite_t *spr = gr_vsprorder[i];
 
 		if (spr->precip)
-		{
 			HWR_DrawPrecipitationSprite(spr);
-			continue;
-		}
-
-		if (spr->mobj && spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
+		else
 		{
-			md2_t *md2;
-			if (spr->mobj->localskin)
+			if (spr->mobj && cv_dropshadow.value)
 			{
-				if (spr->mobj->skinlocal)
-					md2 = &md2_localplayermodels[(skin_t *)spr->mobj->localskin - localskins];
+				if (spr->mobj->haveshadow)
+					HWR_DrawDropShadow(spr->mobj, spr->mobj->shadowscale);
+			}
+
+			if (spr->mobj && spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
+			{
+				md2_t *md2;
+				if (spr->mobj->localskin)
+				{
+					if (spr->mobj->skinlocal)
+						md2 = &md2_localplayermodels[(skin_t *)spr->mobj->localskin - localskins];
+					else
+						md2 = &md2_playermodels     [(skin_t *)spr->mobj->localskin -      skins];
+				}
 				else
-					md2 = &md2_playermodels     [(skin_t *)spr->mobj->localskin -      skins];
+					md2 = &md2_playermodels[(skin_t *)spr->mobj->skin - skins];
+
+				// 8/1/19: Only don't display player models if no default SPR_PLAY is found.
+				if (!cv_grmdls.value || ((md2->notfound || md2->scale < 0.0f) && ((!cv_grfallbackplayermodel.value) || md2_models[SPR_PLAY].notfound || md2_models[SPR_PLAY].scale < 0.0f)) || spr->mobj->state == &states[S_PLAY_SIGN])
+					HWR_DrawSprite(spr);
+				else
+					HWR_DrawMD2(spr);
 			}
 			else
-				md2 = &md2_playermodels[(skin_t *)spr->mobj->skin - skins];
-
-			// 8/1/19: Only don't display player models if no default SPR_PLAY is found.
-			if (!cv_grmdls.value || ((md2->notfound || md2->scale < 0.0f) && ((!cv_grfallbackplayermodel.value) || md2_models[SPR_PLAY].notfound || md2_models[SPR_PLAY].scale < 0.0f)) || spr->mobj->state == &states[S_PLAY_SIGN])
-				HWR_DrawSprite(spr);
-			else
-				HWR_DrawMD2(spr);
-		}
-		else
 			{
-			if (!cv_grmdls.value || md2_models[spr->mobj->sprite].notfound || md2_models[spr->mobj->sprite].scale < 0.0f)
-				HWR_DrawSprite(spr);
-			else
-				HWR_DrawMD2(spr);
+
+				if (!cv_grmdls.value || md2_models[spr->mobj->sprite].notfound || md2_models[spr->mobj->sprite].scale < 0.0f)
+					HWR_DrawSprite(spr);
+				else
+					HWR_DrawMD2(spr);
+			}
 		}
 	}
 }
@@ -5147,10 +5277,10 @@ void HWR_ProjectSprite(mobj_t *thing)
 
 			if (rotsprite != NULL)
 			{
-				spr_width = rotsprite->width << FRACBITS;
-				spr_height = rotsprite->height << FRACBITS;
-				spr_offset = rotsprite->leftoffset << FRACBITS;
-				spr_topoffset = rotsprite->topoffset << FRACBITS;
+				spr_width = SHORT(rotsprite->width) << FRACBITS;
+				spr_height = SHORT(rotsprite->height) << FRACBITS;
+				spr_offset = SHORT(rotsprite->leftoffset) << FRACBITS;
+				spr_topoffset = SHORT(rotsprite->topoffset) << FRACBITS;
 				spr_topoffset += FEETADJUST;
 				
 				// flip -> rotate, not rotate -> flip
