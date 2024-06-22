@@ -10707,6 +10707,9 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	INT32 nameboxaddy = 0;
 	int statoffset = 0;
 	int gridyoffset = 0;
+	INT32 colormode;
+	
+	colormode = (setupm_colormode == 0) ? setupm_fakecolor : setupm_fakefollowercolor;
 
 	mx = MP_PlayerSetupDef.x;
 	my = MP_PlayerSetupDef.y;
@@ -10858,38 +10861,84 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	
 	// draw the name of the color you have chosen
 	// Just so people don't go thinking that "Default" is Green.
-	st = V_StringWidth(KartColor_Names[setupm_fakecolor], 0);
+	st = V_StringWidth(KartColor_Names[colormode], 0);
 	switch (cv_skinselectmenu.value)
 	{
 		case SKINMENUTYPE_EXTENDED:
-			V_DrawString(mx, my + 164, highlightflags | V_ALLOWLOWERCASE, KartColor_Names[setupm_fakecolor]); // SRB2kart
+			V_DrawString(mx, my + 164, highlightflags | V_ALLOWLOWERCASE, KartColor_Names[colormode]); // SRB2kart
 			if (itemOn == 3)
 			{
+				
+				if (setupm_colormode == 0)
+					V_DrawSmallString(mx+40, my + 156, V_6WIDTHSPACE|highlightflags, "Player");
+				else
+					V_DrawSmallString(mx+40, my + 156, V_6WIDTHSPACE|highlightflags, "Follower");
+				
+				V_DrawSmallString(mx+80, my + 156, V_6WIDTHSPACE|highlightflags, "RS: Change");
+				
 				V_DrawCharacter(mx - 10/* - st*/ - (skullAnimCounter/5), my + 164,
 					'\x1C' | highlightflags, false); // left arrow
 				V_DrawCharacter(mx + 2 + st + (skullAnimCounter/5), my + 164,
 					'\x1D' | highlightflags, false); // right arrow
 			}
+			else 
+			{
+				if (setupm_colormode == 0)
+					V_DrawSmallString(mx+40, my + 156, V_6WIDTHSPACE, "Player");
+				else
+					V_DrawSmallString(mx+40, my + 156, V_6WIDTHSPACE, "Follower");
+			}
 			break;	
 		case SKINMENUTYPE_GRID:
 		case SKINMENUTYPE_2D:
-			V_DrawString(mx, my + 152, highlightflags | V_ALLOWLOWERCASE, KartColor_Names[setupm_fakecolor]); // SRB2kart
+			V_DrawString(mx, my + 152, highlightflags | V_ALLOWLOWERCASE, KartColor_Names[colormode]); // SRB2kart
 			if (itemOn == 3)
 			{
+				
+				if (setupm_colormode == 0)
+					V_DrawSmallString(mx+40, my + 168, V_6WIDTHSPACE|highlightflags, "Player");
+				else
+					V_DrawSmallString(mx+40, my + 168, V_6WIDTHSPACE|highlightflags, "Follower");
+				
+				if (cv_skinselectmenu.value != SKINMENUTYPE_2D)
+					V_DrawSmallString(mx+80, my + 168, V_6WIDTHSPACE|highlightflags, "RS: Change");
+				
 				V_DrawCharacter(mx - 10/* - st*/ - (skullAnimCounter/5), my + 152,
 					'\x1C' | highlightflags, false); // left arrow
 				V_DrawCharacter(mx + 2 + st + (skullAnimCounter/5), my + 152,
 					'\x1D' | highlightflags, false); // right arrow
 			}
+			else 
+			{
+				if (setupm_colormode == 0)
+					V_DrawSmallString(mx+40, my + 168, V_6WIDTHSPACE, "Player");
+				else
+					V_DrawSmallString(mx+40, my + 168, V_6WIDTHSPACE, "Follower");
+			}
 			break;
 		default:
-			V_DrawString(BASEVIDWIDTH - mx - st, my + 152, highlightflags|V_ALLOWLOWERCASE, KartColor_Names[setupm_fakecolor]);	// SRB2kart
+			V_DrawString(BASEVIDWIDTH - mx - st, my + 152, highlightflags|V_ALLOWLOWERCASE, KartColor_Names[colormode]);	// SRB2kart
 			if (itemOn == 3)
 			{
+				
+				if (setupm_colormode == 0)
+					V_DrawSmallString(mx+40, my + 155, V_6WIDTHSPACE|highlightflags, "Player");
+				else
+					V_DrawSmallString(mx+40, my + 155, V_6WIDTHSPACE|highlightflags, "Follower");
+				
+				V_DrawSmallString(mx+80, my + 155, V_6WIDTHSPACE|highlightflags, "RS: Change");
+				
 				V_DrawCharacter(BASEVIDWIDTH - mx - 10 - st - (skullAnimCounter/5), my + 152,
 					'\x1C' | highlightflags, false); // left arrow
 				V_DrawCharacter(BASEVIDWIDTH - mx + 2 + (skullAnimCounter/5), my + 152,
 					'\x1D' | highlightflags, false); // right arrow
+			}
+			else 
+			{
+				if (setupm_colormode == 0)
+					V_DrawSmallString(mx+40, my + 155, V_6WIDTHSPACE, "Player");
+				else
+					V_DrawSmallString(mx+40, my + 155, V_6WIDTHSPACE, "Follower");
 			}
 			break;
 	}
@@ -11206,16 +11255,11 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	{
 		INT32 colwidth = ((BASEVIDWIDTH-(2*mx))-charw)/(2*indexwidth);
 		INT32 j = -colwidth;
-		INT16 colormode;
 		INT16 col;
 		INT32 x = mx;
 		INT32 cw = indexwidth;
 		UINT8 ch;
 		
-		if (setupm_colormode == 0)
-			colormode = setupm_fakecolor;
-		else
-			colormode = setupm_fakefollowercolor;
 		
 		if (cv_skinselectmenu.value == SKINMENUTYPE_EXTENDED)
 		{
@@ -11383,7 +11427,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			V_DrawMappedPatch(mx+36, my+131, flags, patch, colormap);
 	}
 	
-		// draw their follower if there is one
+	// draw their follower if there is one
 	if (setupm_fakefollower > -1 && setupm_fakefollower < numfollowers)
 	{
 		// animate the follower
@@ -11416,18 +11460,17 @@ static void M_DrawSetupMultiPlayerMenu(void)
 		sprdef = &sprites[follower_state->sprite];
 
 		// draw the follower
-
 		if (follower_frame >= sprdef->numframes)
 			follower_frame = 0;	// frame doesn't exist, we went beyond it... what?
 		sprframe = &sprdef->spriteframes[follower_frame];
 		patch = W_CachePatchNum(sprframe->lumppat[1], PU_CACHE);
-		if (sprframe->flip & 2) // Only for first sprite
-			flags |= V_FLIP; // This sprite is left/right flipped!
+		if (sprframe->flip) // Prevent flipping when the player spins
+			flags &= ~V_FLIP;
 
 		// @TODO: Reminder that followers on the menu right now do NOT support the 'followercolor' command, considering this whole menu is getting remade anyway, I see no point in incorporating it in right now.
 
 		// draw follower sprite
-		if (setupm_fakefollower > -1) // inverse should never happen
+		if (setupm_fakefollowercolor) // inverse should never happen
 		{
 			// Fake the follower's in game appearance by now also applying some of its variables! coolio, eh?
 			follower_t fl = followers[setupm_fakefollower];	// shortcut for our sanity
@@ -11436,19 +11479,18 @@ static void M_DrawSetupMultiPlayerMenu(void)
 				FINESINE(((
 					FixedMul(4 * M_TAU_FIXED, fl.bobspeed) * followertimer
 				) >> ANGLETOFINESHIFT) & FINEMASK));
+			UINT8 color = 0;
 			clampedheight = clampedheight > 25 ? 25 : clampedheight; // clamp max so it doesn't look stupid
 			//clampedheight = clampedheight < MY_MIN ? MY_MIN : clampedheight;
 			
-			INT32 color;
-			
 			if (setupm_colormode == 0)
 				color = fl.defaultcolor;
-			else
+			else if (setupm_colormode == 1)
 				color = setupm_fakefollowercolor;
 			
 			UINT8 *colormap = R_GetTranslationColormap(-1, K_GetEffectiveFollowerColor(color, &fl, setupm_fakecolor, &skins[skintodisplay]), 0);
 			V_DrawFixedPatch((mx+55)*FRACUNIT, ((my+131-clampedheight))*FRACUNIT+sine, fl.scale, flags, patch, colormap);
-			Z_Free(colormap);
+			//Z_Free(colormap);
 		}
 	}
 #undef charw
@@ -11662,7 +11704,6 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				else
 				{
 					setupm_fakefollowercolor--;
-					M_GetFollowerState();	// update follower state
 				}
 				
 			}
@@ -11730,7 +11771,6 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				else
 				{
 					setupm_fakefollowercolor++;
-					M_GetFollowerState();	// update follower state
 				}
 			}
 			break;
@@ -11773,22 +11813,36 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			else if (itemOn == 3)
 			{
 				UINT8 col = skins[setupm_fakeskin].prefcolor;
-				if (setupm_fakecolor != col)
+				UINT8 col2 = followers[setupm_fakefollower].defaultcolor;
+				
+				if (setupm_colormode == 0)
 				{
-					S_StartSound(NULL,sfx_menu1); // Tails
-					setupm_fakecolor = col;
+					if (setupm_fakecolor != col)
+					{
+						S_StartSound(NULL,sfx_menu1); // Tails
+						setupm_fakecolor = col;
+					}
+				}
+				else 
+				{
+					if (setupm_fakefollowercolor != col2)
+					{
+						S_StartSound(NULL,sfx_menu1); // Tails
+						setupm_fakefollowercolor = col2;
+					}
 				}
 			}
 			break;
 		case KEY_RSHIFT: // Toggle Colormode
+			 if (itemOn == 3)
+			 {
 				if (setupm_colormode == 0)
 					setupm_colormode = 1;
 				else if (setupm_colormode == 1)
 					setupm_colormode = 0;
-				
-				M_GetFollowerState();	// update follower state
 			
 				S_StartSound(NULL,sfx_menu1);
+			 }
 			break;
 		case KEY_DEL:
 			if (cv_skinselectmenu.value)
@@ -11875,8 +11929,8 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 	
 		// check follower color
 		if (setupm_fakefollowercolor < 1)
-			setupm_fakefollowercolor = Followercolor_cons_t[MAXSKINCOLORS+2].value;
-		if (setupm_fakefollowercolor > MAXSKINCOLORS+2)
+			setupm_fakefollowercolor = MAXSKINCOLORS-1;
+		if (setupm_fakefollowercolor > MAXSKINCOLORS-1)
 			setupm_fakefollowercolor = 1;
 
 		if (exitmenu)

@@ -4531,11 +4531,25 @@ static void P_HandleFollower(player_t *player)
 			{
 				// In the air, match their momentum.
 				player->follower->momz = player->mo->momz;
+				if (player->follower->z <= sz) // Don't go under the floor please
+					player->follower->z = sz;
 			}
 			else
 			{	
-				// Other wise match current fllor
+				fixed_t fg = P_GetMobjGravity(player->mo);
+				fixed_t fz = P_GetMobjZMovement(player->follower);
+
+				player->follower->momz = fz;
+
+				// Player is on the ground ... try to get the follower
+				// back to the ground also if it is above it.
+				if (player->follower->z > sz) // Don't go under the floor please
+					player->follower->momz += FixedDiv(fg * 6, fl.vertlag); // Scaled against the default value of vertlag
+				
+				
+				// Other wise match current floor
 				player->follower->momz = sz - player->follower->z;
+
 			}
 		}
 		else
