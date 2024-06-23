@@ -11578,14 +11578,23 @@ static void K_drawNameTags(void)
 			}
 
 			V_DrawThinString(namex, namey - dup*10, V_ALLOWLOWERCASE | vflags, tag);
+			
+			// If you take this for a vanilla-compat client remove hpmod stuff.
+			if (cv_nametaghealth.value && players[i].kartstuff[k_hphealth])
+			{
+				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametaghealth);
+				V_DrawString(namex + dup*10, namey - dup*19, vflags, va("\x8D%d ", players[i].kartstuff[k_hphealth]));
+			}
 
-			if ((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2)
+			//If you take this for a vanilla-compat client remove the hp check.
+			if (((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2) && !(cv_nametaghealth.value && players[i].kartstuff[k_hphealth]))
 			{
 				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametagspeed);
 				V_DrawScaledPatch(namex + dup*18, namey - dup*20, vflags, nametagweight);
 				V_DrawString(namex + dup*9, namey - dup*19, V_ALLOWLOWERCASE | vflags, va("\x84%d ", players[i].kartspeed));
 				V_DrawString(namex + dup*27, namey - dup*19, V_ALLOWLOWERCASE | vflags, va("\x87%d ", players[i].kartweight));
 			}
+				
 			
 			//If you take this for a vanilla-compat client remove the hp check.
 			if (cv_nametagscore.value)
