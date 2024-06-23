@@ -3351,7 +3351,7 @@ static void P_NetArchiveMisc(boolean resending)
 	WRITEUINT32(save_p, totalrings);
 	WRITEINT16(save_p, lastmap);
 
-	for (i = 0; i < 11; i++)
+	for (i = 0; i < 12; i++)
 	{
 		WRITEINT16(save_p, votelevels[i][0]);
 		WRITEINT16(save_p, votelevels[i][1]);
@@ -3470,7 +3470,7 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(boolean reloading)
 	totalrings = READUINT32(save_p);
 	lastmap = READINT16(save_p);
 
-	for (i = 0; i < 11; i++)
+	for (i = 0; i < 12; i++)
 	{
 		votelevels[i][0] = READINT16(save_p);
 		votelevels[i][1] = READINT16(save_p);
