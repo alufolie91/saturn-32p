@@ -15,6 +15,7 @@
 ///        Pending weapon.
 
 #include "doomdef.h"
+#include "doomstat.h"
 #include "i_system.h"
 #include "d_event.h"
 #include "d_net.h"
@@ -4685,9 +4686,21 @@ static void P_HandleFollower(player_t *player)
 		// However with how the code is factored, this is just a special case of S_INVISBLE to avoid having to add other player variables.
 
 		// handle follower animations. Could probably be better...
-		// hurt or dead
-		if (P_PlayerInPain(player) == true || player->mo->state == &states[S_KART_SPIN] || player->mo->health <= 0)
+		
+		// Squish
+		if (player->kartstuff[k_squishedtimer] > 0) 
 		{
+			if (player->kartstuff[k_squishedtimer] > 1)
+				player->follower->spriteyscale = FRACUNIT/4;
+			else
+				player->follower->spriteyscale = FRACUNIT;
+			
+			K_UpdateFollowerState(player->follower, fl.hurtstate, FOLLOWERSTATE_HURT);
+			
+		}
+		else if (P_PlayerInPain(player) == true || player->mo->state == &states[S_KART_SPIN] || player->mo->health <= 0) 
+		{
+			// hurt or dead
 			// cancel hit confirm / rings
 			player->follower->movecount = 0;
 			player->follower->cvmem = 0;
