@@ -11479,6 +11479,8 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			flags &= ~V_FLIP;
 
 		// @TODO: Reminder that followers on the menu right now do NOT support the 'followercolor' command, considering this whole menu is getting remade anyway, I see no point in incorporating it in right now.
+		
+		// ^ Haha so you say :^) - NepDisk
 
 		// draw follower sprite
 		if (setupm_fakefollowercolor) // inverse should never happen

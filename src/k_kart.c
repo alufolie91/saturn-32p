@@ -1514,6 +1514,33 @@ static INT32 K_KartItemOddsRace[NUMKARTRESULTS][10] =
 			   /*Jawz x2*/ { 0, 0, 0, 1, 2, 0, 0, 0, 0, 0 }  // Jawz x2
 };
 
+// Less ugly 2D arrays
+static INT32 K_KartCEPItemOddsRace[NUMKARTRESULTS][10] =
+{
+                //P-Odds     0  1  2  3  4  5  6  7  8  9
+               /*Sneaker*/ {20, 0, 1, 4, 6, 7, 0, 0, 0, 0 }, // Sneaker
+        /*Rocket Sneaker*/ { 0, 0, 0, 0, 0, 1, 4, 6, 3, 0 }, // Rocket Sneaker
+         /*Invincibility*/ { 0, 0, 0, 0, 0, 1, 4, 6,10, 0 }, // Invincibility
+                /*Banana*/ { 0, 9, 4, 2, 1, 0, 0, 0, 0, 0 }, // Banana
+        /*Eggman Monitor*/ { 0, 2, 1, 1, 0, 0, 0, 0, 0, 0 }, // Eggman Monitor
+              /*Orbinaut*/ { 0, 7, 6, 4, 2, 0, 0, 0, 0, 0 }, // Orbinaut
+                  /*Jawz*/ { 0, 0, 3, 2, 1, 1, 0, 0, 0, 0 }, // Jawz
+                  /*Mine*/ { 0, 0, 2, 2, 1, 0, 0, 0, 0, 0 }, // Mine
+               /*Ballhog*/ { 0, 0, 0, 2, 1, 0, 0, 0, 0, 0 }, // Ballhog
+   /*Self-Propelled Bomb*/ { 0, 0, 1, 2, 3, 4, 2, 2, 0,20 }, // Self-Propelled Bomb
+                  /*Grow*/ { 0, 0, 0, 0, 0, 0, 2, 5, 7, 0 }, // Grow
+                /*Shrink*/ { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 }, // Shrink
+        /*Thunder Shield*/ { 0, 1, 2, 0, 0, 0, 0, 0, 0, 0 }, // Thunder Shield
+               /*Hyudoro*/ { 0, 0, 0, 0, 1, 2, 1, 0, 0, 0 }, // Hyudoro
+           /*Pogo Spring*/ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Pogo Spring
+          /*Kitchen Sink*/ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Kitchen Sink
+            /*Sneaker x3*/ { 0, 0, 0, 0, 3, 7, 9, 2, 0, 0 }, // Sneaker x3
+             /*Banana x3*/ { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0 }, // Banana x3
+            /*Banana x10*/ { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }, // Banana x10
+           /*Orbinaut x3*/ { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 }, // Orbinaut x3
+           /*Orbinaut x4*/ { 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 }, // Orbinaut x4
+               /*Jawz x2*/ { 0, 0, 0, 1, 2, 0, 0, 0, 0, 0 }  // Jawz x2
+};
 
 static INT32 K_KartItemOddsBattle[NUMKARTRESULTS][2] =
 {
@@ -1645,8 +1672,6 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 		cv_dualjawz.value
 	};
 
-	
-	
 	distvar = cv_uranusdistvar.value;
 	
 	//Custom odds
@@ -1677,7 +1702,6 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 			   /*Jawz x2*/ {cv_DJAITBL1.value, cv_DJAITBL2.value, cv_DJAITBL3.value, cv_DJAITBL4.value, cv_DJAITBL5.value, cv_DJAITBL6.value, cv_DJAITBL7.value, cv_DJAITBL8.value, cv_DJAITBL9.value, cv_DJAITBL10.value }  // Jawz x2
 	};
 	
-	
 	I_Assert(item > KITEM_NONE); // too many off by one scenarioes.
 
 	if (!itemenabled[item-1] && !modeattacking)
@@ -1686,10 +1710,12 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 	if (G_BattleGametype())
 		newodds = K_KartItemOddsBattle[item-1][pos];
 	else
+	{
 		if (cv_customodds.value)
 			newodds = K_KartCustomOddsRace[item-1][pos];
 		else
 			newodds = K_KartItemOddsRace[item-1][pos];
+	}
 
 	// Base multiplication to ALL item odds to simulate fractional precision
 	newodds *= 4;
@@ -2054,11 +2080,29 @@ static void K_KartItemRoulette(player_t *player, ticcmd_t *cmd)
 	player->kartstuff[k_roulettetype] = 0; // This too
 }
 
-
-
 //Fuckal odds start here
 
+// Magic number distance for use with item roulette tiers
+#define DISTVAR (cv_cepdistvar.value)
+#define DISTHALF (cv_cepdisthalf.value)
 
+// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
+// (It's vague if SRB2Kart wanted this to be 3 or 4...)
+
+// let's keep this at the 1.3 valu- AAAACK NO NO NO THERE'S SPBS EVERYWHERE FUCK
+
+// kill me right now, time for 4.5
+#define SPBSTARTDIST ((9*cv_cepspbdistvar.value) / 2)
+
+// Distance between 1st and 2nd, where SPB is forcefully given to 2nd place.
+#define SPBFORCEDIST (SPBSTARTDIST + (2*cv_cepspbdistvar.value))
+
+// forcedist = 5760 + 2560 = 8320
+// this will likely change often
+
+// Distance from finish line when the game stops giving you bananas
+// (If only waypoints were sophisticated enough to bring this one over...)
+//#define ENDDIST (12*DISTVAR)
 
 // here comes the ring ravagers rewrite
 static fixed_t K_FuckalItemOddsScale(UINT8 numPlayers, boolean spbrush)
@@ -2147,8 +2191,6 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 	boolean thunderisout = false;
 	SINT8 first = -1, second = -1;
 	UINT32 secondToFirst = 0;
-	INT32 SPBSTARTDIST; 
-	INT32 SPBFORCEDIST;
 	boolean itemenabled[NUMKARTRESULTS-1] = {
 		cv_sneaker.value,
 		cv_rocketsneaker.value,
@@ -2174,27 +2216,7 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 		cv_dualjawz.value
 	};
 	
-
-	
-
-	// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
-	// (It's vague if SRB2Kart wanted this to be 3 or 4...)
-
-	// let's keep this at the 1.3 valu- AAAACK NO NO NO THERE'S SPBS EVERYWHERE FUCK
-
-	// kill me right now, time for 4.5
-	//#define SPBSTARTDIST ((9*DISTVAR) / 2)
-		
-
-	// Distance between 1st and 2nd, where SPB is forcefully given to 2nd place.
-	//#define SPBFORCEDIST (SPBSTARTDIST + (2*DISTVAR))
-	SPBSTARTDIST = ((9*cv_cepspbdistvar.value) / 2);
-	SPBFORCEDIST = (SPBSTARTDIST + (2*cv_cepspbdistvar.value));
-
-	// forcedist = 5760 + 2560 = 8320
-	// this will likely change often	
-	
-		//Custom odds
+	//Custom odds
 	INT32 K_KartCustomOddsRace[NUMKARTRESULTS][10] =
 	{
 				//P-Odds	 0				  1				  2				  3				 	 4  			5 				 6				  7					  8				  9
@@ -2234,10 +2256,12 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 	if (G_BattleGametype())
 		newodds = K_KartItemOddsBattle[item-1][pos];
 	else
+	{
 		if (cv_customodds.value)
 			newodds = K_KartCustomOddsRace[item-1][pos];
 		else
-			newodds = K_KartItemOddsRace[item-1][pos];
+			newodds = K_KartCEPItemOddsRace[item-1][pos];
+	}
 
 	// Base multiplication to ALL item odds to simulate fractional precision
 	newodds *= 4;
@@ -2396,7 +2420,7 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 	SINT8 sortedPlayers[MAXPLAYERS];
 	UINT8 sortLength = 0;
 
-	INT32 pdis = 0;
+	UINT32 pdis = 0;
 
 	UINT8 disttable[14];
 	UINT8 distlen = 0;
@@ -2405,45 +2429,6 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 	boolean ufo;
 	INT32 useodds = 0;
 	
-	INT32 DISTVAR;
-	
-	INT32 SPBSTARTDIST; 
-	INT32 SPBFORCEDIST;
-	
-	//Making magic numbers into convars here
-	// Magic number distance for use with item roulette tiers
-	//#define DISTVAR (1280) 
-	//#define DISTHALF (640)
-
-	
-	DISTVAR = cv_cepdistvar.value;
-	
-	
-
-	// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
-	// (It's vague if SRB2Kart wanted this to be 3 or 4...)
-
-	// let's keep this at the 1.3 valu- AAAACK NO NO NO THERE'S SPBS EVERYWHERE FUCK
-
-	// kill me right now, time for 4.5
-	//#define SPBSTARTDIST ((9*DISTVAR) / 2)
-		
-
-	// Distance between 1st and 2nd, where SPB is forcefully given to 2nd place.
-	//#define SPBFORCEDIST (SPBSTARTDIST + (2*DISTVAR))
-	SPBSTARTDIST = ((9*cv_cepspbdistvar.value) / 2);
-	SPBFORCEDIST = (SPBSTARTDIST + (2*cv_cepspbdistvar.value));
-
-	// forcedist = 5760 + 2560 = 8320
-	// this will likely change often
-
-	// Distance from finish line when the game stops giving you bananas
-	// (If only waypoints were sophisticated enough to bring this one over...)
-	//#define ENDDIST (12*DISTVAR)
-	
-	
-	
-
 	INT32 i;
 
 	// Unused now, oops :V
@@ -2633,14 +2618,14 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 			// 1st place
 			useodds = disttable[0];
 		}
-		else if (player->kartstuff[k_position] == 2 && pdis > (SPBFORCEDIST*6)
+		else if (player->kartstuff[k_position] == 2 && pdis > (unsigned)(SPBFORCEDIST*6)
 			&& spbplace == -1 && !indirectitemcooldown && !dontforcespb
 			&& oddsvalid[9])
 		{
 			// Force SPB in 2nd
 			useodds = 9;
 		}
-		else if (pdis > DISTVAR * ((12 * distlen) / 14))
+		else if (pdis > (unsigned)DISTVAR * ((12 * distlen) / 14))
 		{
 			// Back of the pack
 			useodds = disttable[distlen-1];
@@ -2649,7 +2634,7 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 		{
 			for (i = 1; i < 13; i++)
 			{
-				if (pdis <= (DISTVAR * ((i * distlen) / 14)))
+				if (pdis <= (unsigned)(DISTVAR * ((i * distlen) / 14)))
 				{
 					useodds = disttable[((i * distlen) / 14)];
 					break;
@@ -2793,15 +2778,11 @@ static void K_FuckalKartItemRoulette(player_t *player, ticcmd_t *cmd)
 	player->kartstuff[k_itemroulette] = 0; // Since we're done, clear the roulette number
 	player->kartstuff[k_roulettetype] = 0; // This too
 }
-
-
-
-
 //Fuckal odds end here
-
-
-
-
+#undef SPBFORCEDIST
+#undef SPBSTARTDIST
+#undef DISTVAR
+#undef DISTHALF
 
 //}
 

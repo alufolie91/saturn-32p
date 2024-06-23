@@ -567,10 +567,10 @@ consvar_t cv_JAWITBL10 = {"JAWITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t,
 
 //MINE
 consvar_t cv_MINITBL1 = {"MINITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_MINITBL2 = {"MINITBL1", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL2 = {"MINITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_MINITBL3 = {"MINITBL2", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_MINITBL4 = {"MINITBL3", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_MINITBL5 = {"MINITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL4 = {"MINITBL3", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL5 = {"MINITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_MINITBL6 = {"MINITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_MINITBL7 = {"MINITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_MINITBL8 = {"MINITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -2016,6 +2016,10 @@ static void SendNameAndColor(void)
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
+	
+	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
+	if (cv_follower.value > numfollowers-1 || cv_follower.value < -1)
+		CV_StealthSet(&cv_follower, "-1");
 
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (!netgame)
@@ -2155,6 +2159,10 @@ static void SendNameAndColor2(void)
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
+	
+	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
+	if (cv_follower2.value > numfollowers-1 || cv_follower2.value < -1)
+		CV_StealthSet(&cv_follower2, "-1");
 
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (botingame)
@@ -2293,7 +2301,11 @@ static void SendNameAndColor3(void)
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
-
+	
+	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
+	if (cv_follower3.value > numfollowers-1 || cv_follower3.value < -1)
+		CV_StealthSet(&cv_follower3, "-1");
+	
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (!netgame)
 	{
@@ -2425,6 +2437,10 @@ static void SendNameAndColor4(void)
 	if (!Playing())
 		return;
 
+	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
+	if (cv_follower4.value > numfollowers-1 || cv_follower4.value < -1)
+		CV_StealthSet(&cv_follower4, "-1");
+	
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (botingame)
 	{
