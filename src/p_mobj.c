@@ -9781,6 +9781,11 @@ static void P_DefaultMobjShadowScale(mobj_t *thing)
 		case MT_EXPLODINGBARREL:
 		case MT_FROGGER:
 		case MT_ROBRA:
+		case MT_CHOMPER:
+		case MT_BUZZBOMBER:
+		case MT_GARGOYLE:
+		case MT_GBA_BOO:
+		case MT_FLYINGGARG:
 			thing->shadowscale = FRACUNIT;
 			thing->haveshadow = true;
 			break;

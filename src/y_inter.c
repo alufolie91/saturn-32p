@@ -1712,7 +1712,7 @@ void Y_VoteTicker(void)
 		{
 			UINT8 p;
 			boolean pressed = false;
-			UINT32 votewrap = 0;
+			INT16 votewrap = 0;
 
 			if (votemax == 2)
 				votewrap = 3;

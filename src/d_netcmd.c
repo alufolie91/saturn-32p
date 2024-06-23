@@ -472,7 +472,7 @@ consvar_t cv_itemodds = {"itemoddsystem", "CEP", CV_NETVAR|CV_CHEAT, itemoddstyp
 static CV_PossibleValue_t itemtable_cons_t[] = {{0, "MIN"}, {100, "MAX"}, {0, NULL}};
 //Item table customization 220 (Yes really)
 
-consvar_t cv_customodds = 				{"customodds", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_customodds = 				{"customodds", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t distvar_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
 consvar_t cv_cepdistvar = {"CEPDISTVAR", "1280", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -480,10 +480,6 @@ consvar_t cv_cepdisthalf = {"CEPDISTHALF", "640", CV_NETVAR|CV_CHEAT, distvar_co
 consvar_t cv_cepspbdistvar = {"CEPSPBDISTVAR", "1280", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_uranusdistvar = {"URANUSDISTVAR", "896", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-
-
-
 
 //Sneaker
 consvar_t cv_SITBL1 = {"SITBL0", "20", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -3123,7 +3119,7 @@ void D_SetupVote(void)
 	INT32 i;
 	UINT8 gt = (cv_kartgametypepreference.value == -1) ? gametype : cv_kartgametypepreference.value;
 	//UINT8 secondgt = G_SometimesGetDifferentGametype(gt);
-	UINT8 secondgt;
+	UINT8 secondgt = 0;
 	INT16 votebuffer[4] = {-1,-1,-1,0};
 
 	if (G_RaceGametype() && cv_kartencore.value)

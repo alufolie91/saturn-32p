@@ -112,6 +112,7 @@ consvar_t cv_alwaysshowitemstacks = {"alwaysshowitemstacks", "Off", CV_SAVE, CV_
 
 consvar_t cv_battlespeedo = {"battlespeedo", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //toggle for showing the speedometer in battlemode
 
+consvar_t cv_chainsound = {"chainsound", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
 // gamespeed is cc (0 for easy, 1 for normal, 2 for hard, 3 for expert)
@@ -1433,6 +1434,9 @@ void K_RegisterKartStuff(void)
 	
 	// New water
 	CV_RegisterVar(&cv_newwatersplash);
+	
+	// Chainsound
+	CV_RegisterVar(&cv_chainsound);
 }
 
 //}
@@ -2392,7 +2396,7 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 	SINT8 sortedPlayers[MAXPLAYERS];
 	UINT8 sortLength = 0;
 
-	UINT32 pdis = 0;
+	INT32 pdis = 0;
 
 	UINT8 disttable[14];
 	UINT8 distlen = 0;
@@ -2645,7 +2649,7 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 		{
 			for (i = 1; i < 13; i++)
 			{
-				if (pdis <= (unsigned)(DISTVAR * ((i * distlen) / 14)))
+				if (pdis <= (DISTVAR * ((i * distlen) / 14)))
 				{
 					useodds = disttable[((i * distlen) / 14)];
 					break;
@@ -7655,7 +7659,8 @@ static void K_KartDrift(player_t *player, boolean onground)
 		
 		if ((player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && cv_sneakerextend.value)
 		{
-			S_StartSound(player->mo, sfx_bstchn);
+			if (cv_chainsound.value)
+				S_StartSound(player->mo, sfx_bstchn);
 			player->kartstuff[k_chainsound] = 1;
 		}
 		else
@@ -8728,7 +8733,8 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
 	{
 		if ((player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && player->kartstuff[k_driftboost] && !(player->kartstuff[k_chainsound]))
 		{
-			S_StartSound(player->mo, sfx_bstchn);
+			if (cv_chainsound.value)
+				S_StartSound(player->mo, sfx_bstchn);
 			player->kartstuff[k_chainsound] = 1;
 		}
 		

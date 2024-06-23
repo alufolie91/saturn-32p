@@ -42,6 +42,7 @@ extern consvar_t cv_sneakerstacksound;
 extern consvar_t cv_synchedlookback;
 extern consvar_t cv_hidefollowers;
 extern consvar_t cv_newwatersplash;
+extern consvar_t cv_chainsound;
 
 #define NUMSPEEDOSTUFF 6
 extern CV_PossibleValue_t speedo_cons_t[NUMSPEEDOSTUFF];

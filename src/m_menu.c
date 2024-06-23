@@ -2228,17 +2228,21 @@ static menuitem_t OP_NeptuneTwoMenu[] =
 	{IT_HEADER, NULL, "Neptune Options", NULL, 0},
 	
 	//{IT_HEADER, NULL, "Stacking", NULL, 10},
-	{IT_STRING | IT_CVAR, NULL, "Multi-Sneaker icon", 			&cv_multisneakericon, 	 	10},
-	{IT_STRING | IT_CVAR, NULL, "Always Show Item Stack Number",&cv_alwaysshowitemstacks, 	 15},
+	{IT_STRING | IT_CVAR, NULL, "Multi-Sneaker icon", 				&cv_multisneakericon, 	 	10},
+	{IT_STRING | IT_CVAR, NULL, "Always Show Item Stack Number",	&cv_alwaysshowitemstacks, 	 15},
 	{IT_STRING | IT_CVAR, NULL, "Player-Colored Sneaker Fire", 		&cv_coloredsneakertrail, 20},
-	{IT_STRING | IT_CVAR, NULL, "Sneaker Fire", 		&cv_sneakerfire,25},
+	{IT_STRING | IT_CVAR, NULL, "Sneaker Fire", 					&cv_sneakerfire,25},
 	
-	{IT_STRING | IT_CVAR, NULL, "Stacking Effect", 		&cv_stackingeffect,	 	30},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Effect", 					&cv_stackingeffect,	 	30},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Effect Scaling", 			&cv_stackingeffectscaling,	35},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Boostflame color", 		&cv_stackingboostflamecolor,40},
-	{IT_STRING | IT_CVAR, NULL, "Stacking Sneaker Sound", 		&cv_sneakerstacksound,45},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Sneaker Sound", 			&cv_sneakerstacksound,45},
 	
-	{IT_STRING | IT_CVAR, NULL, "Synched Lookback", 		&cv_synchedlookback,55},
+	{IT_STRING | IT_CVAR, NULL, "Synched Lookback", 				&cv_synchedlookback,55},
+	
+	{IT_STRING | IT_CVAR, NULL, "Hide Followers", 					&cv_hidefollowers,65},
+	{IT_STRING | IT_CVAR, NULL, "Chain Sound", 						&cv_chainsound,70},
+	{IT_STRING | IT_CVAR, NULL, "New Water Splash", 				&cv_newwatersplash,75},
 };
 
 static const char* OP_NeptuneTwoTooltips[] =
@@ -2256,6 +2260,10 @@ static const char* OP_NeptuneTwoTooltips[] =
 	"Sneakers change sound when stacking.",
 	
 	"Allows you to see when others look back.\nThis may introduce input lag to lookback button when active.",
+	
+	"Hide Player followers from your view.",
+	"Toggle Chain sound on sneaker extension.",
+	"Use water splash from Ring Racers.",
 
 };
 
@@ -2271,6 +2279,9 @@ enum
 	pmt_stackbfc,
 	pmt_sstacksfx,
 	pmt_synclb,
+	pmt_hfollow,
+	pmt_chainsfx,
+	pmt_wtersplsh,
 };
 
 
@@ -10685,7 +10696,7 @@ static const char *sortNames[] = {
 static void M_DrawSetupMultiPlayerMenu(void)
 {
 	INT32 mx, my, st, flags = 0;
-	INT32 tw = 0;
+	//INT32 tw = 0;
 	spritedef_t *sprdef;
 	spriteframe_t *sprframe;
 	patch_t *statbg = W_CachePatchName("K_STATBG", PU_CACHE);
@@ -10751,7 +10762,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 #define GETSELECTEDWEIGHT (itemOn == 1 && setupm_skinselect < numskins ? skins[skinsorted[setupm_skinselect]].kartweight : skins[setupm_fakeskin].kartweight)
 
 			statoffset = 0;
-			tw = V_StringWidth("Character", 0);//V_StringWidth(GETSELECTEDSKINNAME, 0);
+			//tw = V_StringWidth("Character", 0);//V_StringWidth(GETSELECTEDSKINNAME, 0);
 			st = V_StringWidth(GETSELECTEDSKINNAME, 0);
 			
 			INT32 selectedskin = (itemOn == 1 && setupm_skinselect < numskins ? skinsorted[setupm_skinselect] : setupm_fakeskin);
@@ -10773,7 +10784,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			break;
 		case SKINMENUTYPE_GRID:
 #define GETSELECTEDSKINNAME (itemOn == 1 && setupm_skinselect < numskins ? skins[skinsorted[setupm_skinselect]].realname : skins[setupm_fakeskin].realname)
-			tw = V_StringWidth("Character", 0);//V_StringWidth(GETSELECTEDSKINNAME, 0);
+			//tw = V_StringWidth("Character", 0);//V_StringWidth(GETSELECTEDSKINNAME, 0);
 			st = V_StringWidth(GETSELECTEDSKINNAME, 0);
 			V_DrawString(mx, my + 35,
 				((MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0) | highlightflags | V_ALLOWLOWERCASE,
@@ -10788,7 +10799,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			else if (skinstatscount[setupm_skinxpos][setupm_skinypos] && itemOn == 1)
 				skintodisplay = skinstats[setupm_skinxpos][setupm_skinypos][(I_GetTime()/TICRATE)%SELECTEDSTATSCOUNT];
 
-			tw = V_StringWidth("Character", 0);
+			//tw = V_StringWidth("Character", 0);
 			st = V_StringWidth(skins[skintodisplay].realname, 0);
 			V_DrawString(mx, my + 35,
 				((MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0) | highlightflags | V_ALLOWLOWERCASE,
