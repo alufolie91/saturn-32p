@@ -32,6 +32,7 @@ typedef enum
 	BT_ATTACK		= 1<<4,		// Use Item
 	BT_FORWARD		= 1<<5,		// Aim Item Forward
 	BT_BACKWARD		= 1<<6,		// Aim Item Backward
+	BT_LOOKBACK		= 1<<7,		// Look Backwards
 
 	// free: 1<<7 to 1<<12
 

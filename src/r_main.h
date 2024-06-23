@@ -64,6 +64,9 @@ extern lighttable_t *zlight[LIGHTLEVELS][MAXLIGHTZ];
 // There a 0-31, i.e. 32 LUT in the COLORMAP lump.
 #define NUMCOLORMAPS 32
 
+#define COLORMAP_SIZE (256*LIGHTLEVELS)
+#define COLORMAP_REMAPOFFSET COLORMAP_SIZE
+
 // Utility functions.
 INT32 R_PointOnSide(fixed_t x, fixed_t y, const node_t *node);
 INT32 R_PointOnSegSide(fixed_t x, fixed_t y, const seg_t *line);
@@ -82,6 +85,7 @@ boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y);
 subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y);
 
 boolean R_DoCulling(line_t *cullheight, line_t *viewcullheight, fixed_t vz, fixed_t bottomh, fixed_t toph);
+void R_GetRenderBlockMapDimensions(fixed_t drawdist, INT32 *xl, INT32 *xh, INT32 *yl, INT32 *yh);
 
 // Performance stats
 extern precise_t ps_prevframetime;// time when previous frame was rendered
@@ -111,7 +115,7 @@ extern consvar_t cv_showhud, cv_translucenthud, cv_uncappedhud;
 extern consvar_t cv_homremoval;
 extern consvar_t cv_chasecam, cv_chasecam2, cv_chasecam3, cv_chasecam4;
 extern consvar_t cv_flipcam, cv_flipcam2, cv_flipcam3, cv_flipcam4;
-extern consvar_t cv_shadow, cv_shadowoffs;
+extern consvar_t cv_dropshadow, cv_shadow, cv_shadowoffs;
 extern consvar_t cv_ffloorclip, cv_spriteclip;
 extern consvar_t cv_translucency;
 extern consvar_t cv_drawdist, cv_drawdist_precip, cv_lessprecip;

@@ -53,7 +53,7 @@ enum hook {
 	hook_PlayerExplode,	//SRB2KART
 	hook_PlayerSquish,	//SRB2KART
 	hook_PlayerCmd,		//SRB2KART
-	hook_IntermissionThinker, //SRB2KART
+	hook_IntermissionThinker, //SRB2KARTD
 	hook_VoteThinker, 	//SRB2KART
 	hook_TitleThinker,
 	hook_PlayerItemUse, //SRB2KART
@@ -61,6 +61,7 @@ enum hook {
 	hook_KartStealBumper, //SRB2KART
 	hook_MobjScaleChange, 	//SRB2KART
 	hook_KartSneaker,	//SRB2KART
+	hook_ServerJoin, // SRB2KART - Saturn 32p
 
 	hook_MAX // last hook
 };
@@ -112,6 +113,8 @@ boolean LUAh_PlayerSpin(player_t *player, mobj_t *inflictor, mobj_t *source); //
 boolean LUAh_PlayerExplode(player_t *player, mobj_t *inflictor, mobj_t *source); // SRB2KART: Hook for K_ExplodePlayer. Allows Lua to execute code and/or overwrite its behavior.
 boolean LUAh_PlayerSquish(player_t *player, mobj_t *inflictor, mobj_t *source); // SRB2KART: Hook for K_SquishPlayer. Allows Lua to execute code and/or overwrite its behavior.
 
+void LUAh_ServerJoin(void); // SRB2KART - Saturn 32p: called by client when joining a server, allows lua to load any sort of config file
+
 boolean LUAh_PlayerCmd(player_t *player, ticcmd_t *cmd);	// Allows to write to player cmd before the game does anything with them.
 
 void LUAh_IntermissionThinker(void); // Hook for Y_Ticker
@@ -125,4 +128,3 @@ boolean LUAh_KartHyudoro(player_t *player, INT32 *target, boolean sink); // SRB2
 boolean LUAh_KartStealBumper(player_t *player, player_t *target, boolean *force); // SRB2Kart: Hook for K_StealBumper.
 boolean LUAh_MobjScaleChange(mobj_t *target, fixed_t newscale, fixed_t oldscale); // SRB2Kart: Hook for P_SetScale.
 boolean LUAh_KartSneaker(player_t *player, int type); // SRB2Kart: Hook for K_DoSneaker.
-

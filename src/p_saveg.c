@@ -55,6 +55,7 @@ typedef enum
 	AWAYVIEW   = 0x08,
 	FIRSTAXIS  = 0x10,
 	SECONDAXIS = 0x20,
+	FOLLOWER = 0x40,
 } player_saveflags;
 
 //
@@ -244,6 +245,9 @@ static void P_NetArchivePlayers(void)
 
 		if (players[i].axis2)
 			flags |= SECONDAXIS;
+		
+		if (players[i].follower)
+			flags |= FOLLOWER;
 
 		WRITEINT16(save_p, players[i].lastsidehit);
 		WRITEINT16(save_p, players[i].lastlinehit);
@@ -280,6 +284,13 @@ static void P_NetArchivePlayers(void)
 		// SRB2kart
 		WRITEUINT8(save_p, players[i].kartspeed);
 		WRITEUINT8(save_p, players[i].kartweight);
+		
+		WRITEUINT8(save_p, players[i].followerskin);
+		WRITEUINT8(save_p, players[i].followerready);	// booleans are really just numbers eh??
+		WRITEUINT16(save_p, players[i].followercolor);
+		if (flags & FOLLOWER)
+			WRITEUINT32(save_p, players[i].follower->mobjnum);
+		
 		//
 
 		for (j = 0; j < MAXPREDICTTICS; j++)
@@ -458,6 +469,12 @@ static void P_NetUnArchivePlayers(void)
 		// SRB2kart
 		players[i].kartspeed = READUINT8(save_p);
 		players[i].kartweight = READUINT8(save_p);
+		players[i].followerskin = READUINT8(save_p);
+		players[i].followerready = READUINT8(save_p);
+		players[i].followercolor = READUINT16(save_p);
+		if (flags & FOLLOWER)
+			players[i].follower = (mobj_t *)(size_t)READUINT32(save_p);
+		
 		//
 
 		for (j = 0; j < MAXPREDICTTICS; j++)
@@ -467,6 +484,38 @@ static void P_NetUnArchivePlayers(void)
 		}
 	}
 }
+
+static void P_NetArchiveWaypoints(void)
+{
+	INT32 i, j;
+
+	for (i = 0; i < NUMWAYPOINTSEQUENCES; i++)
+	{
+		WRITEUINT16(save_p, numwaypoints[i]);
+		for (j = 0; j < numwaypoints[i]; j++)
+			WRITEUINT32(save_p, waypoints[i][j] ? waypoints[i][j]->mobjnum : 0);
+	}
+}
+
+static void P_NetUnArchiveWaypoints(void)
+{
+	INT32 i, j;
+	UINT32 mobjnum;
+
+	for (i = 0; i < NUMWAYPOINTSEQUENCES; i++)
+	{
+		numwaypoints[i] = READUINT16(save_p);
+		for (j = 0; j < numwaypoints[i]; j++)
+		{
+			mobjnum = READUINT32(save_p);
+			waypoints[i][j] = (mobjnum == 0) ? NULL : P_FindNewPosition(mobjnum);
+		}
+	}
+}
+
+///
+/// World Archiving
+///
 
 #define SD_FLOORHT  0x01
 #define SD_CEILHT   0x02
@@ -513,34 +562,15 @@ static void P_NetArchiveWorld(void)
 	UINT8 *put;
 
 	// reload the map just to see difference
-	mapsector_t *ms;
-	mapsidedef_t *msd;
-	maplinedef_t *mld;
+	virtres_t* virt = vres_GetMap(lastloadedmaplumpnum);
+	mapsector_t  *ms  = (mapsector_t*) vres_Find(virt, "SECTORS")->data;
+	mapsidedef_t *msd = (mapsidedef_t*) vres_Find(virt, "SIDEDEFS")->data;
+	maplinedef_t *mld = (maplinedef_t*) vres_Find(virt, "LINEDEFS")->data;
 	const sector_t *ss = sectors;
 	UINT8 diff, diff2;
 
 	WRITEUINT32(save_p, ARCHIVEBLOCK_WORLD);
 	put = save_p;
-
-	if (W_IsLumpWad(lastloadedmaplumpnum)) // welp it's a map wad in a pk3
-	{ // HACK: Open wad file rather quickly so we can get the data from the relevant lumps
-		UINT8 *wadData = W_CacheLumpNum(lastloadedmaplumpnum, PU_STATIC);
-		filelump_t *fileinfo = (filelump_t *)(wadData + ((wadinfo_t *)wadData)->infotableofs);
-#define retrieve_mapdata(d, f)\
-		d = Z_Malloc((f)->size, PU_CACHE, NULL); \
-		M_Memcpy(d, wadData + (f)->filepos, (f)->size)
-		retrieve_mapdata(ms, fileinfo + ML_SECTORS);
-		retrieve_mapdata(mld, fileinfo + ML_LINEDEFS);
-		retrieve_mapdata(msd, fileinfo + ML_SIDEDEFS);
-#undef retrieve_mapdata
-		Z_Free(wadData); // we're done with this now
-	}
-	else // phew it's just a WAD
-	{
-			ms = W_CacheLumpNum(lastloadedmaplumpnum+ML_SECTORS, PU_CACHE);
-			mld = W_CacheLumpNum(lastloadedmaplumpnum+ML_LINEDEFS, PU_CACHE);
-			msd = W_CacheLumpNum(lastloadedmaplumpnum+ML_SIDEDEFS, PU_CACHE);
-	}
 
 	for (i = 0; i < numsectors; i++, ss++, ms++)
 	{
@@ -751,6 +781,7 @@ static void P_NetArchiveWorld(void)
 	WRITEUINT16(put, 0xffff);
 	R_ClearTextureNumCache(false);
 
+	vres_Free(virt);
 	save_p = put;
 }
 
@@ -965,8 +996,14 @@ typedef enum
 	MD2_HNEXT       = 1<<7,
 	MD2_HPREV       = 1<<8,
 	MD2_COLORIZED	= 1<<9,
-	MD2_WAYPOINTCAP	= 1<<10
-	, MD2_SLOPE       = 1<<11
+	MD2_WAYPOINTCAP	= 1<<10, 
+	MD2_SLOPE       = 1<<11,
+	MD2_MIRRORED    = 1<<12,
+	MD2_ROLLANGLE  = 1<<13,
+	MD2_SPRITEXSCALE        = 1<<14,
+	MD2_SPRITEYSCALE        = 1<<15,
+	MD2_SPRITEXOFFSET       = 1<<16,
+	MD2_SPRITEYOFFSET       = 1<<17,
 } mobj_diff2_t;
 
 typedef enum
@@ -1167,6 +1204,18 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		diff2 |= MD2_SLOPE;
 	if (mobj->colorized)
 		diff2 |= MD2_COLORIZED;
+	if (mobj->mirrored)
+		diff2 |= MD2_MIRRORED;
+	if (mobj->rollangle)
+		diff2 |= MD2_ROLLANGLE;
+	if (mobj->spritexscale != FRACUNIT)
+		diff2 |= MD2_SPRITEXSCALE;
+	if (mobj->spriteyscale != FRACUNIT)
+		diff2 |= MD2_SPRITEYSCALE;
+	if (mobj->spritexoffset)
+		diff2 |= MD2_SPRITEXOFFSET;
+	if (mobj->spriteyoffset)
+		diff2 |= MD2_SPRITEYOFFSET;
 	if (mobj == waypointcap)
 		diff2 |= MD2_WAYPOINTCAP;
 	if (diff2 != 0)
@@ -1206,6 +1255,8 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		WRITEFIXED(save_p, mobj->x);
 		WRITEFIXED(save_p, mobj->y);
 		WRITEANGLE(save_p, mobj->angle);
+		WRITEANGLE(save_p, mobj->pitch);
+		WRITEANGLE(save_p, mobj->roll);
 	}
 	if (diff & MD_MOM)
 	{
@@ -1289,6 +1340,18 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		WRITEUINT16(save_p, mobj->standingslope->id);
 	if (diff2 & MD2_COLORIZED)
 		WRITEUINT8(save_p, mobj->colorized);
+	if (diff2 & MD2_MIRRORED)
+		WRITEUINT8(save_p, mobj->mirrored);
+	if (diff2 & MD2_ROLLANGLE)
+		WRITEANGLE(save_p, mobj->rollangle);
+	if (diff2 & MD2_SPRITEXSCALE)
+		WRITEFIXED(save_p, mobj->spritexscale);
+	if (diff2 & MD2_SPRITEYSCALE)
+		WRITEFIXED(save_p, mobj->spriteyscale);
+	if (diff2 & MD2_SPRITEXOFFSET)
+		WRITEFIXED(save_p, mobj->spritexoffset);
+	if (diff2 & MD2_SPRITEYOFFSET)
+		WRITEFIXED(save_p, mobj->spriteyoffset);
 
 	WRITEUINT32(save_p, mobj->mobjnum);
 }
@@ -1640,6 +1703,7 @@ static void SavePolywaypointThinker(const thinker_t *th, UINT8 type)
 	WRITEFIXED(save_p, ht->diffx);
 	WRITEFIXED(save_p, ht->diffy);
 	WRITEFIXED(save_p, ht->diffz);
+	WRITEUINT32(save_p, SaveMobjnum(ht->target));
 }
 
 //
@@ -2064,12 +2128,16 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		mobj->x = READFIXED(save_p);
 		mobj->y = READFIXED(save_p);
 		mobj->angle = READANGLE(save_p);
+		mobj->pitch = READANGLE(save_p);
+		mobj->roll = READANGLE(save_p);
 	}
 	else
 	{
 		mobj->x = mobj->spawnpoint->x << FRACBITS;
 		mobj->y = mobj->spawnpoint->y << FRACBITS;
 		mobj->angle = FixedAngle(mobj->spawnpoint->angle*FRACUNIT);
+		mobj->pitch = FixedAngle(mobj->spawnpoint->pitch*FRACUNIT);
+		mobj->roll = FixedAngle(mobj->spawnpoint->roll*FRACUNIT);
 	}
 	if (diff & MD_MOM)
 	{
@@ -2201,34 +2269,39 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		mobj->standingslope = P_SlopeById(READUINT16(save_p));
 	if (diff2 & MD2_COLORIZED)
 		mobj->colorized = READUINT8(save_p);
+	if (diff2 & MD2_MIRRORED)
+		mobj->mirrored = READUINT8(save_p);
+	if (diff2 & MD2_ROLLANGLE)
+		mobj->rollangle = READANGLE(save_p);
+	if (diff2 & MD2_SPRITEXSCALE)
+		mobj->spritexscale = READFIXED(save_p);
+	else
+		mobj->spritexscale = FRACUNIT;
+	if (diff2 & MD2_SPRITEYSCALE)
+		mobj->spriteyscale = READFIXED(save_p);
+	else
+		mobj->spriteyscale = FRACUNIT;
+	if (diff2 & MD2_SPRITEXOFFSET)
+		mobj->spritexoffset = READFIXED(save_p);
+	if (diff2 & MD2_SPRITEYOFFSET)
+		mobj->spriteyoffset = READFIXED(save_p);
+
 
 	//{ Saturn stuff, needs to be set, but shouldnt be synched
 
 	// Sprite Rotation
-	mobj->rollangle = 0;
-	mobj->pitch = 0;
-	mobj->roll = 0;
 	mobj->sloperoll = 0;
 	mobj->slopepitch = 0;
 	mobj->pitch_sprite = 0;
 	mobj->roll_sprite = 0;
 
-	// Horizontal flip
-	mobj->mirrored = 0;
-
 	// Sprite Rendering stuff
-	mobj->spritexoffset = 0;
-	mobj->spriteyoffset = 0;
-	mobj->spritexscale = FRACUNIT;
-	mobj->spriteyscale = FRACUNIT;
 	mobj->realxscale = FRACUNIT;
 	mobj->realyscale = FRACUNIT;
 	mobj->stretchslam = 0;
 
 	mobj->stretchslam = 0;
 	mobj->slamsoundtimer = 0;
-
-	mobj->mirrored = 0;
 
 	// Timer for slam sound effect
 	mobj->slamsoundtimer = 0;
@@ -2687,6 +2760,7 @@ static inline void LoadPolywaypointThinker(actionf_p1 thinker)
 	ht->diffx = READFIXED(save_p);
 	ht->diffy = READFIXED(save_p);
 	ht->diffz = READFIXED(save_p);
+	ht->target = LoadMobj(READUINT32(save_p));
 	P_AddThinker(&ht->thinker);
 }
 
@@ -2939,6 +3013,7 @@ static void P_NetUnArchiveThinkers(void)
 
 			case tc_polywaypoint:
 				LoadPolywaypointThinker((actionf_p1)T_PolyObjWaypoint);
+				restoreNum = true;
 				break;
 
 			case tc_polyslidedoor:
@@ -2978,6 +3053,7 @@ static void P_NetUnArchiveThinkers(void)
 	if (restoreNum)
 	{
 		executor_t *delay = NULL;
+		polywaypoint_t *polywp = NULL;
 		UINT32 mobjnum;
 		for (currentthinker = thinkercap.next; currentthinker != &thinkercap;
 			currentthinker = currentthinker->next)
@@ -2988,6 +3064,16 @@ static void P_NetUnArchiveThinkers(void)
 				if ((mobjnum = (UINT32)(size_t)delay->caller))
 					delay->caller = P_FindNewPosition(mobjnum);
 			}
+		}
+		for (currentthinker = thinkercap.next; currentthinker != &thinkercap;
+			 currentthinker = currentthinker->next)
+		{
+			if (currentthinker->function.acp1 != (actionf_p1)T_PolyObjWaypoint)
+				continue;
+			polywp = (void *)currentthinker;
+			if (!(mobjnum = (UINT32)(size_t)polywp->target))
+				continue;
+			polywp->target = P_FindNewPosition(mobjnum);
 		}
 	}
 }
@@ -3176,6 +3262,14 @@ static void P_RelinkPointers(void)
 				mobj->player->awayviewmobj = NULL;
 				if (!P_SetTarget(&mobj->player->awayviewmobj, P_FindNewPosition(temp)))
 					CONS_Debug(DBG_GAMELOGIC, "awayviewmobj not found on %d\n", mobj->type);
+			}
+			
+			if (mobj->player && mobj->player->follower)
+			{
+				temp = (UINT32)(size_t)mobj->player->follower;
+				mobj->player->follower = NULL;
+				if (!P_SetTarget(&mobj->player->follower, P_FindNewPosition(temp)))
+					CONS_Debug(DBG_GAMELOGIC, "follower not found on %d\n", mobj->type);
 			}
 		}
 	}
@@ -3582,6 +3676,7 @@ void P_SaveNetGame(boolean resending)
 		P_ArchivePolyObjects();
 		P_NetArchiveThinkers();
 		P_NetArchiveSpecials();
+		P_NetArchiveWaypoints();
 	}
 
 	LUA_Archive();
@@ -3622,6 +3717,7 @@ boolean P_LoadNetGame(boolean reloading)
 		P_UnArchivePolyObjects();
 		P_NetUnArchiveThinkers();
 		P_NetUnArchiveSpecials();
+		P_NetUnArchiveWaypoints();
 		P_RelinkPointers();
 		P_FinishMobjs();
 	}

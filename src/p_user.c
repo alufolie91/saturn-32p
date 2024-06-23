@@ -15,6 +15,7 @@
 ///        Pending weapon.
 
 #include "doomdef.h"
+#include "doomstat.h"
 #include "i_system.h"
 #include "d_event.h"
 #include "d_net.h"
@@ -58,6 +59,10 @@
 #include "hardware/hw_light.h"
 #include "hardware/hw_main.h"
 #endif
+
+consvar_t cv_synchedlookback = {"synchedlookback", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; // Toggle for deciding if to use other players lookback inputs or not
+consvar_t cv_hidefollowers = {"hidefollowers", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; // Toggle for Follower visibility
+consvar_t cv_newwatersplash = {"newwatersplash", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; // Toggle for Follower visibility
 
 //
 // Movement.
@@ -1195,6 +1200,9 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 {
 	mobj_t *ghost;
 
+	if (!mobj || P_MobjWasRemoved(mobj))
+		return NULL;
+
 	ghost = P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_GHOST);
 
 	P_SetScale(ghost, mobj->scale);
@@ -2231,6 +2239,26 @@ void P_ElementalFireTrail(player_t *player)
 	}
 }
 
+static mobj_t *P_SpawnOrMoveMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type, mobj_t *source, int id) {
+	mobj_t *mobj = source->watertrail[id];
+
+	if (!mobj || P_MobjWasRemoved(mobj))
+	{
+		mobj = P_SpawnMobj(x, y, z, type);
+
+		P_SetTarget(&source->watertrail[id], mobj);
+	}
+	else
+	{
+		if ((mobj->state - states) == S_INVISIBLE)
+            P_SetOrigin(mobj, x, y, z);
+        else
+            P_MoveOrigin(mobj, x, y, z);
+	}
+
+	return mobj;
+}
+
 //
 // P_MovePlayer
 static void P_MovePlayer(player_t *player)
@@ -2461,25 +2489,107 @@ static void P_MovePlayer(player_t *player)
 	}
 
 	// If you're running fast enough, you can create splashes as you run in shallow water.
-	if (!player->climbing
-	&& ((!(player->mo->eflags & MFE_VERTICALFLIP) && player->mo->z + player->mo->height >= player->mo->watertop && player->mo->z <= player->mo->watertop)
-		|| (player->mo->eflags & MFE_VERTICALFLIP && player->mo->z + player->mo->height >= player->mo->waterbottom && player->mo->z <= player->mo->waterbottom))
-	&& (player->speed > runspd || (player->pflags & PF_STARTDASH))
-	&& leveltime % (TICRATE/7) == 0 && player->mo->momz == 0 && !(player->pflags & PF_SLIDING) && !player->spectator)
+	if (!cv_newwatersplash.value)
 	{
-		mobj_t *water = P_SpawnMobj(player->mo->x, player->mo->y,
-			((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_SPLISH].height, player->mo->scale) : player->mo->watertop), MT_SPLISH);
-		if (player->mo->eflags & MFE_GOOWATER)
-			S_StartSound(water, sfx_ghit);
-		else
-			S_StartSound(water, sfx_wslap);
-		if (player->mo->eflags & MFE_VERTICALFLIP)
+		if (!player->climbing
+		&& ((!(player->mo->eflags & MFE_VERTICALFLIP) && player->mo->z + player->mo->height >= player->mo->watertop && player->mo->z <= player->mo->watertop)
+			|| (player->mo->eflags & MFE_VERTICALFLIP && player->mo->z + player->mo->height >= player->mo->waterbottom && player->mo->z <= player->mo->waterbottom))
+		&& (player->speed > runspd || (player->pflags & PF_STARTDASH))
+		&& leveltime % (TICRATE/7) == 0 && player->mo->momz == 0 && !(player->pflags & PF_SLIDING) && !player->spectator)
 		{
-			water->flags2 |= MF2_OBJECTFLIP;
-			water->eflags |= MFE_VERTICALFLIP;
+			mobj_t *water = P_SpawnMobj(player->mo->x, player->mo->y,
+				((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_SPLISH].height, player->mo->scale) : player->mo->watertop), MT_SPLISH);
+			if (player->mo->eflags & MFE_GOOWATER)
+				S_StartSound(water, sfx_ghit);
+			else
+				S_StartSound(water, sfx_wslap);
+			if (player->mo->eflags & MFE_VERTICALFLIP)
+			{
+				water->flags2 |= MF2_OBJECTFLIP;
+				water->eflags |= MFE_VERTICALFLIP;
+			}
+			water->destscale = player->mo->scale;
+			P_SetScale(water, player->mo->scale);
 		}
-		water->destscale = player->mo->scale;
-		P_SetScale(water, player->mo->scale);
+	}
+	else 
+	{
+
+		if (!player->climbing
+		&& ((!(player->mo->eflags & MFE_VERTICALFLIP) && player->mo->z + player->mo->height >= player->mo->watertop && player->mo->z <= player->mo->watertop)
+			|| (player->mo->eflags & MFE_VERTICALFLIP && player->mo->z + player->mo->height >= player->mo->waterbottom && player->mo->z <= player->mo->waterbottom))
+		&& (player->speed > runspd || (player->pflags & PF_STARTDASH))
+		&& player->mo->momz == 0 && !(player->pflags & PF_SLIDING) && !player->spectator)
+		{
+			fixed_t trailScale = FixedMul(FixedDiv(player->speed - runspd, K_GetKartSpeed(player, false) - runspd), mapobjectscale);
+			fixed_t playerTopSpeed = K_GetKartSpeed(player, false);
+
+			if (playerTopSpeed > runspd)
+				trailScale = FixedMul(FixedDiv(player->speed - runspd, playerTopSpeed - runspd), mapobjectscale);
+			else
+				trailScale = mapobjectscale; // Scaling is based off difference between runspeed and top speed
+
+			if (trailScale > 0)
+			{
+				const angle_t forwardangle = R_PointToAngle2(0, 0, player->mo->momx, player->mo->momy);
+				const fixed_t playerVisualRadius = player->mo->radius + 8*FRACUNIT;
+				const size_t numFrames = S_WATERTRAIL8 - S_WATERTRAIL1;
+				const statenum_t curOverlayFrame = S_WATERTRAIL1 + (leveltime % numFrames);
+				const statenum_t curUnderlayFrame = S_WATERTRAILUNDERLAY1 + (leveltime % numFrames);
+				fixed_t x1, x2, y1, y2;
+				mobj_t *water;
+
+				x1 = player->mo->x + player->mo->momx + P_ReturnThrustX(player->mo, forwardangle + ANGLE_90, playerVisualRadius);
+				y1 = player->mo->y + player->mo->momy + P_ReturnThrustY(player->mo, forwardangle + ANGLE_90, playerVisualRadius);
+				x1 = x1 + P_ReturnThrustX(player->mo, forwardangle, playerVisualRadius);
+				y1 = y1 + P_ReturnThrustY(player->mo, forwardangle, playerVisualRadius);
+
+				x2 = player->mo->x + player->mo->momx + P_ReturnThrustX(player->mo, forwardangle - ANGLE_90, playerVisualRadius);
+				y2 = player->mo->y + player->mo->momy + P_ReturnThrustY(player->mo, forwardangle - ANGLE_90, playerVisualRadius);
+				x2 = x2 + P_ReturnThrustX(player->mo, forwardangle, playerVisualRadius);
+				y2 = y2 + P_ReturnThrustY(player->mo, forwardangle, playerVisualRadius);
+
+				// Left
+				// underlay
+				water = P_SpawnOrMoveMobj(x1, y1,((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAILUNDERLAY].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAILUNDERLAY,
+					player->mo, 0);
+				water->angle = forwardangle - ANGLE_180 - ANGLE_22h;
+				water->destscale = trailScale;
+				P_SetScale(water, trailScale);
+				P_SetMobjState(water, curUnderlayFrame);
+
+				// overlay
+				water = P_SpawnOrMoveMobj(x1, y1,((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAIL].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAIL,
+				player->mo, 1);
+				water->angle = forwardangle - ANGLE_180 - ANGLE_22h;
+				water->destscale = trailScale;
+				P_SetScale(water, trailScale);
+				P_SetMobjState(water, curOverlayFrame);
+
+				// Right
+				// Underlay
+				water = P_SpawnOrMoveMobj(x2, y2,((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAILUNDERLAY].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAILUNDERLAY,
+				player->mo, 2);
+				water->angle = forwardangle - ANGLE_180 + ANGLE_22h;
+				water->destscale = trailScale;
+				P_SetScale(water, trailScale);
+				P_SetMobjState(water, curUnderlayFrame);
+
+				// Overlay
+				water = P_SpawnOrMoveMobj(x2, y2,((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAIL].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAIL,
+				player->mo, 3);
+				water->angle = forwardangle - ANGLE_180 + ANGLE_22h;
+				water->destscale = trailScale;
+				P_SetScale(water, trailScale);
+				P_SetMobjState(water, curOverlayFrame);
+
+				if (!S_SoundPlaying(player->mo, sfx_s3kdbs))
+				{
+					const INT32 volume = (min(trailScale, FRACUNIT) * 255) / FRACUNIT;
+					S_StartSoundAtVolume(player->mo, sfx_s3kdbs, volume);
+				}
+			}
+		}
 	}
 
 	// Little water sound while touching water - just a nicety.
@@ -2567,10 +2677,7 @@ static void P_MovePlayer(player_t *player)
 
 static void P_DoZoomTube(player_t *player)
 {
-	INT32 sequence;
 	fixed_t speed;
-	thinker_t *th;
-	mobj_t *mo2;
 	mobj_t *waypoint = NULL;
 	fixed_t dist;
 	boolean reverse;
@@ -2585,8 +2692,6 @@ static void P_DoZoomTube(player_t *player)
 	player->powers[pw_flashing] = 1;
 
 	speed = abs(player->speed);
-
-	sequence = player->mo->tracer->threshold;
 
 	// change slope
 	dist = P_AproxDistance(P_AproxDistance(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - player->mo->z);
@@ -2619,26 +2724,7 @@ static void P_DoZoomTube(player_t *player)
 		CONS_Debug(DBG_GAMELOGIC, "Looking for next waypoint...\n");
 
 		// Find next waypoint
-		for (th = thinkercap.next; th != &thinkercap; th = th->next)
-		{
-			if (th->function.acp1 != (actionf_p1)P_MobjThinker) // Not a mobj thinker
-				continue;
-
-			mo2 = (mobj_t *)th;
-
-			if (mo2->type != MT_TUBEWAYPOINT)
-				continue;
-
-			if (mo2->threshold == sequence)
-			{
-				if ((reverse && mo2->health == player->mo->tracer->health - 1)
-					|| (!reverse && mo2->health == player->mo->tracer->health + 1))
-				{
-					waypoint = mo2;
-					break;
-				}
-			}
-		}
+		waypoint = reverse ? P_GetPreviousWaypoint(player->mo->tracer, false) : P_GetNextWaypoint(player->mo->tracer, false);
 
 		if (waypoint)
 		{
@@ -3530,7 +3616,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 		camrotate = cv_cam2_rotate.value;
 		camdist = FixedMul(cv_cam2_dist.value, mapobjectscale);
 		camheight = FixedMul(cv_cam2_height.value, mapobjectscale);
-		lookback = camspin[1];
+		lookback = (cv_synchedlookback.value ? (player->cmd.buttons & BT_LOOKBACK) : camspin[1]);
 	}
 	else if (thiscam == &camera[2]) // Camera 3
 	{
@@ -3540,7 +3626,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 		camrotate = cv_cam3_rotate.value;
 		camdist = FixedMul(cv_cam3_dist.value, mapobjectscale);
 		camheight = FixedMul(cv_cam3_height.value, mapobjectscale);
-		lookback = camspin[2];
+		lookback = (cv_synchedlookback.value ? (player->cmd.buttons & BT_LOOKBACK) : camspin[2]);
 	}
 	else if (thiscam == &camera[3]) // Camera 4
 	{
@@ -3550,7 +3636,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 		camrotate = cv_cam4_rotate.value;
 		camdist = FixedMul(cv_cam4_dist.value, mapobjectscale);
 		camheight = FixedMul(cv_cam4_height.value, mapobjectscale);
-		lookback = camspin[3];
+		lookback = (cv_synchedlookback.value ? (player->cmd.buttons & BT_LOOKBACK) : camspin[3]);
 	}
 	else // Camera 1
 	{
@@ -3560,7 +3646,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 		camrotate = cv_cam_rotate.value;
 		camdist = FixedMul(cv_cam_dist.value, mapobjectscale);
 		camheight = FixedMul(cv_cam_height.value, mapobjectscale);
-		lookback = camspin[0];
+		lookback = (cv_synchedlookback.value ? (player->cmd.buttons & BT_LOOKBACK) : camspin[0]);
 	}
 
 	if (timeover)
@@ -4144,8 +4230,18 @@ static void P_CalcPostImg(player_t *player)
 		}
 	}
 
-	if (player->mo->eflags & MFE_VERTICALFLIP)
-		*type = postimg_flip;
+	if (!encoremode) // srb2kart
+	{
+		if (player->mo->eflags & MFE_VERTICALFLIP)
+			*type = postimg_flip;
+	}
+	else
+	{
+		if (player->mo->eflags & MFE_VERTICALFLIP)
+			*type = postimg_mirrorflip;
+		else
+			*type = postimg_mirror;
+	}
 
 #if 1
 	(void)param;
@@ -4160,9 +4256,6 @@ static void P_CalcPostImg(player_t *player)
 			*param = 5;
 	}
 #endif
-
-	if (encoremode) // srb2kart
-		*type = postimg_mirror;
 }
 
 void P_DoTimeOver(player_t *player)
@@ -4295,6 +4388,386 @@ DoABarrelRoll (player_t *player)
 	}
 }
 
+/* 	set follower state with our weird hacks
+	the reason we do this is to avoid followers ever using actions (majormods, yikes!)
+	without having to touch p_mobj.c.
+	so we give it 1more tic and change the state when tic == 1 instead of 0
+	cool beans?
+	cool beans.
+*/
+static void P_SetFollowerState(mobj_t *f, statenum_t state)
+{
+	if (f == NULL || P_MobjWasRemoved(f) == true)
+	{
+		// safety net
+		return;
+	}
+
+	// No, do NOT set the follower to S_NULL. Set it to S_INVISIBLE.
+	if (state == S_NULL)
+	{
+		state = S_INVISIBLE;
+		f->threshold = 1; // Threshold = 1 means stop doing anything related to setting states, so that we don't get out of S_INVISIBLE
+	}
+
+	// extravalue2 stores the last "first state" we used.
+	// because states default to idlestates, if we use an animation that uses an "ongoing" state line, don't reset it!
+	// this prevents it from looking very dumb
+	if (state == (statenum_t)f->extravalue2)
+	{
+		return;
+	}
+
+	// we will save the state into extravalue2.
+	f->extravalue2 = state;
+
+	P_SetMobjStateNF(f, state);
+	if (f->state->tics > 0)
+	{
+		f->tics++;
+	}
+}
+
+UINT8 K_GetEffectiveFollowerColor(UINT8 followercolor, follower_t *follower, UINT8 playercolor, skin_t *playerskin)
+{
+	if (followercolor == SKINCOLOR_NONE && follower != NULL) // "Default"
+	{
+		followercolor = follower->defaultcolor;
+	}
+
+	if (followercolor > SKINCOLOR_NONE && followercolor < MAXSKINCOLORS) // bog standard
+	{
+		return followercolor;
+	}
+
+	if (playercolor == SKINCOLOR_NONE) // get default color
+	{
+		if (playerskin == NULL)
+		{
+			// Nothing from this line down is valid if playerskin is invalid, just guess Sonic?
+			playerskin = &skins[0];
+		}
+
+		playercolor = playerskin->prefcolor;
+	}
+
+	if (followercolor == FOLLOWERCOLOR_OPPOSITE) // "Opposite"
+	{
+		return KartColor_Opposite[playercolor];
+	}
+
+	// "Match"
+	return playercolor;
+}
+
+static void K_UpdateFollowerState(mobj_t *f, statenum_t state, followerstate_t type)
+{
+	if (f == NULL || P_MobjWasRemoved(f) == true)
+	{
+		// safety net
+		return;
+	}
+
+	if (f->extravalue1 != (INT32)type)
+	{
+		P_SetFollowerState(f, state);
+		f->extravalue1 = type;
+	}
+}
+
+
+//
+//P_HandleFollower
+//
+//Handle the follower's spawning and moving along with the player. Do note that some of the stuff like the removal if a player doesn't exist anymore is handled in MT_FOLLOWER's thinker.
+static void P_HandleFollower(player_t *player)
+{
+	follower_t fl;
+	angle_t an;
+	fixed_t zoffs;
+	fixed_t ourheight;
+	fixed_t sx, sy, sz, deltaz;
+	fixed_t fh = INT32_MIN, ch = INT32_MAX;
+	angle_t destAngle;
+	INT32 angleDiff;
+	UINT8 color;
+
+	if (!player->followerready)
+		return;	// we aren't ready to perform anything follower related yet.
+
+	// How about making sure our follower exists and is added before trying to spawn it n' all?
+	if (player->followerskin > numfollowers-1 || player->followerskin < -1)
+	{
+		//CONS_Printf("Follower skin invlaid. Setting to -1.\n");
+		player->followerskin = -1;
+		return;
+	}
+
+	// don't do anything if we can't have a follower to begin with.
+	// (It gets removed under those conditions)
+	if (player->spectator || player->followerskin < 0
+	|| player->mo == NULL || P_MobjWasRemoved(player->mo))
+	{
+		if (player->follower)
+		{
+			P_RemoveMobj(player->follower);
+			P_SetTarget(&player->follower, NULL);
+		}
+		return;
+	}
+	// Before we do anything, let's be sure of where we're supposed to be
+	fl = followers[player->followerskin];
+
+	an = player->mo->angle + fl.atangle;
+	zoffs = fl.zoffs;
+
+	// do you like angle maths? I certainly don't...
+	sx = player->mo->x + player->mo->momx + FixedMul(FixedMul(player->mo->scale, fl.dist), FINECOSINE((an) >> ANGLETOFINESHIFT));
+	sy = player->mo->y + player->mo->momy + FixedMul(FixedMul(player->mo->scale, fl.dist), FINESINE((an) >> ANGLETOFINESHIFT));
+	
+	// interp info helps with stretchy fix
+	deltaz = (player->mo->z - player->mo->old_z);
+
+	// for the z coordinate, don't be a doof like Steel and forget that MFE_VERTICALFLIP exists :P
+	sz = player->mo->z + player->mo->momz + FixedMul(player->mo->scale, zoffs * P_MobjFlip(player->mo));
+	ourheight = FixedMul(fl.height, player->mo->scale);
+	if (player->mo->eflags & MFE_VERTICALFLIP)
+	{
+		sz += ourheight;
+	}
+
+	fh = player->mo->floorz;
+	ch = player->mo->ceilingz - ourheight;
+	
+	switch (fl.mode)
+	{
+		case FOLLOWERMODE_GROUND:
+		{
+			if (player->mo->eflags & MFE_VERTICALFLIP)
+			{
+				sz = ch;
+			}
+			else
+			{
+				sz = fh;
+			}
+			break;
+		}
+		case FOLLOWERMODE_FLOAT:
+		default:
+		{
+			// finally, add a cool floating effect to the z height.
+			// not stolen from k_kart I swear!!
+			fixed_t sine = FixedMul(fl.bobamp,
+				FINESINE(((
+					FixedMul(4 * M_TAU_FIXED, fl.bobspeed) * leveltime
+				) >> ANGLETOFINESHIFT) & FINEMASK));
+			sz += FixedMul(player->mo->scale, sine) * P_MobjFlip(player->mo);
+			break;
+		}
+	}
+	
+	// Set follower colour
+
+	color = K_GetEffectiveFollowerColor(player->followercolor, &fl, player->skincolor, &skins[player->skin]);
+
+	if (!player->follower)	// follower doesn't exist / isn't valid
+	{
+		//CONS_Printf("Spawning follower...\n");
+
+		// so let's spawn one!
+		P_SetTarget(&player->follower, P_SpawnMobj(sx, sy, sz, MT_FOLLOWER));
+		if (player->follower == NULL)
+			return;
+
+		K_UpdateFollowerState(player->follower, fl.idlestate, FOLLOWERSTATE_IDLE);
+
+		P_SetTarget(&player->follower->target, player->mo); // we need that to know when we need to disappear
+		player->follower->angle = player->follower->old_angle = player->mo->angle;
+	}
+	else	// follower exists, woo!
+	{
+		
+		// first of all, handle states following the same model as above:
+		if (player->follower->tics == 1)
+			P_SetFollowerState(player->follower, player->follower->state->nextstate);
+		
+		// Spawn Follower Shadow
+		player->follower->haveshadow = true;
+		player->follower->shadowscale = player->follower->scale;
+
+		// move the follower next to us (yes, this is really basic maths but it looks pretty damn clean in practice)!
+		player->follower->momx = FixedDiv(sx - player->follower->x, fl.horzlag);
+		player->follower->momy = FixedDiv(sy - player->follower->y, fl.horzlag);
+
+		player->follower->z += FixedDiv(deltaz, fl.vertlag);
+		
+		if (fl.mode == FOLLOWERMODE_GROUND)
+		{
+			sector_t *sec = player->follower->subsector->sector;
+
+			fh = min(fh, P_GetFloorZ(player->follower, sec, sx, sy, NULL));
+			ch = max(ch, P_GetCeilingZ(player->follower, sec, sx, sy, NULL) - ourheight);
+
+			if (P_IsObjectOnGround(player->mo) == false)
+			{
+				// In the air, match their momentum.
+				player->follower->momz = player->mo->momz;
+				if (player->follower->z <= sz) // Don't go under the floor please
+					player->follower->z = sz;
+			}
+			else
+			{	
+				fixed_t fg = P_GetMobjGravity(player->mo);
+				fixed_t fz = P_GetMobjZMovement(player->follower);
+
+				player->follower->momz = fz;
+
+				// Player is on the ground ... try to get the follower
+				// back to the ground also if it is above it.
+				if (player->follower->z > sz) // Don't go under the floor please
+					player->follower->momz += FixedDiv(fg * 6, fl.vertlag); // Scaled against the default value of vertlag
+				
+				
+				// Other wise match current floor
+				player->follower->momz = sz - player->follower->z;
+
+			}
+		}
+		else
+		{
+			player->follower->momz = FixedDiv(sz - player->follower->z, fl.vertlag);
+		}
+		
+		if (player->mo->colorized)
+			player->follower->color = player->mo->color;
+		else
+			player->follower->color = color;
+
+		player->follower->colorized = player->mo->colorized;
+		
+		P_SetScale(player->follower, FixedMul(fl.scale, player->mo->scale));
+		K_GenericExtraFlagsNoZAdjust(player->follower, player->mo); // Not K_MatchGenericExtraFlag because the Z adjust it has only works properly if master & mo have the same Z height.
+		
+		// For comeback in battle.
+		player->follower->flags2 = (player->follower->flags2 & ~MF2_SHADOW)|(player->mo->flags2 & MF2_SHADOW);
+
+		// Make the follower invisible if we no contest'd rather than removing it. No one will notice the diff seriously.
+
+		if (player->pflags & PF_TIMEOVER)	// there is more to it than that to check for a full no contest but this isn't used for anything else.
+			player->follower->flags2 &= MF2_DONTDRAW;
+		
+		if (cv_hidefollowers.value) // hide em for people who don't want them
+			player->follower->flags2 |= MF2_DONTDRAW;
+		
+		// if we're moving let's make the angle the direction we're moving towards. This is to avoid drifting / reverse looking awkward.
+		if (FixedHypot(player->follower->momx, player->follower->momy) >= player->mo->scale)
+		{
+			destAngle = R_PointToAngle2(0, 0, player->follower->momx, player->follower->momy);
+		}
+		else
+		{
+			// Face the player's angle when standing still.
+			destAngle = player->mo->angle;
+		}
+		
+		/*// Sal: Turn the follower around when looking backwards.
+		if ( player->cmd.buttons & BT_LOOKBACK )
+		{
+			destAngle += ANGLE_180;
+		}*/
+		
+		// Sal: Smoothly rotate angle to the destination value.
+		angleDiff = AngleDeltaSigned(destAngle, player->follower->angle);
+
+		if (angleDiff != 0)
+		{
+			player->follower->angle += FixedDiv(angleDiff, fl.anglelag);
+		}
+		
+		// Ground follower slope rotation
+		if (fl.mode == FOLLOWERMODE_GROUND)
+		{
+			K_CalculateFollowerSlope(
+				player->follower,
+				player->follower->x, player->follower->y, player->follower->z,
+				player->follower->radius, ourheight,
+				(player->mo->eflags & MFE_VERTICALFLIP),
+				false
+			);
+		}
+		
+		if (player->follower->threshold)
+		{
+			// Threshold means the follower was "despanwed" with S_NULL.
+			return;
+		}
+
+		// However with how the code is factored, this is just a special case of S_INVISBLE to avoid having to add other player variables.
+
+		// handle follower animations. Could probably be better...
+		
+		// Squish
+		if (player->kartstuff[k_squishedtimer] > 0) 
+		{
+			if (player->kartstuff[k_squishedtimer] > 1)
+				player->follower->spriteyscale = FRACUNIT/4;
+			else
+				player->follower->spriteyscale = FRACUNIT;
+			
+			K_UpdateFollowerState(player->follower, fl.hurtstate, FOLLOWERSTATE_HURT);
+			
+		}
+		else if (P_PlayerInPain(player) == true || player->mo->state == &states[S_KART_SPIN] || player->mo->health <= 0) 
+		{
+			// hurt or dead
+			// cancel hit confirm / rings
+			player->follower->movecount = 0;
+			player->follower->cvmem = 0;
+
+			// spin out
+			player->follower->angle = player->frameangle;
+
+			K_UpdateFollowerState(player->follower, fl.hurtstate, FOLLOWERSTATE_HURT);
+
+			if (player->mo->health <= 0)
+			{
+				// if dead, follow the player's z momentum exactly so they both look like they die at the same speed.
+				player->follower->momz = player->mo->momz;
+			}
+		}
+		else if (player->exiting)
+		{
+			// win/ loss animations
+			if (K_IsPlayerLosing(player))
+			{
+				// L
+				K_UpdateFollowerState(player->follower, fl.losestate, FOLLOWERSTATE_LOSE);
+			}
+			else
+			{
+				// W
+				K_UpdateFollowerState(player->follower, fl.winstate, FOLLOWERSTATE_WIN);
+			}
+		}
+		else if (player->follower->movecount)
+		{
+			K_UpdateFollowerState(player->follower, fl.hitconfirmstate, FOLLOWERSTATE_HITCONFIRM);
+			player->follower->movecount--;
+		}
+		else if (player->speed > 10*player->mo->scale) // animation for moving fast enough
+		{
+			K_UpdateFollowerState(player->follower, fl.followstate, FOLLOWERSTATE_FOLLOW);
+		}
+		else
+		{
+			K_UpdateFollowerState(player->follower, fl.idlestate, FOLLOWERSTATE_IDLE);
+		}
+
+	}
+}
+
+
 //
 // P_PlayerThink
 //
@@ -4367,6 +4840,10 @@ void P_PlayerThink(player_t *player)
 		P_SetTarget(&player->awayviewmobj, NULL); // remove awayviewmobj asap if invalid
 		player->awayviewtics = 0; // reset to zero
 	}
+	
+	// Run followes here. We need them to run even when we're dead to follow through what we're doing.
+	P_HandleFollower(player);
+
 
 	if (player->flashcount)
 		player->flashcount--;

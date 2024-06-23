@@ -125,10 +125,15 @@ extern char  logfilename[1024];
 // most interface strings are ignored in development mode.
 // we use comprevision and compbranch instead.
 #else
-#define VERSION    2 // Game version
-#define SUBVERSION 9 // more precise version number
-#define VERSIONSTRING "Neptune 2.1"
-#define VERSIONSTRINGW L"Neptune 2.1"
+#define VERSION    1 // Game version
+#define SUBVERSION 6 // more precise version number
+#ifndef USE_FBO_OGL
+#define VERSIONSTRING "Neptune v2.2 "
+#define VERSIONSTRINGW L"Neptune v2.2"
+#else
+#define VERSIONSTRING "Neptune v2.2 - FBO "
+#define VERSIONSTRINGW L"Neptune v2.2 - FBO"
+#endif
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!
@@ -205,7 +210,9 @@ extern char  logfilename[1024];
 // NOTE: it needs more than this to increase the number of players...
 
 #define MAXPLAYERS 32
-#define MAXSKINS 512
+#define MAXSKINS UINT16_MAX-1
+#define MAXLOCALSKINS 32
+#define MAXFOLLOWERS UINT16_MAX-1
 #define PLAYERSMASK (MAXPLAYERS-1)
 #define MAXPLAYERNAME 21
 

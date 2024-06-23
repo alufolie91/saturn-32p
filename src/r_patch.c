@@ -48,8 +48,8 @@ boolean R_CheckIfPatch(lumpnum_t lump)
 
 	patch = (patch_t *)W_CacheLumpNum(lump, PU_STATIC);
 
-	width = patch->width;
-	height = patch->height;
+	width = SHORT(patch->width);
+	height = SHORT(patch->height);
 
 	result = (height > 0 && height <= 16384 && width > 0 && width <= 16384 && width < (INT16)(size / 4));
 
@@ -772,6 +772,17 @@ static UINT16 GetPatchPixel(patch_t *patch, INT32 x, INT32 y, boolean flip)
 	return 0xFF00;
 }
 
+#ifdef HWRENDER
+static patch_t *R_CreateHardwarePatch(patch_t *patch)
+{
+	GLPatch_t *grPatch = Z_Calloc(sizeof(GLPatch_t), PU_HWRPATCHINFO, NULL);
+	grPatch->mipmap = Z_Calloc(sizeof(GLMipmap_t), PU_HWRPATCHINFO, NULL);
+	grPatch->rawpatch = patch;
+	HWR_MakePatch(patch, grPatch, grPatch->mipmap, false);
+    return (patch_t *)grPatch;
+}
+#endif
+
 #ifdef ROTSPRITE
 //
 // R_GetRollAngle
@@ -792,11 +803,7 @@ INT32 R_GetRollAngle(angle_t rollangle)
 	return ra;
 }
 
-patch_t *Patch_GetRotatedSprite(
-	spriteframe_t *sprite,
-	size_t frame, size_t spriteangle,
-	boolean flip, boolean adjustfeet,
-	void *info, INT32 rotationangle)
+patch_t *Patch_GetRotatedSprite(spriteframe_t *sprite, size_t frame, size_t spriteangle, boolean flip, boolean adjustfeet, void *info, INT32 rotationangle)
 {
 	rotsprite_t *rotsprite;
 	spriteinfo_t *sprinfo = (spriteinfo_t *)info;
@@ -882,17 +889,6 @@ static void RotatedPatch_CalculateDimensions(
 	*newheight = max(height, max(h1, h2));
 }
 
-#ifdef HWRENDER
-static patch_t *R_CreateHardwarePatch(patch_t *patch)
-{
-	GLPatch_t *grPatch = Z_Calloc(sizeof(GLPatch_t), PU_HWRPATCHINFO, NULL);
-	grPatch->mipmap = Z_Calloc(sizeof(GLMipmap_t), PU_HWRPATCHINFO, NULL);
-	grPatch->rawpatch = patch;
-	HWR_MakePatch(patch, grPatch, grPatch->mipmap, false);
-    return (patch_t *)grPatch;
-}
-#endif
-
 void RotatedPatch_DoRotation(rotsprite_t *rotsprite, patch_t *patch, INT32 angle, INT32 xpivot, INT32 ypivot, boolean flip)
 {
 	UINT32 i;
@@ -906,9 +902,9 @@ void RotatedPatch_DoRotation(rotsprite_t *rotsprite, patch_t *patch, INT32 angle
 	size_t size;
 	INT32 bflip = (flip != 0x00);
 
-	INT32 width = patch->width;
-	INT32 height = patch->height;
-	INT32 leftoffset = patch->leftoffset;
+	INT32 width = SHORT(patch->width);
+	INT32 height = SHORT(patch->height);
+	INT32 leftoffset = SHORT(patch->leftoffset);
 	INT32 newwidth, newheight;
 
 	fixed_t ca = rollcosang[angle];

@@ -53,6 +53,7 @@ static lua_CFunction liblist[] = {
 	LUA_InfoLib, // info.h stuff: mobjinfo_t, mobjinfo[], state_t, states[]
 	LUA_MobjLib, // mobj_t, mapthing_t
 	LUA_PlayerLib, // player_t
+	LUA_FollowerLib, // follower_t, followers[]
 	LUA_SkinLib, // skin_t, skins[]
 	LUA_ThinkerLib, // thinker_t
 	LUA_MapLib, // line_t, side_t, sector_t, subsector_t
@@ -154,6 +155,7 @@ static int noglobals(lua_State *L)
 {
 	const char *csname;
 	char *name;
+	enum actionnum actionnum;
 
 	lua_remove(L, 1); // we're not gonna be using _G
 	csname = lua_tostring(L, 1);
@@ -171,6 +173,10 @@ static int noglobals(lua_State *L)
 		lua_pushvalue(L, 2); // function
 		lua_rawset(L, -3); // rawset doesn't trigger this metatable again.
 		// otherwise we would've used setfield, obviously.
+
+		actionnum = LUA_GetActionNumByName(name);
+		if (actionnum < NUMACTIONS)
+			actionsoverridden[actionnum] = true;
 
 		Z_Free(name);
 		return 0;
@@ -509,6 +515,13 @@ void LUA_InvalidateLevel(void)
 	{
 		LUA_InvalidateUserdata(&lines[i]);
 		LUA_InvalidateUserdata(lines[i].sidenum);
+	}
+	for (pslope_t *slope = slopelist; slope; slope = slope->next)
+	{
+		LUA_InvalidateUserdata(slope);
+		LUA_InvalidateUserdata(&slope->normal);
+		LUA_InvalidateUserdata(&slope->o);
+		LUA_InvalidateUserdata(&slope->d);
 	}
 	for (i = 0; i < numsides; i++)
 		LUA_InvalidateUserdata(&sides[i]);
@@ -1164,7 +1177,9 @@ static void ArchiveTables(void)
 		{
 			// Write key
 			e = ArchiveValue(TABLESINDEX, -2); // key should be either a number or a string, ArchiveValue can handle this.
-			if (e == 2) // invalid key type (function, thread, lightuserdata, or anything we don't recognise)
+			if (e == 1)
+				n++; // the table contained a new table we'll have to archive. :(
+			else if (e == 2) // invalid key type (function, thread, lightuserdata, or anything we don't recognise)
 			{
 				lua_pushvalue(gL, -2);
 				CONS_Alert(CONS_ERROR, "Index '%s' (%s) of table %d could not be archived!\n", lua_tostring(gL, -1), luaL_typename(gL, -1), i);
@@ -1208,7 +1223,9 @@ static void ArchiveTablesDemo(void)
 		{
 			// Write key
 			e = ArchiveValueDemo(TABLESINDEX, -2); // key should be either a number or a string, ArchiveValue can handle this.
-			if (e == 2) // invalid key type (function, thread, lightuserdata, or anything we don't recognise)
+			if (e == 1)
+				n++; // the table contained a new table we'll have to archive. :(
+			else if (e == 2) // invalid key type (function, thread, lightuserdata, or anything we don't recognise)
 			{
 				lua_pushvalue(gL, -2);
 				CONS_Alert(CONS_ERROR, "Index '%s' (%s) of table %d could not be archived!\n", lua_tostring(gL, -1), luaL_typename(gL, -1), i);
@@ -1443,7 +1460,13 @@ static void UnArchiveExtVars(void *pointer)
 	for (i = 0; i < field_count; i++)
 	{
 		READSTRING(save_p, field);
-		UnArchiveValue(TABLESINDEX);
+
+		if (UnArchiveValue(TABLESINDEX) == 1)
+		{
+			CONS_Alert(CONS_ERROR, "Unexpected end marker when reading ExtVars (field '%s')\n", field);
+			break;
+		}
+
 		lua_setfield(gL, -2, field);
 	}
 
@@ -1516,8 +1539,11 @@ static void UnArchiveTables(void)
 
 		while (true)
 		{
-			if (UnArchiveValue(TABLESINDEX) == 1) // read key
+			UINT8 e = UnArchiveValue(TABLESINDEX); // read key
+			if (e == 1) // End of table
 				break;
+			else if (e == 2) // Key contains a new table
+				n++;
 
 			UINT8 ret = UnArchiveValue(TABLESINDEX);
 
@@ -1565,6 +1591,8 @@ static void UnArchiveTablesDemo(void)
 				lua_pushnil(gL);
 			else if (ret == 1) // read key
 				break;
+			else if (ret == 2) // Key contains a new table
+				n++;
 
 			ret = UnArchiveValueDemo(TABLESINDEX, NULL);
 
@@ -1703,13 +1731,41 @@ void LUA_UnArchiveDemo(void)
 }
 
 // For mobj_t, player_t, etc. to take custom variables.
-int Lua_optoption(lua_State *L, int narg,
-	const char *def, const char *const lst[])
+int Lua_optoption(lua_State *L, int narg, int def, int list_ref)
 {
-	const char *name = (def) ? luaL_optstring(L, narg, def) :  luaL_checkstring(L, narg);
+	int result = -1;
+
+	if (lua_isnoneornil(L, narg))
+		return def;
+
+	I_Assert(lua_checkstack(L, 2));
+	luaL_checkstring(L, narg);
+
+	lua_rawgeti(L, LUA_REGISTRYINDEX, list_ref);
+	I_Assert(lua_istable(L, -1));
+	lua_pushvalue(L, narg);
+	lua_rawget(L, -2);
+
+	if (lua_isnumber(L, -1))
+		result = lua_tointeger(L, -1);
+
+	lua_pop(L, 2); // Pop result and fields table
+
+	return result;
+}
+
+
+int Lua_CreateFieldTable(lua_State *L, const char *const lst[])
+{
 	int i;
-	for (i=0; lst[i]; i++)
-		if (fastcmp(lst[i], name))
-			return i;
-	return -1;
+
+	lua_newtable(L);
+	for (i = 0; lst[i] != NULL; i++)
+	{
+		lua_pushstring(L, lst[i]);
+		lua_pushinteger(L, i);
+		lua_settable(L, -3);
+	}
+
+	return luaL_ref(L, LUA_REGISTRYINDEX);
 }

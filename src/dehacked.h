@@ -14,6 +14,8 @@
 #define __DEHACKED_H__
 
 #include "m_fixed.h" // for get_number
+#include "doomdef.h"
+#include "info.h"
 
 typedef enum
 {
@@ -41,6 +43,7 @@ fixed_t get_number(const char *word);
 boolean LUA_SetLuaAction(void *state, const char *actiontocompare);
 const char *LUA_GetActionName(void *action);
 void LUA_SetActionByName(void *state, const char *actiontocompare);
+enum actionnum LUA_GetActionNumByName(const char *actiontocompare);
 
 extern boolean deh_loaded;
 
@@ -65,3 +68,6 @@ typedef struct
 #define myfeof(a) (a->data + a->size <= a->curpos)
 char *myfgets(char *buf, size_t bufsize, MYFILE *f);
 #endif
+
+extern const char *const MOBJTYPE_LIST[];
+extern char *FREE_MOBJS[NUMMOBJFREESLOTS];

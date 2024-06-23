@@ -32,6 +32,7 @@
 #include "m_random.h" // quake camera shake
 #include "doomstat.h" // MAXSPLITSCREENPLAYERS
 #include "r_fps.h" // Frame interpolation/uncapped
+#include "tables.h"
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
@@ -109,7 +110,7 @@ INT32 viewangletox[FINEANGLES/2];
 // The xtoviewangleangle[] table maps a screen pixel
 // to the lowest viewangle that maps back to x ranges
 // from clipangle to -clipangle.
-angle_t *xtoviewangle;
+angle_t xtoviewangle[MAXVIDWIDTH+1];
 
 lighttable_t *scalelight[LIGHTLEVELS][MAXLIGHTSCALE];
 lighttable_t *scalelightfixed[MAXLIGHTSCALE];
@@ -193,6 +194,7 @@ consvar_t cv_flipcam2 = {"flipcam2", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, 
 consvar_t cv_flipcam3 = {"flipcam3", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam3_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_flipcam4 = {"flipcam4", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_dropshadow = {"dropshadows", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_shadow = {"shadow", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_shadowoffs = {"offsetshadows", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_skybox = {"skybox", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -594,6 +596,33 @@ boolean R_DoCulling(line_t *cullheight, line_t *viewcullheight, fixed_t vz, fixe
 	return false;
 }
 
+// Returns search dimensions within a blockmap, in the direction of viewangle and out to a certain distance.
+void R_GetRenderBlockMapDimensions(fixed_t drawdist, INT32 *xl, INT32 *xh, INT32 *yl, INT32 *yh)
+{
+	const angle_t left = viewangle - clipangle;
+	const angle_t right = viewangle + clipangle;
+
+	const fixed_t vxleft = viewx + FixedMul(drawdist, FCOS(left));
+	const fixed_t vyleft = viewy + FixedMul(drawdist, FSIN(left));
+
+	const fixed_t vxright = viewx + FixedMul(drawdist, FCOS(right));
+	const fixed_t vyright = viewy + FixedMul(drawdist, FSIN(right));
+
+	// Try to narrow the search to within only the field of view
+	*xl = (unsigned)(min(viewx, min(vxleft, vxright)) - bmaporgx)>>MAPBLOCKSHIFT;
+	*xh = (unsigned)(max(viewx, max(vxleft, vxright)) - bmaporgx)>>MAPBLOCKSHIFT;
+	*yl = (unsigned)(min(viewy, min(vyleft, vyright)) - bmaporgy)>>MAPBLOCKSHIFT;
+	*yh = (unsigned)(max(viewy, max(vyleft, vyright)) - bmaporgy)>>MAPBLOCKSHIFT;
+
+	if (*xh >= bmapwidth)
+		*xh = bmapwidth - 1;
+
+	if (*yh >= bmapheight)
+		*yh = bmapheight - 1;
+
+	BMBOUNDFIX(*xl, *xh, *yl, *yh);
+}
+
 //
 // R_InitTextureMapping
 //
@@ -707,7 +736,7 @@ static struct {
 	INT32 scrmapsize;
 
 	INT32 x1; // clip rendering horizontally for efficiency
-	INT16 *ceilingclip, *floorclip;
+	INT16 ceilingclip[MAXVIDWIDTH], floorclip[MAXVIDWIDTH];
 
 	boolean use;
 } viewmorph = {
@@ -718,7 +747,7 @@ static struct {
 	0,
 
 	0,
-	NULL, NULL,
+	{}, {},
 
 	false
 };
@@ -756,10 +785,10 @@ void R_CheckViewMorph(void)
 
 	if (viewmorph.scrmapsize != vid.width*vid.height)
 	{
+		if (viewmorph.scrmap)
+			free(viewmorph.scrmap);
+		viewmorph.scrmap = malloc(vid.width*vid.height * sizeof(INT32));
 		viewmorph.scrmapsize = vid.width*vid.height;
-		viewmorph.scrmap = realloc(viewmorph.scrmap, vid.width*vid.height * sizeof(INT32));
-		viewmorph.ceilingclip = realloc(viewmorph.ceilingclip, vid.width * sizeof(INT16));
-		viewmorph.floorclip = realloc(viewmorph.floorclip, vid.width * sizeof(INT16));
 	}
 
 	temp = FINECOSINE(rollangle);
@@ -949,19 +978,18 @@ void R_ExecuteSetViewSize(void)
 	// status bar overlay
 	st_overlay = cv_showhud.value;
 
-	//scaledviewwidth = vid.width;
-	viewwidth = vid.width;
+	scaledviewwidth = vid.width;
 	viewheight = vid.height;
 
 	if (splitscreen)
 		viewheight >>= 1;
 
-	//viewwidth = scaledviewwidth;
+	viewwidth = scaledviewwidth;
 
 	if (splitscreen > 1)
 	{
 		viewwidth >>= 1;
-		//scaledviewwidth >>= 1;
+		scaledviewwidth >>= 1;
 	}
 
 	centerx = viewwidth/2;
@@ -976,17 +1004,13 @@ void R_ExecuteSetViewSize(void)
 
 	projection = projectiony = FixedDiv(centerxfrac, fovtan);
 
-	//R_InitViewBuffer(scaledviewwidth, viewheight);
-	R_InitViewBuffer(viewwidth, viewheight);
+	R_InitViewBuffer(scaledviewwidth, viewheight);
 
 	R_InitTextureMapping();
 
 	// thing clipping
 	for (i = 0; i < viewwidth; i++)
-	{
-		negonearray[i] = -1;
 		screenheightarray[i] = (INT16)viewheight;
-	}
 
 	// setup sky scaling
 	R_SetSkyScale();
@@ -1058,7 +1082,7 @@ void R_Init(void)
 	R_SetViewSize(); // setsizeneeded is set true
 
 	//I_OutputMsg("\nR_InitPlanes");
-	//R_InitPlanes();
+	R_InitPlanes();
 
 	// this is now done by SCR_Recalc() at the first mode set
 	//I_OutputMsg("\nR_InitLightTables");
@@ -1710,11 +1734,11 @@ void R_RenderPlayerView(player_t *player)
 	// load previous saved value of skyVisible for the player
 	for (i = 0; i <= splitscreen; i++)
 	{
-		if (player == &players[displayplayers[i]])
-		{
-			skyVisible = skyVisiblePerPlayer[i];
-			break;
-		}
+		if (player != &players[displayplayers[i]])
+			continue;
+
+		skyVisible = skyVisiblePerPlayer[i];
+		break;
 	}
 
 	portalrender = 0;
@@ -1779,6 +1803,7 @@ void R_RenderPlayerView(player_t *player)
 	PS_START_TIMING(ps_bsptime);
 	R_RenderBSPNode((INT32)numnodes - 1);
 	PS_STOP_TIMING(ps_bsptime);
+	R_AddPrecipitationSprites();
 	PS_START_TIMING(ps_sw_spritecliptime);
 	R_ClipSprites();
 	PS_STOP_TIMING(ps_sw_spritecliptime);
@@ -1836,11 +1861,11 @@ void R_RenderPlayerView(player_t *player)
 	// this is so that P1 can't affect whether P2 can see a skybox or not, or vice versa
 	for (i = 0; i <= splitscreen; i++)
 	{
-		if (player == &players[displayplayers[i]])
-		{
-			skyVisiblePerPlayer[i] = skyVisible;
-			break;
-		}
+		if (player != &players[displayplayers[i]])
+			continue;
+
+		skyVisiblePerPlayer[i] = skyVisible;
+		break;
 	}
 }
 
@@ -1877,7 +1902,7 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_chasecam3);
 	CV_RegisterVar(&cv_chasecam4);
 	CV_RegisterVar(&cv_shadow);
-	CV_RegisterVar(&cv_shadowoffs);
+	CV_RegisterVar(&cv_dropshadow);
 	CV_RegisterVar(&cv_skybox);
 	CV_RegisterVar(&cv_ffloorclip);
 	CV_RegisterVar(&cv_spriteclip);

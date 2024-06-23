@@ -23,6 +23,7 @@
 #include "d_netfil.h" // fileneedednum
 #include "d_main.h"
 #include "g_game.h"
+#include "m_menu.h" // M_ClearMenus
 #include "hu_stuff.h"
 #include "keys.h"
 #include "g_input.h" // JOY1
@@ -745,9 +746,13 @@ static inline void CL_DrawConnectionStatus(void)
 			{
 				strncpy(tempname, filename, sizeof(tempname)-1);
 			}
-
+#ifdef HAVE_CURL
 			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-58-30, 0,
 				va(M_GetText("%s downloading"), ((cl_mode == CL_DOWNLOADHTTPFILES) ? "\x82""HTTP" : "\x85""Direct")));
+#else
+			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-58-30, 0,
+								 va(M_GetText("%s downloading"),("\x85""Direct")));
+#endif
 			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-58-22, V_YELLOWMAP,
 				va(M_GetText("\"%s\""), tempname));
 			V_DrawString(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-58, V_20TRANS|V_MONOSPACE,
@@ -1588,7 +1593,9 @@ static void M_ConfirmConnect(event_t *ev)
 
 static void AbortConnection(void)
 {
+#ifdef HAVE_CURL
 	CURLAbortFile();
+#endif
 	D_QuitNetGame();
 	CL_Reset();
 	D_StartTitle();
@@ -2157,6 +2164,8 @@ static void CL_ConnectToServer(void)
 	DEBFILE(va("Synchronisation Finished\n"));
 
 	displayplayers[0] = consoleplayer;
+
+	LUAh_ServerJoin();
 }
 
 #ifndef NONET
@@ -2458,8 +2467,17 @@ static void Command_connect(void)
 
 	if (Playing() || demo.title)
 	{
-		CONS_Printf(M_GetText("You cannot connect while in a game. End this game first.\n"));
-		return;
+		M_ClearMenus(true);
+		if (demo.title)
+			G_CheckDemoStatus();
+
+		if (netgame)
+		{
+			D_QuitNetGame();
+			CL_Reset();
+		}
+
+		D_StartTitle();
 	}
 
 	// modified game check: no longer handled
@@ -2534,6 +2552,14 @@ void CL_ClearPlayer(INT32 playernum)
 		// Don't leave a NiGHTS ghost!
 		if ((players[playernum].pflags & PF_NIGHTSMODE) && players[playernum].mo->tracer)
 			P_RemoveMobj(players[playernum].mo->tracer);
+		
+		// Remove Follower
+		if (players[playernum].follower)
+		{
+			P_RemoveMobj(players[playernum].follower);
+			P_SetTarget(&players[playernum].follower, NULL);
+		}
+		
 		P_RemoveMobj(players[playernum].mo);
 	}
 	memset(&players[playernum], 0, sizeof (player_t));
@@ -3411,8 +3437,9 @@ consvar_t cv_maxplayers = {"maxplayers", "8", CV_SAVE|CV_CALL, maxplayers_cons_t
 static CV_PossibleValue_t discordinvites_cons_t[] = {{0, "Admins Only"}, {1, "Everyone"}, {0, NULL}};
 consvar_t cv_discordinvites = {"discordinvites", "Everyone", CV_SAVE|CV_CALL, discordinvites_cons_t, Joinable_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t resynchattempts_cons_t[] = {{0, "MIN"}, {20, "MAX"}, {0, NULL}};
-consvar_t cv_resynchattempts = {"resynchattempts", "2", CV_SAVE, resynchattempts_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL	};
+consvar_t cv_allowresynch = {"allowresynching", "ON", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL	};
+static CV_PossibleValue_t resynchcooldown_cons_t[] = {{0, "MIN"}, {20, "MAX"}, {0, NULL}};
+consvar_t cv_resynchcooldown = {"resynchcooldown", "5", CV_SAVE, resynchcooldown_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL	};
 consvar_t cv_blamecfail = {"blamecfail", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL	};
 
 // max file size to send to a player (in kilobytes)
@@ -3675,8 +3702,6 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 	newplayernum %= MAXPLAYERS;
 
 	G_AddPlayer(newplayernum);
-
-	playeringame[newplayernum] = true;
 
 	if (newplayernum+1 > doomcom->numslots)
 		doomcom->numslots = (INT16)(newplayernum+1);
@@ -4152,7 +4177,7 @@ static void HandleServerInfo(SINT8 node)
 
 static void PT_WillResendGamestate(void)
 {
-	char tmpsave[256];
+	char tmpsave[264];
 
 	if (server || cl_redownloadinggamestate)
 		return;
@@ -4579,7 +4604,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 				&& !resendingsavegame[node] && savegameresendcooldown[node] <= I_GetTime()
 				&& !SV_ResendingSavegameToAnyone())
 			{
-				if (cv_resynchattempts.value)
+				if (cv_allowresynch.value)
 				{
 					// Tell the client we are about to resend them the gamestate
 					netbuffer->packettype = PT_WILLRESENDGAMESTATE;
@@ -4610,6 +4635,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 					break;
 				}
 			}
+			break;
 		case PT_BASICKEEPALIVE:
 			if (client)
 				break;
@@ -4751,7 +4777,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 		case PT_RECEIVEDGAMESTATE:
 			sendingsavegame[node] = false;
 			resendingsavegame[node] = false;
-			savegameresendcooldown[node] = I_GetTime() + 5 * TICRATE;
+			savegameresendcooldown[node] = I_GetTime() + cv_resynchcooldown.value * TICRATE; // I_GetTime() + 5 * TICRATE;
 			break;
 // -------------------------------------------- CLIENT RECEIVE ----------
 		case PT_SERVERTICS:

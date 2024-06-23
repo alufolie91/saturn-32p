@@ -16,6 +16,7 @@
 #include "m_random.h"
 #include "m_menu.h" // ffdhidshfuisduifigergho9igj89dgodhfih AAAAAAAAAA
 #include "p_local.h"
+#include "p_mobj.h"
 #include "p_slopes.h"
 #include "r_defs.h"
 #include "r_draw.h"
@@ -25,6 +26,7 @@
 #include "r_fps.h"
 #include "s_sound.h"
 #include "screen.h"
+#include "sounds.h"
 #include "st_stuff.h"
 #include "tables.h"
 #include "v_video.h"
@@ -102,12 +104,15 @@ consvar_t cv_stackingeffect = {"stacking_stackingeffect", "On", CV_SAVE, CV_OnOf
 
 consvar_t cv_stackingeffectscaling = {"stacking_stackingeffectscaling", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_sneakerstacksound = {"sneakerstacksound", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 consvar_t cv_coloredsneakertrail = {"sneakertrailcolor", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_alwaysshowitemstacks = {"alwaysshowitemstacks", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_battlespeedo = {"battlespeedo", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //toggle for showing the speedometer in battlemode
 
+consvar_t cv_chainsound = {"chainsound", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
 // gamespeed is cc (0 for easy, 1 for normal, 2 for hard, 3 for expert)
@@ -1052,269 +1057,270 @@ void K_RegisterKartStuff(void)
 	
 	//Uranus Calc numbers
 	CV_RegisterVar(&cv_uranusdistvar);
+	
 	//Sneaker
-CV_RegisterVar(&cv_SITBL1);
-CV_RegisterVar(&cv_SITBL2);
-CV_RegisterVar(&cv_SITBL3);
-CV_RegisterVar(&cv_SITBL4);
-CV_RegisterVar(&cv_SITBL5);
-CV_RegisterVar(&cv_SITBL6);
-CV_RegisterVar(&cv_SITBL7);
-CV_RegisterVar(&cv_SITBL8);
-CV_RegisterVar(&cv_SITBL9);
-CV_RegisterVar(&cv_SITBL10);
+	CV_RegisterVar(&cv_SITBL1);
+	CV_RegisterVar(&cv_SITBL2);
+	CV_RegisterVar(&cv_SITBL3);
+	CV_RegisterVar(&cv_SITBL4);
+	CV_RegisterVar(&cv_SITBL5);
+	CV_RegisterVar(&cv_SITBL6);
+	CV_RegisterVar(&cv_SITBL7);
+	CV_RegisterVar(&cv_SITBL8);
+	CV_RegisterVar(&cv_SITBL9);
+	CV_RegisterVar(&cv_SITBL10);
 
-//Rocket Sneaker
-CV_RegisterVar(&cv_RSITBL1);
-CV_RegisterVar(&cv_RSITBL2);
-CV_RegisterVar(&cv_RSITBL3);
-CV_RegisterVar(&cv_RSITBL4);
-CV_RegisterVar(&cv_RSITBL5);
-CV_RegisterVar(&cv_RSITBL6);
-CV_RegisterVar(&cv_RSITBL7);
-CV_RegisterVar(&cv_RSITBL8);
-CV_RegisterVar(&cv_RSITBL9);
-CV_RegisterVar(&cv_RSITBL10);
+	//Rocket Sneaker
+	CV_RegisterVar(&cv_RSITBL1);
+	CV_RegisterVar(&cv_RSITBL2);
+	CV_RegisterVar(&cv_RSITBL3);
+	CV_RegisterVar(&cv_RSITBL4);
+	CV_RegisterVar(&cv_RSITBL5);
+	CV_RegisterVar(&cv_RSITBL6);
+	CV_RegisterVar(&cv_RSITBL7);
+	CV_RegisterVar(&cv_RSITBL8);
+	CV_RegisterVar(&cv_RSITBL9);
+	CV_RegisterVar(&cv_RSITBL10);
 
-//Invincivility
-CV_RegisterVar(&cv_INITBL1);
-CV_RegisterVar(&cv_INITBL2);
-CV_RegisterVar(&cv_INITBL3);
-CV_RegisterVar(&cv_INITBL4);
-CV_RegisterVar(&cv_INITBL5);
-CV_RegisterVar(&cv_INITBL6);
-CV_RegisterVar(&cv_INITBL7);
-CV_RegisterVar(&cv_INITBL8);
-CV_RegisterVar(&cv_INITBL9);
-CV_RegisterVar(&cv_INITBL10);
+	//Invincivility
+	CV_RegisterVar(&cv_INITBL1);
+	CV_RegisterVar(&cv_INITBL2);
+	CV_RegisterVar(&cv_INITBL3);
+	CV_RegisterVar(&cv_INITBL4);
+	CV_RegisterVar(&cv_INITBL5);
+	CV_RegisterVar(&cv_INITBL6);
+	CV_RegisterVar(&cv_INITBL7);
+	CV_RegisterVar(&cv_INITBL8);
+	CV_RegisterVar(&cv_INITBL9);
+	CV_RegisterVar(&cv_INITBL10);
 
-//Banana
-CV_RegisterVar(&cv_BANITBL1);
-CV_RegisterVar(&cv_BANITBL2);
-CV_RegisterVar(&cv_BANITBL3);
-CV_RegisterVar(&cv_BANITBL4);
-CV_RegisterVar(&cv_BANITBL5);
-CV_RegisterVar(&cv_BANITBL6);
-CV_RegisterVar(&cv_BANITBL7);
-CV_RegisterVar(&cv_BANITBL8);
-CV_RegisterVar(&cv_BANITBL9);
-CV_RegisterVar(&cv_BANITBL10);
+	//Banana
+	CV_RegisterVar(&cv_BANITBL1);
+	CV_RegisterVar(&cv_BANITBL2);
+	CV_RegisterVar(&cv_BANITBL3);
+	CV_RegisterVar(&cv_BANITBL4);
+	CV_RegisterVar(&cv_BANITBL5);
+	CV_RegisterVar(&cv_BANITBL6);
+	CV_RegisterVar(&cv_BANITBL7);
+	CV_RegisterVar(&cv_BANITBL8);
+	CV_RegisterVar(&cv_BANITBL9);
+	CV_RegisterVar(&cv_BANITBL10);
 
-//Eggmanbomb
-CV_RegisterVar(&cv_EGGITBL1);
-CV_RegisterVar(&cv_EGGITBL2);
-CV_RegisterVar(&cv_EGGITBL3);
-CV_RegisterVar(&cv_EGGITBL4);
-CV_RegisterVar(&cv_EGGITBL5);
-CV_RegisterVar(&cv_EGGITBL6);
-CV_RegisterVar(&cv_EGGITBL7);
-CV_RegisterVar(&cv_EGGITBL8);
-CV_RegisterVar(&cv_EGGITBL9);
-CV_RegisterVar(&cv_EGGITBL10);
+	//Eggmanbomb
+	CV_RegisterVar(&cv_EGGITBL1);
+	CV_RegisterVar(&cv_EGGITBL2);
+	CV_RegisterVar(&cv_EGGITBL3);
+	CV_RegisterVar(&cv_EGGITBL4);
+	CV_RegisterVar(&cv_EGGITBL5);
+	CV_RegisterVar(&cv_EGGITBL6);
+	CV_RegisterVar(&cv_EGGITBL7);
+	CV_RegisterVar(&cv_EGGITBL8);
+	CV_RegisterVar(&cv_EGGITBL9);
+	CV_RegisterVar(&cv_EGGITBL10);
 
-//Orbinaut
-CV_RegisterVar(&cv_ORBITBL1);
-CV_RegisterVar(&cv_ORBITBL2);
-CV_RegisterVar(&cv_ORBITBL3);
-CV_RegisterVar(&cv_ORBITBL4);
-CV_RegisterVar(&cv_ORBITBL5);
-CV_RegisterVar(&cv_ORBITBL6);
-CV_RegisterVar(&cv_ORBITBL7);
-CV_RegisterVar(&cv_ORBITBL8);
-CV_RegisterVar(&cv_ORBITBL9);
-CV_RegisterVar(&cv_ORBITBL10);
+	//Orbinaut
+	CV_RegisterVar(&cv_ORBITBL1);
+	CV_RegisterVar(&cv_ORBITBL2);
+	CV_RegisterVar(&cv_ORBITBL3);
+	CV_RegisterVar(&cv_ORBITBL4);
+	CV_RegisterVar(&cv_ORBITBL5);
+	CV_RegisterVar(&cv_ORBITBL6);
+	CV_RegisterVar(&cv_ORBITBL7);
+	CV_RegisterVar(&cv_ORBITBL8);
+	CV_RegisterVar(&cv_ORBITBL9);
+	CV_RegisterVar(&cv_ORBITBL10);
 
-//Jawz
-CV_RegisterVar(&cv_JAWITBL1);
-CV_RegisterVar(&cv_JAWITBL2);
-CV_RegisterVar(&cv_JAWITBL3);
-CV_RegisterVar(&cv_JAWITBL4);
-CV_RegisterVar(&cv_JAWITBL5);
-CV_RegisterVar(&cv_JAWITBL6);
-CV_RegisterVar(&cv_JAWITBL7);
-CV_RegisterVar(&cv_JAWITBL8);
-CV_RegisterVar(&cv_JAWITBL9);
-CV_RegisterVar(&cv_JAWITBL10);
+	//Jawz
+	CV_RegisterVar(&cv_JAWITBL1);
+	CV_RegisterVar(&cv_JAWITBL2);
+	CV_RegisterVar(&cv_JAWITBL3);
+	CV_RegisterVar(&cv_JAWITBL4);
+	CV_RegisterVar(&cv_JAWITBL5);
+	CV_RegisterVar(&cv_JAWITBL6);
+	CV_RegisterVar(&cv_JAWITBL7);
+	CV_RegisterVar(&cv_JAWITBL8);
+	CV_RegisterVar(&cv_JAWITBL9);
+	CV_RegisterVar(&cv_JAWITBL10);
 
-//MINE
-CV_RegisterVar(&cv_MINITBL1);
-CV_RegisterVar(&cv_MINITBL2);
-CV_RegisterVar(&cv_MINITBL3);
-CV_RegisterVar(&cv_MINITBL4);
-CV_RegisterVar(&cv_MINITBL5);
-CV_RegisterVar(&cv_MINITBL6);
-CV_RegisterVar(&cv_MINITBL7);
-CV_RegisterVar(&cv_MINITBL8);
-CV_RegisterVar(&cv_MINITBL9);
-CV_RegisterVar(&cv_MINITBL10);
+	//MINE
+	CV_RegisterVar(&cv_MINITBL1);
+	CV_RegisterVar(&cv_MINITBL2);
+	CV_RegisterVar(&cv_MINITBL3);
+	CV_RegisterVar(&cv_MINITBL4);
+	CV_RegisterVar(&cv_MINITBL5);
+	CV_RegisterVar(&cv_MINITBL6);
+	CV_RegisterVar(&cv_MINITBL7);
+	CV_RegisterVar(&cv_MINITBL8);
+	CV_RegisterVar(&cv_MINITBL9);
+	CV_RegisterVar(&cv_MINITBL10);
 
-//Ball Hog
-CV_RegisterVar(&cv_BALITBL1);
-CV_RegisterVar(&cv_BALITBL2);
-CV_RegisterVar(&cv_BALITBL3);
-CV_RegisterVar(&cv_BALITBL4);
-CV_RegisterVar(&cv_BALITBL5);
-CV_RegisterVar(&cv_BALITBL6);
-CV_RegisterVar(&cv_BALITBL7);
-CV_RegisterVar(&cv_BALITBL8);
-CV_RegisterVar(&cv_BALITBL9);
-CV_RegisterVar(&cv_BALITBL10);
+	//Ball Hog
+	CV_RegisterVar(&cv_BALITBL1);
+	CV_RegisterVar(&cv_BALITBL2);
+	CV_RegisterVar(&cv_BALITBL3);
+	CV_RegisterVar(&cv_BALITBL4);
+	CV_RegisterVar(&cv_BALITBL5);
+	CV_RegisterVar(&cv_BALITBL6);
+	CV_RegisterVar(&cv_BALITBL7);
+	CV_RegisterVar(&cv_BALITBL8);
+	CV_RegisterVar(&cv_BALITBL9);
+	CV_RegisterVar(&cv_BALITBL10);
 
-//SPB
-CV_RegisterVar(&cv_SPBITBL1);
-CV_RegisterVar(&cv_SPBITBL2);
-CV_RegisterVar(&cv_SPBITBL3);
-CV_RegisterVar(&cv_SPBITBL4);
-CV_RegisterVar(&cv_SPBITBL5);
-CV_RegisterVar(&cv_SPBITBL6);
-CV_RegisterVar(&cv_SPBITBL7);
-CV_RegisterVar(&cv_SPBITBL8);
-CV_RegisterVar(&cv_SPBITBL9);
-CV_RegisterVar(&cv_SPBITBL10);
+	//SPB
+	CV_RegisterVar(&cv_SPBITBL1);
+	CV_RegisterVar(&cv_SPBITBL2);
+	CV_RegisterVar(&cv_SPBITBL3);
+	CV_RegisterVar(&cv_SPBITBL4);
+	CV_RegisterVar(&cv_SPBITBL5);
+	CV_RegisterVar(&cv_SPBITBL6);
+	CV_RegisterVar(&cv_SPBITBL7);
+	CV_RegisterVar(&cv_SPBITBL8);
+	CV_RegisterVar(&cv_SPBITBL9);
+	CV_RegisterVar(&cv_SPBITBL10);
 
-//Grow
-CV_RegisterVar(&cv_GROITBL1);
-CV_RegisterVar(&cv_GROITBL2);
-CV_RegisterVar(&cv_GROITBL3);
-CV_RegisterVar(&cv_GROITBL4);
-CV_RegisterVar(&cv_GROITBL5);
-CV_RegisterVar(&cv_GROITBL6);
-CV_RegisterVar(&cv_GROITBL7);
-CV_RegisterVar(&cv_GROITBL8);
-CV_RegisterVar(&cv_GROITBL9);
-CV_RegisterVar(&cv_GROITBL10);
+	//Grow
+	CV_RegisterVar(&cv_GROITBL1);
+	CV_RegisterVar(&cv_GROITBL2);
+	CV_RegisterVar(&cv_GROITBL3);
+	CV_RegisterVar(&cv_GROITBL4);
+	CV_RegisterVar(&cv_GROITBL5);
+	CV_RegisterVar(&cv_GROITBL6);
+	CV_RegisterVar(&cv_GROITBL7);
+	CV_RegisterVar(&cv_GROITBL8);
+	CV_RegisterVar(&cv_GROITBL9);
+	CV_RegisterVar(&cv_GROITBL10);
 
-//Shrink
-CV_RegisterVar(&cv_SHRITBL1);
-CV_RegisterVar(&cv_SHRITBL2);
-CV_RegisterVar(&cv_SHRITBL3);
-CV_RegisterVar(&cv_SHRITBL4);
-CV_RegisterVar(&cv_SHRITBL5);
-CV_RegisterVar(&cv_SHRITBL6);
-CV_RegisterVar(&cv_SHRITBL7);
-CV_RegisterVar(&cv_SHRITBL8);
-CV_RegisterVar(&cv_SHRITBL9);
-CV_RegisterVar(&cv_SHRITBL10);
+	//Shrink
+	CV_RegisterVar(&cv_SHRITBL1);
+	CV_RegisterVar(&cv_SHRITBL2);
+	CV_RegisterVar(&cv_SHRITBL3);
+	CV_RegisterVar(&cv_SHRITBL4);
+	CV_RegisterVar(&cv_SHRITBL5);
+	CV_RegisterVar(&cv_SHRITBL6);
+	CV_RegisterVar(&cv_SHRITBL7);
+	CV_RegisterVar(&cv_SHRITBL8);
+	CV_RegisterVar(&cv_SHRITBL9);
+	CV_RegisterVar(&cv_SHRITBL10);
 
-//Thundershield
-CV_RegisterVar(&cv_THUITBL1);
-CV_RegisterVar(&cv_THUITBL2);
-CV_RegisterVar(&cv_THUITBL3);
-CV_RegisterVar(&cv_THUITBL4);
-CV_RegisterVar(&cv_THUITBL5);
-CV_RegisterVar(&cv_THUITBL6);
-CV_RegisterVar(&cv_THUITBL7);
-CV_RegisterVar(&cv_THUITBL8);
-CV_RegisterVar(&cv_THUITBL9);
-CV_RegisterVar(&cv_THUITBL10);
+	//Thundershield
+	CV_RegisterVar(&cv_THUITBL1);
+	CV_RegisterVar(&cv_THUITBL2);
+	CV_RegisterVar(&cv_THUITBL3);
+	CV_RegisterVar(&cv_THUITBL4);
+	CV_RegisterVar(&cv_THUITBL5);
+	CV_RegisterVar(&cv_THUITBL6);
+	CV_RegisterVar(&cv_THUITBL7);
+	CV_RegisterVar(&cv_THUITBL8);
+	CV_RegisterVar(&cv_THUITBL9);
+	CV_RegisterVar(&cv_THUITBL10);
 
-//Hyuu
-CV_RegisterVar(&cv_HYUITBL1);
-CV_RegisterVar(&cv_HYUITBL2);
-CV_RegisterVar(&cv_HYUITBL3);
-CV_RegisterVar(&cv_HYUITBL4);
-CV_RegisterVar(&cv_HYUITBL5);
-CV_RegisterVar(&cv_HYUITBL6);
-CV_RegisterVar(&cv_HYUITBL7);
-CV_RegisterVar(&cv_HYUITBL8);
-CV_RegisterVar(&cv_HYUITBL9);
-CV_RegisterVar(&cv_HYUITBL10);
+	//Hyuu
+	CV_RegisterVar(&cv_HYUITBL1);
+	CV_RegisterVar(&cv_HYUITBL2);
+	CV_RegisterVar(&cv_HYUITBL3);
+	CV_RegisterVar(&cv_HYUITBL4);
+	CV_RegisterVar(&cv_HYUITBL5);
+	CV_RegisterVar(&cv_HYUITBL6);
+	CV_RegisterVar(&cv_HYUITBL7);
+	CV_RegisterVar(&cv_HYUITBL8);
+	CV_RegisterVar(&cv_HYUITBL9);
+	CV_RegisterVar(&cv_HYUITBL10);
 
-// Pogo spring
-CV_RegisterVar(&cv_POGITBL1);
-CV_RegisterVar(&cv_POGITBL2);
-CV_RegisterVar(&cv_POGITBL3);
-CV_RegisterVar(&cv_POGITBL4);
-CV_RegisterVar(&cv_POGITBL5);
-CV_RegisterVar(&cv_POGITBL6);
-CV_RegisterVar(&cv_POGITBL7);
-CV_RegisterVar(&cv_POGITBL8);
-CV_RegisterVar(&cv_POGITBL9);
-CV_RegisterVar(&cv_POGITBL10);
+	// Pogo spring
+	CV_RegisterVar(&cv_POGITBL1);
+	CV_RegisterVar(&cv_POGITBL2);
+	CV_RegisterVar(&cv_POGITBL3);
+	CV_RegisterVar(&cv_POGITBL4);
+	CV_RegisterVar(&cv_POGITBL5);
+	CV_RegisterVar(&cv_POGITBL6);
+	CV_RegisterVar(&cv_POGITBL7);
+	CV_RegisterVar(&cv_POGITBL8);
+	CV_RegisterVar(&cv_POGITBL9);
+	CV_RegisterVar(&cv_POGITBL10);
 
-//Kitchen Sink
-CV_RegisterVar(&cv_KITITBL1);
-CV_RegisterVar(&cv_KITITBL2);
-CV_RegisterVar(&cv_KITITBL3);
-CV_RegisterVar(&cv_KITITBL4);
-CV_RegisterVar(&cv_KITITBL5);
-CV_RegisterVar(&cv_KITITBL6);
-CV_RegisterVar(&cv_KITITBL7);
-CV_RegisterVar(&cv_KITITBL8);
-CV_RegisterVar(&cv_KITITBL9);
-CV_RegisterVar(&cv_KITITBL10);
+	//Kitchen Sink
+	CV_RegisterVar(&cv_KITITBL1);
+	CV_RegisterVar(&cv_KITITBL2);
+	CV_RegisterVar(&cv_KITITBL3);
+	CV_RegisterVar(&cv_KITITBL4);
+	CV_RegisterVar(&cv_KITITBL5);
+	CV_RegisterVar(&cv_KITITBL6);
+	CV_RegisterVar(&cv_KITITBL7);
+	CV_RegisterVar(&cv_KITITBL8);
+	CV_RegisterVar(&cv_KITITBL9);
+	CV_RegisterVar(&cv_KITITBL10);
 
-//Triple Sneaker
-CV_RegisterVar(&cv_TSITBL1);
-CV_RegisterVar(&cv_TSITBL2);
-CV_RegisterVar(&cv_TSITBL3);
-CV_RegisterVar(&cv_TSITBL4);
-CV_RegisterVar(&cv_TSITBL5);
-CV_RegisterVar(&cv_TSITBL6);
-CV_RegisterVar(&cv_TSITBL7);
-CV_RegisterVar(&cv_TSITBL8);
-CV_RegisterVar(&cv_TSITBL9);
-CV_RegisterVar(&cv_TSITBL10);
+	//Triple Sneaker
+	CV_RegisterVar(&cv_TSITBL1);
+	CV_RegisterVar(&cv_TSITBL2);
+	CV_RegisterVar(&cv_TSITBL3);
+	CV_RegisterVar(&cv_TSITBL4);
+	CV_RegisterVar(&cv_TSITBL5);
+	CV_RegisterVar(&cv_TSITBL6);
+	CV_RegisterVar(&cv_TSITBL7);
+	CV_RegisterVar(&cv_TSITBL8);
+	CV_RegisterVar(&cv_TSITBL9);
+	CV_RegisterVar(&cv_TSITBL10);
 
-//Triplebanana
-CV_RegisterVar(&cv_TBAITBL1);
-CV_RegisterVar(&cv_TBAITBL2);
-CV_RegisterVar(&cv_TBAITBL3);
-CV_RegisterVar(&cv_TBAITBL4);
-CV_RegisterVar(&cv_TBAITBL5);
-CV_RegisterVar(&cv_TBAITBL6);
-CV_RegisterVar(&cv_TBAITBL7);
-CV_RegisterVar(&cv_TBAITBL8);
-CV_RegisterVar(&cv_TBAITBL9);
-CV_RegisterVar(&cv_TBAITBL10);
+	//Triplebanana
+	CV_RegisterVar(&cv_TBAITBL1);
+	CV_RegisterVar(&cv_TBAITBL2);
+	CV_RegisterVar(&cv_TBAITBL3);
+	CV_RegisterVar(&cv_TBAITBL4);
+	CV_RegisterVar(&cv_TBAITBL5);
+	CV_RegisterVar(&cv_TBAITBL6);
+	CV_RegisterVar(&cv_TBAITBL7);
+	CV_RegisterVar(&cv_TBAITBL8);
+	CV_RegisterVar(&cv_TBAITBL9);
+	CV_RegisterVar(&cv_TBAITBL10);
 
-//DecaBanana
-CV_RegisterVar(&cv_TENITBL1);
-CV_RegisterVar(&cv_TENITBL2);
-CV_RegisterVar(&cv_TENITBL3);
-CV_RegisterVar(&cv_TENITBL4);
-CV_RegisterVar(&cv_TENITBL5);
-CV_RegisterVar(&cv_TENITBL6);
-CV_RegisterVar(&cv_TENITBL7);
-CV_RegisterVar(&cv_TENITBL8);
-CV_RegisterVar(&cv_TENITBL9);
-CV_RegisterVar(&cv_TENITBL10);
+	//DecaBanana
+	CV_RegisterVar(&cv_TENITBL1);
+	CV_RegisterVar(&cv_TENITBL2);
+	CV_RegisterVar(&cv_TENITBL3);
+	CV_RegisterVar(&cv_TENITBL4);
+	CV_RegisterVar(&cv_TENITBL5);
+	CV_RegisterVar(&cv_TENITBL6);
+	CV_RegisterVar(&cv_TENITBL7);
+	CV_RegisterVar(&cv_TENITBL8);
+	CV_RegisterVar(&cv_TENITBL9);
+	CV_RegisterVar(&cv_TENITBL10);
 
-//Triple Orbi
-CV_RegisterVar(&cv_TORITBL1);
-CV_RegisterVar(&cv_TORITBL2);
-CV_RegisterVar(&cv_TORITBL3);
-CV_RegisterVar(&cv_TORITBL4);
-CV_RegisterVar(&cv_TORITBL5);
-CV_RegisterVar(&cv_TORITBL6);
-CV_RegisterVar(&cv_TORITBL7);
-CV_RegisterVar(&cv_TORITBL8);
-CV_RegisterVar(&cv_TORITBL9);
-CV_RegisterVar(&cv_TORITBL10);
+	//Triple Orbi
+	CV_RegisterVar(&cv_TORITBL1);
+	CV_RegisterVar(&cv_TORITBL2);
+	CV_RegisterVar(&cv_TORITBL3);
+	CV_RegisterVar(&cv_TORITBL4);
+	CV_RegisterVar(&cv_TORITBL5);
+	CV_RegisterVar(&cv_TORITBL6);
+	CV_RegisterVar(&cv_TORITBL7);
+	CV_RegisterVar(&cv_TORITBL8);
+	CV_RegisterVar(&cv_TORITBL9);
+	CV_RegisterVar(&cv_TORITBL10);
 
-//Quad orbi
-CV_RegisterVar(&cv_QUOITBL1);
-CV_RegisterVar(&cv_QUOITBL2);
-CV_RegisterVar(&cv_QUOITBL3);
-CV_RegisterVar(&cv_QUOITBL4);
-CV_RegisterVar(&cv_QUOITBL5);
-CV_RegisterVar(&cv_QUOITBL6);
-CV_RegisterVar(&cv_QUOITBL7);
-CV_RegisterVar(&cv_QUOITBL8);
-CV_RegisterVar(&cv_QUOITBL9);
-CV_RegisterVar(&cv_QUOITBL10);
+	//Quad orbi
+	CV_RegisterVar(&cv_QUOITBL1);
+	CV_RegisterVar(&cv_QUOITBL2);
+	CV_RegisterVar(&cv_QUOITBL3);
+	CV_RegisterVar(&cv_QUOITBL4);
+	CV_RegisterVar(&cv_QUOITBL5);
+	CV_RegisterVar(&cv_QUOITBL6);
+	CV_RegisterVar(&cv_QUOITBL7);
+	CV_RegisterVar(&cv_QUOITBL8);
+	CV_RegisterVar(&cv_QUOITBL9);
+	CV_RegisterVar(&cv_QUOITBL10);
 
-//Dual Jawz
-CV_RegisterVar(&cv_DJAITBL1);
-CV_RegisterVar(&cv_DJAITBL2);
-CV_RegisterVar(&cv_DJAITBL3);
-CV_RegisterVar(&cv_DJAITBL4);
-CV_RegisterVar(&cv_DJAITBL5);
-CV_RegisterVar(&cv_DJAITBL6);
-CV_RegisterVar(&cv_DJAITBL7);
-CV_RegisterVar(&cv_DJAITBL8);
-CV_RegisterVar(&cv_DJAITBL9);
-CV_RegisterVar(&cv_DJAITBL10);
+	//Dual Jawz
+	CV_RegisterVar(&cv_DJAITBL1);
+	CV_RegisterVar(&cv_DJAITBL2);
+	CV_RegisterVar(&cv_DJAITBL3);
+	CV_RegisterVar(&cv_DJAITBL4);
+	CV_RegisterVar(&cv_DJAITBL5);
+	CV_RegisterVar(&cv_DJAITBL6);
+	CV_RegisterVar(&cv_DJAITBL7);
+	CV_RegisterVar(&cv_DJAITBL8);
+	CV_RegisterVar(&cv_DJAITBL9);
+	CV_RegisterVar(&cv_DJAITBL10);
 	
 	
 	CV_RegisterVar(&cv_kartminimap);
@@ -1401,21 +1407,36 @@ CV_RegisterVar(&cv_DJAITBL10);
 	
 	CV_RegisterVar(&cv_lessflicker);
 	
-	//WTF
+	// WTF
 	CV_RegisterVar(&cv_mouseturn);
 	CV_RegisterVar(&cv_spectatestrafe);
 	
-	//multisneakericon
+	// multisneakericon
 	CV_RegisterVar(&cv_multisneakericon);
 	
 	CV_RegisterVar(&cv_alwaysshowitemstacks);
 	
-	//Stackingeffect
+	// Stackingeffect
 	CV_RegisterVar(&cv_stackingeffect);
 	CV_RegisterVar(&cv_stackingeffectscaling);
 	
-	//Colored trails
+	// Sneaker Stack Sound
+	CV_RegisterVar(&cv_sneakerstacksound);
+	
+	// Colored trails
 	CV_RegisterVar(&cv_coloredsneakertrail);
+	
+	// Look back
+	CV_RegisterVar(&cv_synchedlookback);
+	
+	// Hide followers
+	CV_RegisterVar(&cv_hidefollowers);
+	
+	// New water
+	CV_RegisterVar(&cv_newwatersplash);
+	
+	// Chainsound
+	CV_RegisterVar(&cv_chainsound);
 }
 
 //}
@@ -1493,6 +1514,33 @@ static INT32 K_KartItemOddsRace[NUMKARTRESULTS][10] =
 			   /*Jawz x2*/ { 0, 0, 0, 1, 2, 0, 0, 0, 0, 0 }  // Jawz x2
 };
 
+// Less ugly 2D arrays
+static INT32 K_KartCEPItemOddsRace[NUMKARTRESULTS][10] =
+{
+                //P-Odds     0  1  2  3  4  5  6  7  8  9
+               /*Sneaker*/ {20, 0, 1, 4, 6, 7, 0, 0, 0, 0 }, // Sneaker
+        /*Rocket Sneaker*/ { 0, 0, 0, 0, 0, 1, 4, 6, 3, 0 }, // Rocket Sneaker
+         /*Invincibility*/ { 0, 0, 0, 0, 0, 1, 4, 6,10, 0 }, // Invincibility
+                /*Banana*/ { 0, 9, 4, 2, 1, 0, 0, 0, 0, 0 }, // Banana
+        /*Eggman Monitor*/ { 0, 2, 1, 1, 0, 0, 0, 0, 0, 0 }, // Eggman Monitor
+              /*Orbinaut*/ { 0, 7, 6, 4, 2, 0, 0, 0, 0, 0 }, // Orbinaut
+                  /*Jawz*/ { 0, 0, 3, 2, 1, 1, 0, 0, 0, 0 }, // Jawz
+                  /*Mine*/ { 0, 0, 2, 2, 1, 0, 0, 0, 0, 0 }, // Mine
+               /*Ballhog*/ { 0, 0, 0, 2, 1, 0, 0, 0, 0, 0 }, // Ballhog
+   /*Self-Propelled Bomb*/ { 0, 0, 1, 2, 3, 4, 2, 2, 0,20 }, // Self-Propelled Bomb
+                  /*Grow*/ { 0, 0, 0, 0, 0, 0, 2, 5, 7, 0 }, // Grow
+                /*Shrink*/ { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 }, // Shrink
+        /*Thunder Shield*/ { 0, 1, 2, 0, 0, 0, 0, 0, 0, 0 }, // Thunder Shield
+               /*Hyudoro*/ { 0, 0, 0, 0, 1, 2, 1, 0, 0, 0 }, // Hyudoro
+           /*Pogo Spring*/ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Pogo Spring
+          /*Kitchen Sink*/ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Kitchen Sink
+            /*Sneaker x3*/ { 0, 0, 0, 0, 3, 7, 9, 2, 0, 0 }, // Sneaker x3
+             /*Banana x3*/ { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0 }, // Banana x3
+            /*Banana x10*/ { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }, // Banana x10
+           /*Orbinaut x3*/ { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 }, // Orbinaut x3
+           /*Orbinaut x4*/ { 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 }, // Orbinaut x4
+               /*Jawz x2*/ { 0, 0, 0, 1, 2, 0, 0, 0, 0, 0 }  // Jawz x2
+};
 
 static INT32 K_KartItemOddsBattle[NUMKARTRESULTS][2] =
 {
@@ -1624,8 +1672,6 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 		cv_dualjawz.value
 	};
 
-	
-	
 	distvar = cv_uranusdistvar.value;
 	
 	//Custom odds
@@ -1656,7 +1702,6 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 			   /*Jawz x2*/ {cv_DJAITBL1.value, cv_DJAITBL2.value, cv_DJAITBL3.value, cv_DJAITBL4.value, cv_DJAITBL5.value, cv_DJAITBL6.value, cv_DJAITBL7.value, cv_DJAITBL8.value, cv_DJAITBL9.value, cv_DJAITBL10.value }  // Jawz x2
 	};
 	
-	
 	I_Assert(item > KITEM_NONE); // too many off by one scenarioes.
 
 	if (!itemenabled[item-1] && !modeattacking)
@@ -1665,10 +1710,12 @@ static INT32 K_KartGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean sp
 	if (G_BattleGametype())
 		newodds = K_KartItemOddsBattle[item-1][pos];
 	else
+	{
 		if (cv_customodds.value)
 			newodds = K_KartCustomOddsRace[item-1][pos];
 		else
 			newodds = K_KartItemOddsRace[item-1][pos];
+	}
 
 	// Base multiplication to ALL item odds to simulate fractional precision
 	newodds *= 4;
@@ -2033,11 +2080,29 @@ static void K_KartItemRoulette(player_t *player, ticcmd_t *cmd)
 	player->kartstuff[k_roulettetype] = 0; // This too
 }
 
-
-
 //Fuckal odds start here
 
+// Magic number distance for use with item roulette tiers
+#define DISTVAR (cv_cepdistvar.value)
+#define DISTHALF (cv_cepdisthalf.value)
 
+// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
+// (It's vague if SRB2Kart wanted this to be 3 or 4...)
+
+// let's keep this at the 1.3 valu- AAAACK NO NO NO THERE'S SPBS EVERYWHERE FUCK
+
+// kill me right now, time for 4.5
+#define SPBSTARTDIST ((9*cv_cepspbdistvar.value) / 2)
+
+// Distance between 1st and 2nd, where SPB is forcefully given to 2nd place.
+#define SPBFORCEDIST (SPBSTARTDIST + (2*cv_cepspbdistvar.value))
+
+// forcedist = 5760 + 2560 = 8320
+// this will likely change often
+
+// Distance from finish line when the game stops giving you bananas
+// (If only waypoints were sophisticated enough to bring this one over...)
+//#define ENDDIST (12*DISTVAR)
 
 // here comes the ring ravagers rewrite
 static fixed_t K_FuckalItemOddsScale(UINT8 numPlayers, boolean spbrush)
@@ -2126,8 +2191,6 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 	boolean thunderisout = false;
 	SINT8 first = -1, second = -1;
 	UINT32 secondToFirst = 0;
-	INT32 SPBSTARTDIST; 
-	INT32 SPBFORCEDIST;
 	boolean itemenabled[NUMKARTRESULTS-1] = {
 		cv_sneaker.value,
 		cv_rocketsneaker.value,
@@ -2153,27 +2216,7 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 		cv_dualjawz.value
 	};
 	
-
-	
-
-	// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
-	// (It's vague if SRB2Kart wanted this to be 3 or 4...)
-
-	// let's keep this at the 1.3 valu- AAAACK NO NO NO THERE'S SPBS EVERYWHERE FUCK
-
-	// kill me right now, time for 4.5
-	//#define SPBSTARTDIST ((9*DISTVAR) / 2)
-		
-
-	// Distance between 1st and 2nd, where SPB is forcefully given to 2nd place.
-	//#define SPBFORCEDIST (SPBSTARTDIST + (2*DISTVAR))
-	SPBSTARTDIST = ((9*cv_cepspbdistvar.value) / 2);
-	SPBFORCEDIST = (SPBSTARTDIST + (2*cv_cepspbdistvar.value));
-
-	// forcedist = 5760 + 2560 = 8320
-	// this will likely change often	
-	
-		//Custom odds
+	//Custom odds
 	INT32 K_KartCustomOddsRace[NUMKARTRESULTS][10] =
 	{
 				//P-Odds	 0				  1				  2				  3				 	 4  			5 				 6				  7					  8				  9
@@ -2213,10 +2256,12 @@ static INT32 K_FuckalGetItemOdds(UINT8 pos, SINT8 item, fixed_t mashed, boolean 
 	if (G_BattleGametype())
 		newodds = K_KartItemOddsBattle[item-1][pos];
 	else
+	{
 		if (cv_customodds.value)
 			newodds = K_KartCustomOddsRace[item-1][pos];
 		else
-			newodds = K_KartItemOddsRace[item-1][pos];
+			newodds = K_KartCEPItemOddsRace[item-1][pos];
+	}
 
 	// Base multiplication to ALL item odds to simulate fractional precision
 	newodds *= 4;
@@ -2384,45 +2429,6 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 	boolean ufo;
 	INT32 useodds = 0;
 	
-	INT32 DISTVAR;
-	
-	INT32 SPBSTARTDIST; 
-	INT32 SPBFORCEDIST;
-	
-	//Making magic numbers into convars here
-	// Magic number distance for use with item roulette tiers
-	//#define DISTVAR (1280) 
-	//#define DISTHALF (640)
-
-	
-	DISTVAR = cv_cepdistvar.value;
-	
-	
-
-	// Distance between 1st and 2nd, when SPB can start appearing randomly for anyone.
-	// (It's vague if SRB2Kart wanted this to be 3 or 4...)
-
-	// let's keep this at the 1.3 valu- AAAACK NO NO NO THERE'S SPBS EVERYWHERE FUCK
-
-	// kill me right now, time for 4.5
-	//#define SPBSTARTDIST ((9*DISTVAR) / 2)
-		
-
-	// Distance between 1st and 2nd, where SPB is forcefully given to 2nd place.
-	//#define SPBFORCEDIST (SPBSTARTDIST + (2*DISTVAR))
-	SPBSTARTDIST = ((9*cv_cepspbdistvar.value) / 2);
-	SPBFORCEDIST = (SPBSTARTDIST + (2*cv_cepspbdistvar.value));
-
-	// forcedist = 5760 + 2560 = 8320
-	// this will likely change often
-
-	// Distance from finish line when the game stops giving you bananas
-	// (If only waypoints were sophisticated enough to bring this one over...)
-	//#define ENDDIST (12*DISTVAR)
-	
-	
-	
-
 	INT32 i;
 
 	// Unused now, oops :V
@@ -2612,14 +2618,14 @@ static INT32 K_FuckalFindUseodds(player_t *player, fixed_t mashed, INT32 pingame
 			// 1st place
 			useodds = disttable[0];
 		}
-		else if (player->kartstuff[k_position] == 2 && pdis > (SPBFORCEDIST*6)
+		else if (player->kartstuff[k_position] == 2 && pdis > (unsigned)(SPBFORCEDIST*6)
 			&& spbplace == -1 && !indirectitemcooldown && !dontforcespb
 			&& oddsvalid[9])
 		{
 			// Force SPB in 2nd
 			useodds = 9;
 		}
-		else if (pdis > DISTVAR * ((12 * distlen) / 14))
+		else if (pdis > (unsigned)DISTVAR * ((12 * distlen) / 14))
 		{
 			// Back of the pack
 			useodds = disttable[distlen-1];
@@ -2772,15 +2778,11 @@ static void K_FuckalKartItemRoulette(player_t *player, ticcmd_t *cmd)
 	player->kartstuff[k_itemroulette] = 0; // Since we're done, clear the roulette number
 	player->kartstuff[k_roulettetype] = 0; // This too
 }
-
-
-
-
 //Fuckal odds end here
-
-
-
-
+#undef SPBFORCEDIST
+#undef SPBSTARTDIST
+#undef DISTVAR
+#undef DISTHALF
 
 //}
 
@@ -3130,6 +3132,20 @@ void K_MatchGenericExtraFlags(mobj_t *mo, mobj_t *master)
 	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP4)|(master->eflags & MFE_DRAWONLYFORP4);
 }
 
+void K_GenericExtraFlagsNoZAdjust(mobj_t *mo, mobj_t *master)
+{
+	// flipping
+	mo->eflags = (mo->eflags & ~MFE_VERTICALFLIP)|(master->eflags & MFE_VERTICALFLIP);
+	mo->flags2 = (mo->flags2 & ~MF2_OBJECTFLIP)|(master->flags2 & MF2_OBJECTFLIP);
+
+	// visibility (usually for hyudoro)
+	mo->flags2 = (mo->flags2 & ~MF2_DONTDRAW)|(master->flags2 & MF2_DONTDRAW);
+	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP1)|(master->eflags & MFE_DRAWONLYFORP1);
+	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP2)|(master->eflags & MFE_DRAWONLYFORP2);
+	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP3)|(master->eflags & MFE_DRAWONLYFORP3);
+	mo->eflags = (mo->eflags & ~MFE_DRAWONLYFORP4)|(master->eflags & MFE_DRAWONLYFORP4);
+}
+
 static void K_SpawnDashDustRelease(player_t *player)
 {
 	fixed_t newx;
@@ -3410,6 +3426,12 @@ void K_PlayOvertakeSound(mobj_t *source)
 
 void K_PlayHitEmSound(mobj_t *source)
 {
+	if (source->player->follower)
+	{
+		follower_t fl = followers[source->player->followerskin];
+		source->player->follower->movecount = fl.hitconfirmtime;	// movecount is used to play the hitconfirm animation for followers.
+	}
+
 	if (cv_kartvoices.value)
 		S_StartSound(source, sfx_khitem);
 	else
@@ -4934,7 +4956,7 @@ static void K_QuiteSaltyHop(player_t *p)
 
 #define SLOPEROLL_DIV 3
 
-void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance)
+void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance, pslope_t *slope)
 {
     I_Assert(mo->subsector != NULL);
     I_Assert(mo->subsector->sector != NULL);
@@ -4945,7 +4967,7 @@ void K_RollMobjBySlopes(mobj_t* mo, boolean usedistance)
     fixed_t rolldist = cv_sloperolldist.value * mapobjectscale;
 
     // lifted from hw_md2
-    if (mo->standingslope)
+    if (slope)
     {
         fixed_t tempz = mo->standingslope->normal.z;
         fixed_t tempy = mo->standingslope->normal.y;
@@ -5653,39 +5675,26 @@ if (numplayers == 1) // With just 2 players, we just need to set the other playe
 	}
 }
 
-void K_DoSneaker(player_t *player, INT32 type)
+// Handle these else where to reduce code duplication between panels and sneakers
+static void K_SneakerPanelStackSound(player_t *player)
+{		
+	const sfxenum_t normalsfx = sfx_cdfm01;
+	const sfxenum_t smallsfx = sfx_cdfm40;
+	sfxenum_t sfx = normalsfx;
+
+	if (player->kartstuff[k_sneakerstack] && cv_sneakerstacksound.value)
+	{
+		// Use a less annoying sound when stacking sneakers.
+		sfx = smallsfx;
+	}
+
+	S_StopSoundByID(player->mo, normalsfx);
+	S_StopSoundByID(player->mo, smallsfx);
+	S_StartSound(player->mo, sfx);
+}
+
+static void K_SneakerPanelEffect(player_t *player, INT32 type)
 {
-	fixed_t intendedboost;
-
-	switch (gamespeed)
-	{
-		case 0:
-			intendedboost = 53740+768;
-			break;
-		case 2:
-			intendedboost = 17294+768;
-			break;
-		//expert
-		case 3:
-			intendedboost = 14706;
-			break;
-			
-		default:
-			intendedboost = 32768;
-			break;
-	}
-	
-	if (LUAh_KartSneaker(player, type))
-		return;
-
-	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
-	{
-		S_StartSound(player->mo, sfx_cdfm01);
-		K_SpawnDashDustRelease(player);
-		if (intendedboost > player->kartstuff[k_speedboost])
-			player->kartstuff[k_destboostcam] = FixedMul(FRACUNIT, FixedDiv((intendedboost - player->kartstuff[k_speedboost]), intendedboost));
-	}
-
 	if (!player->kartstuff[k_sneakertimer] && !player->kartstuff[k_paneltimer])
 	{
 		if (type == 2)
@@ -5715,15 +5724,52 @@ void K_DoSneaker(player_t *player, INT32 type)
 			K_FlipFromObject(overlay, player->mo);
 		}
 	}
-		player->kartstuff[k_sneakertimer] = sneakertime;
-		if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
-			player->kartstuff[k_realsneakertimer] = sneakertime;
-		
-		//Stacks
-		if (cv_stacking.value && player->kartstuff[k_sneakertimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
-		{	
-			player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
-		}
+}
+
+void K_DoSneaker(player_t *player, INT32 type)
+{
+	fixed_t intendedboost;
+
+	switch (gamespeed)
+	{
+		case 0:
+			intendedboost = 53740+768;
+			break;
+		case 2:
+			intendedboost = 17294+768;
+			break;
+		//expert
+		case 3:
+			intendedboost = 14706;
+			break;
+			
+		default:
+			intendedboost = 32768;
+			break;
+	}
+	
+	if (LUAh_KartSneaker(player, type))
+		return;
+
+	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
+	{
+		K_SneakerPanelStackSound(player);
+		K_SpawnDashDustRelease(player);
+		if (intendedboost > player->kartstuff[k_speedboost])
+			player->kartstuff[k_destboostcam] = FixedMul(FRACUNIT, FixedDiv((intendedboost - player->kartstuff[k_speedboost]), intendedboost));
+	}
+	
+	K_SneakerPanelEffect(player, type);
+
+	player->kartstuff[k_sneakertimer] = sneakertime;
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 3)
+		player->kartstuff[k_realsneakertimer] = sneakertime;
+	
+	//Stacks
+	if (cv_stacking.value && player->kartstuff[k_sneakertimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
+	{	
+		player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
+	}
 	
 		
 	// set angle for spun out players:
@@ -5760,31 +5806,26 @@ void K_DoPanel(player_t *player)
 
 	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
 	{
-		S_StartSound(player->mo, sfx_cdfm01);
+		K_SneakerPanelStackSound(player);
 		K_SpawnDashDustRelease(player);
 		if (intendedboost > player->kartstuff[k_speedboost])
 			player->kartstuff[k_destboostcam] = FixedMul(FRACUNIT, FixedDiv((intendedboost - player->kartstuff[k_speedboost]), intendedboost));
 	}
 
-	if (!player->kartstuff[k_paneltimer] && !player->kartstuff[k_sneakertimer])
-	{
-			mobj_t *overlay = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_BOOSTFLAME);
-			P_SetTarget(&overlay->target, player->mo);
-			P_SetScale(overlay, (overlay->destscale = player->mo->scale));
-			K_FlipFromObject(overlay, player->mo);
+	K_SneakerPanelEffect(player, 1);
+	
+	player->kartstuff[k_paneltimer] = sneakertime;
+	if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
+		player->kartstuff[k_realpaneltimer] = sneakertime;
+	
+	//Stacks
+	if (cv_stacking.value && player->kartstuff[k_paneltimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
+	{	
+		if (cv_panelsharestack.value)
+			player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
+		else
+			player->kartstuff[k_panelstack] = min(player->kartstuff[k_panelstack] + 1,cv_panelstack.value);
 	}
-		player->kartstuff[k_paneltimer] = sneakertime;
-		if (!cv_chainoffroad.value || cv_chainoffroad.value == 2)
-			player->kartstuff[k_realpaneltimer] = sneakertime;
-		
-		//Stacks
-		if (cv_stacking.value && player->kartstuff[k_paneltimer] && (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3))
-		{	
-			if (cv_panelsharestack.value)
-				player->kartstuff[k_sneakerstack] = min(player->kartstuff[k_sneakerstack] + 1,cv_sneakerstack.value);
-			else
-				player->kartstuff[k_panelstack] = min(player->kartstuff[k_panelstack] + 1,cv_panelstack.value);
-		}
 	
 		
 	// set angle for spun out players:
@@ -6206,6 +6247,137 @@ void K_RepairOrbitChain(mobj_t *orbit)
 		if (player->kartstuff[k_itemamount] != num)
 			player->kartstuff[k_itemamount] = num;
 	}
+}
+
+// Simplified version of a code bit in P_MobjFloorZ
+static fixed_t K_FollowerSlopeZ(pslope_t *slope, fixed_t x, fixed_t y, fixed_t z, fixed_t radius, boolean ceiling)
+{
+	fixed_t testx, testy;
+
+	if (slope == NULL)
+	{
+		testx = x;
+		testy = y;
+	}
+	else
+	{
+		if (slope->d.x < 0)
+			testx = radius;
+		else
+			testx = -radius;
+
+		if (slope->d.y < 0)
+			testy = radius;
+		else
+			testy = -radius;
+
+		if ((slope->zdelta > 0) ^ !!(ceiling))
+		{
+			testx = -testx;
+			testy = -testy;
+		}
+
+		testx += x;
+		testy += y;
+	}
+
+	return P_GetZAtorZ(slope, testx, testy, z);
+}
+
+void K_CalculateFollowerSlope(mobj_t *mobj, fixed_t x, fixed_t y, fixed_t z, fixed_t radius, fixed_t height, boolean flip, boolean player)
+{
+	fixed_t newz;
+	sector_t *sec;
+	pslope_t *slope = NULL;
+
+	sec = R_PointInSubsector(x, y)->sector;
+
+	if (flip)
+	{
+		slope = sec->c_slope;
+		newz = K_FollowerSlopeZ(slope, x, y, sec->ceilingheight, radius, true);
+	}
+	else
+	{
+		slope = sec->f_slope;
+		newz = K_FollowerSlopeZ(slope, x, y, sec->floorheight, radius, true);
+	}
+
+	// Check FOFs for a better suited slope
+	if (sec->ffloors)
+	{
+		ffloor_t *rover;
+
+		for (rover = sec->ffloors; rover; rover = rover->next)
+		{
+			fixed_t top, bottom;
+			fixed_t d1, d2;
+
+			if (!(rover->flags & FF_EXISTS))
+				continue;
+
+			if ((!(((rover->flags & FF_BLOCKPLAYER && player)
+				|| (rover->flags & FF_BLOCKOTHERS && !player))
+				|| (rover->flags & FF_QUICKSAND))
+				|| (rover->flags & FF_SWIMMABLE)))
+				continue;
+
+			top = K_FollowerSlopeZ(*rover->t_slope, x, y, *rover->topheight, radius, false);
+			bottom = K_FollowerSlopeZ(*rover->b_slope, x, y, *rover->bottomheight, radius, true);
+
+			if (flip)
+			{
+				if (rover->flags & FF_QUICKSAND)
+				{
+					if (z < top && (z + height) > bottom)
+					{
+						if (newz > (z + height))
+						{
+							newz = (z + height);
+							slope = NULL;
+						}
+					}
+					continue;
+				}
+
+				d1 = (z + height) - (top + ((bottom - top)/2));
+				d2 = z - (top + ((bottom - top)/2));
+
+				if (bottom < newz && abs(d1) < abs(d2))
+				{
+					newz = bottom;
+					slope = *rover->b_slope;
+				}
+			}
+			else
+			{
+				if (rover->flags & FF_QUICKSAND)
+				{
+					if (z < top && (z + height) > bottom)
+					{
+						if (newz < z)
+						{
+							newz = z;
+							slope = NULL;
+						}
+					}
+					continue;
+				}
+
+				d1 = z - (bottom + ((top - bottom)/2));
+				d2 = (z + height) - (bottom + ((top - bottom)/2));
+
+				if (top > newz && abs(d1) < abs(d2))
+				{
+					newz = top;
+					slope = *rover->t_slope;
+				}
+			}
+		}
+	}
+
+	mobj->standingslope = slope;
+	P_RollPitchMobj(mobj);
 }
 
 // Move the hnext chain!
@@ -7383,6 +7555,7 @@ static void K_KartDrift(player_t *player, boolean onground)
 	INT32 dsone = K_GetKartDriftSparkValue(player);
 	INT32 dstwo = dsone*2;
 	INT32 dsthree = dstwo*2;
+	boolean startsound = false;
 
 	// Grown players taking yellow spring panels will go below minspeed for one tic,
 	// and will then wrongdrift or have their sparks removed because of this.
@@ -7419,7 +7592,7 @@ static void K_KartDrift(player_t *player, boolean onground)
 		}
 			
 			
-		S_StartSound(player->mo, sfx_s23c);
+		startsound = true;
 		//K_SpawnDashDustRelease(player);
 		player->kartstuff[k_driftcharge] = 0;
 	}
@@ -7438,7 +7611,7 @@ static void K_KartDrift(player_t *player, boolean onground)
 				player->kartstuff[k_driftboost] = cv_redsparktics.value;
 		}
 			
-		S_StartSound(player->mo, sfx_s23c);
+		startsound = true;
 		//K_SpawnDashDustRelease(player);
 		player->kartstuff[k_driftcharge] = 0;
 	}
@@ -7457,9 +7630,22 @@ static void K_KartDrift(player_t *player, boolean onground)
 				player->kartstuff[k_driftboost] = cv_rainbowsparktics.value;
 		}
 		
-		S_StartSound(player->mo, sfx_s23c);
+		startsound = true;
 		//K_SpawnDashDustRelease(player);
 		player->kartstuff[k_driftcharge] = 0;
+	}
+	
+	if (startsound) // doing this because duplication is silly lel
+	{
+		
+		if ((player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && cv_sneakerextend.value)
+		{
+			if (cv_chainsound.value)
+				S_StartSound(player->mo, sfx_bstchn);
+			player->kartstuff[k_chainsound] = 1;
+		}
+		else
+			S_StartSound(player->mo, sfx_s23c);
 	}
 
 	// Drifting: left or right?
@@ -8398,7 +8584,7 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
 	if ((cv_spriteroll.value) && (cv_sloperoll.value))
 	{
 		if ((!player->mo->salty_jump)) // seeing a character rotate mid-hop looks really janky
-			K_RollMobjBySlopes(player->mo, usedist);
+			K_RollMobjBySlopes(player->mo, usedist, player->mo->standingslope);
 	}
 	else
 	{
@@ -8523,6 +8709,23 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
 		player->mo->salty_zoffset = 0;
 		player->mo->salty_momz = 0;
 	}
+	
+	if (cv_sneakerextend.value)
+	{
+		if ((player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && player->kartstuff[k_driftboost] && !(player->kartstuff[k_chainsound]))
+		{
+			if (cv_chainsound.value)
+				S_StartSound(player->mo, sfx_bstchn);
+			player->kartstuff[k_chainsound] = 1;
+		}
+		
+		if ((player->kartstuff[k_sneakertimer] == 0 && player->kartstuff[k_paneltimer] == 0) 
+			&& player->kartstuff[k_driftboost] == 0)
+				player->kartstuff[k_chainsound] = 0;
+	}
+	
+
+	
 }
 
 void K_CalculateBattleWanted(void)
@@ -10573,133 +10776,199 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 	//this function is designed for 9 or less score lines only
 	//I_Assert(scorelines <= 9); -- not today bitch, kart fixed it up
 
-	//battleroyale: these adjustments to show more players courtesy of fickle from v1.1 battleroyale
-	V_DrawFill(1-duptweak, 26, dupadjust-2, 1, 0); // Draw a horizontal line because it looks nice!
-	if (scorelines > 8)
+	if (scorelines > 16)
 	{
-		V_DrawFill(105, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
-		V_DrawFill(211, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
-		V_DrawFill(1-duptweak, 173, dupadjust-2, 1, 0); // And a horizontal line near the bottom.
-		rightoffset = (BASEVIDWIDTH/3) - 4 - x;
-		x += 2;
-	}
-
-	for (i = 0; i < scorelines; i++)
-	{
-		char strtime[MAXPLAYERNAME+1];
-
-		if (players[tab[i].num].spectator || !players[tab[i].num].mo)
-			continue; //ignore them.
-/*
-		if (netgame // don't draw it offline
-		&& tab[i].num != serverplayer)
-			HU_drawPing(x + ((i < 8) ? -17 : rightoffset + 11), y-4, playerpingtable[tab[i].num], 0);
-*/
-		STRBUFCPY(strtime, tab[i].name);
-
+		//battleroyale: these adjustments to show more players courtesy of fickle from v1.1 battleroyale
+		V_DrawFill(1-duptweak, 26, dupadjust-2, 1, 0); // Draw a horizontal line because it looks nice!
 		if (scorelines > 8)
-			V_DrawThinString(x + 12, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
-		else
-			V_DrawString(x + 20, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
-
-		if (players[tab[i].num].mo->color)
 		{
-			colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
-			if (players[tab[i].num].mo->colorized)
-				colormap = R_GetTranslationColormap(TC_RAINBOW, players[tab[i].num].mo->color, GTC_CACHE);
+			V_DrawFill(105, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
+			V_DrawFill(211, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
+			V_DrawFill(1-duptweak, 173, dupadjust-2, 1, 0); // And a horizontal line near the bottom.
+			rightoffset = (BASEVIDWIDTH/3) - 4 - x;
+			x += 2;
+		}
+
+		for (i = 0; i < scorelines; i++)
+		{
+			char strtime[MAXPLAYERNAME+1];
+
+			if (players[tab[i].num].spectator || !players[tab[i].num].mo)
+				continue; //ignore them.
+
+			STRBUFCPY(strtime, tab[i].name);
+
+			if (scorelines > 8)
+				V_DrawThinString(x + 12, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 			else
-				colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
-			/* not even used by fickle heartmenu why is this here???
+				V_DrawString(x + 20, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
+
+			if (players[tab[i].num].mo->color)
 			{
+				colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
+				if (players[tab[i].num].mo->colorized)
+					colormap = R_GetTranslationColormap(TC_RAINBOW, players[tab[i].num].mo->color, GTC_CACHE);
+				else
+					colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
+
+				player_t *p;
+				p = &players[tab[i].num];
+
+				if (scorelines > 8)
+				{
+					if (cv_highresportrait.value)
+						V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, R_GetSkinFaceWant(p), colormap);
+					else
+						V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, R_GetSkinFaceRank(p), colormap);
+				}
+				else
+				{
+					if (cv_highresportrait.value)
+						V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(p), colormap);
+					else
+						V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
+				}
+			}
+
+			if (scorelines <= 8 && tab[i].num == whiteplayer)
+				V_DrawScaledPatch(x, y-4, 0, kp_facehighlight[(leveltime / 4) % 8]);
+
+			if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] <= 0)
+				V_DrawScaledPatch(x-4, y-7, 0, kp_ranknobumpers);
+			else
+			{
+				INT32 pos = players[tab[i].num].kartstuff[k_position];
+				if (scorelines > 8)
+					V_DrawPingNum(x, y+2, 0, pos, NULL);
+				else if (pos < 0 || pos > 16)
+					V_DrawPingNum(x, y+6, 0, pos, NULL);
+				else
+					V_DrawScaledPatch(x-5, y+6, 0, kp_facenum[pos]);
+			}
+
+			if (G_RaceGametype())
+			{
+#define timestring(time) va("%i'%02i\"%02i", G_TicsToMinutes(time, true), G_TicsToSeconds(time), G_TicsToCentiseconds(time))
+				if (scorelines > 8)
+				{
+					if (players[tab[i].num].exiting)
+						V_DrawRightAlignedThinString(x+rightoffset, y-1, hilicol|V_6WIDTHSPACE, timestring(players[tab[i].num].realtime));
+					else if (players[tab[i].num].pflags & PF_TIMEOVER)
+						V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, "NO CONTEST.");
+					else if (circuitmap)
+						V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, va("Lap %d", tab[i].count));
+				}
+				else
+				{
+					if (players[tab[i].num].exiting)
+						V_DrawRightAlignedString(x+rightoffset, y, hilicol, timestring(players[tab[i].num].realtime));
+					else if (players[tab[i].num].pflags & PF_TIMEOVER)
+						V_DrawRightAlignedThinString(x+rightoffset, y-1, 0, "NO CONTEST.");
+					else if (circuitmap)
+						V_DrawRightAlignedString(x+rightoffset, y, 0, va("Lap %d", tab[i].count));
+				}
+#undef timestring
+			}
+			else
+				V_DrawRightAlignedString(x+rightoffset, y, 0, va("%u", tab[i].count));
+
+			y += (scorelines > 8) ? 10 : 18;
+			if (i == 13 || i == 27)
+			{
+				y = 29;
+				x += (BASEVIDWIDTH/3);
+			}
+		}
+	}
+	else
+	{
+		V_DrawFill(1-duptweak, 26, dupadjust-2, 1, 0); // Draw a horizontal line because it looks nice!
+		if (scorelines > 8)
+		{
+			V_DrawFill(160, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
+			V_DrawFill(1-duptweak, 173, dupadjust-2, 1, 0); // And a horizontal line near the bottom.
+			rightoffset = (BASEVIDWIDTH/2) - 4 - x;
+		}
+
+		for (i = 0; i < scorelines; i++)
+		{
+			char strtime[MAXPLAYERNAME+1];
+
+			if (players[tab[i].num].spectator || !players[tab[i].num].mo)
+				continue; //ignore them.
+
+			if (netgame && tab[i].num != serverplayer) // don't draw it offline
+				HU_drawPing(x + ((i < 8) ? -17 : rightoffset + 11), y-4, playerpingtable[tab[i].num], 0);
+
+			STRBUFCPY(strtime, tab[i].name);
+
+			if (scorelines > 8)
+				V_DrawThinString(x + 20, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+			else
+				V_DrawString(x + 20, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
+
+			if (players[tab[i].num].mo->color)
+			{
+				colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
+				if (players[tab[i].num].mo->colorized)
+					colormap = R_GetTranslationColormap(TC_RAINBOW, players[tab[i].num].mo->color, GTC_CACHE);
+				else
+					colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
+
 				player_t *p;
 				p = &players[tab[i].num];
 				if (cv_highresportrait.value)
 					V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(p), colormap);
 				else
 					V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
-			}*/
-			player_t *p;
-			p = &players[tab[i].num];
-			if (scorelines > 8)
-				V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, R_GetSkinFaceRank(p), colormap);
-			else
-				if (cv_highresportrait.value)
-					//V_DrawSmallMappedPatch(x, y-4, 0, facewantprefix[players[tab[i].num].skin], colormap);
-					V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(p), colormap);
-				else	
-					//V_DrawMappedPatch(x, y-4, 0, facerankprefix[players[tab[i].num].skin], colormap);
-					V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
+			}
 
-			/*if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] > 0) -- not enough space for this
+			if (tab[i].num == whiteplayer)
+				V_DrawScaledPatch(x, y-4, 0, kp_facehighlight[(leveltime / 4) % 8]);
+			if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] <= 0)
+				V_DrawScaledPatch(x-4, y-7, 0, kp_ranknobumpers);
+			else
 			{
-				INT32 bumperx = x+19;
-				V_DrawMappedPatch(bumperx-2, y-4, 0, kp_tinybumper[0], colormap);
-				for (j = 1; j < players[tab[i].num].kartstuff[k_bumper]; j++)
-				{
-					bumperx += 5;
-					V_DrawMappedPatch(bumperx, y-4, 0, kp_tinybumper[1], colormap);
-				}
-			}*/
-		}
+				INT32 pos = players[tab[i].num].kartstuff[k_position];
+				if (pos < 0 || pos > MAXPLAYERS)
+					pos = 0;
 
-		if (scorelines <= 8 && tab[i].num == whiteplayer)
-			V_DrawScaledPatch(x, y-4, 0, kp_facehighlight[(leveltime / 4) % 8]);
+				V_DrawScaledPatch(x-5, y+6, 0, kp_facenum[pos]); // Draws the little number over the face
+			}
 
-		if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] <= 0)
-			V_DrawScaledPatch(x-4, y-7, 0, kp_ranknobumpers);
-		else
-		{
-			INT32 pos = players[tab[i].num].kartstuff[k_position];
-			if (scorelines > 8)
-				V_DrawPingNum(x, y+2, 0, pos, NULL);
-			else if (pos < 0 || pos > 16)
-				V_DrawPingNum(x, y+6, 0, pos, NULL);
-			//if (pos < 0 || pos > MAXPLAYERS)
-				//pos = 0;
-			// Draws the little number over the face
-			else
-				V_DrawScaledPatch(x-5, y+6, 0, kp_facenum[pos]);
-		}
-
-		if (G_RaceGametype())
-		{
+			if (G_RaceGametype())
+			{
 #define timestring(time) va("%i'%02i\"%02i", G_TicsToMinutes(time, true), G_TicsToSeconds(time), G_TicsToCentiseconds(time))
-			if (scorelines > 8)
-			{
-				if (players[tab[i].num].exiting)
-					V_DrawRightAlignedThinString(x+rightoffset, y-1, hilicol|V_6WIDTHSPACE, timestring(players[tab[i].num].realtime));
-				else if (players[tab[i].num].pflags & PF_TIMEOVER)
-					V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, "NO CONTEST.");
-				else if (circuitmap)
-					V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, va("Lap %d", tab[i].count));
+				if (scorelines > 8)
+				{
+					if (players[tab[i].num].exiting)
+						V_DrawRightAlignedThinString(x+rightoffset, y-1, hilicol|V_6WIDTHSPACE, timestring(players[tab[i].num].realtime));
+					else if (players[tab[i].num].pflags & PF_TIMEOVER)
+						V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, "NO CONTEST.");
+					else if (circuitmap)
+						V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, va("Lap %d", tab[i].count));
+				}
+				else
+				{
+					if (players[tab[i].num].exiting)
+						V_DrawRightAlignedString(x+rightoffset, y, hilicol, timestring(players[tab[i].num].realtime));
+					else if (players[tab[i].num].pflags & PF_TIMEOVER)
+						V_DrawRightAlignedThinString(x+rightoffset, y-1, 0, "NO CONTEST.");
+					else if (circuitmap)
+						V_DrawRightAlignedString(x+rightoffset, y, 0, va("Lap %d", tab[i].count));
+				}
+#undef timestring
 			}
 			else
+				V_DrawRightAlignedString(x+rightoffset, y, 0, va("%u", tab[i].count));
+
+			y += 18;
+			if (i == 7)
 			{
-				if (players[tab[i].num].exiting)
-					V_DrawRightAlignedString(x+rightoffset, y, hilicol, timestring(players[tab[i].num].realtime));
-				else if (players[tab[i].num].pflags & PF_TIMEOVER)
-					V_DrawRightAlignedThinString(x+rightoffset, y-1, 0, "NO CONTEST.");
-				else if (circuitmap)
-					V_DrawRightAlignedString(x+rightoffset, y, 0, va("Lap %d", tab[i].count));
+				y = 33;
+				x = (BASEVIDWIDTH/2) + 4;
 			}
-#undef timestring
 		}
-		else
-			V_DrawRightAlignedString(x+rightoffset, y, 0, va("%u", tab[i].count));
-
-		y += (scorelines > 8) ? 10 : 18;
-		if (i == 13 || i == 27)
-		{
-			y = 29;
-			x += (BASEVIDWIDTH/3);
-		}
-/*		y += 18;
-
-		if (i == 7)
-		{
-			y = 33;
-			x = (BASEVIDWIDTH/2) + 4;
-		}*/
 	}
 }
 
@@ -11309,14 +11578,23 @@ static void K_drawNameTags(void)
 			}
 
 			V_DrawThinString(namex, namey - dup*10, V_ALLOWLOWERCASE | vflags, tag);
+			
+			// If you take this for a vanilla-compat client remove hpmod stuff.
+			if (cv_nametaghealth.value && players[i].kartstuff[k_hphealth])
+			{
+				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametaghealth);
+				V_DrawString(namex + dup*10, namey - dup*19, vflags, va("\x8D%d ", players[i].kartstuff[k_hphealth]));
+			}
 
-			if ((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2)
+			//If you take this for a vanilla-compat client remove the hp check.
+			if (((cv_nametagrestat.value == 1 && (players[i].kartspeed != skins[players[i].skin].kartspeed || players[i].kartweight != skins[players[i].skin].kartweight)) || cv_nametagrestat.value == 2) && !(cv_nametaghealth.value && players[i].kartstuff[k_hphealth]))
 			{
 				V_DrawScaledPatch(namex, namey - dup*20, vflags, nametagspeed);
 				V_DrawScaledPatch(namex + dup*18, namey - dup*20, vflags, nametagweight);
 				V_DrawString(namex + dup*9, namey - dup*19, V_ALLOWLOWERCASE | vflags, va("\x84%d ", players[i].kartspeed));
 				V_DrawString(namex + dup*27, namey - dup*19, V_ALLOWLOWERCASE | vflags, va("\x87%d ", players[i].kartweight));
 			}
+				
 			
 			//If you take this for a vanilla-compat client remove the hp check.
 			if (cv_nametagscore.value)

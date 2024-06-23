@@ -275,12 +275,12 @@ typedef struct mobj_s
 
 	// Info for drawing: position.
 	fixed_t x, y, z;
-	fixed_t old_x, old_y, old_z; // position interpolation
+	fixed_t old_x, old_y, old_z, old_floorz; // position interpolation
 	fixed_t old_x2, old_y2, old_z2;
 
 	// More list: links in sector (if needed)
-	struct mobj_s *snext;
-	struct mobj_s **sprev; // killough 8/11/98: change to ptr-to-ptr
+	struct mobj_s *bnext;
+	struct mobj_s **bprev; // killough 8/11/98: change to ptr-to-ptr
 
 	// More drawing info: to determine current sprite.
 	angle_t angle, pitch, roll; // orientation
@@ -338,8 +338,8 @@ typedef struct mobj_s
 
 	// Interaction info, by BLOCKMAP.
 	// Links in blocks (if needed).
-	struct mobj_s *bnext;
-	struct mobj_s **bprev; // killough 8/11/98: change to ptr-to-ptr
+	struct mobj_s *snext;
+	struct mobj_s **sprev; // killough 8/11/98: change to ptr-to-ptr
 
 	// Additional pointers for NiGHTS hoops
 	struct mobj_s *hnext;
@@ -398,6 +398,11 @@ typedef struct mobj_s
 
 	boolean resetinterp; // if true, some fields should not be interpolated (see R_InterpolateMobjState implementation)
 	boolean colorized; // Whether the mobj uses the rainbow colormap
+
+	boolean haveshadow;
+	fixed_t shadowscale; // If this object casts a shadow, and the size relative to radius
+	boolean whiteshadow; // Use white shadow, set to true by default for fullbright objects
+
 	boolean mirrored; // The object's rotations will be mirrored left to right, e.g., see frame AL from the right and AR from the left
 	boolean rollmodel; // OpenGL: Should this model rotate?
 
@@ -410,6 +415,9 @@ typedef struct mobj_s
 	fixed_t salty_momz;
 	boolean salty_jump;
 	boolean init_salty;
+	
+	// New water trail
+	struct mobj_s *watertrail[4];
 
 	// WARNING: New fields must be added separately to savegame and Lua.
 } mobj_t;
@@ -428,12 +436,12 @@ typedef struct precipmobj_s
 
 	// Info for drawing: position.
 	fixed_t x, y, z;
-	fixed_t old_x, old_y, old_z; // position interpolation
+	fixed_t old_x, old_y, old_z, old_floorz; // position interpolation
 	fixed_t old_x2, old_y2, old_z2;
 
 	// More list: links in sector (if needed)
-	struct precipmobj_s *snext;
-	struct precipmobj_s **sprev; // killough 8/11/98: change to ptr-to-ptr
+	struct precipmobj_s *bnext;
+	struct precipmobj_s **bprev; // killough 8/11/98: change to ptr-to-ptr
 
 	// More drawing info: to determine current sprite.
 	angle_t angle, pitch, roll; // orientation

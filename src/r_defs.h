@@ -26,6 +26,17 @@
 #include "screen.h" // MAXVIDWIDTH, MAXVIDHEIGHT
 
 
+//
+// ClipWallSegment
+// Clips the given range of columns
+// and includes it in the new clip list.
+//
+typedef struct
+{
+	INT32 first;
+	INT32 last;
+} cliprange_t;
+
 // Silhouette, needed for clipping segs (mainly) and sprites representing things.
 #define SIL_NONE   0
 #define SIL_BOTTOM 1
@@ -320,7 +331,6 @@ typedef struct sector_s
 	fixed_t floorspeed, ceilspeed;
 
 	// list of precipitation mobjs in sector
-	precipmobj_t *preciplist;
 	struct mprecipsecnode_s *touching_preciplist;
 
 	// Eternity engine slope
@@ -576,11 +586,11 @@ typedef struct drawseg_s
 	struct ffloor_s *thicksides[MAXFFLOORS];
 	INT16 *thicksidecol;
 	INT32 numthicksides;
-	fixed_t *frontscale;
+	fixed_t frontscale[MAXVIDWIDTH];
 
 	UINT8 portalpass; // if > 0 and <= portalrender, do not affect sprite clipping
 
-	fixed_t *maskedtextureheight; // For handling sloped midtextures
+	fixed_t maskedtextureheight[MAXVIDWIDTH]; // For handling sloped midtextures
 
 	vertex_t leftpos, rightpos; // Used for rendering FOF walls with slopes
 } drawseg_t;
@@ -619,15 +629,8 @@ typedef struct
 	INT16 height;
 	INT16 leftoffset;     // pixels to the left of origin
 	INT16 topoffset;      // pixels below the origin
-	INT32 columnofs[8];     // only [width] used
-	UINT8 *columns; // Software column data
+	INT32 columnofs[];     // only [width] used
 	// the [0] is &columnofs[width]
-	
-	void *hardware; // OpenGL patch, allocated whenever necessary
-	
-#ifdef ROTSPRITE
-	rotsprite_t *rotated; // Rotated patches
-#endif
 } patch_t;
 
 #ifdef _MSC_VER

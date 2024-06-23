@@ -216,6 +216,8 @@ set(SRB2_CONFIG_HWRENDER ON CACHE BOOL
 	"Enable hardware rendering through OpenGL.")
 set(SRB2_CONFIG_STATIC_OPENGL OFF CACHE BOOL
 	"Use statically linked OpenGL. NOT RECOMMENDED.")
+set(SRB2_CONFIG_USE_FBO_OGL ON CACHE BOOL
+	"Enable OpenGL FBO Downsampling support.")
 
 ### use internal libraries?
 if(${CMAKE_SYSTEM} MATCHES "Windows") ###set on Windows only
@@ -237,6 +239,7 @@ if(${SRB2_CONFIG_HAVE_BLUA})
 		lua_mathlib.c
 		lua_mobjlib.c
 		lua_playerlib.c
+		lua_followerlib.c
 		lua_script.c
 		lua_skinlib.c
 		lua_thinkerlib.c
@@ -510,6 +513,12 @@ if(${SRB2_CONFIG_HWRENDER} AND ${SRB2_CONFIG_STATIC_OPENGL})
 	endif()
 endif()
 
+if(${SRB2_CONFIG_HWRENDER})
+	if(${SRB2_CONFIG_USE_FBO_OGL})
+		set(SRB2_USE_FBO_OGL ON)
+		add_definitions(-DUSE_FBO_OGL)
+	endif()
+endif()
 
 # Targets
 

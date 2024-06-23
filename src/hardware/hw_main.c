@@ -46,6 +46,7 @@
 #include "../i_system.h"
 #include "../m_cheat.h"
 #include "../m_argv.h" // parm functions for msaa
+#include "../r_things.h" // R_GetShadowZ
 #include "../p_slopes.h"
 
 #include <stdlib.h> // qsort
@@ -69,6 +70,9 @@ static boolean gr_palette_rendering_state = false;
 // Commands and console variables
 // ==========================================================================
 
+#ifdef USE_FBO_OGL
+static void CV_grframebuffer_OnChange(void);
+#endif
 static void CV_filtermode_ONChange(void);
 static void CV_anisotropic_ONChange(void);
 static void CV_screentextures_ONChange(void);
@@ -95,6 +99,10 @@ consvar_t cv_granisotropicmode = {"gr_anisotropicmode", "1", CV_CALL|CV_SAVE, gr
 consvar_t cv_grsolvetjoin = {"gr_solvetjoin", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_grbatching = {"gr_batching", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+#ifdef USE_FBO_OGL
+consvar_t cv_grframebuffer = {"gr_framebuffer", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, CV_grframebuffer_OnChange, 0, NULL, NULL, 0, 0, NULL};
+#endif
 
 consvar_t cv_grfofcut = {"gr_fofcut", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -177,8 +185,13 @@ static void CV_anisotropic_ONChange(void)
 static void CV_screentextures_ONChange(void)
 {
 	ONLY_IF_GL_LOADED
-	if (cv_grscreentextures.value != 3)
+	if (cv_grscreentextures.value != 2)
+	{
+#ifdef USE_FBO_OGL
+		CV_Set(&cv_grframebuffer, "Off");
+#endif
 		CV_Set(&cv_grpaletterendering, "Off");
+	}
 	HWD.pfnSetSpecialState(HWD_SET_SCREEN_TEXTURES, cv_grscreentextures.value);
 }
 
@@ -209,6 +222,16 @@ static void CV_grpalettedepth_OnChange(void)
 	if (HWR_ShouldUsePaletteRendering())
 		HWR_SetPalette(pLocalPalette);
 }
+
+#ifdef USE_FBO_OGL
+static void CV_grframebuffer_OnChange(void)
+{
+	ONLY_IF_GL_LOADED
+	HWD.pfnSetSpecialState(HWD_SET_FRAMEBUFFER, cv_grframebuffer.value);
+	I_DownSample();
+	RefreshOGLSDLSurface();
+}
+#endif
 
 //
 // Sets the shader state.
@@ -264,6 +287,8 @@ ps_metric_t ps_hw_numpolyflags = {0};
 ps_metric_t ps_hw_numcolors = {0};
 ps_metric_t ps_hw_batchsorttime = {0};
 ps_metric_t ps_hw_batchdrawtime = {0};
+
+static void HWR_AddPrecipitationSprites(void);
 
 // ==========================================================================
 // View position
@@ -858,75 +883,75 @@ void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, boolean isc
 
 		for (i = 0; i < subsector->numlines; i++, line++)
 		{
-			if (line->linedef->special == HORIZONSPECIAL && R_PointOnSegSide(viewx, viewy, line) == 0)
+			if (!(line->linedef->special == HORIZONSPECIAL && R_PointOnSegSide(viewx, viewy, line) == 0))
+				continue;
+
+			P_ClosestPointOnLine(viewx, viewy, line->linedef, &v);
+			dist = FIXED_TO_FLOAT(R_PointToDist(v.x, v.y));
+
+			if (line->pv1)
 			{
-				P_ClosestPointOnLine(viewx, viewy, line->linedef, &v);
-				dist = FIXED_TO_FLOAT(R_PointToDist(v.x, v.y));
-				
-				if (line->pv1)
-				{
-					x1 = ((polyvertex_t *)line->pv1)->x;
-					y1 = ((polyvertex_t *)line->pv1)->y;
-				}
-				else
-				{
-					x1 = FIXED_TO_FLOAT(line->v1->x);
-					y1 = FIXED_TO_FLOAT(line->v1->x);
-				}
-				if (line->pv2)
-				{
-					xd = ((polyvertex_t *)line->pv2)->x - x1;
-					yd = ((polyvertex_t *)line->pv2)->y - y1;
-				}
-				else
-				{
-					xd = FIXED_TO_FLOAT(line->v2->x) - x1;
-					yd = FIXED_TO_FLOAT(line->v2->y) - y1;
-				}
+				x1 = ((polyvertex_t *)line->pv1)->x;
+				y1 = ((polyvertex_t *)line->pv1)->y;
+			}
+			else
+			{
+				x1 = FIXED_TO_FLOAT(line->v1->x);
+				y1 = FIXED_TO_FLOAT(line->v1->x);
+			}
+			if (line->pv2)
+			{
+				xd = ((polyvertex_t *)line->pv2)->x - x1;
+				yd = ((polyvertex_t *)line->pv2)->y - y1;
+			}
+			else
+			{
+				xd = FIXED_TO_FLOAT(line->v2->x) - x1;
+				yd = FIXED_TO_FLOAT(line->v2->y) - y1;
+			}
 
-				// Based on the seg length and the distance from the line, split horizon into multiple poly sets to reduce distortion
-				dist = sqrtf((xd*xd) + (yd*yd)) / dist / 16.0f;
-				if (dist > 100.0f)
-					numplanes = 100;
-				else
-					numplanes = (UINT8)dist + 1;
+			// Based on the seg length and the distance from the line, split horizon into multiple poly sets to reduce distortion
+			dist = sqrtf((xd*xd) + (yd*yd)) / dist / 16.0f;
+			if (dist > 100.0f)
+				numplanes = 100;
+			else
+				numplanes = (UINT8)dist + 1;
 
-				for (j = 0; j < numplanes; j++)
-				{
-					// Left side
-					vx = x1 + xd * j / numplanes;
-					vy = y1 + yd * j / numplanes;
-					SETUP3DVERT((&horizonpts[1]), vx, vy);
+			for (j = 0; j < numplanes; j++)
+			{
+				// Left side
+				vx = x1 + xd * j / numplanes;
+				vy = y1 + yd * j / numplanes;
+				SETUP3DVERT((&horizonpts[1]), vx, vy);
 
-					dist = sqrtf(powf(vx - gr_viewx, 2) + powf(vy - gr_viewy, 2));
-					vx = (vx - gr_viewx) * renderdist / dist + gr_viewx;
-					vy = (vy - gr_viewy) * renderdist / dist + gr_viewy;
-					SETUP3DVERT((&horizonpts[0]), vx, vy);
+				dist = sqrtf(powf(vx - gr_viewx, 2) + powf(vy - gr_viewy, 2));
+				vx = (vx - gr_viewx) * renderdist / dist + gr_viewx;
+				vy = (vy - gr_viewy) * renderdist / dist + gr_viewy;
+				SETUP3DVERT((&horizonpts[0]), vx, vy);
 
-					// Right side
-					vx = x1 + xd * (j+1) / numplanes;
-					vy = y1 + yd * (j+1) / numplanes;
-					SETUP3DVERT((&horizonpts[2]), vx, vy);
+				// Right side
+				vx = x1 + xd * (j+1) / numplanes;
+				vy = y1 + yd * (j+1) / numplanes;
+				SETUP3DVERT((&horizonpts[2]), vx, vy);
 
-					dist = sqrtf(powf(vx - gr_viewx, 2) + powf(vy - gr_viewy, 2));
-					vx = (vx - gr_viewx) * renderdist / dist + gr_viewx;
-					vy = (vy - gr_viewy) * renderdist / dist + gr_viewy;
-					SETUP3DVERT((&horizonpts[3]), vx, vy);
+				dist = sqrtf(powf(vx - gr_viewx, 2) + powf(vy - gr_viewy, 2));
+				vx = (vx - gr_viewx) * renderdist / dist + gr_viewx;
+				vy = (vy - gr_viewy) * renderdist / dist + gr_viewy;
+				SETUP3DVERT((&horizonpts[3]), vx, vy);
 
-					// Horizon fills
-					vx = (horizonpts[0].x - gr_viewx) * farrenderdist / renderdist + gr_viewx;
-					vy = (horizonpts[0].z - gr_viewy) * farrenderdist / renderdist + gr_viewy;
-					SETUP3DVERT((&horizonpts[5]), vx, vy);
-					horizonpts[5].y = gr_viewz;
+				// Horizon fills
+				vx = (horizonpts[0].x - gr_viewx) * farrenderdist / renderdist + gr_viewx;
+				vy = (horizonpts[0].z - gr_viewy) * farrenderdist / renderdist + gr_viewy;
+				SETUP3DVERT((&horizonpts[5]), vx, vy);
+				horizonpts[5].y = gr_viewz;
 
-					vx = (horizonpts[3].x - gr_viewx) * farrenderdist / renderdist + gr_viewx;
-					vy = (horizonpts[3].z - gr_viewy) * farrenderdist / renderdist + gr_viewy;
-					SETUP3DVERT((&horizonpts[4]), vx, vy);
+				vx = (horizonpts[3].x - gr_viewx) * farrenderdist / renderdist + gr_viewx;
+				vy = (horizonpts[3].z - gr_viewy) * farrenderdist / renderdist + gr_viewy;
+				SETUP3DVERT((&horizonpts[4]), vx, vy);
 					horizonpts[4].y = gr_viewz;
 
-					// Draw
-					HWR_ProcessPolygon(&Surf, horizonpts, 6, PolyFlags, shader, true);
-				}
+				// Draw
+				HWR_ProcessPolygon(&Surf, horizonpts, 6, PolyFlags, shader, true);
 			}
 		}
 	}
@@ -3038,13 +3063,13 @@ void HWR_AddPolyObjectPlanes(void)
 
 	for (i  = 0; i < numpolys; i++)
 	{
-		polyobjsector = po_ptrs[i]->lines[0]->backsector; // the in-level polyobject sector
-
 		if (!(po_ptrs[i]->flags & POF_RENDERPLANES)) // Only render planes when you should
 			continue;
 
 		if (po_ptrs[i]->translucency >= NUMTRANSMAPS)
 			continue;
+		
+		polyobjsector = po_ptrs[i]->lines[0]->backsector; // the in-level polyobject sector
 
 		if (polyobjsector->floorheight <= gr_frontsector->ceilingheight
 			&& polyobjsector->floorheight >= gr_frontsector->floorheight
@@ -3206,11 +3231,11 @@ static void HWR_Subsector(size_t num)
 			{
 				sector_t *controlSec = &sectors[rover->secnum];
 
-				if (controlSec->moved == true)
-				{
-					anyMoved = true;
-					break;
-				}
+				if (controlSec->moved != true)
+					continue;
+
+				anyMoved = true;
+				break;
 			}
 		}
 
@@ -3342,7 +3367,7 @@ static void HWR_Subsector(size_t num)
 
 			if (centerHeight >= locFloorHeight &&
 			    centerHeight <= locCeilingHeight &&
-			    ((viewz > topCullHeight && !(rover->flags & FF_INVERTPLANES)) ||
+			    ((viewz > topCullHeight &&!(rover->flags & FF_INVERTPLANES)) ||
 			     (viewz < topCullHeight && (rover->flags & FF_BOTHPLANES || rover->flags & FF_INVERTPLANES))))
 			{
 				if (rover->flags & FF_FOG)
@@ -3511,14 +3536,16 @@ static boolean HWR_PortalCheckBBox(const fixed_t *bspcoord)
 
 static void HWR_RenderBSPNode(INT32 bspnum)
 {
+	const node_t *bsp;
+	INT32 side;
 	ps_numbspcalls.value.i++;
 
 	while (!(bspnum & NF_SUBSECTOR))  // Found a subsector?
 	{
-		const node_t *bsp = &nodes[bspnum];
+		bsp = &nodes[bspnum];
 
 		// Decide which side the view point is on.
-		INT32 side = R_PointOnSide(viewx, viewy, bsp);
+		side = R_PointOnSide(viewx, viewy, bsp);
 
 		// Recursively divide front space.
 		if (HWR_PortalCheckBBox(bsp->bbox[side]))
@@ -3534,7 +3561,8 @@ static void HWR_RenderBSPNode(INT32 bspnum)
 	// PORTAL CULLING
 	if (portalclipline && portalcullsector)
 	{
-		if (portalcullsector != subsectors[bspnum & ~NF_SUBSECTOR].sector)
+		sector_t *sect = subsectors[bspnum & ~NF_SUBSECTOR].sector;
+		if (sect != portalcullsector)
 			return;
 		portalcullsector = NULL;
 	}
@@ -3608,8 +3636,11 @@ static fixed_t HWR_OpaqueFloorAtPos(fixed_t x, fixed_t y, fixed_t z, fixed_t hei
 
 			delta1 = z - (*rover->bottomheight + ((*rover->topheight - *rover->bottomheight)/2));
 			delta2 = thingtop - (*rover->bottomheight + ((*rover->topheight - *rover->bottomheight)/2));
-			if (*rover->topheight > floorz && abs(delta1) < abs(delta2))
-				floorz = *rover->topheight;
+
+			if (!(*rover->topheight > floorz && abs(delta1) < abs(delta2)))
+				continue;
+
+			floorz = *rover->topheight;
 		}
 	}
 
@@ -3620,6 +3651,7 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float t
 {
 	FOutVector swallVerts[4];
 	FSurfaceInfo sSurf;
+	FBITFIELD blendmode = 0;
 	fixed_t floorheight, mobjfloor;
 	pslope_t *floorslope;
 	fixed_t slopez;
@@ -3775,14 +3807,138 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float t
 	if (sSurf.PolyColor.s.alpha > floorheight/4)
 	{
 		sSurf.PolyColor.s.alpha = (UINT8)(sSurf.PolyColor.s.alpha - floorheight/4);
-		
+
 		if (HWR_UseShader())
 		{
-			shader = SHADER_FLOOR;	// floor shader
+			shader = SHADER_SHADOW;
+			blendmode |= PF_ColorMapped;
 		}
 
-		HWR_ProcessPolygon(&sSurf, swallVerts, 4, PF_Translucent|PF_Modulated, shader, false);
+		HWR_ProcessPolygon(&sSurf, swallVerts, 4, blendmode|PF_Translucent|PF_Modulated, shader, false);
 	}
+}
+
+static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
+{
+	GLPatch_t *gpatch;
+	FOutVector shadowVerts[4];
+	FSurfaceInfo sSurf;
+	float fscale; float fx; float fy; float offset;
+	float ph;
+	FBITFIELD blendmode = 0;
+	INT32 shader = SHADER_NONE;
+	UINT8 i;
+	SINT8 flip = P_MobjFlip(thing);
+	UINT8 lightlevel = 0;
+	INT32 dist = -1;
+
+	fixed_t scalemul;
+	fixed_t floordiff;
+	fixed_t groundz;
+	fixed_t slopez;
+	pslope_t *groundslope;
+
+	// uncapped/interpolation
+	interpmobjstate_t interp = {0};
+
+	if (cv_grmaxinterpdist.value)
+		dist = R_QuickCamDist(thing->x, thing->y);
+
+	// do interpolation
+	if (R_UsingFrameInterpolation() && !paused && (!cv_grmaxinterpdist.value || dist < cv_grmaxinterpdist.value))
+	{
+		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+	}
+	else
+	{
+		R_InterpolateMobjState(thing, FRACUNIT, &interp);
+	}
+
+	if (cv_sloperoll.value && cv_spriteroll.value)
+		groundz = R_GetShadowZ(thing, &groundslope);
+	else
+		groundz = interp.floorz;
+
+	floordiff = abs((flip < 0 ? thing->height : 0) + interp.z - groundz);
+
+	if (thing->whiteshadow)
+		gpatch = W_CachePatchNum(sprites[SPR_SHAD].spriteframes[1].lumppat[0], PU_CACHE);
+	else
+		gpatch = W_CachePatchNum(sprites[SPR_SHAD].spriteframes[0].lumppat[0], PU_CACHE);
+
+	if (!(gpatch && gpatch->mipmap->format)) return;
+	HWR_GetPatch(gpatch);
+
+	scalemul = FixedMul(FRACUNIT - floordiff/640, scale);
+	scalemul = FixedMul(scalemul, (thing->radius*2) / SHORT(gpatch->height));
+
+	ph = (float)gpatch->height;
+
+	fscale = FIXED_TO_FLOAT(scalemul);
+	fx = FIXED_TO_FLOAT(interp.x);
+	fy = FIXED_TO_FLOAT(interp.y);
+
+	if (fscale > 0.0)
+	{
+		offset = (ph / 2) * fscale;
+	}
+	else
+	{
+		return;
+	}
+
+	//  3--2
+	//  | /|
+	//  |/ |
+	//  0--1
+
+	shadowVerts[2].x = shadowVerts[3].x = fx + offset;
+	shadowVerts[1].x = shadowVerts[0].x = fx - offset;
+	shadowVerts[1].z = shadowVerts[2].z = fy - offset;
+	shadowVerts[0].z = shadowVerts[3].z = fy + offset;
+
+	for (i = 0; i < 4; i++)
+	{
+		float oldx = shadowVerts[i].x;
+		float oldy = shadowVerts[i].z;
+		shadowVerts[i].x = fx + ((oldx - fx) * gr_viewcos) - ((oldy - fy) * gr_viewsin);
+		shadowVerts[i].z = fy + ((oldx - fx) * gr_viewsin) + ((oldy - fy) * gr_viewcos);
+	}
+
+	if (groundslope && cv_sloperoll.value && cv_spriteroll.value)
+	{
+		for (i = 0; i < 4; i++)
+		{
+			slopez = P_GetZAt(groundslope, FLOAT_TO_FIXED(shadowVerts[i].x), FLOAT_TO_FIXED(shadowVerts[i].z));
+			shadowVerts[i].y = FIXED_TO_FLOAT(slopez) + 3 + flip * 0.05f;
+		}
+	}
+	else
+	{
+		for (i = 0; i < 4; i++)
+			shadowVerts[i].y = FIXED_TO_FLOAT(groundz) + 3 + flip * 0.05f;
+	}
+
+	shadowVerts[0].s = shadowVerts[3].s = 0;
+	shadowVerts[2].s = shadowVerts[1].s = gpatch->max_s;
+
+	shadowVerts[3].t = shadowVerts[2].t = 0;
+	shadowVerts[0].t = shadowVerts[1].t = gpatch->max_t;
+
+	if (thing->whiteshadow)
+		lightlevel = 255; // make crap FULLBRIGHT
+
+	HWR_Lighting(&sSurf, lightlevel, NULL);
+
+	sSurf.PolyColor.s.alpha = 0x80;
+
+	if (HWR_UseShader())
+	{
+		shader = SHADER_SHADOW;
+		blendmode |= PF_ColorMapped;
+	}
+
+	HWR_ProcessPolygon(&sSurf, shadowVerts, 4, blendmode|PF_Translucent|PF_Modulated, shader, false); // sprite shader
 }
 
 // This is expecting a pointer to an array containing 4 wallVerts for a sprite
@@ -3949,9 +4105,9 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 		float distfact = ((2.0f*spr->dispoffset) + 20.0f) / sprdist;
 		for (i = 0; i < 4; i++)
 		{
-			baseWallVerts[i].x += (gr_viewx - baseWallVerts[i].x)*distfact;
-			baseWallVerts[i].z += (gr_viewy - baseWallVerts[i].z)*distfact;
-			baseWallVerts[i].y += (gr_viewz - baseWallVerts[i].y)*distfact;
+			wallVerts[i].x += (gr_viewx - wallVerts[i].x)*distfact;
+			wallVerts[i].z += (gr_viewy - wallVerts[i].z)*distfact;
+			wallVerts[i].y += (gr_viewz - wallVerts[i].y)*distfact;
 		}
 	}
 
@@ -4012,13 +4168,13 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	for (i = 1; i < sector->numlights; i++)
 	{
 		fixed_t h = P_GetLightZAt(&sector->lightlist[i], spr->mobj->x, spr->mobj->y);
-		if (h <= temp)
-		{
-			if (!(spr->mobj->frame & FF_FULLBRIGHT))
-				lightlevel = *list[i-1].lightlevel > 255 ? 255 : *list[i-1].lightlevel;
-			colormap = list[i-1].extra_colormap;
-			break;
-		}
+		if (!(h <= temp))
+			continue;
+
+		if (!(spr->mobj->frame & FF_FULLBRIGHT))
+			lightlevel = *list[i-1].lightlevel > 255 ? 255 : *list[i-1].lightlevel;
+		colormap = list[i-1].extra_colormap;
+		break;
 	}
 
 	for (i = 0; i < sector->numlights; i++)
@@ -4411,8 +4567,9 @@ static int CompareVisSprites(const void *p1, const void *p2)
 	// make transparent sprites last
 	// "boolean to int"
 
-	int transparency1 = (spr1->mobj->flags2 & MF2_SHADOW) || (spr1->mobj->frame & FF_TRANSMASK);
-	int transparency2 = (spr2->mobj->flags2 & MF2_SHADOW) || (spr2->mobj->frame & FF_TRANSMASK);
+	int transparency1 = (!spr1->precip && (spr1->mobj->flags2 & MF2_SHADOW)) || (spr1->mobj->frame & FF_TRANSMASK);
+	int transparency2 = (!spr2->precip && (spr2->mobj->flags2 & MF2_SHADOW)) || (spr2->mobj->frame & FF_TRANSMASK);
+
 	idiff = transparency1 - transparency2;
 	if (idiff != 0) return idiff;
 
@@ -4714,9 +4871,17 @@ void HWR_DrawSprites(void)
 	for (i = 0; i < gr_visspritecount; i++)
 	{
 		gr_vissprite_t *spr = gr_vsprorder[i];
+
 		if (spr->precip)
 			HWR_DrawPrecipitationSprite(spr);
 		else
+		{
+			if (spr->mobj && cv_dropshadow.value)
+			{
+				if (spr->mobj->haveshadow)
+					HWR_DrawDropShadow(spr->mobj, spr->mobj->shadowscale);
+			}
+
 			if (spr->mobj && spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
 			{
 				md2_t *md2;
@@ -4738,11 +4903,13 @@ void HWR_DrawSprites(void)
 			}
 			else
 			{
+
 				if (!cv_grmdls.value || md2_models[spr->mobj->sprite].notfound || md2_models[spr->mobj->sprite].scale < 0.0f)
 					HWR_DrawSprite(spr);
 				else
 					HWR_DrawMD2(spr);
 			}
+		}
 	}
 }
 
@@ -4753,8 +4920,7 @@ void HWR_DrawSprites(void)
 void HWR_AddSprites(sector_t *sec)
 {
 	mobj_t *thing;
-	precipmobj_t *precipthing;
-	fixed_t approx_dist, limit_dist, precip_limit_dist;
+	fixed_t approx_dist, limit_dist;
 
 	INT32 splitflags;
 	boolean split_drawsprite;	// drawing with splitscreen flags
@@ -4773,24 +4939,58 @@ void HWR_AddSprites(sector_t *sec)
 	{
 		// Use the smaller setting
 		if (cv_drawdist.value)
-			limit_dist = min(current_bsp_culling_distance, cv_drawdist.value << FRACBITS);
+			limit_dist = min(current_bsp_culling_distance, (fixed_t)(cv_drawdist.value) * mapobjectscale);
 		else
 			limit_dist = current_bsp_culling_distance;
-		precip_limit_dist = min(current_bsp_culling_distance, cv_drawdist_precip.value << FRACBITS);
 	}
 	else
-	{
-		limit_dist = cv_drawdist.value << FRACBITS;
-		precip_limit_dist = cv_drawdist_precip.value << FRACBITS;
-	}
+		limit_dist = (fixed_t)(cv_drawdist.value) * mapobjectscale;
 
 	// Handle all things in sector.
 	// If a limit exists, handle things a tiny bit different.
-	if (limit_dist)
+	if (limit_dist == 0)
+	{
+		// Draw everything in sector, no checks
+		for (thing = sec->thinglist; thing; thing = thing->snext)
+		{
+			split_drawsprite = false;
+
+			if (thing->sprite == SPR_NULL || thing->flags2 & MF2_DONTDRAW)
+				continue;
+
+			splitflags = thing->eflags & (MFE_DRAWONLYFORP1|MFE_DRAWONLYFORP2|MFE_DRAWONLYFORP3|MFE_DRAWONLYFORP4);
+
+			if (splitscreen && splitflags)
+			{
+				if (thing->eflags & MFE_DRAWONLYFORP1)
+					if (viewssnum == 0)
+						split_drawsprite = true;
+
+				if (thing->eflags & MFE_DRAWONLYFORP2)
+					if (viewssnum == 1)
+						split_drawsprite = true;
+
+				if (thing->eflags & MFE_DRAWONLYFORP3 && splitscreen > 1)
+					if (viewssnum == 2)
+						split_drawsprite = true;
+
+				if (thing->eflags & MFE_DRAWONLYFORP4 && splitscreen > 2)
+					if (viewssnum == 3)
+						split_drawsprite = true;
+			}
+			else
+				split_drawsprite = true;
+
+			if (!split_drawsprite)
+				continue;
+
+			HWR_ProjectSprite(thing);
+		}
+	}
+	else
 	{
 		for (thing = sec->thinglist; thing; thing = thing->snext)
 		{
-
 			split_drawsprite = false;
 
 			if (thing->sprite == SPR_NULL || thing->flags2 & MF2_DONTDRAW)
@@ -4830,61 +5030,46 @@ void HWR_AddSprites(sector_t *sec)
 			HWR_ProjectSprite(thing);
 		}
 	}
+}
+
+// --------------------------------------------------------------------------
+// HWR_AddPrecipitationSprites
+// This renders through the blockmap instead of BSP to avoid
+// iterating a huge amount of precipitation sprites in sectors
+// that are beyond drawdist.
+// --------------------------------------------------------------------------
+static void HWR_AddPrecipitationSprites(void)
+{
+	//const fixed_t drawdist = cv_drawdist_precip.value * mapobjectscale;
+	fixed_t drawdist;
+
+	INT32 xl, xh, yl, yh, bx, by;
+	precipmobj_t *th;
+	
+	if (current_bsp_culling_distance)
+		drawdist = min(current_bsp_culling_distance, (fixed_t)(cv_drawdist_precip.value) * mapobjectscale);
 	else
-	{
-		// Draw everything in sector, no checks
-		for (thing = sec->thinglist; thing; thing = thing->snext)
-		{
-
-			split_drawsprite = false;
-
-			if (thing->sprite == SPR_NULL || thing->flags2 & MF2_DONTDRAW)
-				continue;
-
-			splitflags = thing->eflags & (MFE_DRAWONLYFORP1|MFE_DRAWONLYFORP2|MFE_DRAWONLYFORP3|MFE_DRAWONLYFORP4);
-
-			if (splitscreen && splitflags)
-			{
-				if (thing->eflags & MFE_DRAWONLYFORP1)
-					if (viewssnum == 0)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP2)
-					if (viewssnum == 1)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP3 && splitscreen > 1)
-					if (viewssnum == 2)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP4 && splitscreen > 2)
-					if (viewssnum == 3)
-						split_drawsprite = true;
-			}
-			else
-				split_drawsprite = true;
-
-			if (!split_drawsprite)
-				continue;
-
-			HWR_ProjectSprite(thing);
-		}
-	}
+		drawdist = (fixed_t)(cv_drawdist_precip.value) * mapobjectscale;
 
 	// No to infinite precipitation draw distance.
-	if (precip_limit_dist)
+	if (drawdist == 0)
 	{
-		for (precipthing = sec->preciplist; precipthing; precipthing = precipthing->snext)
+		return;
+	}
+
+	R_GetRenderBlockMapDimensions(drawdist, &xl, &xh, &yl, &yh);
+
+	for (bx = xl; bx <= xh; bx++)
+	{
+		for (by = yl; by <= yh; by++)
 		{
-			if (precipthing->precipflags & PCF_INVISIBLE)
-				continue;
+			for (th = precipblocklinks[(by * bmapwidth) + bx]; th; th = th->bnext)
+			{
+				if (th->precipflags & PCF_INVISIBLE)
+					continue;
 
-			approx_dist = P_AproxDistance(viewx-precipthing->x, viewy-precipthing->y);
-
-			if (approx_dist > precip_limit_dist)
-				continue;
-
-			HWR_ProjectPrecipitationSprite(precipthing);
+				HWR_ProjectPrecipitationSprite(th);
+			}
 		}
 	}
 }
@@ -5092,10 +5277,10 @@ void HWR_ProjectSprite(mobj_t *thing)
 
 			if (rotsprite != NULL)
 			{
-				spr_width = rotsprite->width << FRACBITS;
-				spr_height = rotsprite->height << FRACBITS;
-				spr_offset = rotsprite->leftoffset << FRACBITS;
-				spr_topoffset = rotsprite->topoffset << FRACBITS;
+				spr_width = SHORT(rotsprite->width) << FRACBITS;
+				spr_height = SHORT(rotsprite->height) << FRACBITS;
+				spr_offset = SHORT(rotsprite->leftoffset) << FRACBITS;
+				spr_topoffset = SHORT(rotsprite->topoffset) << FRACBITS;
 				spr_topoffset += FEETADJUST;
 				
 				// flip -> rotate, not rotate -> flip
@@ -5240,7 +5425,7 @@ void HWR_ProjectSprite(mobj_t *thing)
 		vis->colormap = colormaps;
 #ifdef GLENCORE
 		if (encoremap && !(thing->flags & MF_DONTENCOREMAP))
-			vis->colormap += (256*32);
+			vis->colormap += COLORMAP_REMAPOFFSET;
 #endif
 	}
 
@@ -5371,7 +5556,7 @@ void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
 
 #ifdef GLENCORE
 	if (encoremap && !(thing->flags & MF_DONTENCOREMAP))
-		vis->colormap += (256*32);
+		vis->colormap += COLORMAP_REMAPOFFSET;
 #endif
 
 	// set top/bottom coords
@@ -5412,6 +5597,7 @@ void HWR_DrawSkyBackground(float fpov)
 
 	dometransform.flip = atransform.flip;
 	dometransform.mirror = atransform.mirror;
+	dometransform.mirrorflip = atransform.mirrorflip;
 	dometransform.shearing = atransform.shearing;
 	dometransform.viewaiming = atransform.viewaiming;
 
@@ -5526,8 +5712,10 @@ void HWR_SetTransform(float fpov, player_t *player)
 
 	for (i = 0; i <= splitscreen; i++)
 	{
-		if (player == &players[displayplayers[i]])
-			postprocessor = &postimgtype[i];
+		if (player != &players[displayplayers[i]])
+			continue;
+
+		postprocessor = &postimgtype[i];
 	}
 
 	atransform.flip = false;
@@ -5537,6 +5725,10 @@ void HWR_SetTransform(float fpov, player_t *player)
 	atransform.mirror = false;
 	if (*postprocessor == postimg_mirror)
 		atransform.mirror = true;
+
+	atransform.mirrorflip = false;
+	if (*postprocessor == postimg_mirrorflip)
+		atransform.mirrorflip = true;
 
 	// Set transform.
 	HWD.pfnSetTransform(&atransform);
@@ -5708,6 +5900,8 @@ static void HWR_RenderViewpoint(gl_portal_t *rootportal, const float fpov, playe
 		if (cv_grbatching.value)
 			HWR_StartBatching();
 
+		HWR_AddPrecipitationSprites();
+
 		ps_numbspcalls.value.i = 0;
 		ps_numpolyobjects.value.i = 0;
 		PS_START_TIMING(ps_bsptime);
@@ -5727,7 +5921,7 @@ static void HWR_RenderViewpoint(gl_portal_t *rootportal, const float fpov, playe
 		gr_portal = oldgl_portal_state;
 
 		PS_STOP_TIMING(ps_bsptime);
-		
+
 		if (cv_grbatching.value)
 			HWR_RenderBatches();
 
@@ -5897,6 +6091,25 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	HWR_RenderFrame(viewnumber, player, false);
 }
 
+void HWR_LoadLevel(void)
+{
+	// Lactozilla (December 8, 2019)
+	// Level setup used to free EVERY mipmap from memory.
+	// Even mipmaps that aren't related to level textures.
+	// Presumably, the hardware render code used to store textures as level data.
+	// Meaning, they had memory allocated and marked with the PU_LEVEL tag.
+	// Level textures are only reloaded after R_LoadTextures, which is
+	// when the texture list is loaded.
+
+	// Sal: Unfortunately, NOT freeing them causes the dreaded Color Bug.
+	HWR_FreeMipmapCache();
+
+	HWR_CreatePlanePolygons((INT32)numnodes - 1);
+
+	if (HWR_ShouldUsePaletteRendering())
+		HWR_SetMapPalette();
+}
+
 // enable or disable palette rendering state depending on settings and availability
 // called when relevant settings change
 // shader recompilation is done in the cvar callback
@@ -5952,9 +6165,7 @@ void HWR_AddCommands(void)
 	CV_RegisterVar(&cv_fofzfightfix);
 	CV_RegisterVar(&cv_splitwallfix);
 	CV_RegisterVar(&cv_slopepegfix);
-	
-	CV_RegisterVar(&cv_grscreentextures);
-	
+
 	CV_RegisterVar(&cv_grrenderdistance);
 
 	CV_RegisterVar(&cv_grfakecontrast);
@@ -5982,6 +6193,12 @@ void HWR_AddCommands(void)
 	CV_RegisterVar(&cv_grpaletterendering);
 	CV_RegisterVar(&cv_grpalettedepth);
 	CV_RegisterVar(&cv_grflashpal);
+
+#ifdef USE_FBO_OGL
+	CV_RegisterVar(&cv_grframebuffer);
+#endif
+
+	CV_RegisterVar(&cv_grscreentextures);
 }
 
 // --------------------------------------------------------------------------
@@ -6005,6 +6222,10 @@ void HWR_Startup(void)
 		HWR_LoadAllCustomShaders();
 
 		HWR_TogglePaletteRendering();
+
+#ifdef USE_FBO_OGL	
+		HWD.pfnSetSpecialState(HWD_SET_FRAMEBUFFER, cv_grframebuffer.value);
+#endif
 
 		if (msaa)
 		{
@@ -6080,11 +6301,11 @@ void HWR_DoPostProcessor(player_t *player)
 
 	for (i = splitscreen; i > 0; i--)
 	{
-		if (player == &players[displayplayers[i]])
-		{
-			type = &postimgtype[i];
-			break;
-		}
+		if (player != &players[displayplayers[i]])
+			continue;
+
+		type = &postimgtype[i];
+		break;
 	}
 
 	// Armageddon Blast Flash!
@@ -6186,6 +6407,12 @@ void HWR_DoWipe(UINT8 wipenum, UINT8 scrnnum)
 	static char lumpname[9] = "FADEmmss";
 	lumpnum_t lumpnum;
 	size_t lsize;
+
+	if (cv_grscreentextures.value == 0)
+	{
+		V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31); // just draw a black screen instead of flashing and crap
+		return;
+	}
 
 	if (wipenum > 99 || scrnnum > 99) // not a valid wipe number
 		return; // shouldn't end up here really, the loop should've stopped running beforehand

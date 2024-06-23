@@ -631,7 +631,7 @@ static inline UINT8 transmappedpdraw(const UINT8 *dest, const UINT8 *source, fix
 void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vscale, INT32 scrn, patch_t *patch, const UINT8 *colormap)
 {
 	UINT8 (*patchdrawfunc)(const UINT8*, const UINT8*, fixed_t);
-	UINT32 alphalevel = 0;
+	UINT32 alphalevel = ((scrn & V_ALPHAMASK) >> V_ALPHASHIFT);
 
 	fixed_t col, ofs, colfrac, rowfrac, fdup, vdup;
 	INT32 dupx, dupy;
@@ -656,7 +656,7 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 	patchdrawfunc = standardpdraw;
 
 	v_translevel = NULL;
-	if ((alphalevel = ((scrn & V_ALPHAMASK) >> V_ALPHASHIFT)))
+	if (alphalevel)
 	{
 		if (alphalevel == 13)
 			alphalevel = hudminusalpha[hudtrans];
@@ -3416,6 +3416,19 @@ Unoptimized version
 			for (x = xoffset, x2 = xoffset+((viewwidth*vid.bpp)-1); x < xoffset+(viewwidth*vid.bpp); x++, x2--)
 				tmpscr[y*vid.width + x2] = srcscr[y*vid.width + x];
 		}
+
+		VID_BlitLinearScreen(tmpscr+vid.width*vid.bpp*yoffset+xoffset, screens[0]+vid.width*vid.bpp*yoffset+xoffset,
+				viewwidth*vid.bpp, viewheight, vid.width*vid.bpp, vid.width);
+	}
+	else if (type == postimg_mirrorflip) // Flip the screen upside-down and on the x axis
+	{
+		UINT8 *tmpscr = screens[4];
+		UINT8 *srcscr = screens[0];
+		INT32 y, x;
+
+		for (y = yoffset; y < yoffset + viewheight; y++)
+			for (x = xoffset; x < xoffset + viewwidth; x++)
+				tmpscr[((yoffset + viewheight - 1 - y) * vid.width) + xoffset + viewwidth - (x - xoffset) - 1] = srcscr[(y * vid.width) + x];
 
 		VID_BlitLinearScreen(tmpscr+vid.width*vid.bpp*yoffset+xoffset, screens[0]+vid.width*vid.bpp*yoffset+xoffset,
 				viewwidth*vid.bpp, viewheight, vid.width*vid.bpp, vid.width);

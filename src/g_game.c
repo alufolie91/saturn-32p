@@ -11,6 +11,7 @@
 /// \file  g_game.c
 /// \brief game loop functions, events handling
 
+#include "d_ticcmd.h"
 #include "doomdef.h"
 #include "console.h"
 #include "d_main.h"
@@ -25,6 +26,7 @@
 #include "am_map.h"
 #include "m_random.h"
 #include "p_local.h"
+#include "p_tick.h"
 #include "r_draw.h"
 #include "r_main.h"
 #include "s_sound.h"
@@ -516,7 +518,7 @@ static CV_PossibleValue_t sloperolldist_cons_t[] = {
 	{8192, "8192"},	{0, "Infinite"},	{0, NULL}};
 consvar_t cv_sloperolldist = {"sloperolldist", "Infinite", CV_SAVE, sloperolldist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 static CV_PossibleValue_t sloperoll_cons_t[] = {{0, "Off"}, {1, "Players"}, {2, "Everything"}, {0, NULL}};
-consvar_t cv_spriteroll = {"spriteroll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_spriteroll = {"spriteroll", "On", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sloperoll = {"sloperoll", "Off", CV_SAVE|CV_CALL, sloperoll_cons_t, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sparkroll = {"sparkroll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -1380,7 +1382,12 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	axis = JoyAxis(AXISFIRE, ssplayer);
 	if (InputDown(gc_fire, ssplayer) || (usejoystick && axis > 0))
 		cmd->buttons |= BT_ATTACK;
-
+	
+	// look back with any button/key
+	axis = JoyAxis(AXISLOOKBACK, ssplayer);
+	if (InputDown(gc_lookback, ssplayer) || (usejoystick && axis > 0))
+		cmd->buttons |= BT_LOOKBACK;
+	
 	// drift with any button/key
 	axis = JoyAxis(AXISDRIFT, ssplayer);
 	if (InputDown(gc_drift, ssplayer) || (usejoystick && axis > 0))
@@ -2475,6 +2482,10 @@ void G_PlayerReborn(INT32 player)
 	// SRB2kart
 	UINT8 kartspeed;
 	UINT8 kartweight;
+	boolean followerready;
+	UINT8 followercolor;
+	INT32 followerskin;
+	mobj_t *follower;	// old follower, will probably be removed by the time we're dead but you never know.
 	//
 	INT32 charflags;
 	INT32 pflags;
@@ -2525,7 +2536,14 @@ void G_PlayerReborn(INT32 player)
 	continues = players[player].continues;
 	ctfteam = players[player].ctfteam;
 	exiting = players[player].exiting;
+
+	// This needs to be first, to permit it to wipe extra information
 	jointime = players[player].jointime;
+	if (jointime <= 1)
+	{
+		G_SpectatePlayerOnJoin(player);
+	}
+
 	splitscreenindex = players[player].splitscreenindex;
 	spectator = players[player].spectator;
 	pflags = (players[player].pflags & (PF_TIMEOVER|PF_FLIPCAM|PF_TAGIT|PF_TAGGED|PF_ANALOGMODE|PF_WANTSTOJOIN));
@@ -2545,6 +2563,10 @@ void G_PlayerReborn(INT32 player)
 	// SRB2kart
 	kartspeed = players[player].kartspeed;
 	kartweight = players[player].kartweight;
+	follower = players[player].follower;
+	followerready = players[player].followerready;
+	followercolor = players[player].followercolor;
+	followerskin = players[player].followerskin;
 	//
 	charflags = players[player].charflags;
 
@@ -2669,6 +2691,18 @@ void G_PlayerReborn(INT32 player)
 	p->kartstuff[k_wanted] = wanted;
 	p->kartstuff[k_eggmanblame] = -1;
 	p->kartstuff[k_starpostflip] = respawnflip;
+
+	if (follower)
+	{
+		P_RemoveMobj(follower);
+		P_SetTarget(&p->follower, NULL);
+	}
+
+	p->followerready = followerready;
+	p->followerskin = followerskin;
+	p->followercolor = followercolor;
+	//p->follower = NULL;	// respawn a new one with you, it looks better.
+	// ^ Not necessary anyway since it will be respawned regardless considering it doesn't exist anymore.
 
 	p->spectatorreentry = spectatorreentry;
 	p->grieftime = grieftime;
@@ -5085,6 +5119,23 @@ void G_ReadDemoExtraData(void)
 			M_Memcpy(player_names[p],demo_p,16);
 			demo_p += 16;
 		}
+		if (extradata & DXD_FOLLOWER)
+		{
+			// Set our follower
+			M_Memcpy(name, demo_p, 16);
+			demo_p += 16;
+			SetPlayerFollower(p, name);
+
+			// Follower's color
+			M_Memcpy(name, demo_p, 16);
+			demo_p += 16;
+			for (i = 0; i < MAXSKINCOLORS; i++)
+				if (!stricmp(KartColor_Names[i], name))				// SRB2kart
+				{
+					players[p].followercolor = i;
+					break;
+				}
+		}
 		if (extradata & DXD_PLAYSTATE)
 		{
 			extradata = READUINT8(demo_p);
@@ -5101,6 +5152,10 @@ void G_ReadDemoExtraData(void)
 				if (players[p].spectator)
 				{
 					players[p].pflags &= ~PF_WANTSTOJOIN;
+
+					// There's likely an off-by-one error in timing recording or playback of joins. This hacks around it so I don't have to find out where that is. \o/
+					if (oldcmd[p].forwardmove)
+						P_RandomByte();
 				}
 				else
 				{
@@ -5198,6 +5253,24 @@ void G_WriteDemoExtraData(void)
 				memcpy(name, player_names[i], 15); // Keeping 1 null byte for safety, sorry players with name containing more than 15 characters
 				M_Memcpy(demo_p,name,16);
 				demo_p += 16;
+			}
+			if (demo_extradata[i] & DXD_FOLLOWER)
+			{
+				// write follower
+				memset(name, 0, 16);
+				if (players[i].followerskin == -1)
+					strncpy(name, "None", 16);
+				else
+					strncpy(name, followers[players[i].followerskin].skinname, 16);
+				M_Memcpy(demo_p, name, 16);
+				demo_p += 16;
+
+				// write follower color
+				memset(name, 0, 16);
+				strncpy(name, Followercolor_cons_t[players[i].followercolor].strvalue, 16);	// Not KartColor_Names because followercolor has extra values such as "Match"
+				M_Memcpy(demo_p,name,16);
+				demo_p += 16;
+
 			}
 			if (demo_extradata[i] & DXD_PLAYSTATE)
 			{
@@ -5860,6 +5933,8 @@ void G_GhostTicker(void)
 					g->p += 16; // Same tbh
 				if (ziptic & DXD_NAME)
 					g->p += 16; // yea
+				if (ziptic & DXD_FOLLOWER)
+					g->p += 32; // ok (32 because there's both the skin and the colour)
 				if (ziptic & DXD_PLAYSTATE && READUINT8(g->p) != DXD_PST_PLAYING)
 					I_Error("Ghost is not a record attack ghost"); //@TODO lmao don't blow up like this
 			}
@@ -5971,7 +6046,7 @@ void G_GhostTicker(void)
 			if (ziptic & EZT_THOKMASK)
 			{ // Let's only spawn ONE of these per frame, thanks.
 				mobj_t *mobj;
-				UINT32 type = MT_NULL;
+				INT32 type = -1;
 				if (g->mo->skin)
 				{
 					switch (ziptic & EZT_THOKMASK)
@@ -6654,6 +6729,25 @@ void G_BeginRecording(void)
 			strncpy(name, KartColor_Names[player->skincolor], 16);
 			M_Memcpy(demo_p,name,16);
 			demo_p += 16;
+			
+			// Save follower's skin name
+			// PS: We must check for 'follower' to determine if the followerskin is valid. It's going to be 0 if we don't have a follower, but 0 is also absolutely a valid follower!
+			// Doesn't really matter if the follower mobj is valid so long as it exists in a way or another.
+
+			memset(name, 0, 16);
+			if (player->follower)
+				strncpy(name, followers[player->followerskin].skinname, 16);
+			else
+				strncpy(name, "None", 16);	// Say we don't have one, then.
+
+			M_Memcpy(demo_p,name,16);
+			demo_p += 16;
+
+			// Save follower's colour
+			memset(name, 0, 16);
+			strncpy(name, Followercolor_cons_t[player->followercolor].strvalue, 16);	// Not KartColor_Names because followercolor has extra values such as "Match"
+			M_Memcpy(demo_p, name, 16);
+			demo_p += 16;
 
 			// Score, since Kart uses this to determine where you start on the map
 			WRITEUINT32(demo_p, player->score);
@@ -7251,7 +7345,7 @@ void G_DoPlayDemo(char *defdemoname)
 {
 	UINT8 i, p;
 	lumpnum_t l;
-	char skin[17],color[17],*n,*pdemoname;
+	char skin[17],color[17],follower[17],*n,*pdemoname;
 	UINT8 version,subversion;
 	UINT32 randseed;
 	char msg[1024];
@@ -7264,6 +7358,7 @@ void G_DoPlayDemo(char *defdemoname)
 	G_InitDemoRewind();
 
 	skin[16] = '\0';
+	follower[16] = '\0';
 	color[16] = '\0';
 
 	// No demo name means we're restarting the current demo
@@ -7700,6 +7795,23 @@ void G_DoPlayDemo(char *defdemoname)
 				break;
 			}
 
+		// Follower
+		M_Memcpy(follower, demo_p, 16);
+		demo_p += 16;
+		SetPlayerFollower(p, follower);
+
+		// Follower colour
+		M_Memcpy(color, demo_p, 16);
+		demo_p += 16;
+		for (i = 0; i < MAXSKINCOLORS +2; i++)	// +2 because of Match and Opposite
+		{
+				if (!stricmp(Followercolor_cons_t[i].strvalue, color))
+				{
+						players[p].followercolor = i;
+						break;
+				}
+		}	
+		
 		// Score, since Kart uses this to determine where you start on the map
 		players[p].score = READUINT32(demo_p);
 
@@ -7977,6 +8089,9 @@ void G_AddGhost(char *defdemoname)
 	// Color
 	M_Memcpy(color, p, 16);
 	p += 16;
+	
+	// Follower data was here, skip it, we don't care about it for ghosts.
+	p += 32;	// followerskin (16) + followercolor (16)
 
 	p += 4; // score
 

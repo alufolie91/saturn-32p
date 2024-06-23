@@ -50,7 +50,7 @@ consvar_t cv_stackingboostflamecolor = {"stacking_boostflamecolor", "On", CV_SAV
 actioncache_t actioncachehead;
 
 static mobj_t *overlaycap = NULL;
-static mobj_t *shadowcap = NULL;
+//static mobj_t *shadowcap = NULL;
 mobj_t *waypointcap = NULL;
 
 void P_InitCachedActions(void)
@@ -3415,6 +3415,7 @@ void P_DestroyRobots(void)
 boolean P_CameraThinker(player_t *player, camera_t *thiscam, boolean resetcalled)
 {
 	boolean itsatwodlevel = false;
+	boolean flipcam = (player->pflags & PF_FLIPCAM && !(player->pflags & PF_NIGHTSMODE) && player->mo->eflags & MFE_VERTICALFLIP);
 	postimg_t postimg = postimg_none;
 	UINT8 i;
 
@@ -3437,10 +3438,12 @@ boolean P_CameraThinker(player_t *player, camera_t *thiscam, boolean resetcalled
 		}
 	}
 
-	if (encoremode)
+	if (encoremode && !flipcam)
 		postimg = postimg_mirror;
-	else if (player->pflags & PF_FLIPCAM && !(player->pflags & PF_NIGHTSMODE) && player->mo->eflags & MFE_VERTICALFLIP)
+	else if (!encoremode && flipcam)
 		postimg = postimg_flip;
+	else if (encoremode && flipcam)
+		postimg = postimg_mirrorflip;
 	else if (player->awayviewtics && player->awayviewmobj && !P_MobjWasRemoved(player->awayviewmobj)) // Camera must obviously exist
 	{
 		camera_t dummycam;
@@ -3592,11 +3595,15 @@ static void P_PlayerMobjThinker(mobj_t *mobj)
 		mobj->z += mobj->momz;
 		P_SetThingPosition(mobj);
 		P_CheckPosition(mobj, mobj->x, mobj->y);
+		mobj->floorz = tmfloorz;
+		mobj->ceilingz = tmceilingz;
 		goto animonly;
 	}
 	else if (mobj->player->pflags & PF_MACESPIN && mobj->tracer)
 	{
 		P_CheckPosition(mobj, mobj->x, mobj->y);
+		mobj->floorz = tmfloorz;
+		mobj->ceilingz = tmceilingz;
 		goto animonly;
 	}
 
@@ -6071,7 +6078,7 @@ static void P_RemoveOverlay(mobj_t *thing)
 	}
 }
 
-void P_RunShadows(void)
+/*void P_RunShadows(void)
 {
 	mobj_t *mobj, *next, *dest;
 
@@ -6138,11 +6145,11 @@ void P_RunShadows(void)
 			P_SetScale(mobj, mobj->scale/3);
 	}
 	P_SetTarget(&shadowcap, NULL);
-}
+}*/
 
 // called whenever shadows think
 // It must be done this way so that level changes don't break when the shadowcap can't be reset
-static void P_AddShadow(mobj_t *thing)
+/*static void P_AddShadow(mobj_t *thing)
 {
 	I_Assert(thing != NULL);
 
@@ -6182,7 +6189,7 @@ static void P_RemoveShadow(mobj_t *thing)
 		P_SetTarget(&thing->hnext, NULL);
 		return;
 	}
-}
+}*/
 
 void A_BossDeath(mobj_t *mo);
 // AI for the Koopa boss.
@@ -6258,7 +6265,7 @@ void P_RollPitchMobj(mobj_t* mobj)
 
     if ((cv_spriteroll.value) && (cv_sloperoll.value == 2))
     {
-        K_RollMobjBySlopes(mobj, usedist);
+        K_RollMobjBySlopes(mobj, usedist, mobj->standingslope);
     }
     else
     {
@@ -6475,7 +6482,7 @@ void P_MobjThinker(mobj_t *mobj)
 
 				P_AddOverlay(mobj);
 				break;
-			case MT_SHADOW:
+			/*case MT_SHADOW:
 				if (!mobj->target)
 				{
 					P_RemoveMobj(mobj);
@@ -6488,15 +6495,6 @@ void P_MobjThinker(mobj_t *mobj)
 					mobj->sloperoll = mobj->target->sloperoll;
 				}
 				P_AddShadow(mobj);
-				break;
-			/*case MT_BLACKORB:
-			case MT_WHITEORB:
-			case MT_GREENORB:
-			case MT_YELLOWORB:
-			case MT_BLUEORB:
-			case MT_PITYORB:
-				if (!P_AddShield(mobj))
-					return;
 				break;*/
 			//{ SRB2kart mobs
 			case MT_ORBINAUT_SHIELD: // Kart orbit/trail items
@@ -8197,6 +8195,10 @@ void P_MobjThinker(mobj_t *mobj)
 			}
 			break;
 		case MT_BOOSTSTACK:	
+			
+			if (!mobj || P_MobjWasRemoved(mobj))
+				return;
+
 			if (!mobj->target || !mobj->target->health || (mobj->target->player && !mobj->target->player->kartstuff[k_totalstacks]))
 			{
 				P_RemoveMobj(mobj);
@@ -9658,6 +9660,173 @@ void P_SceneryThinker(mobj_t *mobj)
 // GAME SPAWN FUNCTIONS
 //
 
+static void P_DefaultMobjShadowScale(mobj_t *thing)
+{
+	thing->shadowscale = 0;
+	thing->whiteshadow = (thing->frame & FF_FULLBRIGHT);
+
+	// Those have shadow by default
+	switch (thing->type)
+	{
+		case MT_PLAYER:
+		case MT_SMALLMACE:
+		case MT_BIGMACE:
+		case MT_PUMA:
+		case MT_BIGPUMA:
+		case MT_FALLINGROCK:
+		case MT_SMK_MOLE:
+		case MT_SMK_THWOMP:
+		case MT_BATTLEBUMPER:
+		case MT_BANANA:
+		case MT_ORBINAUT:
+		case MT_ORBINAUT_SHIELD:
+		case MT_JAWZ:
+		case MT_JAWZ_DUD:
+		case MT_JAWZ_SHIELD:
+		case MT_SSMINE:
+		case MT_SSMINE_SHIELD:
+		case MT_BALLHOG:
+		case MT_SINK:
+		case MT_THUNDERSHIELD:
+		case MT_ROCKETSNEAKER:
+		case MT_SPB:
+		case MT_ADVENTURESPIKEA:
+		case MT_ADVENTURESPIKEB:
+		case MT_ADVENTURESPIKEC:
+		case MT_CDUFO:
+			thing->shadowscale = 4*FRACUNIT/3;
+			thing->haveshadow = true;
+			break;
+		case MT_BANANA_SHIELD:
+			thing->shadowscale = 12*FRACUNIT/5;
+			thing->haveshadow = true;
+			break;
+		case MT_RANDOMITEM:
+			thing->shadowscale = FRACUNIT/2;
+			thing->whiteshadow = false;
+			thing->haveshadow = true;
+			break;
+		case MT_EGGMANITEM:
+			thing->shadowscale = FRACUNIT;
+			thing->whiteshadow = false;
+			thing->haveshadow = true;
+			break;
+		case MT_EGGMANITEM_SHIELD:
+			thing->shadowscale = 3*FRACUNIT/2;
+			thing->whiteshadow = false;
+			thing->haveshadow = true;
+			break;
+		case MT_FLOATINGITEM:
+			thing->shadowscale = FRACUNIT/2;
+			thing->haveshadow = true;
+			break;
+		case MT_BLUEFRUIT:
+		case MT_ORANGEFRUIT:
+		case MT_REDFRUIT:
+		case MT_PINKFRUIT:
+		case MT_RANDOMAUDIENCE:
+		case MT_DOOD_BOX:
+		case MT_DOOD_BALLOON:
+		case MT_BLUECRAWLA:
+		case MT_REDCRAWLA:
+		case MT_GFZFISH: // Greenflower Fish
+		case MT_GOLDBUZZ:
+		case MT_REDBUZZ:
+		case MT_AQUABUZZ: // AquaBuzz for ATZ
+		case MT_JETTBOMBER: // Jetty-Syn Bomber
+		case MT_JETTGUNNER: // Jetty-Syn Gunner
+		case MT_CRAWLACOMMANDER: // Crawla Commander
+		case MT_DETON: // Deton
+		case MT_SKIM: // Skim mine dropper
+		case MT_TURRET:
+		case MT_POPUPTURRET:
+		case MT_SHARP: // Sharp
+		case MT_JETJAW: // Jet Jaw
+		case MT_SNAILER: // Snailer
+		case MT_VULTURE: // Vulture
+		case MT_POINTY: // Pointy
+		case MT_POINTYBALL: // Pointy Ball
+		case MT_ROBOHOOD: // Robo-Hood
+		case MT_FACESTABBER: // CastleBot FaceStabber
+		case MT_EGGGUARD: // Egg Guard
+		case MT_EGGSHIELD: // Egg Shield for Egg Guard
+		case MT_GSNAPPER: // Green Snapper
+		case MT_MINUS: // Minus
+		case MT_SPRINGSHELL: // Spring Shell
+		case MT_YELLOWSHELL: // Spring Shell (yellow)
+		case MT_UNIDUS: // Unidus
+		case MT_UNIBALL: // Unidus Ball
+		case MT_GOOMBA:
+		case MT_BLUEGOOMBA:
+		case MT_KOOPA:
+		case MT_MONOKUMA:
+		case MT_ARIDTOAD:
+		case MT_SRB1_CRAWLA:
+		case MT_SRB1_BAT:
+		case MT_SRB1_ROBOFISH:
+		case MT_SRB1_VOLCANOGUY:
+		case MT_SRB1_HOPPY:
+		case MT_SRB1_HOPPYWATER:
+		case MT_SRB1_HOPPYSKYLAB:
+		case MT_SRB1_MMZFLYING:
+		case MT_SRB1_UFO:
+		case MT_SRB1_GRAYBOT:
+		case MT_SRB1_ROBOTOPOLIS:
+		case MT_SRB1_RBZBUZZ:
+		case MT_SRB1_RBZSPIKES:
+		case MT_SRB1_METALSONIC:
+		case MT_SRB1_GOLDBOT:
+		case MT_SRB1_GENREX:
+		case MT_BOWLINGPIN:
+		case MT_EXPLODINGBARREL:
+		case MT_FROGGER:
+		case MT_ROBRA:
+		case MT_CHOMPER:
+		case MT_BUZZBOMBER:
+		case MT_GARGOYLE:
+		case MT_GBA_BOO:
+		case MT_FLYINGGARG:
+			thing->shadowscale = FRACUNIT;
+			thing->haveshadow = true;
+			break;
+		case MT_RING:
+		case MT_FLINGRING:
+		case MT_COIN:
+		case MT_FLINGCOIN:
+		case MT_REDTEAMRING:
+		case MT_BLUETEAMRING:
+		case MT_REDFLAG:
+		case MT_BLUEFLAG:
+		case MT_BOUNCERING:
+		case MT_AUTOMATICRING:
+		case MT_INFINITYRING:
+		case MT_RAILRING:
+		case MT_EXPLOSIONRING:
+		case MT_SCATTERRING:
+		case MT_GRENADERING:
+		case MT_BOUNCEPICKUP:
+		case MT_RAILPICKUP:
+		case MT_AUTOPICKUP:
+		case MT_EXPLODEPICKUP:
+		case MT_SCATTERPICKUP:
+		case MT_GRENADEPICKUP:
+		case MT_REDRING:
+		case MT_THROWNBOUNCE:
+		case MT_THROWNINFINITY:
+		case MT_THROWNAUTOMATIC:
+		case MT_THROWNSCATTER:
+		case MT_THROWNEXPLOSION:
+		case MT_THROWNGRENADE:
+		case MT_EMBLEM:
+			thing->shadowscale = 2*FRACUNIT/3;
+			thing->haveshadow = true;
+			break;
+		default:
+			thing->shadowscale = 4*FRACUNIT/3;
+			break;
+	}
+}
+
 //
 // P_SpawnMobj
 //
@@ -9767,6 +9936,9 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 		mobj->z = z;
 
 	mobj->colorized = false;
+
+	// Set shadowscale here, before spawn hook so that Lua can change it
+	P_DefaultMobjShadowScale(mobj);
 
 	// DANGER! This can cause P_SpawnMobj to return NULL!
 	// Avoid using P_RemoveMobj on the newly created mobj in "MobjSpawn" Lua hooks!
@@ -10061,7 +10233,7 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	if (!(mobj->flags & MF_NOTHINK))
 		P_AddThinker(&mobj->thinker); // Needs to come before the shadow spawn, or else the shadow's reference gets forgotten
 
-	switch (mobj->type)
+	/*switch (mobj->type)
 	{
 		case MT_PLAYER:
 		case MT_SMALLMACE:		case MT_BIGMACE:
@@ -10082,7 +10254,7 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 			P_SpawnShadowMobj(mobj);
 		default:
 			break;
-	}
+	}*/
 
 	// Call action functions when the state is set
 	if (st->action.acp1 && (mobj->flags & MF_RUNSPAWNFUNC))
@@ -10121,7 +10293,7 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 // P_SpawnShadowMobj
 // warning: Do not send a shadow mobj as a caster into here, or try to spawn spawn shadows for shadows in P_SpawnMobj, we do not want recursive shadows
 //
-mobj_t *P_SpawnShadowMobj(mobj_t * caster)
+/*mobj_t *P_SpawnShadowMobj(mobj_t * caster)
 {
 	const mobjinfo_t *info = &mobjinfo[MT_SHADOW];
 	state_t *st;
@@ -10231,7 +10403,7 @@ mobj_t *P_SpawnShadowMobj(mobj_t * caster)
 	R_AddMobjInterpolator(mobj);
 
 	return mobj;
-}
+}*/
 
 static precipmobj_t *P_SpawnPrecipMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 {
@@ -10348,8 +10520,8 @@ void P_RemoveMobj(mobj_t *mobj)
 	if (mobj->type == MT_OVERLAY)
 		P_RemoveOverlay(mobj);
 
-	if (mobj->type == MT_SHADOW)
-		P_RemoveShadow(mobj);
+	//if (mobj->type == MT_SHADOW)
+		//P_RemoveShadow(mobj);
 
 	if (mobj->type == MT_SPB)
 		spbplace = -1;
@@ -10659,7 +10831,8 @@ void P_PrecipitationEffects(void)
 		volume = 255; // Sky above? We get it full blast.
 	else
 	{
-		fixed_t x, y, yl, yh, xl, xh;
+		/* GCC is optimizing away y >= yl, FUCK YOU */
+		volatile fixed_t x, y, yl, yh, xl, xh;
 		fixed_t closedist, newdist;
 
 		// Essentially check in a 1024 unit radius of the player for an outdoor area.
@@ -10668,8 +10841,8 @@ void P_PrecipitationEffects(void)
 		xl = players[displayplayers[0]].mo->x - 1024*FRACUNIT;
 		xh = players[displayplayers[0]].mo->x + 1024*FRACUNIT;
 		closedist = 2048*FRACUNIT;
-		for (y = yl; y <= yh; y += FRACUNIT*64)
-			for (x = xl; x <= xh; x += FRACUNIT*64)
+		for (y = yl; y >= yl && y <= yh; y += FRACUNIT*64)
+			for (x = xl; x >= xl && x <= xh; x += FRACUNIT*64)
 			{
 				if (R_PointInSubsector(x, y)->sector->ceilingpic == skyflatnum) // Found the outdoors!
 				{
@@ -10928,6 +11101,8 @@ void P_SpawnPlayer(INT32 playernum)
 	//awayview stuff
 	p->awayviewmobj = NULL;
 	p->awayviewtics = 0;
+
+	p->follower = NULL;	// cleanse follower from existence
 
 	// set the scale to the mobj's destscale so settings get correctly set.  if we don't, they sometimes don't.
 	if (cv_kartdebugshrink.value && !modeattacking && !p->bot)
@@ -11719,9 +11894,14 @@ ML_NOCLIMB : Direction not controllable
 		mobj->threshold = min(mthing->extrainfo, 7);
 		break;
 	case MT_TUBEWAYPOINT:
-		mobj->health = mthing->angle & 255;
-		mobj->threshold = mthing->angle >> 8;
+	{
+		UINT8 sequence = mthing->angle >> 8;
+		UINT8 id = mthing->angle & 255;
+		mobj->health = id;
+		mobj->threshold = sequence;
+		P_AddWaypoint(sequence, id, mobj);
 		break;
+	}
 	case MT_NIGHTSDRONE:
 		if (mthing->angle > 0)
 			mobj->health = mthing->angle;
@@ -12990,4 +13170,97 @@ void P_FlashPal(player_t *pl, UINT16 type, UINT16 duration)
 		return;
 	pl->flashcount = duration;
 	pl->flashpal = type;
+}
+
+//
+// P_SpawnMobjFromMobj
+// Spawns an object with offsets relative to the position of another object.
+// Scale, gravity flip, etc. is taken into account automatically.
+//
+mobj_t *P_SpawnMobjFromMobj(mobj_t *mobj, fixed_t xofs, fixed_t yofs, fixed_t zofs, mobjtype_t type)
+{
+	mobj_t *newmobj;
+
+	xofs = FixedMul(xofs, mobj->scale);
+	yofs = FixedMul(yofs, mobj->scale);
+	zofs = FixedMul(zofs, mobj->scale);
+
+	newmobj = P_SpawnMobj(mobj->x + xofs, mobj->y + yofs, mobj->z + zofs, type);
+	if (!newmobj)
+		return NULL;
+
+	if (mobj->eflags & MFE_VERTICALFLIP)
+	{
+		fixed_t elementheight = FixedMul(newmobj->info->height, mobj->scale);
+
+		newmobj->eflags |= MFE_VERTICALFLIP;
+		newmobj->flags2 |= MF2_OBJECTFLIP;
+		newmobj->z = mobj->z + mobj->height - zofs - elementheight;
+
+		newmobj->old_z = mobj->old_z + mobj->height - zofs - elementheight;
+		newmobj->old_z2 = mobj->old_z2 + mobj->height - zofs - elementheight;
+	}
+	else
+	{
+		newmobj->old_z = mobj->old_z + zofs;
+		newmobj->old_z2 = mobj->old_z2 + zofs;
+	}
+
+	newmobj->destscale = mobj->destscale;
+	newmobj->rollangle = mobj->rollangle;
+	P_SetScale(newmobj, mobj->scale);
+
+	newmobj->old_x2 = mobj->old_x2 + xofs;
+	newmobj->old_y2 = mobj->old_y2 + yofs;
+	newmobj->old_x = mobj->old_x + xofs;
+	newmobj->old_y = mobj->old_y + yofs;
+
+	// This angle hack is needed for Lua scripts that set the angle after
+	// spawning, to avoid erroneous interpolation.
+	if (mobj->player)
+	{
+		newmobj->old_angle2 = mobj->player->old_frameangle2;
+		newmobj->old_angle = mobj->player->old_frameangle;
+	}
+	else
+	{
+		newmobj->old_angle2 = mobj->old_angle2;
+		newmobj->old_angle = mobj->old_angle;
+	}
+
+	newmobj->old_pitch2 = mobj->old_pitch2;
+	newmobj->old_pitch = mobj->old_pitch;
+	newmobj->old_roll2 = mobj->old_roll2;
+	newmobj->old_roll = mobj->old_roll;
+
+	newmobj->old_scale2 = mobj->old_scale2;
+	newmobj->old_scale = mobj->old_scale;
+	newmobj->old_spritexscale = mobj->old_spritexscale;
+	newmobj->old_spriteyscale = mobj->old_spriteyscale;
+	newmobj->old_spritexoffset = mobj->old_spritexoffset;
+	newmobj->old_spriteyoffset = mobj->old_spriteyoffset;
+
+	return newmobj;
+}
+
+//
+// P_GetMobjZMovement
+// Returns the Z momentum of the object, accounting for slopes if the object is grounded
+//
+fixed_t P_GetMobjZMovement(mobj_t *mo)
+{
+	pslope_t *slope = mo->standingslope;
+	angle_t angDiff;
+	fixed_t speed;
+
+	if (!P_IsObjectOnGround(mo))
+		return mo->momz;
+
+	if (!slope)
+		return 0;
+
+	angDiff = R_PointToAngle2(0, 0, mo->momx, mo->momy) - slope->xydirection;
+	speed = FixedHypot(mo->momx, mo->momy);
+
+	return P_ReturnThrustY(mo, slope->zangle, P_ReturnThrustX(mo, angDiff, speed));
 }

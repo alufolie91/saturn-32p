@@ -68,8 +68,8 @@ typedef struct
 static lighttable_t **spritelights;
 
 // constant arrays used for psprite clipping and initializing clipping
-INT16 *negonearray;
-INT16 *screenheightarray;
+INT16 negonearray[MAXVIDWIDTH];
+INT16 screenheightarray[MAXVIDWIDTH];
 
 spriteinfo_t spriteinfo[NUMSPRITES];
 
@@ -148,7 +148,6 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 		sprtemp[frame].rotated[1][r] = NULL;
 	}
 #endif/*ROTSPRITE*/
-
 
 	if (rotation == 0)
 	{
@@ -288,64 +287,67 @@ static boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef,
 
 	for (l = startlump; l < endlump; l++)
 	{
-		if (memcmp(lumpinfo[l].name,sprname,4)==0)
+		if (memcmp(lumpinfo[l].name,sprname,4))
+			continue;
+		// skip NULL sprites from very old dmadds pwads
+		if (W_LumpLengthPwad(wadnum,l)<=8)
+			continue;
+
+		frame = R_Char2Frame(lumpinfo[l].name[4]);
+		rotation = R_Char2Rotation(lumpinfo[l].name[5]);
+
+		if (frame >= 64 || rotation == 255) // Give an actual NAME error -_-...
 		{
-			frame = R_Char2Frame(lumpinfo[l].name[4]);
-			rotation = R_Char2Rotation(lumpinfo[l].name[5]);
+			CONS_Alert(CONS_WARNING, M_GetText("Bad sprite name: %s\n"), W_CheckNameForNumPwad(wadnum,l));
+			continue;
+		}
+
+		// skip NULL sprites from very old dmadds pwads
+		if (W_LumpLengthPwad(wadnum,l)<=8)
+			continue;
+
+		// store sprite info in lookup tables
+		//FIXME : numspritelumps do not duplicate sprite replacements
+		W_ReadLumpHeaderPwad(wadnum, l, &patch, sizeof (patch_t), 0);
+		spritecachedinfo[numspritelumps].width = SHORT(patch.width)<<FRACBITS;
+		spritecachedinfo[numspritelumps].offset = SHORT(patch.leftoffset)<<FRACBITS;
+		spritecachedinfo[numspritelumps].topoffset = SHORT(patch.topoffset)<<FRACBITS;
+		spritecachedinfo[numspritelumps].height = SHORT(patch.height)<<FRACBITS;
+
+		//BP: we cannot use special tric in hardware mode because feet in ground caused by z-buffer
+		if (rendermode != render_none) // not for psprite
+			spritecachedinfo[numspritelumps].topoffset += 4<<FRACBITS;
+
+		// Being selective with this causes bad things. :( Like the special stage tokens breaking apart.
+		/*if (rendermode != render_none // not for psprite
+		 && SHORT(patch.topoffset)>0 && SHORT(patch.topoffset)<SHORT(patch.height))
+			// perfect is patch.height but sometime it is too high
+			spritecachedinfo[numspritelumps].topoffset = min(SHORT(patch.topoffset)+4,SHORT(patch.height))<<FRACBITS;*/
+
+		//----------------------------------------------------
+
+		R_InstallSpriteLump(wadnum, l, numspritelumps, frame, rotation, 0);
+
+		if (lumpinfo[l].name[6])
+		{
+			frame = R_Char2Frame(lumpinfo[l].name[6]);
+			rotation = R_Char2Rotation(lumpinfo[l].name[7]);
 
 			if (frame >= 64 || rotation == 255) // Give an actual NAME error -_-...
 			{
 				CONS_Alert(CONS_WARNING, M_GetText("Bad sprite name: %s\n"), W_CheckNameForNumPwad(wadnum,l));
 				continue;
 			}
-
-			// skip NULL sprites from very old dmadds pwads
-			if (W_LumpLengthPwad(wadnum,l)<=8)
-				continue;
-
-			// store sprite info in lookup tables
-			//FIXME : numspritelumps do not duplicate sprite replacements
-			W_ReadLumpHeaderPwad(wadnum, l, &patch, sizeof (patch_t), 0);
-			spritecachedinfo[numspritelumps].width = SHORT(patch.width)<<FRACBITS;
-			spritecachedinfo[numspritelumps].offset = SHORT(patch.leftoffset)<<FRACBITS;
-			spritecachedinfo[numspritelumps].topoffset = SHORT(patch.topoffset)<<FRACBITS;
-			spritecachedinfo[numspritelumps].height = SHORT(patch.height)<<FRACBITS;
-
-			//BP: we cannot use special tric in hardware mode because feet in ground caused by z-buffer
-			if (rendermode != render_none) // not for psprite
-				spritecachedinfo[numspritelumps].topoffset += 4<<FRACBITS;
-
-			// Being selective with this causes bad things. :( Like the special stage tokens breaking apart.
-			/*if (rendermode != render_none // not for psprite
-			 && SHORT(patch.topoffset)>0 && SHORT(patch.topoffset)<SHORT(patch.height))
-				// perfect is patch.height but sometime it is too high
-				spritecachedinfo[numspritelumps].topoffset = min(SHORT(patch.topoffset)+4,SHORT(patch.height))<<FRACBITS;*/
-
-			//----------------------------------------------------
-
-			R_InstallSpriteLump(wadnum, l, numspritelumps, frame, rotation, 0);
-
-			if (lumpinfo[l].name[6])
-			{
-				frame = R_Char2Frame(lumpinfo[l].name[6]);
-				rotation = R_Char2Rotation(lumpinfo[l].name[7]);
-
-				if (frame >= 64 || rotation == 255) // Give an actual NAME error -_-...
-				{
-					CONS_Alert(CONS_WARNING, M_GetText("Bad sprite name: %s\n"), W_CheckNameForNumPwad(wadnum,l));
-					continue;
-				}
-				R_InstallSpriteLump(wadnum, l, numspritelumps, frame, rotation, 1);
-			}
-
-			if (++numspritelumps >= max_spritelumps)
-			{
-				max_spritelumps *= 2;
-				Z_Realloc(spritecachedinfo, max_spritelumps*sizeof(*spritecachedinfo), PU_STATIC, &spritecachedinfo);
-			}
-
-			++numadded;
+			R_InstallSpriteLump(wadnum, l, numspritelumps, frame, rotation, 1);
 		}
+
+		if (++numspritelumps >= max_spritelumps)
+		{
+			max_spritelumps *= 2;
+			Z_Realloc(spritecachedinfo, max_spritelumps*sizeof(*spritecachedinfo), PU_STATIC, &spritecachedinfo);
+		}
+
+		++numadded;
 	}
 
 	//
@@ -480,6 +482,7 @@ void R_AddSpriteDefs(UINT16 wadnum)
 	for (i = 0; i < numsprites; i++)
 	{
 		spritename = sprnames[i];
+
 		if (spritename[4] && wadnum >= (UINT16)spritename[4])
 			continue;
 
@@ -522,6 +525,11 @@ void R_InitSprites(void)
 	INT32 angle;
 	float fa;
 #endif
+
+	for (i = 0; i < MAXVIDWIDTH; i++)
+	{
+		negonearray[i] = -1;
+	}
 
 #ifdef ROTSPRITE
 	for (angle = 1; angle < ROTANGLES; angle++)
@@ -579,34 +587,6 @@ void R_ClearSprites(void)
 	visspritecount = numvisiblesprites = clippedvissprites = 0;
 }
 
-static INT16 *vissprite_clipbot[MAXVISSPRITES >> VISSPRITECHUNKBITS];
-static INT16 *vissprite_cliptop[MAXVISSPRITES >> VISSPRITECHUNKBITS];
-
-static void R_AllocVisSpriteChunkMemory(UINT32 chunk)
-{
-	vissprite_clipbot[chunk] = Z_Realloc(vissprite_clipbot[chunk], sizeof(INT16) * (VISSPRITESPERCHUNK * viewwidth), PU_STATIC, NULL);
-	vissprite_cliptop[chunk] = Z_Realloc(vissprite_cliptop[chunk], sizeof(INT16) * (VISSPRITESPERCHUNK * viewwidth), PU_STATIC, NULL);
-
-	for (unsigned i = 0; i < VISSPRITESPERCHUNK; i++)
-	{
-		vissprite_t *sprite = visspritechunks[chunk] + i;
-
-		sprite->clipbot = vissprite_clipbot[chunk] + (viewwidth * i);
-		sprite->cliptop = vissprite_cliptop[chunk] + (viewwidth * i);
-	}
-}
-
-void R_AllocVisSpriteMemory(void)
-{
-	unsigned numchunks = MAXVISSPRITES >> VISSPRITECHUNKBITS;
-
-	for (unsigned i = 0; i < numchunks; i++)
-	{
-		if (visspritechunks[i])
-			R_AllocVisSpriteChunkMemory(i);
-	}
-}
-
 //
 // R_NewVisSprite
 //
@@ -614,24 +594,19 @@ static vissprite_t overflowsprite;
 
 static vissprite_t *R_GetVisSprite(UINT32 num)
 {
-	UINT32 chunk = num >> VISSPRITECHUNKBITS;
+		UINT32 chunk = num >> VISSPRITECHUNKBITS;
 
-	// Allocate chunk if necessary
-	if (!visspritechunks[chunk])
-	{
-		Z_Malloc(sizeof(vissprite_t) * VISSPRITESPERCHUNK, PU_LEVEL, &visspritechunks[chunk]);
-		R_AllocVisSpriteChunkMemory(chunk);
-	}
+		// Allocate chunk if necessary
+		if (!visspritechunks[chunk])
+			Z_Malloc(sizeof(vissprite_t) * VISSPRITESPERCHUNK, PU_LEVEL, &visspritechunks[chunk]);
 
-	return visspritechunks[chunk] + (num & VISSPRITEINDEXMASK);
+		return visspritechunks[chunk] + (num & VISSPRITEINDEXMASK);
 }
 
 static vissprite_t *R_NewVisSprite(void)
 {
-	if (visspritecount == MAXVISSPRITES) {
-		//CONS_Alert(CONS_ERROR, M_GetText("R_NewVisSprite: too many vissprites requested (maximum is %i)\n"), MAXVISSPRITES);
+	if (visspritecount == MAXVISSPRITES)
 		return &overflowsprite;
-    }
 
 	return R_GetVisSprite(visspritecount++);
 }
@@ -692,15 +667,19 @@ void R_DrawMaskedColumn(column_t *column)
 		{
 			dc_source = (UINT8 *)column + 3;
 			dc_texturemid = basetexturemid - (topdelta<<FRACBITS);
-			colfunc();
+
+			// Drawn by R_DrawColumn.
+			// This stuff is a likely cause of the splitscreen water crash bug.
+			// FIXTHIS: Figure out what "something more proper" is and do it.
+			// quick fix... something more proper should be done!!!
+			if (ylookup[dc_yl])
+				colfunc();
 		}
 		column = (column_t *)((UINT8 *)column + column->length + 4);
 	}
 
 	dc_texturemid = basetexturemid;
 }
-
-INT32 lengthcol; // column->length : for flipped column function pointers and multi-patch on 2sided wall = texture->height
 
 static void R_DrawFlippedMaskedColumn(column_t *column, INT32 texheight)
 {
@@ -749,7 +728,10 @@ static void R_DrawFlippedMaskedColumn(column_t *column, INT32 texheight)
 			for (s = (UINT8 *)column+2+column->length, d = dc_source; d < dc_source+column->length; --s)
 				*d++ = *s;
 			dc_texturemid = basetexturemid - (topdelta<<FRACBITS);
-			colfunc();
+
+			// Still drawn by R_DrawColumn.
+			if (ylookup[dc_yl])
+				colfunc();
 			Z_Free(dc_source);
 		}
 		column = (column_t *)((UINT8 *)column + column->length + 4);
@@ -765,9 +747,7 @@ static void R_DrawFlippedMaskedColumn(column_t *column, INT32 texheight)
 static void R_DrawVisSprite(vissprite_t *vis)
 {
 	column_t *column;
-#ifdef RANGECHECK
 	INT32 texturecolumn;
-#endif
 	fixed_t frac;
 	patch_t *patch = vis->patch;
 	fixed_t this_scale = vis->thingscale;
@@ -792,7 +772,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	// TODO This check should not be necessary. But Papersprites near to the camera will sometimes create invalid values
 	// for the vissprite's startfrac. This happens because they are not depth culled like other sprites.
 	// Someone who is more familiar with papersprites pls check and try to fix <3
-	if (vis->startfrac < 0 || vis->startfrac > (patch->width << FRACBITS))
+	if (vis->startfrac < 0 || vis->startfrac > (SHORT(patch->width) << FRACBITS))
 	{
 		// never draw vissprites with startfrac out of patch range
 		return;
@@ -800,7 +780,16 @@ static void R_DrawVisSprite(vissprite_t *vis)
 
 	colfunc = basecolfunc; // hack: this isn't resetting properly somewhere.
 	dc_colormap = vis->colormap;
-	if ((vis->mobj->flags & MF_BOSS) && (vis->mobj->flags2 & MF2_FRET) && (leveltime & 1)) // Bosses "flash"
+
+	// Hack: Use a special column function for drop shadows that bypasses
+	// invalid memory access crashes caused by R_ProjectDropShadow putting wrong values
+	// in dc_texturemid and dc_iscale when the shadow is sloped.
+	if (vis->cut & SC_SHADOW)
+	{
+		colfunc = dropshadowcolfunc;
+		dc_transmap = vis->transmap;
+	}
+	else if ((vis->mobj->flags & MF_BOSS) && (vis->mobj->flags2 & MF2_FRET) && (leveltime & 1)) // Bosses "flash"
 	{
 		// translate certain pixels to white
 		colfunc = transcolfunc;
@@ -857,7 +846,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 		dc_colormap = colormaps;
 
 	if (encoremap && !vis->mobj->color && !(vis->mobj->flags & MF_DONTENCOREMAP))
-			dc_colormap += (256*32);
+			dc_colormap += COLORMAP_REMAPOFFSET;
 
 	dc_texturemid = vis->texturemid;
 	dc_texheight = 0;
@@ -869,16 +858,18 @@ static void R_DrawVisSprite(vissprite_t *vis)
 		this_scale = FixedMul(this_scale, ((skin_t *)vis->mobj->localskin)->highresscale);
 	else if (vis->mobj->skin && ((skin_t *)vis->mobj->skin)->flags & SF_HIRES)
 		this_scale = FixedMul(this_scale, ((skin_t *)vis->mobj->skin)->highresscale);
+
 	if (this_scale <= 0)
 		this_scale = 1;
+
 	if (this_scale != FRACUNIT)
 	{
-		if (!vis->isScaled)
+		if (!(vis->cut & SC_ISSCALED))
 		{
 			vis->scale = FixedMul(vis->scale, this_scale);
 			vis->scalestep = FixedMul(vis->scalestep, this_scale);
-			vis->xiscale = FixedDiv(vis->xiscale, this_scale);
-			vis->isScaled = true;
+			vis->xiscale = FixedDiv(vis->xiscale,this_scale);
+			vis->cut |= SC_ISSCALED;
 		}
 		dc_texturemid = FixedDiv(dc_texturemid, this_scale);
 	}
@@ -888,6 +879,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	if (!(vis->scalestep))
 	{
 		sprtopscreen = centeryfrac - FixedMul(dc_texturemid, spryscale);
+		sprtopscreen += vis->shear.tan * vis->shear.offset;
 		dc_iscale = FixedDiv(FRACUNIT, vis->scale);
 	}
 
@@ -903,9 +895,6 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	if (vis->x2 >= vid.width)
 		vis->x2 = vid.width-1;
 
-	lengthcol = SHORT(patch->height);
-
-#if 1
 	// Something is occasionally setting 1px-wide sprites whose frac is exactly the width of the sprite, causing crashes due to
 	// accessing invalid column info. Until the cause is found, let's try to correct those manually...
 	{
@@ -913,38 +902,56 @@ static void R_DrawVisSprite(vissprite_t *vis)
 		if (temp > 0)
 			vis->x2 -= temp;
 	}
-#endif
 
-	for (dc_x = vis->x1; dc_x <= vis->x2; dc_x++, frac += vis->xiscale)
+	// Split drawing loops for paper and non-paper to reduce conditional checks per sprite
+	if (vis->scalestep)
 	{
+		fixed_t horzscale = FixedMul(vis->spritexscale, this_scale);
 		fixed_t scalestep = FixedMul(vis->scalestep, vis->spriteyscale);
-		if (vis->scalestep) // currently papersprites only
-		{
 
-#ifndef RANGECHECK
-			if ((frac>>FRACBITS) < 0 || (frac>>FRACBITS) >= SHORT(patch->width)) // if this doesn't work i'm removing papersprites
-				break;
-#endif
+		// Papersprite drawing loop
+		for (dc_x = vis->x1; dc_x <= vis->x2; dc_x++, spryscale += scalestep)
+		{
+			angle_t angle = ((vis->centerangle + xtoviewangle[dc_x]) >> ANGLETOFINESHIFT) & 0xFFF;
+			texturecolumn = (vis->paperoffset - FixedMul(FINETANGENT(angle), vis->paperdistance)) / horzscale;
+
+			if (texturecolumn < 0 || texturecolumn >= SHORT(patch->width))
+				continue;
+
+			if (vis->xiscale < 0) // Flipped sprite
+				texturecolumn = SHORT(patch->width) - 1 - texturecolumn;
+
 			sprtopscreen = (centeryfrac - FixedMul(dc_texturemid, spryscale));
 			dc_iscale = (0xffffffffu / (unsigned)spryscale);
-			spryscale += scalestep;
-		}
-#ifdef RANGECHECK
-		texturecolumn = frac>>FRACBITS;
 
-		if (texturecolumn < 0 || texturecolumn >= SHORT(patch->width))
-			I_Error("R_DrawSpriteRange: bad texturecolumn");
-		column = (column_t *)((UINT8 *)patch + LONG(patch->columnofs[texturecolumn]));
-#else
-		column = (column_t *)((UINT8 *)patch + LONG(patch->columnofs[frac>>FRACBITS]));
-#endif
-		if (vis->vflip)
-			R_DrawFlippedMaskedColumn(column, patch->height);
-		else
-			R_DrawMaskedColumn(column);
+			column = (column_t *)((UINT8 *)patch + LONG(patch->columnofs[texturecolumn]));
+
+			if (vis->vflip)
+				R_DrawFlippedMaskedColumn(column, patch->height);
+			else
+				R_DrawMaskedColumn(column);
+		}
+	}
+	else
+	{
+		// Non-paper drawing loop
+		for (dc_x = vis->x1; dc_x <= vis->x2; dc_x++, frac += vis->xiscale)
+		{	
+#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
+			texturecolumn = CLAMP(frac >> FRACBITS, 0, SHORT(patch->width) - 1);
+#undef CLAMP
+			column = (column_t *)((UINT8 *)patch + LONG(patch->columnofs[texturecolumn]));
+
+			if (vis->vflip)
+				R_DrawFlippedMaskedColumn(column, patch->height);
+			else
+				R_DrawMaskedColumn(column);
+		}
 	}
 
 	colfunc = basecolfunc;
+	dc_hires = 0;
+
 	vis->x1 = x1;
 	vis->x2 = x2;
 }
@@ -953,9 +960,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 {
 	column_t *column;
-#ifdef RANGECHECK
 	INT32 texturecolumn;
-#endif
 	fixed_t frac;
 	patch_t *patch;
 	INT64 overflow_test;
@@ -978,7 +983,7 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 
 	dc_colormap = colormaps;
 	if (encoremap)
-		dc_colormap += (256*32);
+		dc_colormap += COLORMAP_REMAPOFFSET;
 
 	dc_iscale = FixedDiv(FRACUNIT, vis->scale);
 	dc_texturemid = vis->texturemid;
@@ -995,33 +1000,32 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 	if (vis->x2 >= vid.width)
 		vis->x2 = vid.width-1;
 
+#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
 	for (dc_x = vis->x1; dc_x <= vis->x2; dc_x++, frac += vis->xiscale)
 	{
-#ifdef RANGECHECK
-		texturecolumn = frac>>FRACBITS;
-
-		if (texturecolumn < 0 || texturecolumn >= SHORT(patch->width))
-			I_Error("R_DrawPrecipitationSpriteRange: bad texturecolumn");
-
+		texturecolumn = CLAMP(frac >> FRACBITS, 0, SHORT(patch->width) - 1);
 		column = (column_t *)((UINT8 *)patch + LONG(patch->columnofs[texturecolumn]));
-#else
-		column = (column_t *)((UINT8 *)patch + LONG(patch->columnofs[frac>>FRACBITS]));
-#endif
+
 		R_DrawMaskedColumn(column);
 	}
+#undef CLAMP
 
 	colfunc = basecolfunc;
 }
 
 //
 // R_SplitSprite
-// runs through a sector's lightlist and splits the sprite according to the heights
-//
+// runs through a sector's lightlist and
 static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 {
-	sector_t *sector = sprite->sector;
+	INT32 i, lightnum, lindex;
+	INT16 cutfrac;
+	sector_t *sector;
+	vissprite_t *newsprite;
 
-	for (INT32 i = 1; i < sector->numlights; i++)
+	sector = sprite->sector;
+
+	for (i = 1; i < sector->numlights; i++)
 	{
 		fixed_t testheight = sector->lightlist[i].height;
 
@@ -1036,7 +1040,7 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 		if (testheight <= sprite->gz)
 			return;
 
-		INT16 cutfrac = (INT16)((centeryfrac - FixedMul(testheight - viewz, sprite->sortscale))>>FRACBITS);
+		cutfrac = (INT16)((centeryfrac - FixedMul(testheight - viewz, sprite->sortscale))>>FRACBITS);
 		if (cutfrac < 0)
 			continue;
 		if (cutfrac > viewheight)
@@ -1044,16 +1048,7 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 
 		// Found a split! Make a new sprite, copy the old sprite to it, and
 		// adjust the heights.
-		vissprite_t *newsprite = R_NewVisSprite();
-
-		// Needs to keep the new sprite's clipping tables
-		INT16 *cliptop = newsprite->cliptop;
-		INT16 *clipbot = newsprite->clipbot;
-
-		M_Memcpy(newsprite, sprite, sizeof (vissprite_t));
-
-		newsprite->cliptop = cliptop;
-		newsprite->clipbot = clipbot;
+		newsprite = M_Memcpy(R_NewVisSprite(), sprite, sizeof (vissprite_t));
 
 		sprite->cut |= SC_BOTTOM;
 		sprite->gz = testheight;
@@ -1076,7 +1071,7 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 		newsprite->cut |= SC_TOP;
 		if (!(sector->lightlist[i].caster->flags & FF_NOSHADE))
 		{
-			INT32 lightnum = (*sector->lightlist[i].lightlevel >> LIGHTSEGSHIFT);
+			lightnum = (*sector->lightlist[i].lightlevel >> LIGHTSEGSHIFT);
 
 			if (lightnum < 0)
 				spritelights = scalelight[0];
@@ -1097,7 +1092,7 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 			if (!((thing->frame & (FF_FULLBRIGHT|FF_TRANSMASK) || thing->flags2 & MF2_SHADOW)
 				&& (!newsprite->extra_colormap || !(newsprite->extra_colormap->fog & 1))))
 			{
-				INT32 lindex = FixedMul(sprite->xscale, LIGHTRESOLUTIONFIX)>>(LIGHTSCALESHIFT);
+				lindex = FixedMul(sprite->xscale, LIGHTRESOLUTIONFIX)>>(LIGHTSCALESHIFT);
 
 				if (lindex >= MAXLIGHTSCALE)
 					lindex = MAXLIGHTSCALE-1;
@@ -1108,19 +1103,46 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 	}
 }
 
+//
 // R_GetShadowZ(thing, shadowslope)
 // Get the first visible floor below the object for shadows
 // shadowslope is filled with the floor's slope, if provided
 //
-fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
+fixed_t R_GetShadowZ(
+	mobj_t *thing, pslope_t **shadowslope)
 {
+	fixed_t halfHeight;
 	boolean isflipped = thing->eflags & MFE_VERTICALFLIP;
+	fixed_t floorz;
+	fixed_t ceilingz;
 	fixed_t z, groundz = isflipped ? INT32_MAX : INT32_MIN;
 	pslope_t *slope, *groundslope = NULL;
 	msecnode_t *node;
 	sector_t *sector;
 	ffloor_t *rover;
-#define CHECKZ (isflipped ? z > thing->z+thing->height/2 && z < groundz : z < thing->z+thing->height/2 && z > groundz)
+	INT32 dist = -1;
+
+	// for frame interpolation
+	interpmobjstate_t interp = {0};
+
+	if (cv_grmaxinterpdist.value)
+		dist = R_QuickCamDist(thing->x, thing->y);
+
+	// do interpolation
+	if (R_UsingFrameInterpolation() && !paused && (!cv_grmaxinterpdist.value || dist < cv_grmaxinterpdist.value))
+	{
+		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+	}
+	else
+	{
+		R_InterpolateMobjState(thing, FRACUNIT, &interp);
+	}
+
+	halfHeight = interp.z + (thing->height >> 1);
+	floorz = P_GetFloorZ(thing, interp.subsector->sector, interp.x, interp.y, NULL);
+	ceilingz = P_GetCeilingZ(thing, interp.subsector->sector, interp.x, interp.y, NULL);
+
+#define CHECKZ (isflipped ? z > halfHeight && z < groundz : z < halfHeight && z > groundz)
 
 	for (node = thing->touching_sectorlist; node; node = node->m_sectorlist_next)
 	{
@@ -1131,7 +1153,7 @@ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
 		if (sector->heightsec != -1)
 			z = isflipped ? sectors[sector->heightsec].ceilingheight : sectors[sector->heightsec].floorheight;
 		else
-			z = isflipped ? P_GetSectorCeilingZAt(sector, thing->x, thing->y) : P_GetSectorFloorZAt(sector, thing->x, thing->y);
+			z = isflipped ? P_GetSectorCeilingZAt(sector, interp.x, interp.y) : P_GetSectorFloorZAt(sector, interp.x, interp.y);
 
 		if CHECKZ
 		{
@@ -1145,7 +1167,7 @@ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
 				if (!(rover->flags & FF_EXISTS) || !(rover->flags & FF_RENDERPLANES) || (rover->alpha < 90 && !(rover->flags & FF_SWIMMABLE)))
 					continue;
 
-				z = isflipped ? P_GetFFloorBottomZAt(rover, thing->x, thing->y) : P_GetFFloorTopZAt(rover, thing->x, thing->y);
+				z = isflipped ? P_GetFFloorBottomZAt(rover, interp.x, interp.y) : P_GetFFloorTopZAt(rover, interp.x, interp.y);
 				if CHECKZ
 				{
 					groundz = z;
@@ -1154,18 +1176,178 @@ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
 			}
 	}
 
-	if (isflipped ? (thing->ceilingz < groundz - (!groundslope ? 0 : FixedMul(abs(groundslope->zdelta), thing->radius*3/2)))
-		: (thing->floorz > groundz + (!groundslope ? 0 : FixedMul(abs(groundslope->zdelta), thing->radius*3/2))))
+	if (isflipped ? (ceilingz < groundz - (!groundslope ? 0 : FixedMul(abs(groundslope->zdelta), thing->radius*3/2)))
+		: (floorz > groundz + (!groundslope ? 0 : FixedMul(abs(groundslope->zdelta), thing->radius*3/2))))
 	{
-		groundz = isflipped ? thing->ceilingz : thing->floorz;
+		groundz = isflipped ? ceilingz : floorz;
 		groundslope = NULL;
 	}
 
 	if (shadowslope != NULL)
 		*shadowslope = groundslope;
 
-	return groundz;
 #undef CHECKZ
+
+	return groundz;
+}
+
+static void R_SkewShadowSprite(
+			mobj_t *thing, pslope_t *groundslope,
+			fixed_t groundz, INT32 spriteheight, fixed_t scalemul,
+			fixed_t *shadowyscale, fixed_t *shadowskew)
+{
+	// haha let's try some dumb stuff
+	fixed_t xslope, zslope;
+	angle_t sloperelang;
+
+	// for frame interpolation
+	interpmobjstate_t interp = {0};
+
+	if (R_UsingFrameInterpolation() && !paused)
+	{
+		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+	}
+	else
+	{
+		R_InterpolateMobjState(thing, FRACUNIT, &interp);
+	}
+
+	sloperelang = (R_PointToAngle(interp.x, interp.y) - groundslope->xydirection) >> ANGLETOFINESHIFT;
+
+	xslope = FixedMul(FINESINE(sloperelang), groundslope->zdelta);
+	zslope = FixedMul(FINECOSINE(sloperelang), groundslope->zdelta);
+
+	//CONS_Printf("Shadow is sloped by %d %d\n", xslope, zslope);
+
+	if (viewz < groundz)
+		*shadowyscale += FixedMul(FixedMul(thing->radius*2 / spriteheight, scalemul), zslope);
+	else
+		*shadowyscale -= FixedMul(FixedMul(thing->radius*2 / spriteheight, scalemul), zslope);
+
+	*shadowyscale = abs(*shadowyscale);
+	*shadowskew = xslope;
+}
+
+static void R_ProjectDropShadow(mobj_t *thing, vissprite_t *vis, fixed_t tx, fixed_t tz, fixed_t scale)
+{
+	vissprite_t *shadow;
+	patch_t *patch;
+	fixed_t xscale, yscale, shadowxscale, shadowyscale, shadowskew, x1, x2;
+	fixed_t scalemul;
+	fixed_t floordiff;
+	fixed_t groundz;
+	pslope_t *groundslope;
+	boolean isflipped = thing->eflags & MFE_VERTICALFLIP;
+	INT32 dist = -1;
+	interpmobjstate_t interp = {0};
+
+	groundz = R_GetShadowZ(thing, &groundslope);
+
+	if (abs(groundz-viewz)/tz > 4) return; // Prevent stretchy shadows and possible crashes
+
+	if (cv_grmaxinterpdist.value)
+		dist = R_QuickCamDist(thing->x, thing->y);
+
+	// do interpolation
+	if (R_UsingFrameInterpolation() && !paused && (!cv_grmaxinterpdist.value || dist < cv_grmaxinterpdist.value))
+	{
+		R_InterpolateMobjState(thing, rendertimefrac, &interp);
+	}
+	else
+	{
+		R_InterpolateMobjState(thing, FRACUNIT, &interp);
+	}
+
+	floordiff = abs((isflipped ? thing->height : 0) + interp.z - groundz);
+
+	scalemul = FixedMul(FRACUNIT - floordiff/640, scale);
+
+	patch = W_CachePatchNum(sprites[SPR_SHAD].spriteframes[0].lumppat[0], PU_CACHE);
+	xscale = FixedDiv(projection, tz);
+	yscale = FixedDiv(projectiony, tz);
+	shadowxscale = FixedMul(thing->radius*2, scalemul);
+	shadowyscale = FixedMul(FixedMul(thing->radius*2, scalemul), FixedDiv(abs(groundz - viewz), tz));
+	shadowyscale = min(shadowyscale, shadowxscale) / SHORT(patch->height);
+	shadowxscale /= SHORT(patch->width);
+	shadowskew = 0;
+
+	if (groundslope && cv_sloperoll.value && cv_spriteroll.value)
+		R_SkewShadowSprite(thing, groundslope, groundz, SHORT(patch->height), scalemul, &shadowyscale, &shadowskew); // idk whats up with this thing
+
+	tx -= SHORT(patch->width) * shadowxscale/2;
+	x1 = (centerxfrac + FixedMul(tx,xscale))>>FRACBITS;
+	if (x1 >= viewwidth) return;
+
+	tx += SHORT(patch->width) * shadowxscale;
+	x2 = ((centerxfrac + FixedMul(tx,xscale))>>FRACBITS); x2--;
+	if (x2 < 0 || x2 <= x1) return;
+
+	if (shadowyscale < FRACUNIT/SHORT(patch->height)) return; // fix some crashes?
+
+	shadow = R_NewVisSprite();
+	shadow->patch = patch;
+	shadow->heightsec = vis->heightsec;
+
+	shadow->thingheight = FRACUNIT;
+	shadow->pz = groundz + (isflipped ? -shadow->thingheight : 0);
+	shadow->pzt = shadow->pz + shadow->thingheight;
+
+	shadow->mobjflags = 0;
+	shadow->sortscale = vis->sortscale;
+	shadow->dispoffset = vis->dispoffset - 5;
+	shadow->gx = interp.x;
+	shadow->gy = interp.y;
+	shadow->gzt = (isflipped ? shadow->pzt : shadow->pz) + SHORT(patch->height) * shadowyscale / 2;
+	shadow->gz = shadow->gzt - SHORT(patch->height) * shadowyscale;
+	shadow->texturemid = FixedMul(interp.scale, FixedDiv(shadow->gzt - viewz, shadowyscale));
+	if (thing->skin && ((skin_t *)thing->skin)->flags & SF_HIRES)
+		shadow->texturemid = FixedMul(shadow->texturemid, ((skin_t *)thing->skin)->highresscale);
+	shadow->scalestep = 0;
+	shadow->shear.tan = shadowskew; // repurposed variable
+
+	shadow->mobj = thing; // Easy access! Tails 06-07-2002
+
+	shadow->x1 = x1 < 0 ? 0 : x1;
+	shadow->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
+
+	// PORTAL SEMI-CLIPPING
+	if (portalrender && portalclipline)
+	{
+		if (shadow->x1 < portalclipstart)
+			shadow->x1 = portalclipstart;
+		if (shadow->x2 >= portalclipend)
+			shadow->x2 = portalclipend-1;
+	}
+
+	shadow->xscale = FixedMul(xscale, shadowxscale); //SoM: 4/17/2000
+	shadow->scale = FixedMul(yscale, shadowyscale);
+	shadow->thingscale = interp.scale;
+	shadow->sector = vis->sector;
+	shadow->szt = (INT16)((centeryfrac - FixedMul(shadow->gzt - viewz, yscale))>>FRACBITS);
+	shadow->sz = (INT16)((centeryfrac - FixedMul(shadow->gz - viewz, yscale))>>FRACBITS);
+	shadow->cut = SC_ISSCALED|SC_SHADOW; //check this
+
+	shadow->startfrac = 0;
+	//shadow->xiscale = 0x7ffffff0 / (shadow->xscale/2);
+	shadow->xiscale = (SHORT(patch->width)<<FRACBITS)/(x2-x1+1); // fuck it
+
+	if (shadow->x1 > x1)
+		shadow->startfrac += shadow->xiscale*(shadow->x1-x1);
+
+	// reusing x1 variable
+	x1 += (x2-x1)/2;
+	shadow->shear.offset = shadow->x1-x1;
+
+	shadow->extra_colormap = NULL;
+
+	shadow->transmap = transtables + (tr_trans20<<FF_TRANSSHIFT);
+
+	if (thing->whiteshadow)
+		shadow->colormap = scalelight[LIGHTLEVELS - 1][0]; // full bright!
+	else
+		shadow->colormap = scalelight[0][0]; // full dark!
+
+	objectsdrawn++;
 }
 
 //
@@ -1176,6 +1358,7 @@ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
 static void R_ProjectSprite(mobj_t *thing)
 {
 	mobj_t *oldthing = thing;
+
 	fixed_t tr_x, tr_y;
 	fixed_t gxt, gyt;
 	fixed_t tx, tz;
@@ -1193,7 +1376,6 @@ static void R_ProjectSprite(mobj_t *thing)
 	size_t rot;
 
 	UINT8 flip;
-	/*boolean vflip = (!(thing->eflags & MFE_VERTICALFLIP) != !R_ThingVerticallyFlipped(thing));*/
 
 	boolean mirrored = thing->mirrored;
 	boolean hflip = (!(thing->frame & FF_HORIZONTALFLIP) != !mirrored);
@@ -1207,7 +1389,11 @@ static void R_ProjectSprite(mobj_t *thing)
 	fixed_t iscale;
 	fixed_t scalestep; // toast '16
 	fixed_t offset, offset2;
-	boolean papersprite = (thing->frame & FF_PAPERSPRITE);
+
+	fixed_t basetx, basetz; // drop shadows
+
+	boolean papersprite = !!(thing->frame & FF_PAPERSPRITE);
+	fixed_t paperoffset = 0, paperdistance = 0; angle_t centerangle = 0;
 
 	//SoM: 3/17/2000
 	fixed_t gz, gzt;
@@ -1219,6 +1405,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	// rotsprite
 	fixed_t spr_width, spr_height;
 	fixed_t spr_offset, spr_topoffset;
+
 #ifdef ROTSPRITE
 	patch_t *rotsprite = NULL;
 	INT32 rollangle = 0;
@@ -1226,8 +1413,6 @@ static void R_ProjectSprite(mobj_t *thing)
 	angle_t pitchnroll = 0;
 	angle_t sliptiderollangle = 0;
 #endif
-
-	fixed_t ang_scale = FRACUNIT;
 	
 	INT32 dist = -1;
 
@@ -1256,15 +1441,15 @@ static void R_ProjectSprite(mobj_t *thing)
 	gxt = FixedMul(tr_x, viewcos);
 	gyt = -FixedMul(tr_y, viewsin);
 
-	tz = gxt-gyt;
+	basetz = tz = gxt-gyt;
 
 	// thing is behind view plane?
-	if (!(papersprite) && (tz < FixedMul(MINZ, this_scale))) // papersprite clipping is handled later
+	if (!papersprite && (tz < FixedMul(MINZ, this_scale))) // papersprite clipping is handled later
 		return;
 
 	gxt = -FixedMul(tr_x, viewsin);
 	gyt = FixedMul(tr_y, viewcos);
-	tx = -(gyt + gxt);
+	basetx = tx = -(gyt + gxt);
 
 	// too far off the side?
 	if (!papersprite && abs(tx) > tz<<2) // papersprite clipping is handled later
@@ -1330,14 +1515,9 @@ static void R_ProjectSprite(mobj_t *thing)
 	{
 		ang = R_PointToAngle (interp.x, interp.y) - interp.angle;
 		camang = R_PointToAngle (interp.x, interp.y);
-	}
-
-	if (sprframe->rotate != SRF_SINGLE || papersprite)
-	{
+		
 		if (mirrored)
 			ang = InvAngle(ang);
-		if (papersprite)
-			ang_scale = abs(FINESINE(ang>>ANGLETOFINESHIFT));
 	}
 
 	if (sprframe->rotate == SRF_SINGLE)
@@ -1425,15 +1605,14 @@ static void R_ProjectSprite(mobj_t *thing)
 				rollsum += thing->rollangle;
 
 			rollangle = R_GetRollAngle(rollsum);
-			rotsprite = Patch_GetRotatedSprite(
-				sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
+			rotsprite = Patch_GetRotatedSprite(sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
 
 			if (rotsprite != NULL)
 			{
-				spr_width = rotsprite->width << FRACBITS;
-				spr_height = rotsprite->height << FRACBITS;
-				spr_offset = rotsprite->leftoffset << FRACBITS;
-				spr_topoffset = rotsprite->topoffset << FRACBITS;
+				spr_width = SHORT(rotsprite->width) << FRACBITS;
+				spr_height = SHORT(rotsprite->height) << FRACBITS;
+				spr_offset = SHORT(rotsprite->leftoffset) << FRACBITS;
+				spr_topoffset = SHORT(rotsprite->topoffset) << FRACBITS;
 				spr_topoffset += FEETADJUST;
 
 				// flip -> rotate, not rotate -> flip
@@ -1443,10 +1622,11 @@ static void R_ProjectSprite(mobj_t *thing)
 	}
 #endif
 
+	flip = !flip != !hflip;
+
 	// calculate edges of the shape
 	spritexscale = interp.spritexscale;
 	spriteyscale = interp.spriteyscale;
-	
 	if (spritexscale < 1 || spriteyscale < 1)
 		return;
 
@@ -1465,39 +1645,19 @@ static void R_ProjectSprite(mobj_t *thing)
 		spr_offset += interp.spritexoffset * flipoffset;
 		spr_topoffset += interp.spriteyoffset * flipoffset;
 	}
-	
-	flip = !flip != !hflip;
 
 	if (flip)
 		offset = spr_offset - spr_width;
 	else
 		offset = -spr_offset;
 
-	//offset = FixedMul(offset, FixedMul(spritexscale, this_scale));
-	//offset2 = FixedMul(spr_width, FixedMul(spritexscale, this_scale)); // OH GOD I'M REVOOOOORTINGGGG AHHHHHHH
-
 	offset = FixedMul(offset, FixedMul(spritexscale, this_scale));
-	tx += FixedMul(offset, ang_scale);
-	x1 = (centerxfrac + FixedMul (tx,xscale)) >>FRACBITS;
-
-	// off the right side?
-	if (x1 > viewwidth)
-		return;
-
 	offset2 = FixedMul(spr_width, FixedMul(spritexscale, this_scale));
-	tx += FixedMul(offset2, ang_scale);
-	x2 = ((centerxfrac + FixedMul (tx,xscale)) >> FRACBITS) - 1;
-
-	// off the left side
-	if (x2 < 0)
-		return;
 
 	if (papersprite)
 	{
-		fixed_t yscale2, cosmul, sinmul, tz2;
-
-		if (x2 <= x1)
-			return;
+		fixed_t xscale2, yscale2, cosmul, sinmul, tx2, tz2;
+		INT32 range;
 
 		if (ang >= ANGLE_180)
 		{
@@ -1514,7 +1674,22 @@ static void R_ProjectSprite(mobj_t *thing)
 		gyt = -FixedMul(tr_y, viewsin);
 		tz = gxt-gyt;
 		yscale = FixedDiv(projectiony, tz);
-		if (yscale < 64) return; // Fix some funky visuals
+
+		gxt = -FixedMul(tr_x, viewsin);
+		gyt = FixedMul(tr_y, viewcos);
+		tx = -(gyt + gxt);
+		xscale = FixedDiv(projection, tz);
+		x1 = (centerxfrac + FixedMul(tx,xscale))>>FRACBITS;
+
+		// Get paperoffset (offset) and paperoffset (distance)
+		paperoffset = -FixedMul(tr_x, cosmul) - FixedMul(tr_y, sinmul);
+		paperdistance = -FixedMul(tr_x, sinmul) + FixedMul(tr_y, cosmul);
+		if (paperdistance < 0)
+		{
+			paperoffset = -paperoffset;
+			paperdistance = -paperdistance;
+		}
+		centerangle = viewangle - interp.angle;
 
 		tr_x += FixedMul(offset2, cosmul);
 		tr_y += FixedMul(offset2, sinmul);
@@ -1522,14 +1697,72 @@ static void R_ProjectSprite(mobj_t *thing)
 		gyt = -FixedMul(tr_y, viewsin);
 		tz2 = gxt-gyt;
 		yscale2 = FixedDiv(projectiony, tz2);
-		if (yscale2 < 64) return; // ditto
+		//if (yscale2 < 64) return; // ditto
+
+		gxt = -FixedMul(tr_x, viewsin);
+		gyt = FixedMul(tr_y, viewcos);
+		tx2 = -(gyt + gxt);
+		xscale2 = FixedDiv(projection, tz2);
+		x2 = ((centerxfrac + FixedMul(tx2,xscale2))>>FRACBITS);
 
 		if (max(tz, tz2) < FixedMul(MINZ, this_scale)) // non-papersprite clipping is handled earlier
 			return;
 
-		scalestep = (yscale2 - yscale)/(x2 - x1);
-		scalestep = scalestep ? scalestep : 1;
+		// Needs partially clipped
+		if (tz < FixedMul(MINZ, this_scale))
+		{
+			fixed_t div = FixedDiv(tz2-tz, FixedMul(MINZ, this_scale)-tz);
+			tx += FixedDiv(tx2-tx, div);
+			tz = FixedMul(MINZ, this_scale);
+		}
+		else if (tz2 < FixedMul(MINZ, this_scale))
+		{
+			fixed_t div = FixedDiv(tz-tz2, FixedMul(MINZ, this_scale)-tz2);
+			tx2 += FixedDiv(tx-tx2, div);
+			tz2 = FixedMul(MINZ, this_scale);
+		}
 		
+		if ((tx2 / 4) < -(FixedMul(tz2, fovtan)) || (tx / 4) > FixedMul(tz, fovtan)) // too far off the side?
+			return;
+
+		yscale = FixedDiv(projectiony, tz);
+		xscale = FixedDiv(projection, tz);
+
+		x1 = (centerxfrac + FixedMul(tx,xscale))>>FRACBITS;
+
+		// off the right side?
+		if (x1 > viewwidth)
+			return;
+
+		yscale2 = FixedDiv(projectiony, tz2);
+		xscale2 = FixedDiv(projection, tz2);
+
+		x2 = (centerxfrac + FixedMul(tx2,xscale2))>>FRACBITS;
+
+		// off the left side
+		if (x2 < 0)
+			return;
+
+		range = x2 - x1;
+
+		if (range < 0)
+			return;
+
+		range++; // fencepost problem
+		
+		if (range > 32767)
+		{
+			// If the range happens to be too large for fixed_t,
+			// abort the draw to avoid xscale becoming negative due to arithmetic overflow.
+			return;
+		}
+
+		scalestep = ((yscale2 - yscale)/range) ?: 1;
+
+		if (scalestep == 0)
+			scalestep = 1;
+
+		xscale = FixedDiv(range<<FRACBITS, abs(offset2));
 
 		// The following two are alternate sorting methods which might be more applicable in some circumstances. TODO - maybe enable via MF2?
 		// sortscale = max(yscale, yscale2);
@@ -1539,12 +1772,25 @@ static void R_ProjectSprite(mobj_t *thing)
 	{
 		scalestep = 0;
 		yscale = sortscale;
+		tx += offset;
+		//x1 = (centerxfrac + FixedMul(tx,xscale))>>FRACBITS;
+		x1 = centerx + (FixedMul(tx,xscale) / FRACUNIT);
+
+		// off the right side?
+		if (x1 > viewwidth)
+			return;
+
+		tx += offset2;
+		//x2 = ((centerxfrac + FixedMul(tx,xscale))>>FRACBITS); x2--;
+		x2 = (centerx + (FixedMul(tx,xscale) / FRACUNIT)) - 1;
+
+		// off the left side
+		if (x2 < 0)
+			return;
 	}
 
-	xscale = FixedMul(xscale, ang_scale);
-
 	// PORTAL SPRITE CLIPPING
-	if (portalrender)
+	if (portalrender && portalclipline)
 	{
 		if (x2 < portalclipstart || x1 > portalclipend)
 			return;
@@ -1605,16 +1851,13 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	if (heightsec != -1 && phs != -1) // only clip things which are in special sectors
 	{
-		fixed_t top = gzt;
-		fixed_t bottom = interp.z;
-
 		if (viewz < sectors[phs].floorheight ?
-		bottom >= sectors[heightsec].floorheight :
-		top < sectors[heightsec].floorheight)
+		interp.z >= sectors[heightsec].floorheight :
+		gzt < sectors[heightsec].floorheight)
 			return;
 		if (viewz > sectors[phs].ceilingheight ?
-		top < sectors[heightsec].ceilingheight && viewz >= sectors[heightsec].ceilingheight :
-		bottom >= sectors[heightsec].ceilingheight)
+		gzt < sectors[heightsec].ceilingheight && viewz >= sectors[heightsec].ceilingheight :
+		interp.z >= sectors[heightsec].ceilingheight)
 			return;
 	}
 
@@ -1635,11 +1878,25 @@ static void R_ProjectSprite(mobj_t *thing)
 	vis->pzt = vis->pz + vis->thingheight;
 	vis->texturemid = FixedDiv(gzt - viewz, spriteyscale);
 	vis->scalestep = scalestep;
+	vis->paperoffset = paperoffset;
+	vis->paperdistance = paperdistance;
+	vis->centerangle = centerangle;
+	vis->shear.tan = 0;
+	vis->shear.offset = 0;
 
 	vis->mobj = thing; // Easy access! Tails 06-07-2002
 
 	vis->x1 = x1 < 0 ? 0 : x1;
 	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
+
+	// PORTAL SEMI-CLIPPING
+	if (portalrender && portalclipline)
+	{
+		if (vis->x1 < portalclipstart)
+			vis->x1 = portalclipstart;
+		if (vis->x2 > portalclipend)
+			vis->x2 = portalclipend;
+	}
 
 	vis->sector = thing->subsector->sector;
 	vis->szt = (INT16)((centeryfrac - FixedMul(vis->gzt - viewz, sortscale))>>FRACBITS);
@@ -1650,15 +1907,6 @@ static void R_ProjectSprite(mobj_t *thing)
 		vis->extra_colormap = thing->subsector->sector->lightlist[light].extra_colormap;
 	else
 		vis->extra_colormap = thing->subsector->sector->extra_colormap;
-
-	// PORTAL SEMI-CLIPPING
-	if (portalrender)
-	{
-		if (vis->x1 < portalclipstart)
-			vis->x1 = portalclipstart;
-		if (vis->x2 > portalclipend)
-			vis->x2 = portalclipend;
-	}
 
 	vis->xscale = FixedMul(spritexscale, xscale); //SoM: 4/17/2000
 	vis->scale = FixedMul(spriteyscale, yscale); //<<detailshift;
@@ -1734,10 +1982,14 @@ static void R_ProjectSprite(mobj_t *thing)
 	else
 		vis->vflip = false;
 
-	vis->isScaled = false;
-
 	if (thing->subsector->sector->numlights)
 		R_SplitSprite(vis, thing);
+
+	if (cv_dropshadow.value)
+	{
+		if (oldthing->haveshadow)
+			R_ProjectDropShadow(oldthing, vis, basetx, basetz, oldthing->shadowscale);
+	}
 
 	// Debug
 	++objectsdrawn;
@@ -1799,7 +2051,7 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	tx = -(gyt + gxt);
 
 	// too far off the side?
-	if (abs(tx) > tz<<2)
+	if (abs(tx) > FixedMul(tz, fovtan)<<2)
 		return;
 
 	// aspect ratio stuff :
@@ -1847,7 +2099,7 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 		return;
 
 	// PORTAL SPRITE CLIPPING
-	if (portalrender)
+	if (portalrender && portalclipline)
 	{
 		if (x2 < portalclipstart || x1 > portalclipend)
 			return;
@@ -1879,12 +2131,15 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->pzt = vis->pz + vis->thingheight;
 	vis->texturemid = vis->gzt - viewz;
 	vis->scalestep = 0;
+	vis->paperdistance = 0;
+	vis->shear.tan = 0;
+	vis->shear.offset = 0;
 
 	vis->x1 = x1 < 0 ? 0 : x1;
 	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
 
 	// PORTAL SEMI-CLIPPING
-	if (portalrender)
+	if (portalrender && portalclipline)
 	{
 		if (vis->x1 < portalclipstart)
 			vis->x1 = portalclipstart;
@@ -1926,7 +2181,6 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->colormap = colormaps;
 	vis->precip = true;
 	vis->vflip = false;
-	vis->isScaled = false;
 	
 weatherthink:
 	// okay... this is a hack, but weather isn't networked, so it should be ok
@@ -1947,7 +2201,6 @@ weatherthink:
 void R_AddSprites(sector_t *sec, INT32 lightlevel)
 {
 	mobj_t *thing;
-	precipmobj_t *precipthing; // Tails 08-25-2002
 	INT32 lightnum;
 	fixed_t approx_dist, limit_dist;
 
@@ -1983,7 +2236,7 @@ void R_AddSprites(sector_t *sec, INT32 lightlevel)
 
 	// Handle all things in sector.
 	// If a limit exists, handle things a tiny bit different.
-	if ((limit_dist = (fixed_t)(/*(maptol & TOL_NIGHTS) ? cv_drawdist_nights.value : */cv_drawdist.value) << FRACBITS))
+	if ((limit_dist = (fixed_t)(cv_drawdist.value) * mapobjectscale))
 	{
 		for (thing = sec->thinglist; thing; thing = thing->snext)
 		{
@@ -2066,21 +2319,42 @@ void R_AddSprites(sector_t *sec, INT32 lightlevel)
 			R_ProjectSprite(thing);
 		}
 	}
+}
+
+// R_AddPrecipitationSprites
+// This renders through the blockmap instead of BSP to avoid
+// iterating a huge amount of precipitation sprites in sectors
+// that are beyond drawdist.
+//
+void R_AddPrecipitationSprites(void)
+{
+	const fixed_t drawdist = (fixed_t)(cv_drawdist_precip.value) * mapobjectscale;
+
+	INT32 xl, xh, yl, yh, bx, by;
+	precipmobj_t *th, *next;
 
 	// no, no infinite draw distance for precipitation. this option at zero is supposed to turn it off
-	if ((limit_dist = (fixed_t)cv_drawdist_precip.value << FRACBITS))
+	if (drawdist == 0)
 	{
-		for (precipthing = sec->preciplist; precipthing; precipthing = precipthing->snext)
+		return;
+	}
+
+	R_GetRenderBlockMapDimensions(drawdist, &xl, &xh, &yl, &yh);
+
+	for (bx = xl; bx <= xh; bx++)
+	{
+		for (by = yl; by <= yh; by++)
 		{
-			if (precipthing->precipflags & PCF_INVISIBLE)
-				continue;
+			for (th = precipblocklinks[(by * bmapwidth) + bx]; th; th = next)
+			{
+				// Store this beforehand because R_ProjectPrecipitionSprite may free th (see P_PrecipThinker)
+				next = th->bnext;
 
-			approx_dist = P_AproxDistance(viewx-precipthing->x, viewy-precipthing->y);
+				if (th->precipflags & PCF_INVISIBLE)
+					continue;
 
-			if (approx_dist > limit_dist)
-				continue;
-
-			R_ProjectPrecipitationSprite(precipthing);
+				R_ProjectPrecipitationSprite(th);
+			}
 		}
 	}
 }
@@ -2896,6 +3170,9 @@ void R_DrawMasked(void)
 // ==========================================================================
 
 INT32 numskins = 0;
+follower_t followers[MAXFOLLOWERS];
+// default followers are defined in SOC_FLWR in followers.kart / gfx.kart (depending on what exe this is, at this point)
+
 INT32 numallskins = 0;
 INT32 numlocalskins = 0;
 skin_t skins[MAXSKINS];
@@ -2912,14 +3189,14 @@ UINT16 skinstatscount[9][9] = {
 	{0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 UINT16 skinsorted[MAXSKINS];
-skin_t localskins[MAXSKINS];
-skin_t allskins[MAXSKINS*2];
+skin_t localskins[MAXLOCALSKINS];
+skin_t allskins[MAXSKINS+MAXLOCALSKINS];
 
 // FIXTHIS: don't work because it must be inistilised before the config load
 //#define SKINVALUES
 #ifdef SKINVALUES
 CV_PossibleValue_t skin_cons_t[MAXSKINS+1];
-CV_PossibleValue_t localskin_cons_t[MAXSKINS+1];
+CV_PossibleValue_t localskin_cons_t[MAXLOCALSKINS+1];
 #endif
 
 static void Sk_SetDefaultValue(skin_t *skin, boolean local)
@@ -2971,6 +3248,9 @@ void R_InitSkins(void)
 	{
 		skin_cons_t[i].value = 0;
 		skin_cons_t[i].strvalue = NULL;
+	}
+	for (i = 0; i <= MAXLOCALSKINS; i++)
+	{
 		localskin_cons_t[i].value = 0;
 		localskin_cons_t[i].strvalue = NULL;
 	}
@@ -3070,6 +3350,20 @@ INT32 R_LocalSkinAvailable(const char *name, boolean local)
 		return R_SkinAvailable(name);
 }
 
+// same thing but for followers:
+INT32 R_FollowerAvailable(const char *name)
+{
+	INT32 i;
+
+	for (i = 0; i < numfollowers; i++)
+	{
+		if (stricmp(followers[i].skinname,name)==0)
+			return i;
+	}
+	return -1;
+}
+
+
 // network code calls this when a 'skin change' is received
 boolean SetPlayerSkin(INT32 playernum, const char *skinname)
 {
@@ -3156,6 +3450,32 @@ void SetLocalPlayerSkin(INT32 playernum, const char *skinname, consvar_t *cvar)
 	}
 }
 
+// Again, same thing but for followers;
+boolean SetPlayerFollower(INT32 playernum, const char *skinname)
+{
+	INT32 i;
+	player_t *player = &players[playernum];
+
+	for (i = 0; i < numfollowers; i++)
+	{
+		// search in the skin list
+		if (stricmp(followers[i].skinname, skinname) == 0)
+		{
+			SetFollower(playernum, i);
+			return true;
+		}
+	}
+
+	if (P_IsLocalPlayer(player))
+		CONS_Alert(CONS_WARNING, M_GetText("Follower '%s' not found.\n"), skinname);
+	else if(server || IsPlayerAdmin(consoleplayer))
+		CONS_Alert(CONS_WARNING, M_GetText("Player %d (%s) follower '%s' not found\n"), playernum, player_names[playernum], skinname);
+
+	SetFollower(playernum, -1);	// reminder that -1 is nothing
+	return false;
+}
+
+
 // Same as SetPlayerSkin, but uses the skin #.
 // network code calls this when a 'skin change' is received
 void SetPlayerSkinByNum(INT32 playernum, INT32 skinnum)
@@ -3204,6 +3524,42 @@ void SetPlayerSkinByNum(INT32 playernum, INT32 skinnum)
 		CONS_Alert(CONS_WARNING, "Player %d (%s) skin %d not found\n", playernum, player_names[playernum], skinnum);
 	SetPlayerSkinByNum(playernum, 0); // not found put the sonic skin
 }
+
+// you get the drill, now we do the same for followers:
+void SetFollower(INT32 playernum, INT32 skinnum)
+{
+	player_t *player = &players[playernum];
+
+	player->followerready = true;	// we are ready to perform follower related actions in the player thinker, now.
+	if (skinnum >= -1 && skinnum <= numfollowers) // Make sure it exists!
+	{
+		player->followerskin = skinnum;
+		//CONS_Printf("Updated player follower num\n");
+		/*
+			We don't spawn the follower here since it'll be easier to handle all of it in the Player thinker itself.
+			However, we will despawn it right here if there's any to make it easy for the player thinker to replace it or delete it.
+		*/
+		if (player->follower)
+		{
+			P_RemoveMobj(player->follower);
+			P_SetTarget(&player->follower, NULL);
+		}
+		
+		player->followerskin = skinnum;
+		
+		// for replays: We have changed our follower mid-game; let the game know so it can do the same in the replay!
+		demo_extradata[playernum] |= DXD_FOLLOWER;
+
+		return;
+	}
+
+	if (P_IsLocalPlayer(player))
+		CONS_Alert(CONS_WARNING, M_GetText("Follower %d not found\n"), skinnum);
+	else if(server || IsPlayerAdmin(consoleplayer))
+		CONS_Alert(CONS_WARNING, "Player %d (%s) follower %d not found\n", playernum, player_names[playernum], skinnum);
+	SetFollower(playernum, -1); // Not found, then set -1 (nothing) as our follower.
+}
+
 
 //
 // Add skins from a pwad, each skin preceded by 'S_SKIN' marker
@@ -3359,11 +3715,17 @@ void R_AddSkins(UINT16 wadnum, boolean local)
 		// advance by default
 		lastlump = lump + 1;
 
-		if (( (local) ? numlocalskins : numskins ) >= MAXSKINS)
+		if (numskins >= MAXSKINS)
 		{
 			CONS_Alert(CONS_WARNING, M_GetText("Unable to add skin, too many characters are loaded (%d maximum)\n"), MAXSKINS);
 			continue; // so we know how many skins couldn't be added
 		}
+		if (numlocalskins >= MAXLOCALSKINS)
+		{
+			CONS_Alert(CONS_WARNING, M_GetText("Unable to add localskin, too many localskins are loaded (%d maximum)\n"), MAXLOCALSKINS);
+			continue; // so we know how many skins couldn't be added
+		}
+
 		buf = W_CacheLumpNumPwad(wadnum, lump, PU_CACHE);
 		size = W_LumpLengthPwad(wadnum, lump);
 

@@ -1908,8 +1908,8 @@ void P_KillMobj(mobj_t *target, mobj_t *inflictor, mobj_t *source)
 	mobj_t *mo;
 	int ms;
 
-	//if (inflictor && (inflictor->type == MT_SHELL || inflictor->type == MT_FIREBALL))
-	//	P_SetTarget(&target->tracer, inflictor);
+	if (!target || P_MobjWasRemoved(target))
+		return;
 
 	if (!useNightsSS && G_IsSpecialStage(gamemap) && target->player && sstimer > 6)
 		sstimer = 6; // Just let P_Ticker take care of the rest.
@@ -1936,6 +1936,7 @@ void P_KillMobj(mobj_t *target, mobj_t *inflictor, mobj_t *source)
 	target->flags &= ~(MF_SHOOTABLE|MF_FLOAT|MF_SPECIAL);
 	target->flags2 &= ~(MF2_SKULLFLY|MF2_NIGHTSPULL);
 	target->health = 0; // This makes it easy to check if something's dead elsewhere.
+	target->shadowscale = 0;
 
 	if (LUAh_MobjDeath(target, inflictor, source) || P_MobjWasRemoved(target))
 		return;
@@ -2703,6 +2704,11 @@ static inline boolean P_PlayerHitsPlayer(mobj_t *target, mobj_t *inflictor, mobj
 static void P_KillPlayer(player_t *player, mobj_t *source, INT32 damage)
 {
 	player->pflags &= ~(PF_CARRIED|PF_SLIDING|PF_ITEMHANG|PF_MACESPIN|PF_ROPEHANG|PF_NIGHTSMODE);
+	
+	if (damage == 42000 && (G_GametypeHasTeams() || G_GametypeHasSpectators()))
+	{
+		P_SetPlayerSpectator(player-players);
+	}
 
 	// Burst weapons and emeralds in Match/CTF only
 	if (source && (G_BattleGametype()))
