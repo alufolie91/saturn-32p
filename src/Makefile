@@ -109,6 +109,8 @@ else # if you on the *nix
 
  NOUPX=1
 
+ NODISCORDRPC=1
+
  system:=$(shell uname -s)
 
  ifeq ($(system),Linux)
