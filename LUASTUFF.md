@@ -30,6 +30,11 @@ Example:
 
 followers[player.follower].name
 
+## P_SpawnMobjfroMobj
+
+Spawns an object with offsets relative to the position of another object.
+Scale, gravity flip, etc. is taken into account automatically.
+
 # New stuff from Saturn:
 
 ## mobj.localskin and player.localskin fields
@@ -150,7 +155,7 @@ When using a custom string drawer, enable this mode to avoid interpolation artif
 
 ## mobj.spritexscale, mobj.spriteyscale, mobj.spritexoffset, mobj.spriteyoffset, mobj.rollangle, mobj.sloperoll, mobj.rollmodel fields
 
-Same fields as in SRB2 2.2
+Same fields as in SRB2 2.2. This is now also netsynched.
 
 ## S\_StopSoundByNum
 
