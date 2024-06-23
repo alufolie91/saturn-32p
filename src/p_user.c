@@ -2239,6 +2239,26 @@ void P_ElementalFireTrail(player_t *player)
 	}
 }
 
+static mobj_t *P_SpawnOrMoveMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type, mobj_t *source, int id) {
+	mobj_t *mobj = source->watertrail[id];
+
+	if (!mobj || P_MobjWasRemoved(mobj))
+	{
+		mobj = P_SpawnMobj(x, y, z, type);
+
+		P_SetTarget(&source->watertrail[id], mobj);
+	}
+	else
+	{
+		if ((mobj->state - states) == S_INVISIBLE)
+            P_SetOrigin(mobj, x, y, z);
+        else
+            P_MoveOrigin(mobj, x, y, z);
+	}
+
+	return mobj;
+}
+
 //
 // P_MovePlayer
 static void P_MovePlayer(player_t *player)
@@ -2531,16 +2551,16 @@ static void P_MovePlayer(player_t *player)
 
 				// Left
 				// underlay
-				water = P_SpawnMobj(x1, y1,
-					((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAILUNDERLAY].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAILUNDERLAY);
+				water = P_SpawnOrMoveMobj(x1, y1,((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAILUNDERLAY].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAILUNDERLAY,
+					player->mo, 0);
 				water->angle = forwardangle - ANGLE_180 - ANGLE_22h;
 				water->destscale = trailScale;
 				P_SetScale(water, trailScale);
 				P_SetMobjState(water, curUnderlayFrame);
 
 				// overlay
-				water = P_SpawnMobj(x1, y1,
-					((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAIL].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAIL);
+				water = P_SpawnOrMoveMobj(x1, y1,((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAIL].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAIL,
+				player->mo, 1);
 				water->angle = forwardangle - ANGLE_180 - ANGLE_22h;
 				water->destscale = trailScale;
 				P_SetScale(water, trailScale);
@@ -2548,16 +2568,16 @@ static void P_MovePlayer(player_t *player)
 
 				// Right
 				// Underlay
-				water = P_SpawnMobj(x2, y2,
-					((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAILUNDERLAY].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAILUNDERLAY);
+				water = P_SpawnOrMoveMobj(x2, y2,((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAILUNDERLAY].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAILUNDERLAY,
+				player->mo, 2);
 				water->angle = forwardangle - ANGLE_180 + ANGLE_22h;
 				water->destscale = trailScale;
 				P_SetScale(water, trailScale);
 				P_SetMobjState(water, curUnderlayFrame);
 
 				// Overlay
-				water = P_SpawnMobj(x2, y2,
-					((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAIL].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAIL);
+				water = P_SpawnOrMoveMobj(x2, y2,((player->mo->eflags & MFE_VERTICALFLIP) ? player->mo->waterbottom - FixedMul(mobjinfo[MT_WATERTRAIL].height, player->mo->scale) : player->mo->watertop), MT_WATERTRAIL,
+				player->mo, 3);
 				water->angle = forwardangle - ANGLE_180 + ANGLE_22h;
 				water->destscale = trailScale;
 				P_SetScale(water, trailScale);
