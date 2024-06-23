@@ -974,9 +974,11 @@ INT16 gametype = GT_RACE; // SRB2kart
 boolean forceresetplayers = false;
 boolean deferencoremode = false;
 UINT8 splitscreen = 0;
-UINT16 votemax = 1;
 boolean circuitmap = true; // SRB2kart
 INT32 adminplayers[MAXPLAYERS];
+
+#define VOTEROWS ((cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0))
+#define VOTEROWSADDSONE ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0))
 
 /// \warning Keep this up-to-date if you add/remove/rename net text commands
 const char *netxcmdnames[MAXNETXCMD - 1] =
@@ -3180,30 +3182,24 @@ void D_SetupVote(void)
 		WRITEUINT8(p, gt);
 	WRITEUINT8(p, secondgt);
 	secondgt &= ~0x80;
-	
-	votemax = cv_votemaxrows.value;
 
-	for (i = 0; i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ); i++)
+	for (i = 0; i < VOTEROWSADDSONE; i++)
 	{
 		UINT16 m;
-		//UINT16 forcehell = (((cv_votemaxrows.value*3))-2);
-		UINT16 voterows = cv_votemaxrows.value*3;
 		UINT16 hellpick = 0;
 
-		voterows = ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) );
+		hellpick = ((i == ((VOTEROWS) + 1) ) ? 2 : 0);
 
-		hellpick = ((i == ((voterows) + 1) ) ? 2 : 0);
-
-		if (i == ((cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ))
+		if (i == VOTEROWS)
 			hellpick = 1;
 
 		if (i == 2) // sometimes a different gametype
 			m = G_RandMap(G_TOLFlag(secondgt), prevmap, false, 0, true, votebuffer);
-		else if (i >= ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) )) // unknown-random and force-unknown MAP HELL
-			m = G_RandMap(G_TOLFlag(gt), prevmap, false, hellpick, (i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? 1 : 0) )), votebuffer); // let's TRY to make this simpler
+		else if (i >= VOTEROWS) // unknown-random and force-unknown MAP HELL
+			m = G_RandMap(G_TOLFlag(gt), prevmap, false, hellpick, (i < VOTEROWSADDSONE), votebuffer); // let's TRY to make this simpler
 		else
 			m = G_RandMap(G_TOLFlag(gt), prevmap, false, 0, true, votebuffer);
-		if (i < ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ))
+		if (i < VOTEROWS)
 			votebuffer[min(i, 2)] = m; // min() is a dumb workaround for gcc 4.4 array-bounds error
 		WRITEUINT16(p, m);
 	}
@@ -3250,12 +3246,6 @@ void D_PickVote(void)
 	if (numvotes > 0)
 	{
 		WRITESINT8(p, temppicks[key]);
-		
-		//if (templevels[key] == ( (votemax*3) + ((votemax > 1) ? (votemax - 1) : 0) ) && numvotes > 1)
-			//WRITESINT8(p, ( (votemax*3) + 1 + ((votemax > 1) ? (votemax - 1) : 0) ));
-		
-		//else
-
 		WRITESINT8(p, templevels[key]);
 	}
 	else
@@ -6101,7 +6091,7 @@ static void Got_ExitLevelcmd(UINT8 **cp, INT32 playernum)
 static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 {
 	INT32 i;
-	UINT8 gt, secondgt, votemaxsetup;
+	UINT8 gt, secondgt;
 
 	if (playernum != serverplayer && !IsPlayerAdmin(playernum))
 	{
@@ -6120,7 +6110,6 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	// Get gametype data.
 	gt = (UINT8)READUINT8(*cp);
 	secondgt = (UINT8)READUINT8(*cp);
-	votemaxsetup = (cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0);
 
 	// Strip illegal Encore flag.
 	if (gt == (GT_MATCH|0x80))
@@ -6129,7 +6118,7 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	}
 
 	// Apply most data.
-	for (i = 0; i < votemaxsetup; i++)
+	for (i = 0; i < VOTEROWSADDSONE; i++)
 	{
 		votelevels[i][0] = (UINT16)READUINT16(*cp);
 		votelevels[i][1] = gt;
@@ -7019,3 +7008,6 @@ void Got_DiscordInfo(UINT8 **p, INT32 playernum)
 	(*p) += 3;
 #endif
 }
+
+#undef VOTEROWS
+#undef VOTEROWSADDSONE
