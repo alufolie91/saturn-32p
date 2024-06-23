@@ -996,8 +996,14 @@ typedef enum
 	MD2_HNEXT       = 1<<7,
 	MD2_HPREV       = 1<<8,
 	MD2_COLORIZED	= 1<<9,
-	MD2_WAYPOINTCAP	= 1<<10
-	, MD2_SLOPE       = 1<<11
+	MD2_WAYPOINTCAP	= 1<<10, 
+	MD2_SLOPE       = 1<<11,
+	MD2_MIRRORED    = 1<<12,
+	MD2_ROLLANGLE  = 1<<13,
+	MD2_SPRITEXSCALE        = 1<<14,
+	MD2_SPRITEYSCALE        = 1<<15,
+	MD2_SPRITEXOFFSET       = 1<<16,
+	MD2_SPRITEYOFFSET       = 1<<17,
 } mobj_diff2_t;
 
 typedef enum
@@ -1198,6 +1204,18 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		diff2 |= MD2_SLOPE;
 	if (mobj->colorized)
 		diff2 |= MD2_COLORIZED;
+	if (mobj->mirrored)
+		diff2 |= MD2_MIRRORED;
+	if (mobj->rollangle)
+		diff2 |= MD2_ROLLANGLE;
+	if (mobj->spritexscale != FRACUNIT)
+		diff2 |= MD2_SPRITEXSCALE;
+	if (mobj->spriteyscale != FRACUNIT)
+		diff2 |= MD2_SPRITEYSCALE;
+	if (mobj->spritexoffset)
+		diff2 |= MD2_SPRITEXOFFSET;
+	if (mobj->spriteyoffset)
+		diff2 |= MD2_SPRITEYOFFSET;
 	if (mobj == waypointcap)
 		diff2 |= MD2_WAYPOINTCAP;
 	if (diff2 != 0)
@@ -1237,6 +1255,8 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		WRITEFIXED(save_p, mobj->x);
 		WRITEFIXED(save_p, mobj->y);
 		WRITEANGLE(save_p, mobj->angle);
+		WRITEANGLE(save_p, mobj->pitch);
+		WRITEANGLE(save_p, mobj->roll);
 	}
 	if (diff & MD_MOM)
 	{
@@ -1320,6 +1340,18 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		WRITEUINT16(save_p, mobj->standingslope->id);
 	if (diff2 & MD2_COLORIZED)
 		WRITEUINT8(save_p, mobj->colorized);
+	if (diff2 & MD2_MIRRORED)
+		WRITEUINT8(save_p, mobj->mirrored);
+	if (diff2 & MD2_ROLLANGLE)
+		WRITEANGLE(save_p, mobj->rollangle);
+	if (diff2 & MD2_SPRITEXSCALE)
+		WRITEFIXED(save_p, mobj->spritexscale);
+	if (diff2 & MD2_SPRITEYSCALE)
+		WRITEFIXED(save_p, mobj->spriteyscale);
+	if (diff2 & MD2_SPRITEXOFFSET)
+		WRITEFIXED(save_p, mobj->spritexoffset);
+	if (diff2 & MD2_SPRITEYOFFSET)
+		WRITEFIXED(save_p, mobj->spriteyoffset);
 
 	WRITEUINT32(save_p, mobj->mobjnum);
 }
@@ -2096,12 +2128,16 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		mobj->x = READFIXED(save_p);
 		mobj->y = READFIXED(save_p);
 		mobj->angle = READANGLE(save_p);
+		mobj->pitch = READANGLE(save_p);
+		mobj->roll = READANGLE(save_p);
 	}
 	else
 	{
 		mobj->x = mobj->spawnpoint->x << FRACBITS;
 		mobj->y = mobj->spawnpoint->y << FRACBITS;
 		mobj->angle = FixedAngle(mobj->spawnpoint->angle*FRACUNIT);
+		mobj->pitch = FixedAngle(mobj->spawnpoint->pitch*FRACUNIT);
+		mobj->roll = FixedAngle(mobj->spawnpoint->roll*FRACUNIT);
 	}
 	if (diff & MD_MOM)
 	{
@@ -2233,34 +2269,39 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		mobj->standingslope = P_SlopeById(READUINT16(save_p));
 	if (diff2 & MD2_COLORIZED)
 		mobj->colorized = READUINT8(save_p);
+	if (diff2 & MD2_MIRRORED)
+		mobj->mirrored = READUINT8(save_p);
+	if (diff2 & MD2_ROLLANGLE)
+		mobj->rollangle = READANGLE(save_p);
+	if (diff2 & MD2_SPRITEXSCALE)
+		mobj->spritexscale = READFIXED(save_p);
+	else
+		mobj->spritexscale = FRACUNIT;
+	if (diff2 & MD2_SPRITEYSCALE)
+		mobj->spriteyscale = READFIXED(save_p);
+	else
+		mobj->spriteyscale = FRACUNIT;
+	if (diff2 & MD2_SPRITEXOFFSET)
+		mobj->spritexoffset = READFIXED(save_p);
+	if (diff2 & MD2_SPRITEYOFFSET)
+		mobj->spriteyoffset = READFIXED(save_p);
+
 
 	//{ Saturn stuff, needs to be set, but shouldnt be synched
 
 	// Sprite Rotation
-	mobj->rollangle = 0;
-	mobj->pitch = 0;
-	mobj->roll = 0;
 	mobj->sloperoll = 0;
 	mobj->slopepitch = 0;
 	mobj->pitch_sprite = 0;
 	mobj->roll_sprite = 0;
 
-	// Horizontal flip
-	mobj->mirrored = 0;
-
 	// Sprite Rendering stuff
-	mobj->spritexoffset = 0;
-	mobj->spriteyoffset = 0;
-	mobj->spritexscale = FRACUNIT;
-	mobj->spriteyscale = FRACUNIT;
 	mobj->realxscale = FRACUNIT;
 	mobj->realyscale = FRACUNIT;
 	mobj->stretchslam = 0;
 
 	mobj->stretchslam = 0;
 	mobj->slamsoundtimer = 0;
-
-	mobj->mirrored = 0;
 
 	// Timer for slam sound effect
 	mobj->slamsoundtimer = 0;

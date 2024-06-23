@@ -13173,6 +13173,77 @@ void P_FlashPal(player_t *pl, UINT16 type, UINT16 duration)
 }
 
 //
+// P_SpawnMobjFromMobj
+// Spawns an object with offsets relative to the position of another object.
+// Scale, gravity flip, etc. is taken into account automatically.
+//
+mobj_t *P_SpawnMobjFromMobj(mobj_t *mobj, fixed_t xofs, fixed_t yofs, fixed_t zofs, mobjtype_t type)
+{
+	mobj_t *newmobj;
+
+	xofs = FixedMul(xofs, mobj->scale);
+	yofs = FixedMul(yofs, mobj->scale);
+	zofs = FixedMul(zofs, mobj->scale);
+
+	newmobj = P_SpawnMobj(mobj->x + xofs, mobj->y + yofs, mobj->z + zofs, type);
+	if (!newmobj)
+		return NULL;
+
+	if (mobj->eflags & MFE_VERTICALFLIP)
+	{
+		fixed_t elementheight = FixedMul(newmobj->info->height, mobj->scale);
+
+		newmobj->eflags |= MFE_VERTICALFLIP;
+		newmobj->flags2 |= MF2_OBJECTFLIP;
+		newmobj->z = mobj->z + mobj->height - zofs - elementheight;
+
+		newmobj->old_z = mobj->old_z + mobj->height - zofs - elementheight;
+		newmobj->old_z2 = mobj->old_z2 + mobj->height - zofs - elementheight;
+	}
+	else
+	{
+		newmobj->old_z = mobj->old_z + zofs;
+		newmobj->old_z2 = mobj->old_z2 + zofs;
+	}
+
+	newmobj->destscale = mobj->destscale;
+	newmobj->rollangle = mobj->rollangle;
+	P_SetScale(newmobj, mobj->scale);
+
+	newmobj->old_x2 = mobj->old_x2 + xofs;
+	newmobj->old_y2 = mobj->old_y2 + yofs;
+	newmobj->old_x = mobj->old_x + xofs;
+	newmobj->old_y = mobj->old_y + yofs;
+
+	// This angle hack is needed for Lua scripts that set the angle after
+	// spawning, to avoid erroneous interpolation.
+	if (mobj->player)
+	{
+		newmobj->old_angle2 = mobj->player->old_frameangle2;
+		newmobj->old_angle = mobj->player->old_frameangle;
+	}
+	else
+	{
+		newmobj->old_angle2 = mobj->old_angle2;
+		newmobj->old_angle = mobj->old_angle;
+	}
+
+	newmobj->old_pitch2 = mobj->old_pitch2;
+	newmobj->old_pitch = mobj->old_pitch;
+	newmobj->old_roll2 = mobj->old_roll2;
+	newmobj->old_roll = mobj->old_roll;
+
+	newmobj->old_scale2 = mobj->old_scale2;
+	newmobj->old_scale = mobj->old_scale;
+	newmobj->old_spritexscale = mobj->old_spritexscale;
+	newmobj->old_spriteyscale = mobj->old_spriteyscale;
+	newmobj->old_spritexoffset = mobj->old_spritexoffset;
+	newmobj->old_spriteyoffset = mobj->old_spriteyoffset;
+
+	return newmobj;
+}
+
+//
 // P_GetMobjZMovement
 // Returns the Z momentum of the object, accounting for slopes if the object is grounded
 //

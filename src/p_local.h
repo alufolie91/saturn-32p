@@ -305,6 +305,8 @@ void P_FlashPal(player_t *pl, UINT16 type, UINT16 duration);
 
 fixed_t P_GetMobjZMovement(mobj_t *mo);
 
+mobj_t *P_SpawnMobjFromMobj(mobj_t *mobj, fixed_t xofs, fixed_t yofs, fixed_t zofs, mobjtype_t type);
+
 //
 // P_ENEMY
 //
