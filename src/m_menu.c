@@ -2228,7 +2228,7 @@ static menuitem_t OP_NeptuneTwoMenu[] =
 	{IT_HEADER, NULL, "Neptune Options", NULL, 0},
 	
 	//{IT_HEADER, NULL, "Stacking", NULL, 10},
-	{IT_STRING | IT_CVAR, NULL, "Multi-Sneaker icon", 				&cv_multisneakericon, 	 	10},
+	{IT_STRING | IT_CVAR, NULL, "Multi-Item icons", 				&cv_multiitemicon, 	 	10},
 	{IT_STRING | IT_CVAR, NULL, "Always Show Item Stack Number",	&cv_alwaysshowitemstacks, 	 15},
 	{IT_STRING | IT_CVAR, NULL, "Player-Colored Sneaker Fire", 		&cv_coloredsneakertrail, 20},
 	{IT_STRING | IT_CVAR, NULL, "Sneaker Fire", 					&cv_sneakerfire,25},

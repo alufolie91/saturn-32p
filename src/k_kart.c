@@ -98,7 +98,7 @@ consvar_t cv_darkitembox = {"darkitembox", "On", CV_SAVE, CV_OnOff, NULL, 0, NUL
 
 consvar_t cv_biglaps = {"biglaphud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; //here for ppl who dont want to make 2 more patches for their custom hud
 
-consvar_t cv_multisneakericon = {"multisneakericon", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_multiitemicon = {"multiitemicon", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_stackingeffect = {"stacking_stackingeffect", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -1412,7 +1412,7 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_spectatestrafe);
 	
 	// multisneakericon
-	CV_RegisterVar(&cv_multisneakericon);
+	CV_RegisterVar(&cv_multiitemicon);
 	
 	CV_RegisterVar(&cv_alwaysshowitemstacks);
 	
@@ -9137,9 +9137,11 @@ static patch_t *kp_multsneaker[2];
 static patch_t *kp_rocketsneaker[2];
 static patch_t *kp_invincibility[13];
 static patch_t *kp_banana[2];
+static patch_t *kp_multbanana[3];
 static patch_t *kp_eggman[2];
 static patch_t *kp_orbinaut[5];
 static patch_t *kp_jawz[2];
+static patch_t *kp_multjawz[1];
 static patch_t *kp_mine[2];
 static patch_t *kp_ballhog[2];
 static patch_t *kp_selfpropelledbomb[2];
@@ -9398,7 +9400,6 @@ void K_LoadKartHUDGraphics(void)
 	kp_itemx = 					W_CachePatchName("K_ITX", PU_HUDGFX);
 
 	kp_sneaker[0] =				W_CachePatchName("K_ITSHOE", PU_HUDGFX);
-	
 	kp_multsneaker[0] = W_CachePatchName("K_ITSHO2", PU_HUDGFX);
 	kp_multsneaker[1] = W_CachePatchName("K_ITSHO3", PU_HUDGFX);
 	
@@ -9411,6 +9412,10 @@ void K_LoadKartHUDGraphics(void)
 		kp_invincibility[i] = (patch_t *) W_CachePatchName(buffer, PU_HUDGFX);
 	}
 	kp_banana[0] =				W_CachePatchName("K_ITBANA", PU_HUDGFX);
+	kp_multbanana[0] = W_CachePatchName("K_ITBAN2", PU_HUDGFX);
+	kp_multbanana[1] = W_CachePatchName("K_ITBAN3", PU_HUDGFX);
+	kp_multbanana[2] = W_CachePatchName("K_ITBAN4", PU_HUDGFX);
+	
 	kp_eggman[0] =				W_CachePatchName("K_ITEGGM", PU_HUDGFX);
 	sprintf(buffer, "K_ITORBx");
 	for (i = 0; i < 4; i++)
@@ -9419,6 +9424,7 @@ void K_LoadKartHUDGraphics(void)
 		kp_orbinaut[i] = (patch_t *) W_CachePatchName(buffer, PU_HUDGFX);
 	}
 	kp_jawz[0] =				W_CachePatchName("K_ITJAWZ", PU_HUDGFX);
+	kp_multjawz[0] =			W_CachePatchName("K_ITJAW2", PU_HUDGFX);
 	kp_mine[0] =				W_CachePatchName("K_ITMINE", PU_HUDGFX);
 	kp_ballhog[0] =				W_CachePatchName("K_ITBHOG", PU_HUDGFX);
 	kp_selfpropelledbomb[0] =	W_CachePatchName("K_ITSPB", PU_HUDGFX);
@@ -10138,7 +10144,7 @@ static void K_drawKartItem(void)
 			switch(stplyr->kartstuff[k_itemtype])
 			{
 				case KITEM_SNEAKER:
-					if (cv_multisneakericon.value)
+					if (cv_multiitemicon.value)
 					{
 						if (offset)
 						{
@@ -10155,9 +10161,6 @@ static void K_drawKartItem(void)
 									break;
 								case 2:
 									localpatch = kp_multsneaker[0];
-									break;
-								case 3:
-									localpatch = kp_multsneaker[1];
 									break;
 								default:
 									localpatch = kp_multsneaker[1];
@@ -10182,8 +10185,30 @@ static void K_drawKartItem(void)
 					dark = true;
 					break;
 				case KITEM_BANANA:
-					numberdisplaymin = 2;
-					localpatch = kp_banana[offset];
+					if (cv_multiitemicon.value)
+					{
+						numberdisplaymin = 4;						
+						switch(stplyr->kartstuff[k_itemamount])
+						{
+							case 1:
+								localpatch = kp_banana[offset];
+								break;
+							case 2:
+								localpatch = kp_multbanana[0];
+								break;
+							case 10:
+								localpatch = kp_multbanana[2];
+								break;
+							default:
+								localpatch = kp_multbanana[1];
+								break;
+						}
+					}
+					else
+					{
+						numberdisplaymin = 2;
+						localpatch = kp_banana[offset];
+					}
 					break;
 				case KITEM_EGGMAN:
 					numberdisplaymin = 2;
@@ -10198,8 +10223,24 @@ static void K_drawKartItem(void)
 					localpatch = kp_orbinaut[(offset ? 4 : min(stplyr->kartstuff[k_itemamount]-1, 3))];
 					break;
 				case KITEM_JAWZ:
-					numberdisplaymin = 2;
-					localpatch = kp_jawz[offset];
+					if (cv_multiitemicon.value)
+					{
+						numberdisplaymin = 3;						
+						switch(stplyr->kartstuff[k_itemamount])
+						{
+							case 1:
+								localpatch = kp_jawz[offset];
+								break;
+							default:
+								localpatch = kp_multjawz[0];
+								break;
+						}
+					}
+					else
+					{
+						numberdisplaymin = 2;
+						localpatch = kp_jawz[offset];
+					}
 					break;
 				case KITEM_MINE:
 					numberdisplaymin = 2;
