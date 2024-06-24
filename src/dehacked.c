@@ -532,7 +532,7 @@ static void readfollower(MYFILE *f)
 	char *s;
 	char *word, *word2, dname[SKINNAMESIZE+1];
 	char *tmp;
-	char testname[SKINNAMESIZE];
+	char testname[SKINNAMESIZE+1];
 
 	boolean nameset;
 	INT32 fallbackstate = 0;
