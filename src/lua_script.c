@@ -987,8 +987,18 @@ static UINT8 UnArchiveValue(UINT8 **p, int TABLESINDEX)
 		LUA_PushUserdata(gL, &states[READUINT16(*p)], META_STATE);
 		break;
 	case ARCH_MOBJ:
-		LUA_PushUserdata(gL, P_FindNewPosition(READUINT32(*p)), META_MOBJ);
-		break;
+		if (*p == demo_p)
+		{
+			demo_p += sizeof(UINT32);	// Skip this data, we can't read a mobj here, it'd point to garbage and crash the game.
+			CONS_Alert(CONS_WARNING,"Couldn't read mobj_t\n");
+
+			return 3;	// Don't set the field
+		}
+		else
+		{
+			LUA_PushUserdata(gL, P_FindNewPosition(READUINT32(*p)), META_MOBJ);
+			break;
+		}
 	case ARCH_PLAYER:
 		LUA_PushUserdata(gL, &players[READUINT8(*p)], META_PLAYER);
 		break;
@@ -1046,13 +1056,21 @@ static void UnArchiveExtVars(UINT8 **p, void *pointer)
 	{
 		READSTRING(*p, field);
 
-		if (UnArchiveValue(p, TABLESINDEX) == 1)
+		if (*p == demo_p)
 		{
-			CONS_Alert(CONS_ERROR, "Unexpected end marker when reading ExtVars (field '%s')\n", field);
-			break;
+			if (UnArchiveValue(p, TABLESINDEX) != 3)	// This will return 3 if we shouldn't set this field.
+				lua_setfield(gL, -2, field);
 		}
+		else
+		{
+			if (UnArchiveValue(p, TABLESINDEX) == 1)
+			{
+				CONS_Alert(CONS_ERROR, "Unexpected end marker when reading ExtVars (field '%s')\n", field);
+				break;
+			}
 
-		lua_setfield(gL, -2, field);
+			lua_setfield(gL, -2, field);
+		}
 	}
 
 	lua_getfield(gL, LUA_REGISTRYINDEX, LREG_EXTVARS);
@@ -1096,14 +1114,18 @@ static void UnArchiveTables(UINT8 **p)
 		while (true)
 		{
 			UINT8 e = UnArchiveValue(p, TABLESINDEX); // read key
-			if (e == 1) // End of table
+			if (*p == demo_p && e == 3)
+				lua_pushnil(gL);
+			else if (e == 1) // End of table
 				break;
 			else if (e == 2) // Key contains a new table
 				n++;
 
 			UINT8 ret = UnArchiveValue(p, TABLESINDEX);
 
-			if (ret == 1)
+			if (*p == demo_p && ret == 3)
+				lua_pushnil(gL);
+			else if (ret == 1)
 			{
 				CONS_Alert(CONS_ERROR, "Unexpected end of save reached (Corrupted save?)\n");
 				lua_pop(gL, 1); // Pop key
@@ -1111,6 +1133,7 @@ static void UnArchiveTables(UINT8 **p)
 			}
 			else if (ret == 2) // read value
 				n++;
+
 
 			if (lua_isnil(gL, -2)) // if key is nil (if a function etc was accidentally saved)
 			{
