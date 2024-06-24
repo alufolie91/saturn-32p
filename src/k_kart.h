@@ -32,7 +32,7 @@ extern consvar_t cv_highresportrait;
 extern consvar_t cv_stat_xoffset;
 extern consvar_t cv_stat_yoffset;
 extern consvar_t cv_showstats;
-extern consvar_t cv_multisneakericon;
+extern consvar_t cv_multiitemicon;
 extern consvar_t cv_stackingeffect;
 extern consvar_t cv_stackingeffectscaling;
 extern consvar_t cv_coloredsneakertrail;
