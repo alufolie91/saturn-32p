@@ -744,11 +744,11 @@ static void readfollower(MYFILE *f)
 	{
 		// well this is problematic.
 		strlcpy(followers[numfollowers].name, va("Follower%d", numfollowers), SKINNAMESIZE+1);
-		strcpy(testname, followers[numfollowers].name);
+		(strcpy)(testname, followers[numfollowers].name);
 	}
 	else
 	{
-		strcpy(testname, followers[numfollowers].name);
+		(strcpy)(testname, followers[numfollowers].name);
 
 		// now that the skin name is ready, post process the actual name to turn the underscores into spaces!
 		for (i = 0; followers[numfollowers].name[i]; i++)
