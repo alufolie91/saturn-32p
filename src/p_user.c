@@ -4594,7 +4594,7 @@ static void P_HandleFollower(player_t *player)
 		
 		// Spawn Follower Shadow
 		player->follower->haveshadow = true;
-		player->follower->shadowscale = player->follower->scale;
+		player->follower->shadowscale = FRACUNIT;
 
 		// move the follower next to us (yes, this is really basic maths but it looks pretty damn clean in practice)!
 		player->follower->momx = FixedDiv(sx - player->follower->x, fl.horzlag);

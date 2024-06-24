@@ -532,7 +532,7 @@ static void readfollower(MYFILE *f)
 	char *s;
 	char *word, *word2, dname[SKINNAMESIZE+1];
 	char *tmp;
-	char testname[SKINNAMESIZE];
+	char testname[SKINNAMESIZE+1];
 
 	boolean nameset;
 	INT32 fallbackstate = 0;
@@ -590,7 +590,7 @@ static void readfollower(MYFILE *f)
 			if (fastcmp(word, "NAME"))
 			{
 				DEH_WriteUndoline(word, va("%s", followers[numfollowers].name), UNDO_NONE);
-				strcpy(followers[numfollowers].name, word2);
+				strlcpy(followers[numfollowers].name, word2, SKINNAMESIZE+1);
 				nameset = true;
 			}
 			else if (fastcmp(word, "ICON"))
@@ -739,38 +739,30 @@ static void readfollower(MYFILE *f)
 				deh_warning("Follower %d: unknown word '%s'", numfollowers, word);
 		}
 	} while (!myfeof(f)); // finish when the line is empty
-
-	if (!nameset)	// well this is problematic.
+	
+	if (!nameset)
 	{
-		strcpy(followers[numfollowers].name, va("Follower%d", numfollowers));	// this is lazy, so what
+		// well this is problematic.
+		strlcpy(followers[numfollowers].name, va("Follower%d", numfollowers), SKINNAMESIZE+1);
+		(strcpy)(testname, followers[numfollowers].name);
 	}
-
-	// set skin name (this is just the follower's name in lowercases):
-	// but before we do, let's... actually check if another follower isn't doing the same shit...
-
-	strcpy(testname, followers[numfollowers].name);
-
-	// lower testname for skin checks...
-	strlwr(testname);
-	res = R_FollowerAvailable(testname);
-	if (res > -1)	// yikes, someone else has stolen our name already
+	else
 	{
-		INT32 startlen = strlen(testname);
-		char cpy[2];
-		//deh_warning("There was already a follower with the same name. (%s)", testname);	This warning probably isn't necessary anymore?
-		sprintf(cpy, "%d", numfollowers);
-		memcpy(&testname[startlen], cpy, 2);
-		// in that case, we'll be very lazy and copy numfollowers to the end of our skin name.
-	}
+		(strcpy)(testname, followers[numfollowers].name);
 
-	strcpy(followers[numfollowers].skinname, testname);
-	strcpy(dname, followers[numfollowers].skinname);	// display name, just used for printing succesful stuff or errors later down the line.
+		// now that the skin name is ready, post process the actual name to turn the underscores into spaces!
+		for (i = 0; followers[numfollowers].name[i]; i++)
+		{
+			if (followers[numfollowers].name[i] == '_')
+				followers[numfollowers].name[i] = ' ';
+		}
 
-	// now that the skin name is ready, post process the actual name to turn the underscores into spaces!
-	for (i = 0; followers[numfollowers].name[i]; i++)
-	{
-		if (followers[numfollowers].name[i] == '_')
-			followers[numfollowers].name[i] = ' ';
+		res = R_FollowerAvailable(followers[numfollowers].name);
+		if (res > -1)	// yikes, someone else has stolen our name already
+		{
+			deh_warning("Follower%d: Name \"%s\" already in use!", numfollowers, testname);
+			strlcpy(followers[numfollowers].name, va("Follower%d", numfollowers), SKINNAMESIZE+1);
+		}
 	}
 
 	// fallbacks for variables
