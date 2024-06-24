@@ -5682,7 +5682,7 @@ static void K_SneakerPanelStackSound(player_t *player)
 	const sfxenum_t smallsfx = sfx_cdfm40;
 	sfxenum_t sfx = normalsfx;
 
-	if (player->kartstuff[k_sneakerstack] && cv_sneakerstacksound.value)
+	if (((player->kartstuff[k_sneakerstack] > 0) ||  (player->kartstuff[k_panelstack] > 0)) && cv_sneakerstacksound.value)
 	{
 		// Use a less annoying sound when stacking sneakers.
 		sfx = smallsfx;
@@ -7638,14 +7638,13 @@ static void K_KartDrift(player_t *player, boolean onground)
 	if (startsound) // doing this because duplication is silly lel
 	{
 		
-		if ((player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && cv_sneakerextend.value)
+		if ((player->kartstuff[k_sneakertimer] > 0 || player->kartstuff[k_paneltimer] > 0) && cv_sneakerextend.value && cv_chainsound.value)
 		{
-			if (cv_chainsound.value)
-				S_StartSound(player->mo, sfx_bstchn);
-			player->kartstuff[k_chainsound] = 1;
+			S_StartSound(player->mo, sfx_bstchn);
 		}
 		else
 			S_StartSound(player->mo, sfx_s23c);
+		player->kartstuff[k_chainsound] = 1;
 	}
 
 	// Drifting: left or right?
