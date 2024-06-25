@@ -10427,7 +10427,7 @@ Update the maxplayers label...
 
 			V_DrawFixedPatch(x<<FRACBITS, y<<FRACBITS, FRACUNIT, trans, facewantprefix[pskin], colmap);
 
-			if (itemOn == 3 && i == setupm_pselect)
+			if (itemOn == 2 && i == setupm_pselect)
 			{
 				static fixed_t cursorframe = 0;
 
@@ -12007,7 +12007,7 @@ static void M_SetupMultiPlayer(INT32 choice)
 	setupm_cvfollower = &cv_follower;
 	setupm_cvfollowercolor = &cv_followercolor;
 	
-	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
+	setupm_fakefollower = R_FollowerAvailable(setupm_cvfollower->string);	// update fake follower value
 
 	// yikes, we don't want none of that...
 	if (setupm_fakefollower > numfollowers-1)
@@ -12061,7 +12061,7 @@ static void M_SetupMultiPlayer2(INT32 choice)
 	setupm_cvfollower = &cv_follower2;
 	setupm_cvfollowercolor = &cv_followercolor2;
 	
-	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
+	setupm_fakefollower = R_FollowerAvailable(setupm_cvfollower->string);	// update fake follower value
 
 	// yikes, we don't want none of that...
 	if (setupm_fakefollower > numfollowers-1)
@@ -12114,7 +12114,7 @@ static void M_SetupMultiPlayer3(INT32 choice)
 	setupm_cvfollower = &cv_follower3;
 	setupm_cvfollowercolor = &cv_followercolor3;
 	
-	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
+	setupm_fakefollower = R_FollowerAvailable(setupm_cvfollower->string);	// update fake follower value
 
 	// yikes, we don't want none of that...
 	if (setupm_fakefollower > numfollowers-1)
@@ -12167,7 +12167,7 @@ static void M_SetupMultiPlayer4(INT32 choice)
 	setupm_cvfollower = &cv_follower4;
 	setupm_cvfollowercolor = &cv_followercolor4;
 	
-	setupm_fakefollower = atoi(setupm_cvfollower->string);	// update fake follower value
+	setupm_fakefollower = R_FollowerAvailable(setupm_cvfollower->string);	// update fake follower value
 
 	// yikes, we don't want none of that...
 	if (setupm_fakefollower > numfollowers-1)
@@ -12216,7 +12216,7 @@ static boolean M_QuitMultiPlayerMenu(void)
 	// you know what? always putting these in the buffer won't hurt anything.
 	COM_BufAddText (va("%s \"%s\"\n",setupm_cvskin->name,skins[setupm_fakeskin].name));
 	COM_BufAddText (va("%s %d\n",setupm_cvcolor->name,setupm_fakecolor));	
-	COM_BufAddText (va("%s %d\n",setupm_cvfollower->name,setupm_fakefollower));
+	COM_BufAddText (va("%s \"%s\"\n",setupm_cvfollower->name,followers[setupm_fakefollower].name));
 	COM_BufAddText (va("%s %d\n",setupm_cvfollowercolor->name,setupm_fakefollowercolor));
 	return true;
 }

@@ -5129,10 +5129,10 @@ void G_ReadDemoExtraData(void)
 			// Follower's color
 			M_Memcpy(name, demo_p, 16);
 			demo_p += 16;
-			for (i = 0; i < MAXSKINCOLORS; i++)
-				if (!stricmp(KartColor_Names[i], name))				// SRB2kart
+			for (i = 0; i < MAXSKINCOLORS+2; i++)
+				if (!stricmp(Followercolor_cons_t[i].strvalue, name))				// SRB2kart
 				{
-					players[p].followercolor = i;
+					players[p].followercolor = Followercolor_cons_t[i].value;
 					break;
 				}
 		}
@@ -5261,7 +5261,7 @@ void G_WriteDemoExtraData(void)
 				if (players[i].followerskin == -1)
 					strncpy(name, "None", 16);
 				else
-					strncpy(name, followers[players[i].followerskin].skinname, 16);
+					strncpy(name, followers[players[i].followerskin].name, 16);
 				M_Memcpy(demo_p, name, 16);
 				demo_p += 16;
 
@@ -6736,7 +6736,7 @@ void G_BeginRecording(void)
 
 			memset(name, 0, 16);
 			if (player->follower)
-				strncpy(name, followers[player->followerskin].skinname, 16);
+				strncpy(name, followers[player->followerskin].name, 16);
 			else
 				strncpy(name, "None", 16);	// Say we don't have one, then.
 

@@ -126,13 +126,13 @@ extern char  logfilename[1024];
 // we use comprevision and compbranch instead.
 #else
 #define VERSION    2 // Game version
-#define SUBVERSION 10 // more precise version number
+#define SUBVERSION 11 // more precise version number
 #ifndef USE_FBO_OGL
-#define VERSIONSTRING "Neptune v2.2a "
-#define VERSIONSTRINGW L"Neptune v2.2a"
+#define VERSIONSTRING "Neptune v2.2b "
+#define VERSIONSTRINGW L"Neptune v2.2b"
 #else
-#define VERSIONSTRING "Neptune v2.2a - FBO "
-#define VERSIONSTRINGW L"Neptune v2.2a - FBO"
+#define VERSIONSTRING "Neptune v2.2b - FBO "
+#define VERSIONSTRINGW L"Neptune v2.2b - FBO"
 #endif
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!

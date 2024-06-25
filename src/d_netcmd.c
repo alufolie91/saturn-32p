@@ -200,6 +200,8 @@ static void Command_Cheats_f(void);
 static void Command_ListSkins(void);
 static void Command_SkinSearch(void);
 
+static void Command_FollowerSearch(void);
+
 
 #ifdef _DEBUG
 static void Command_Togglemodified_f(void);
@@ -296,10 +298,10 @@ consvar_t cv_skin2 = {"skin2", DEFAULTSKIN2, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Sk
 consvar_t cv_skin3 = {"skin3", DEFAULTSKIN3, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin3_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_skin4 = {"skin4", DEFAULTSKIN4, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 // player's followers. Also saved.
-consvar_t cv_follower = {"follower", "-1", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_follower2 = {"follower2", "-1", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower2_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_follower3 = {"follower3", "-1", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower3_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_follower4 = {"follower4", "-1", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower = {"follower", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower2 = {"follower2", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower2_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower3 = {"follower3", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower3_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower4 = {"follower4", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 // player's follower color. Also saved...
 consvar_t cv_followercolor = {"followercolor", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -1635,6 +1637,8 @@ void D_RegisterClientCommands(void)
 
 	COM_AddCommand("listskins", Command_ListSkins);
 	COM_AddCommand("skinsearch", Command_SkinSearch);
+	
+	COM_AddCommand("followersearch", Command_FollowerSearch);
 }
 
 /**
@@ -2005,21 +2009,27 @@ static void SendNameAndColor(void)
 	// ditto for follower colour:
 	if (!cv_followercolor.value)
 		CV_StealthSet(&cv_followercolor, "Match"); // set it to "Match". I don't care about your stupidity!
-
-	if (!strcmp(cv_playername.string, player_names[consoleplayer])
-		&& cv_playercolor.value == players[consoleplayer].skincolor
-		&& !strcmp(cv_skin.string, skins[players[consoleplayer].skin].name)
-		&& cv_follower.value == players[consoleplayer].followerskin
-		&& cv_followercolor.value == players[consoleplayer].followercolor)
-		return;
-
+		
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
 	
-	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
-	if (cv_follower.value > numfollowers-1 || cv_follower.value < -1)
-		CV_StealthSet(&cv_follower, "-1");
+	cv_follower.value = R_FollowerAvailable(cv_follower.string);
+	if (cv_follower.value < 0)
+	{
+		CV_StealthSet(&cv_follower, "None");
+		cv_follower.value = -1;
+	}
+
+	if (!strcmp(cv_playername.string, player_names[consoleplayer])
+		&& cv_playercolor.value == players[consoleplayer].skincolor
+		&& !strcmp(cv_skin.string, skins[players[consoleplayer].skin].name)
+		&& !strcmp(cv_follower.string,
+			(players[consoleplayer].followerskin < 0 ? "None" : followers[players[consoleplayer].followerskin].name))
+		&& cv_followercolor.value == players[consoleplayer].followercolor)
+		return;
+
+
 
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (!netgame)
@@ -2160,9 +2170,12 @@ static void SendNameAndColor2(void)
 	if (!Playing())
 		return;
 	
-	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
-	if (cv_follower2.value > numfollowers-1 || cv_follower2.value < -1)
-		CV_StealthSet(&cv_follower2, "-1");
+	cv_follower2.value = R_FollowerAvailable(cv_follower2.string);
+	if (cv_follower2.value < 0)
+	{
+		CV_StealthSet(&cv_follower2, "None");
+		cv_follower2.value = -1;
+	}
 
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (botingame)
@@ -2302,9 +2315,12 @@ static void SendNameAndColor3(void)
 	if (!Playing())
 		return;
 	
-	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
-	if (cv_follower3.value > numfollowers-1 || cv_follower3.value < -1)
-		CV_StealthSet(&cv_follower3, "-1");
+	cv_follower3.value = R_FollowerAvailable(cv_follower3.string);
+	if (cv_follower3.value < 0)
+	{
+		CV_StealthSet(&cv_follower3, "None");
+		cv_follower3.value = -1;
+	}
 	
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (!netgame)
@@ -2437,9 +2453,12 @@ static void SendNameAndColor4(void)
 	if (!Playing())
 		return;
 
-	// so like, this is sent before we even use anything like cvars or w/e so it's possible that follower is set to a pretty yikes value, so let's fix that before we send garbage that could crash the game:
-	if (cv_follower4.value > numfollowers-1 || cv_follower4.value < -1)
-		CV_StealthSet(&cv_follower4, "-1");
+	cv_follower4.value = R_FollowerAvailable(cv_follower4.string);
+	if (cv_follower4.value < 0)
+	{
+		CV_StealthSet(&cv_follower4, "None");
+		cv_follower4.value = -1;
+	}
 	
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (botingame)
@@ -6415,56 +6434,15 @@ static void Name4_OnChange(void)
 // sends the follower change for players
 static void Follower_OnChange(void)
 {
-	char str[SKINNAMESIZE+1], cpy[SKINNAMESIZE+1];
-	INT32 num;
-	char set[10];	// This isn't Lua and mixed declarations in the middle of code make caveman compilers scream.
-	
-	if (P_PlayerMoving(consoleplayer))
-	{
-		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
-		
-		strcpy(str, followers[players[consoleplayer].followerskin].skinname);
-		strlwr(str);
-		
-		num = R_FollowerAvailable(str);
-		
-		if (num == -1)
-			return;
-		
-		sprintf(set, "%d", num);
-		CV_StealthSet(&cv_follower, set);	// set it so it matches current active skin if skin change fails
-		return;
-	}
-
-	// there is a slight chance that we will actually use a string instead so...
-	// let's investigate the string...
-	strcpy(str, cv_follower.string);
-	strcpy(cpy, cv_follower.string);
-	strlwr(str);
-	if (stricmp(cpy,"0") !=0 && !atoi(cpy))	// yep, that's a string alright...
-	{
-		if (stricmp(cpy, "None") == 0)
-		{
-			CV_StealthSet(&cv_follower, "-1");
-
-			if (!Playing())
-				return; // don't send anything there.
-
-			SendNameAndColor();
-			return;
-		}
-
-		num = R_FollowerAvailable(str);
-
-		if (num == -1) // that's an error.
-			CONS_Alert(CONS_WARNING, M_GetText("Follower '%s' not found\n"), str);
-
-		sprintf(set, "%d", num);
-		CV_StealthSet(&cv_follower, set);	// set it to a number. It's easier for us to send later :)
-	}
 
 	if (!Playing())
 		return; // don't send anything there.
+		
+	if (P_PlayerMoving(consoleplayer))
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		return;
+	}
 
 	SendNameAndColor();
 }
@@ -6472,56 +6450,15 @@ static void Follower_OnChange(void)
 // sends the follower change for players
 static void Follower2_OnChange(void)
 {
-	char str[SKINNAMESIZE+1], cpy[SKINNAMESIZE+1];
-	INT32 num;
-	char set[10];	// This isn't Lua and mixed declarations in the middle of code make caveman compilers scream.
-	
-	if (P_PlayerMoving(displayplayers[1]))
-	{
-		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
-		
-		strcpy(str, followers[players[displayplayers[1]].followerskin].skinname);
-		strlwr(str);
-		
-		num = R_FollowerAvailable(str);
-		
-		if (num == -1)
-			return;
-		
-		sprintf(set, "%d", num);
-		CV_StealthSet(&cv_follower2, set);	// set it so it matches current active skin if skin change fails
-		return;
-	}
-
-	// there is a slight chance that we will actually use a string instead so...
-	// let's investigate the string...
-	strcpy(str, cv_follower2.string);
-	strcpy(cpy, cv_follower2.string);
-	strlwr(str);
-	if (stricmp(cpy,"0") !=0 && !atoi(cpy))	// yep, that's a string alright...
-	{
-		if (stricmp(cpy, "None") == 0)
-		{
-			CV_StealthSet(&cv_follower2, "-1");
-
-			if (!Playing())
-				return; // don't send anything there.
-
-			SendNameAndColor();
-			return;
-		}
-
-		num = R_FollowerAvailable(str);
-
-		if (num == -1) // that's an error.
-			CONS_Alert(CONS_WARNING, M_GetText("Follower '%s' not found\n"), str);
-
-		sprintf(set, "%d", num);
-		CV_StealthSet(&cv_follower2, set);	// set it to a number. It's easier for us to send later :)
-	}
 
 	if (!Playing())
 		return; // don't send anything there.
+		
+	if (P_PlayerMoving(consoleplayer))
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		return;
+	}
 
 	SendNameAndColor2();
 }
@@ -6529,56 +6466,15 @@ static void Follower2_OnChange(void)
 // sends the follower change for players
 static void Follower3_OnChange(void)
 {
-	char str[SKINNAMESIZE+1], cpy[SKINNAMESIZE+1];
-	INT32 num;
-	char set[10];	// This isn't Lua and mixed declarations in the middle of code make caveman compilers scream.
-	
-	if (P_PlayerMoving(displayplayers[2]))
-	{
-		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
-		
-		strcpy(str, followers[players[displayplayers[2]].followerskin].skinname);
-		strlwr(str);
-		
-		num = R_FollowerAvailable(str);
-		
-		if (num == -1)
-			return;
-		
-		sprintf(set, "%d", num);
-		CV_StealthSet(&cv_follower3, set);	// set it so it matches current active skin if skin change fails
-		return;
-	}
-
-	// there is a slight chance that we will actually use a string instead so...
-	// let's investigate the string...
-	strcpy(str, cv_follower3.string);
-	strcpy(cpy, cv_follower3.string);
-	strlwr(str);
-	if (stricmp(cpy,"0") !=0 && !atoi(cpy))	// yep, that's a string alright...
-	{
-		if (stricmp(cpy, "None") == 0)
-		{
-			CV_StealthSet(&cv_follower3, "-1");
-
-			if (!Playing())
-				return; // don't send anything there.
-
-			SendNameAndColor();
-			return;
-		}
-
-		num = R_FollowerAvailable(str);
-
-		if (num == -1) // that's an error.
-			CONS_Alert(CONS_WARNING, M_GetText("Follower '%s' not found\n"), str);
-
-		sprintf(set, "%d", num);
-		CV_StealthSet(&cv_follower3, set);	// set it to a number. It's easier for us to send later :)
-	}
 
 	if (!Playing())
 		return; // don't send anything there.
+		
+	if (P_PlayerMoving(consoleplayer))
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		return;
+	}
 
 	SendNameAndColor3();
 }
@@ -6586,56 +6482,15 @@ static void Follower3_OnChange(void)
 // sends the follower change for players
 static void Follower4_OnChange(void)
 {
-	char str[SKINNAMESIZE+1], cpy[SKINNAMESIZE+1];
-	INT32 num;
-	char set[10];	// This isn't Lua and mixed declarations in the middle of code make caveman compilers scream.
-	
-	if (P_PlayerMoving(displayplayers[3]))
-	{
-		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
-		
-		strcpy(str, followers[players[displayplayers[3]].followerskin].skinname);
-		strlwr(str);
-		
-		num = R_FollowerAvailable(str);
-		
-		if (num == -1)
-			return;
-		
-		sprintf(set, "%d", num);
-		CV_StealthSet(&cv_follower4, set);	// set it so it matches current active skin if skin change fails
-		return;
-	}
-
-	// there is a slight chance that we will actually use a string instead so...
-	// let's investigate the string...
-	strcpy(str, cv_follower4.string);
-	strcpy(cpy, cv_follower4.string);
-	strlwr(str);
-	if (stricmp(cpy,"0") !=0 && !atoi(cpy))	// yep, that's a string alright...
-	{
-		if (stricmp(cpy, "None") == 0)
-		{
-			CV_StealthSet(&cv_follower4, "-1");
-
-			if (!Playing())
-				return; // don't send anything there.
-
-			SendNameAndColor();
-			return;
-		}
-
-		num = R_FollowerAvailable(str);
-
-		if (num == -1) // that's an error.
-			CONS_Alert(CONS_WARNING, M_GetText("Follower '%s' not found\n"), str);
-
-		sprintf(set, "%d", num);
-		CV_StealthSet(&cv_follower4, set);	// set it to a number. It's easier for us to send later :)
-	}
 
 	if (!Playing())
 		return; // don't send anything there.
+		
+	if (P_PlayerMoving(consoleplayer))
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		return;
+	}
 
 	SendNameAndColor4();
 }
@@ -6870,6 +6725,25 @@ static void Command_SkinSearch(void)
 		}
 	}
 				CONS_Printf("Total %d skins.\n", ic);
+}
+
+static void Command_FollowerSearch(void)
+{	
+	size_t i;
+	UINT16 s;
+	UINT16 ic = 0;
+	for (i = 1; i < COM_Argc(); i++){
+		for( s = 0 ; s <  numfollowers ; s++ )
+		{
+			follower_t *followerinput = &followers[s];
+			if (strcasestr(followerinput->name,COM_Argv(i)))
+			{	
+				ic++;
+				CONS_Printf("%d. %s\"%s\x80\"\n", ic,HU_SkinColorToConsoleColor(followerinput->defaultcolor),followerinput->name);
+			}
+		}
+	}
+				CONS_Printf("Total %d followers.\n", ic);
 }
 
 /** Sends a color change for the console player, unless that player is moving.
