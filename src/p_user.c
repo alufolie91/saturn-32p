@@ -4710,6 +4710,10 @@ static void P_HandleFollower(player_t *player)
 		// Squish
 		if (player->kartstuff[k_squishedtimer] > 0) 
 		{
+			// cancel hit confirm
+			player->follower->movecount = 0;
+			player->follower->cvmem = 0;
+			
 			if (player->kartstuff[k_squishedtimer] > 1)
 				player->follower->spriteyscale = FRACUNIT/4;
 			else
@@ -4721,7 +4725,7 @@ static void P_HandleFollower(player_t *player)
 		else if (P_PlayerInPain(player) == true || player->mo->state == &states[S_KART_SPIN] || player->mo->health <= 0) 
 		{
 			// hurt or dead
-			// cancel hit confirm / rings
+			// cancel hit confirm
 			player->follower->movecount = 0;
 			player->follower->cvmem = 0;
 

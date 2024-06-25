@@ -5216,7 +5216,7 @@ void G_ReadDemoExtraData(void)
 
 void G_WriteDemoExtraData(void)
 {
-	INT32 i;
+	INT32 i,j;
 	char name[17];
 
 	for (i = 0; i < MAXPLAYERS; i++)
@@ -5267,7 +5267,12 @@ void G_WriteDemoExtraData(void)
 
 				// write follower color
 				memset(name, 0, 16);
-				strncpy(name, Followercolor_cons_t[players[i].followercolor].strvalue, 16);	// Not KartColor_Names because followercolor has extra values such as "Match"
+				for (j = (MAXSKINCOLORS+2)-1; j > 0; j--)
+				{
+					if (Followercolor_cons_t[j].value == players[i].followercolor)
+						break;
+				}
+				strncpy(name, Followercolor_cons_t[j].strvalue, 16);	// Not KartColor_Names because followercolor has extra values such as "Match"
 				M_Memcpy(demo_p,name,16);
 				demo_p += 16;
 

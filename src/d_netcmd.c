@@ -6441,6 +6441,11 @@ static void Follower_OnChange(void)
 	if (P_PlayerMoving(consoleplayer))
 	{
 		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		
+		if (players[consoleplayer].followerskin == -1)
+			CV_StealthSet(&cv_follower, "None");
+		else
+			CV_StealthSet(&cv_follower, followers[players[consoleplayer].followerskin].name);
 		return;
 	}
 
@@ -6450,13 +6455,16 @@ static void Follower_OnChange(void)
 // sends the follower change for players
 static void Follower2_OnChange(void)
 {
-
-	if (!Playing())
+	if (!Playing() || !splitscreen)
 		return; // don't send anything there.
 		
-	if (P_PlayerMoving(consoleplayer))
+	if (P_PlayerMoving(displayplayers[1]))
 	{
 		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		if (players[displayplayers[1]].followerskin == -1)
+			CV_StealthSet(&cv_follower2, "None");
+		else
+			CV_StealthSet(&cv_follower2, followers[players[displayplayers[1]].followerskin].name);
 		return;
 	}
 
@@ -6467,12 +6475,16 @@ static void Follower2_OnChange(void)
 static void Follower3_OnChange(void)
 {
 
-	if (!Playing())
+	if (!Playing() || splitscreen < 2)
 		return; // don't send anything there.
 		
-	if (P_PlayerMoving(consoleplayer))
+	if (P_PlayerMoving(displayplayers[2]))
 	{
 		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		if (players[displayplayers[2]].followerskin == -1)
+			CV_StealthSet(&cv_follower3, "None");
+		else
+			CV_StealthSet(&cv_follower3, followers[players[displayplayers[2]].followerskin].name);
 		return;
 	}
 
@@ -6483,12 +6495,16 @@ static void Follower3_OnChange(void)
 static void Follower4_OnChange(void)
 {
 
-	if (!Playing())
+	if (!Playing() || splitscreen < 3)
 		return; // don't send anything there.
 		
-	if (P_PlayerMoving(consoleplayer))
+	if (P_PlayerMoving(displayplayers[3]))
 	{
 		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		if (players[displayplayers[3]].followerskin == -1)
+			CV_StealthSet(&cv_follower4, "None");
+		else
+			CV_StealthSet(&cv_follower4, followers[players[displayplayers[3]].followerskin].name);
 		return;
 	}
 
@@ -6514,7 +6530,7 @@ static void Followercolor_OnChange(void)
 
 static void Followercolor2_OnChange(void)
 {
-	if (!Playing())
+	if (!Playing() || !splitscreen)
 		return; // do whatever you want if you aren't in the game or don't have a follower.
 
 	if (!P_PlayerMoving(displayplayers[1]))
@@ -6524,13 +6540,13 @@ static void Followercolor2_OnChange(void)
 	}
 	else
 	{
-		CV_StealthSetValue(&cv_followercolor, players[consoleplayer].followercolor);
+		CV_StealthSetValue(&cv_followercolor, players[displayplayers[1]].followercolor);
 	}
 }
 
 static void Followercolor3_OnChange(void)
 {
-	if (!Playing())
+	if (!Playing() || splitscreen < 2)
 		return; // do whatever you want if you aren't in the game or don't have a follower.
 
 	if (!P_PlayerMoving(displayplayers[2]))
@@ -6540,13 +6556,13 @@ static void Followercolor3_OnChange(void)
 	}
 	else
 	{
-		CV_StealthSetValue(&cv_followercolor, players[consoleplayer].followercolor);
+		CV_StealthSetValue(&cv_followercolor, players[displayplayers[2]].followercolor);
 	}
 }
 
 static void Followercolor4_OnChange(void)
 {
-	if (!Playing())
+	if (!Playing() || splitscreen < 3)
 		return; // do whatever you want if you aren't in the game or don't have a follower.
 
 	if (!P_PlayerMoving(displayplayers[3]))
@@ -6556,7 +6572,7 @@ static void Followercolor4_OnChange(void)
 	}
 	else
 	{
-		CV_StealthSetValue(&cv_followercolor, players[consoleplayer].followercolor);
+		CV_StealthSetValue(&cv_followercolor, players[displayplayers[3]].followercolor);
 	}
 }
 
@@ -6739,7 +6755,7 @@ static void Command_FollowerSearch(void)
 			if (strcasestr(followerinput->name,COM_Argv(i)))
 			{	
 				ic++;
-				CONS_Printf("%d. %s\"%s\x80\"\n", ic,HU_SkinColorToConsoleColor(followerinput->defaultcolor),followerinput->name);
+				CONS_Printf("%d. %s\"%s\"\x80\n", ic,HU_SkinColorToConsoleColor(followerinput->defaultcolor),followerinput->name);
 			}
 		}
 	}
