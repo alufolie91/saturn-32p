@@ -988,9 +988,9 @@ static UINT8 UnArchiveValue(UINT8 **p, int TABLESINDEX)
 		LUA_PushUserdata(gL, &states[READUINT16(*p)], META_STATE);
 		break;
 	case ARCH_MOBJ:
-		if (*p == demo_p)
+		if (*p == demobuf.p)
 		{
-			demo_p += sizeof(UINT32);	// Skip this data, we can't read a mobj here, it'd point to garbage and crash the game.
+			demobuf.p += sizeof(UINT32);	// Skip this data, we can't read a mobj here, it'd point to garbage and crash the game.
 			CONS_Alert(CONS_WARNING,"Couldn't read mobj_t\n");
 
 			return 3;	// Don't set the field
@@ -1057,7 +1057,7 @@ static void UnArchiveExtVars(UINT8 **p, void *pointer)
 	{
 		READSTRING(*p, field);
 
-		if (*p == demo_p)
+		if (*p == demobuf.p)
 		{
 			if (UnArchiveValue(p, TABLESINDEX) != 3)	// This will return 3 if we shouldn't set this field.
 				lua_setfield(gL, -2, field);
@@ -1115,25 +1115,50 @@ static void UnArchiveTables(UINT8 **p)
 		while (true)
 		{
 			UINT8 e = UnArchiveValue(p, TABLESINDEX); // read key
-			if (*p == demo_p && e == 3)
-				lua_pushnil(gL);
-			else if (e == 1) // End of table
-				break;
-			else if (e == 2) // Key contains a new table
-				n++;
+
+			if (*p == demobuf.p)
+			{
+				if (e == 3)
+					lua_pushnil(gL);
+				else if (e == 1) // End of table
+					break;
+				else if (e == 2) // Key contains a new table
+					n++;
+			}
+			else
+			{
+				if (e == 1) // End of table
+					break;
+				else if (e == 2) // Key contains a new table
+					n++;
+			}
 
 			UINT8 ret = UnArchiveValue(p, TABLESINDEX);
 
-			if (*p == demo_p && ret == 3)
-				lua_pushnil(gL);
-			else if (ret == 1)
+			if (*p == demobuf.p)
 			{
-				CONS_Alert(CONS_ERROR, "Unexpected end of save reached (Corrupted save?)\n");
-				lua_pop(gL, 1); // Pop key
-				break;
+				if (ret == 3)
+					lua_pushnil(gL);
+				else if (ret == 1)
+				{
+					CONS_Alert(CONS_ERROR, "Unexpected end of save reached (Corrupted save?)\n");
+					lua_pop(gL, 1); // Pop key
+					break;
+				}
+				else if (ret == 2) // Key contains a new table
+					n++;
 			}
-			else if (ret == 2) // read value
-				n++;
+			else
+			{
+				if (ret == 1)
+				{
+					CONS_Alert(CONS_ERROR, "Unexpected end of save reached (Corrupted save?)\n");
+					lua_pop(gL, 1); // Pop key
+					break;
+				}
+				else if (ret == 2) // Key contains a new table
+					n++;
+			}
 
 
 			if (lua_isnil(gL, -2)) // if key is nil (if a function etc was accidentally saved)
