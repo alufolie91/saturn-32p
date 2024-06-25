@@ -2923,8 +2923,8 @@ INT32 numskins = 0;
 INT32 numallskins = 0;
 INT32 numlocalskins = 0;
 skin_t skins[MAXSKINS];
-UINT8 skinstats[9][9][MAXSKINS];
-UINT8 skinstatscount[9][9] = {
+UINT16 skinstats[9][9][MAXSKINS];
+UINT16 skinstatscount[9][9] = {
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -2935,7 +2935,7 @@ UINT8 skinstatscount[9][9] = {
 	{0, 1, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
-UINT8 skinsorted[MAXSKINS];
+UINT16 skinsorted[MAXSKINS];
 skin_t localskins[MAXSKINS];
 skin_t allskins[MAXSKINS*2];
 

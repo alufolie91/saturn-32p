@@ -7707,8 +7707,8 @@ void G_DoPlayDemo(char *defdemoname)
 		p = READUINT8(demo_p);
 	}
 
-// end of player read (the 0xFF marker)
-// so this is where we are to read our lua variables (if possible!)
+	// end of player read (the 0xFF marker)
+	// so this is where we are to read our lua variables (if possible!)
 	if (demoflags & DF_LUAVARS)	// again, used for compability, lua shit will be saved to replays regardless of if it's even been loaded
 	{
 		if (!gL)	// No Lua state! ...I guess we'll just start one...

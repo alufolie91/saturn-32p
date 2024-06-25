@@ -10502,7 +10502,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	INT32 statx, staty;
 	UINT32 speenframe;
 	INT32 sltw, actw, hetw;
-	UINT8 skintodisplay;
+	UINT16 skintodisplay;
 	INT32 nameboxaddy = 0;
 	int statoffset = 0;
 	int gridyoffset = 0;
@@ -12630,7 +12630,7 @@ static void M_DrawLocalSkinMenu(void)
 	spriteframe_t *sprframe;
 	patch_t *patch;
 	UINT8 frame;
-	UINT8 skintodisplay;
+	UINT16 skintodisplay;
 	UINT32 speenframe;
 
 	mx = OP_ForkedBirdDef.x;
