@@ -3540,13 +3540,12 @@ void SetFollower(INT32 playernum, INT32 skinnum)
 	player->followerready = true;	// we are ready to perform follower related actions in the player thinker, now.
 	if (skinnum >= -1 && skinnum <= numfollowers) // Make sure it exists!
 	{
-		player->followerskin = skinnum;
 		//CONS_Printf("Updated player follower num\n");
 		/*
 			We don't spawn the follower here since it'll be easier to handle all of it in the Player thinker itself.
 			However, we will despawn it right here if there's any to make it easy for the player thinker to replace it or delete it.
 		*/
-		if (player->follower)
+		if (skinnum != player->followerskin)
 		{
 			P_RemoveMobj(player->follower);
 			P_SetTarget(&player->follower, NULL);
