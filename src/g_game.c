@@ -4028,6 +4028,8 @@ void G_EndGame(void)
 // Sets a tad of default info we need.
 void G_LoadGameSettings(void)
 {
+	INT32 i;
+	
 	// defaults
 	spstage_start = 1;
 	sstage_start = 50;
@@ -4036,6 +4038,22 @@ void G_LoadGameSettings(void)
 
 	// initialize free sfx slots for skin sounds
 	S_InitRuntimeSounds();
+	
+	// Prepare skincolor material.
+	for (i = 0; i < MAXSKINCOLORS; i++)
+	{
+		Color_cons_t[i].value = Followercolor_cons_t[i+2].value = i;
+		Color_cons_t[i].strvalue = Followercolor_cons_t[i+2].strvalue =  KartColor_Names[i];
+	}
+
+	Followercolor_cons_t[1].value = FOLLOWERCOLOR_MATCH;
+	Followercolor_cons_t[1].strvalue = "Match"; // Add "Match" option, which will make the follower color match the player's
+
+	Followercolor_cons_t[0].value = FOLLOWERCOLOR_OPPOSITE;
+	Followercolor_cons_t[0].strvalue = "Opposite"; // Add "Opposite" option, ...which is like "Match", but for coloropposite.
+
+	Color_cons_t[MAXSKINCOLORS].value = Followercolor_cons_t[MAXSKINCOLORS+2].value = 0;
+	Color_cons_t[MAXSKINCOLORS].strvalue = Followercolor_cons_t[MAXSKINCOLORS+2].strvalue = NULL;
 }
 
 // G_LoadGameData
@@ -6624,7 +6642,7 @@ void G_RecordMetal(void)
 
 void G_BeginRecording(void)
 {
-	UINT8 i, p;
+	UINT8 i, j, p;
 	char name[17];
 	player_t *player = &players[consoleplayer];
 
@@ -6750,8 +6768,13 @@ void G_BeginRecording(void)
 
 			// Save follower's colour
 			memset(name, 0, 16);
-			strncpy(name, Followercolor_cons_t[player->followercolor].strvalue, 16);	// Not KartColor_Names because followercolor has extra values such as "Match"
-			M_Memcpy(demo_p, name, 16);
+			for (j = (MAXSKINCOLORS+2)-1; j > 0; j--)
+			{
+				if (Followercolor_cons_t[j].value == players[i].followercolor)
+					break;
+			}
+			strncpy(name, Followercolor_cons_t[j].strvalue, 16);	// Not KartColor_Names because followercolor has extra values such as "Match"
+			M_Memcpy(demo_p, name,16);
 			demo_p += 16;
 
 			// Score, since Kart uses this to determine where you start on the map
