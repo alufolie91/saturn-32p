@@ -2099,7 +2099,7 @@ static void SendNameAndColor(void)
 	WRITESTRINGN(p, cv_playername.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor.value);
 	WRITEUINT16(p, (UINT16)cv_skin.value);
-	WRITEUINT16(p, (UINT16)cv_follower.value);
+	WRITEINT32(p, (INT32)cv_follower.value);
 	WRITEUINT8(p, (UINT8)cv_followercolor.value);
 	SendNetXCmd(XD_NAMEANDCOLOR, buf, p - buf);
 }
@@ -2245,7 +2245,7 @@ static void SendNameAndColor2(void)
 	WRITESTRINGN(p, cv_playername2.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor2.value);
 	WRITEUINT16(p, (UINT16)cv_skin2.value);
-	WRITEUINT16(p, (UINT16)cv_follower2.value);
+	WRITEINT32(p, (INT32)cv_follower2.value);
 	WRITEUINT8(p, (UINT8)cv_followercolor2.value);
 	SendNetXCmd2(XD_NAMEANDCOLOR, buf, p - buf);
 }
@@ -2383,7 +2383,7 @@ static void SendNameAndColor3(void)
 	WRITESTRINGN(p, cv_playername3.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor3.value);
 	WRITEUINT16(p, (UINT16)cv_skin3.value);
-	WRITEUINT16(p, (UINT16)cv_follower3.value);
+	WRITEINT32(p, (INT32)cv_follower3.value);
 	WRITEUINT8(p, (UINT8)cv_followercolor3.value);
 	SendNetXCmd3(XD_NAMEANDCOLOR, buf, p - buf);
 }
@@ -2528,7 +2528,7 @@ static void SendNameAndColor4(void)
 	WRITESTRINGN(p, cv_playername4.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor4.value);
 	WRITEUINT16(p, (UINT16)cv_skin4.value);
-	WRITEUINT16(p, (UINT16)cv_follower4.value);
+	WRITEINT32(p, (INT32)cv_follower4.value);
 	WRITEUINT8(p, (UINT8)cv_followercolor4.value);
 	SendNetXCmd4(XD_NAMEANDCOLOR, buf, p - buf);
 }
@@ -2539,7 +2539,7 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 	char name[MAXPLAYERNAME+1];
 	UINT8 color, followercolor; 
 	UINT16 skin;
-	UINT16 follower;
+	INT32 follower;
 	
 
 #ifdef PARANOIA
@@ -2564,7 +2564,7 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 	READSTRINGN(*cp, name, MAXPLAYERNAME);
 	color = READUINT8(*cp);
 	skin = READUINT16(*cp);
-	follower = READUINT16(*cp);
+	follower = READINT32(*cp);
 	followercolor = READUINT8(*cp);
 
 	// set name
