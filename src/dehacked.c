@@ -530,7 +530,7 @@ INT32 numfollowers = 0;
 static void readfollower(MYFILE *f)
 {
 	char *s;
-	char *word, *word2, dname[SKINNAMESIZE+1];
+	char *word, *word2;
 	char *tmp;
 	char testname[SKINNAMESIZE+1];
 
@@ -539,7 +539,7 @@ static void readfollower(MYFILE *f)
 	INT32 res;
 	INT32 i;
 
-	if (numfollowers > MAXFOLLOWERS)
+	if (numfollowers >= MAXFOLLOWERS)
 	{
 		I_Error("Out of Followers\nLoad less addons to fix this.");
 		return;
@@ -548,6 +548,7 @@ static void readfollower(MYFILE *f)
 	s = Z_Malloc(MAXLINELEN, PU_STATIC, NULL);
 
 	// Ready the default variables for followers. We will overwrite them as we go! We won't set the name or states RIGHT HERE as this is handled down instead.
+	followers[numfollowers].mode = FOLLOWERMODE_FLOAT;
 	followers[numfollowers].scale = FRACUNIT;
 	followers[numfollowers].atangle =  FixedAngle(230 * FRACUNIT);
 	followers[numfollowers].dist = 32*FRACUNIT;
@@ -778,7 +779,7 @@ static void readfollower(MYFILE *f)
 if (followers[numfollowers].field < threshold) \
 { \
 	followers[numfollowers].field = set; \
-	deh_warning("Follower '%s': Value for '%s' is too low! Minimum should be %d. Value was overwritten to %d.", dname, field2, set, set); \
+	deh_warning("Follower '%s': Value for '%s' is too low! Minimum should be %d. Value was overwritten to %d.", testname, field2, set, set); \
 } \
 
 	FALLBACK(dist, "DIST", 0, 0);
@@ -800,7 +801,7 @@ if (!followers[numfollowers].field) \
 { \
 	followers[numfollowers].field = fallbackstate ? fallbackstate : S_INVISIBLE; \
 	if (!fallbackstate) \
-		deh_warning("Follower '%s' is missing state definition for '%s', no idlestate fallback was found", dname, field2); \
+		deh_warning("Follower '%s' is missing state definition for '%s', no idlestate fallback was found", testname, field2); \
 } \
 
 	NOSTATE(idlestate, "IDLESTATE");
@@ -811,7 +812,7 @@ if (!followers[numfollowers].field) \
 	NOSTATE(hitconfirmstate, "HITCONFIRMSTATE");
 #undef NOSTATE
 
-	CONS_Printf("Added follower '%s'\n", dname);
+	CONS_Printf("Added follower '%s'\n", testname);
 	numfollowers++;	// add 1 follower
 	Z_Free(s);
 }
