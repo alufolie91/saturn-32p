@@ -112,6 +112,8 @@ static drawseg_xrange_item_t *drawsegs_xrange;
 static size_t drawsegs_xrange_size = 0;
 static INT32 drawsegs_xrange_count = 0;
 
+#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x))) // we dont have std:clamp so this need to do
+
 // ==========================================================================
 //
 // Sprite loading routines: support sprites in pwad, dehacked sprite renaming,
@@ -905,9 +907,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 		// Non-paper drawing loop
 		for (dc_x = vis->x1; dc_x <= vis->x2; dc_x++, frac += vis->xiscale)
 		{	
-#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
 			texturecolumn = CLAMP(frac >> FRACBITS, 0, SHORT(patch->width) - 1);
-#undef CLAMP
 			column = (column_t *)((UINT8 *)patch + LONG(patch->columnofs[texturecolumn]));
 
 			if (vis->vflip)
@@ -967,7 +967,6 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 	if (vis->x2 >= vid.width)
 		vis->x2 = vid.width-1;
 
-#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
 	for (dc_x = vis->x1; dc_x <= vis->x2; dc_x++, frac += vis->xiscale)
 	{
 		texturecolumn = CLAMP(frac >> FRACBITS, 0, SHORT(patch->width) - 1);
@@ -975,7 +974,6 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 
 		R_DrawMaskedColumn(column);
 	}
-#undef CLAMP
 
 	colfunc = basecolfunc;
 }
@@ -1066,8 +1064,9 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 			{
 				INT32 lindex = FixedMul(sprite->xscale, LIGHTRESOLUTIONFIX)>>(LIGHTSCALESHIFT);
 
-				if (lindex >= MAXLIGHTSCALE)
-					lindex = MAXLIGHTSCALE-1;
+				// Mitigate against negative xscale and arithmetic overflow
+				lindex = CLAMP(lindex, 0, MAXLIGHTSCALE - 1);
+
 				newsprite->colormap = spritelights[lindex];
 			}
 		}
@@ -1743,8 +1742,8 @@ static void R_ProjectSprite(mobj_t *thing)
 		// diminished light
 		lindex = FixedMul(xscale, LIGHTRESOLUTIONFIX)>>(LIGHTSCALESHIFT);
 
-		if (lindex >= MAXLIGHTSCALE)
-			lindex = MAXLIGHTSCALE-1;
+		// Mitigate against negative xscale and arithmetic overflow
+		lindex = CLAMP(lindex, 0, MAXLIGHTSCALE - 1);
 
 		vis->colormap = spritelights[lindex];
 	}
@@ -2947,8 +2946,8 @@ INT32 numskins = 0;
 INT32 numallskins = 0;
 INT32 numlocalskins = 0;
 skin_t skins[MAXSKINS];
-UINT8 skinstats[9][9][MAXSKINS];
-UINT8 skinstatscount[9][9] = {
+UINT16 skinstats[9][9][MAXSKINS];
+UINT16 skinstatscount[9][9] = {
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -2959,7 +2958,7 @@ UINT8 skinstatscount[9][9] = {
 	{0, 1, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
-UINT8 skinsorted[MAXSKINS];
+UINT16 skinsorted[MAXSKINS];
 skin_t localskins[MAXLOCALSKINS];
 skin_t allskins[MAXSKINS+MAXLOCALSKINS];
 
@@ -3284,11 +3283,11 @@ static UINT16 W_CheckForSkinMarkerInPwad(UINT16 wadid, UINT16 startlump)
 //sort function for sorting skin names
 static int skinSortFunc(const void *a, const void *b) //tbh i have no clue what the naming conventions for local functions are
 {
-	const skin_t *in1 = &skins[*(const UINT8 *)a];
-	const skin_t *in2 = &skins[*(const UINT8 *)b];
+	const skin_t *in1 = &skins[*(const UINT16 *)a];
+	const skin_t *in2 = &skins[*(const UINT16 *)b];
 	INT32 temp = 0;
-	const UINT8 val_a = *((const UINT8 *)a);
-	const UINT8 val_b = *((const UINT8 *)b);
+	const UINT16 val_a = *((const UINT8 *)a);
+	const UINT16 val_b = *((const UINT8 *)b);
 
 	//return (strcmp(in1->realname, in2->realname) < 0) || (strcmp(in1->realname, in2->realname) ==);
 
@@ -3384,7 +3383,7 @@ static int skinSortFunc(const void *a, const void *b) //tbh i have no clue what 
 void sortSkinGrid(void)
 {
 	//CONS_Printf("Sorting skin list (%d)...\n", cv_skinselectgridsort.value);
-  qs22j(skinsorted, numskins, sizeof(UINT8), skinSortFunc);
+  qs22j(skinsorted, numskins, sizeof(UINT16), skinSortFunc);
 }
 
 //
@@ -3706,3 +3705,5 @@ next_token:
 
 	return;
 }
+
+#undef CLAMP

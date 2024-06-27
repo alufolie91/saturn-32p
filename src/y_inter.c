@@ -618,7 +618,9 @@ void Y_IntermissionDrawer(void)
 
 				STRBUFCPY(strtime, data.match.name[i]);
 
-				if (data.match.numplayers > NUMFORNEWCOLUMN*2)
+				if (data.match.numplayers > NUMFORNEWCOLUMN)
+					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+				else if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 					V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 				else if (data.match.numplayers > NUMFORNEWCOLUMN)
 					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);

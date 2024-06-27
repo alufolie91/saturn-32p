@@ -10510,7 +10510,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 	INT32 statx, staty;
 	UINT32 speenframe;
 	INT32 sltw, actw, hetw;
-	UINT8 skintodisplay;
+	UINT16 skintodisplay;
 	INT32 nameboxaddy = 0;
 	int statoffset = 0;
 	int gridyoffset = 0;
@@ -10840,7 +10840,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 				INT32 x = ((s % SKINGRIDWIDTH) * 18) + ((BASEVIDWIDTH / 2) - (18 * SKINGRIDWIDTH) - 8) + 100 + SKINXSHIFT; //BASEVIDWIDTH / 2 - ((icons + 1) * 24) - 4;
 				INT32 y = ((s / SKINGRIDWIDTH) * 18) + ((BASEVIDHEIGHT / 2) - (18 * (SKINGRIDWIDTH/2))); //BASEVIDWIDTH / 2 - ((icons + 1) * 24) - 4;
 				INT32 calcs = s + (setupm_skinypos * SKINGRIDWIDTH);
-				INT16 skinn;
+				INT32 skinn;
 				patch_t *face;
 				UINT8 *cmap;
 
@@ -12638,7 +12638,7 @@ static void M_DrawLocalSkinMenu(void)
 	spriteframe_t *sprframe;
 	patch_t *patch;
 	UINT8 frame;
-	UINT8 skintodisplay;
+	UINT16 skintodisplay;
 	UINT32 speenframe;
 
 	mx = OP_ForkedBirdDef.x;
