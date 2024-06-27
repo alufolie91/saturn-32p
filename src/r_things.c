@@ -3262,8 +3262,8 @@ static int skinSortFunc(const void *a, const void *b) //tbh i have no clue what 
 	const skin_t *in1 = &skins[*(const UINT16 *)a];
 	const skin_t *in2 = &skins[*(const UINT16 *)b];
 	INT32 temp = 0;
-	const UINT16 val_a = *((const UINT8 *)a);
-	const UINT16 val_b = *((const UINT8 *)b);
+	const UINT16 val_a = *((const UINT16 *)a);
+	const UINT16 val_b = *((const UINT16 *)b);
 
 	//return (strcmp(in1->realname, in2->realname) < 0) || (strcmp(in1->realname, in2->realname) ==);
 
