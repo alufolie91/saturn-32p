@@ -127,8 +127,8 @@ extern char  logfilename[1024];
 #else
 #define VERSION    1 // Game version
 #define SUBVERSION 68 // more precise version number
-#define VERSIONSTRING "Saturn - 32p v1.4"
-#define VERSIONSTRINGW L"Saturn - 32p v1.4"
+#define VERSIONSTRING "Saturn - 32p v1.5"
+#define VERSIONSTRINGW L"Saturn - 32p v1.5"
 
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
