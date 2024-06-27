@@ -143,7 +143,7 @@ void T_DynamicSlopeLine (dynplanethink_t* th)
 	pslope_t* slope = th->slope;
 	line_t* srcline = th->sourceline;
 
-	fixed_t zdelta;
+	fixed_t zdelta, oldoz = slope->o.z;
 
 	switch(th->type) {
 		case DP_FRONTFLOOR:
@@ -170,7 +170,7 @@ void T_DynamicSlopeLine (dynplanethink_t* th)
 			return;
 	}
 
-	if (slope->zdelta != FixedDiv(zdelta, th->extent)) {
+	if (slope->zdelta != FixedDiv(zdelta, th->extent) || oldoz != slope->o.z) {
 		slope->zdelta = FixedDiv(zdelta, th->extent);
 		slope->zangle = R_PointToAngle2(0, 0, th->extent, -zdelta);
 		slope->real_zangle = slope->zangle;
