@@ -2,14 +2,12 @@
 
 [SRB2Kart](https://srb2.org/mods/) is a kart racing mod based on the 3D Sonic the Hedgehog fangame [Sonic Robo Blast 2](https://srb2.org/), based on a modified version of [Doom Legacy](http://doomlegacy.sourceforge.net/).
 
-##Features (Saturn 32 Player Branch)
 Support for up to 32 Players
-
 Extra Skin colors
 
-And much more!
-
 Everything Saturn client also has See: https://github.com/Indev450/SRB2Kart-Saturn
+
+And much more!
 
 ## Dependencies
 - SDL2 (Linux/OS X only)
