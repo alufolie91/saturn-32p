@@ -1004,6 +1004,7 @@ typedef enum
 	MD2_SPRITEYSCALE        = 1<<15,
 	MD2_SPRITEXOFFSET       = 1<<16,
 	MD2_SPRITEYOFFSET       = 1<<17,
+	MD2_SHADOWS 			= 1<<18
 } mobj_diff2_t;
 
 typedef enum
@@ -1216,6 +1217,8 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		diff2 |= MD2_SPRITEXOFFSET;
 	if (mobj->spriteyoffset)
 		diff2 |= MD2_SPRITEYOFFSET;
+	if (mobj->haveshadow || mobj->whiteshadow || (mobj->shadowscale != 0))
+		diff2 |= MD2_SHADOWS;
 	if (mobj == waypointcap)
 		diff2 |= MD2_WAYPOINTCAP;
 	if (diff2 != 0)
@@ -1352,6 +1355,12 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		WRITEFIXED(save_p, mobj->spritexoffset);
 	if (diff2 & MD2_SPRITEYOFFSET)
 		WRITEFIXED(save_p, mobj->spriteyoffset);
+	if (diff2 & MD2_SHADOWS)
+	{
+		WRITEUINT8(save_p, mobj->haveshadow);
+		WRITEUINT8(save_p, mobj->whiteshadow);
+		WRITEFIXED(save_p, mobj->shadowscale);
+	}
 
 	WRITEUINT32(save_p, mobj->mobjnum);
 }
@@ -2285,8 +2294,14 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		mobj->spritexoffset = READFIXED(save_p);
 	if (diff2 & MD2_SPRITEYOFFSET)
 		mobj->spriteyoffset = READFIXED(save_p);
+	if (diff2 & MD2_SHADOWS)
+	{	
+		mobj->haveshadow = READUINT8(save_p);
+		mobj->whiteshadow = READUINT8(save_p);
+		mobj->haveshadow = READFIXED(save_p);
 
-
+	}
+	
 	//{ Saturn stuff, needs to be set, but shouldnt be synched
 
 	// Sprite Rotation
