@@ -7835,7 +7835,7 @@ void G_DoPlayDemo(char *defdemoname)
 		{
 				if (!stricmp(Followercolor_cons_t[i].strvalue, color))
 				{
-						players[p].followercolor = i;
+						players[p].followercolor = Followercolor_cons_t[i].value;
 						break;
 				}
 		}	

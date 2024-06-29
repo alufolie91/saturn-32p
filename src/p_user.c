@@ -4651,11 +4651,10 @@ static void P_HandleFollower(player_t *player)
 		
 		// For comeback in battle.
 		player->follower->flags2 = (player->follower->flags2 & ~MF2_SHADOW)|(player->mo->flags2 & MF2_SHADOW);
-
+		
 		// Make the follower invisible if we no contest'd rather than removing it. No one will notice the diff seriously.
-
 		if (player->pflags & PF_TIMEOVER)	// there is more to it than that to check for a full no contest but this isn't used for anything else.
-			player->follower->flags2 &= MF2_DONTDRAW;
+			player->follower->flags2 |= MF2_DONTDRAW;
 		
 		if (cv_hidefollowers.value) // hide em for people who don't want them
 			player->follower->flags2 |= MF2_DONTDRAW;
@@ -4847,7 +4846,6 @@ void P_PlayerThink(player_t *player)
 	
 	// Run followes here. We need them to run even when we're dead to follow through what we're doing.
 	P_HandleFollower(player);
-
 
 	if (player->flashcount)
 		player->flashcount--;
