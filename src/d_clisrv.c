@@ -2162,8 +2162,6 @@ static void CL_ConnectToServer(void)
 	DEBFILE(va("Synchronisation Finished\n"));
 
 	displayplayers[0] = consoleplayer;
-
-	LUAh_ServerJoin();
 }
 
 #ifndef NONET
@@ -3738,6 +3736,9 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 		COM_BufAddText(va("sayto %d %s\n", newplayernum, motd));
 
 	LUAh_PlayerJoin(newplayernum);
+
+	if (newplayernum == consoleplayer)
+		LUAh_ServerJoin();
 
 #ifdef HAVE_DISCORDRPC
 	DRPC_UpdatePresence();
