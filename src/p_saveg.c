@@ -1357,7 +1357,6 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		WRITEFIXED(save_p, mobj->spriteyoffset);
 	if (diff2 & MD2_SHADOWS)
 	{
-		CONS_Printf("sending shadows");
 		WRITEFIXED(save_p, mobj->shadowscale);
 		WRITEINT32(save_p, mobj->haveshadow);
 		WRITEINT32(save_p, mobj->whiteshadow);
@@ -2297,7 +2296,6 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		mobj->spriteyoffset = READFIXED(save_p);
 	if (diff2 & MD2_SHADOWS)
 	{	
-		CONS_Printf("reading shadows");
 		mobj->shadowscale = READFIXED(save_p);
 		mobj->haveshadow = READINT32(save_p);
 		mobj->whiteshadow = READINT32(save_p);
