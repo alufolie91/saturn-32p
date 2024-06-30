@@ -174,7 +174,8 @@ static void Impl_SetupSoftwareBuffer(void);
 
 static void Impl_InitOpenGL(void);
 
-#if !defined(__ANDROID__) && defined(HAVE_IMAGE)
+
+#if defined(HAVE_IMAGE)
 #define USE_WINDOW_ICON
 #endif
 
@@ -334,13 +335,11 @@ static void Impl_VideoSetupSurfaces(int width, int height)
 	int bpp = 16;
 	int sw_texture_format = SDL_PIXELFORMAT_ABGR8888;
 
-#if !defined(__ANDROID__)
 	if (!usesdl2soft)
 	{
 		sw_texture_format = SDL_PIXELFORMAT_RGB565;
 	}
 	else
-#endif
 	{
 		bpp = 32;
 		sw_texture_format = SDL_PIXELFORMAT_RGBA8888;
@@ -1948,40 +1947,6 @@ static void Impl_VideoSetupBuffer(void)
 	}
 }
 
-
-#ifdef HAVE_GLES
-static void Impl_InitGLESDriver(void)
-{
-	const char *driver_name = NULL;
-	int version_major, version_minor;
-
-	#ifdef HAVE_GLES2
-	driver_name = "opengles2";
-	version_major = 2;
-	version_minor = 0;
-	#else
-	driver_name = "opengles";
-	version_major = 1;
-	version_minor = 1;
-	#endif
-
-	SDL_SetHint(SDL_HINT_RENDER_DRIVER, driver_name);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, version_major);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, version_minor);
-}
-#endif
-
-#if defined(__ANDROID__)
-static void Impl_SetColorBufferDepth(INT32 red, INT32 green, INT32 blue, INT32 alpha)
-{
-	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, red);
-	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, green);
-	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, blue);
-	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, alpha);
-}
-#endif
-
 static void Impl_InitVideoSubSystem(void)
 {
 	if (video_init)
@@ -1992,14 +1957,6 @@ static void Impl_InitVideoSubSystem(void)
 		CONS_Printf(M_GetText("Couldn't initialize SDL's Video System: %s\n"), SDL_GetError());
 		return;
 	}
-
-#ifdef HAVE_GLES
-	Impl_InitGLESDriver();
-#endif
-
-#ifdef MOBILE_PLATFORM
-	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
-#endif
 
 	video_init = true;
 }
