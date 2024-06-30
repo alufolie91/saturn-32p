@@ -245,17 +245,26 @@ static SDL_bool Impl_RenderContextCreate(void)
 			flags |= SDL_RENDERER_SOFTWARE;
 		else if (cv_vidwait.value)
 		{
-			#if SDL_VERSION_ATLEAST(2, 0, 18)
+#if SDL_VERSION_ATLEAST(2, 0, 18)
 			// If SDL is new enough, we can turn off vsync later.
 			flags |= SDL_RENDERER_PRESENTVSYNC;
-			#else
+#else
 			// However, if it isn't, we should just silently turn vid_wait off
 			// This is because the renderer will be created before the config
 			// is read and vid_wait is set from the user's preferences, and thus
 			// vid_wait will have no effect.
 			CV_StealthSetValue(&cv_vidwait, 0);
-			#endif
+#endif
 		}
+
+#ifdef _WIN32
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
+#else
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#endif
 
 		if (!renderer)
 			renderer = SDL_CreateRenderer(window, -1, flags);
@@ -267,7 +276,7 @@ static SDL_bool Impl_RenderContextCreate(void)
 		}
 	}
 
-	#ifdef HWRENDER
+#ifdef HWRENDER
 	if (rendermode == render_opengl && vid.glstate != VID_GL_LIBRARY_ERROR)
 	{
 		if (sdlglcontext == NULL)
@@ -281,7 +290,7 @@ static SDL_bool Impl_RenderContextCreate(void)
 			}
 		}
 	}
-	#endif
+#endif
 
 	return SDL_TRUE;
 }
@@ -444,7 +453,7 @@ static SDL_bool SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_b
 	return SDL_TRUE;
 }
 
-static UINT32 VID_GetRefreshRate(void)
+/*static UINT32 VID_GetRefreshRate(void)
 {
 	int index = SDL_GetWindowDisplayIndex(window);
 	SDL_DisplayMode m;
@@ -462,7 +471,7 @@ static UINT32 VID_GetRefreshRate(void)
 	}
 
 	return m.refresh_rate;
-}
+}*/
 
 static INT32 Impl_SDL_Scancode_To_Keycode(SDL_Scancode code)
 {
