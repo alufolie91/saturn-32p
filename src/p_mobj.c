@@ -9660,7 +9660,7 @@ void P_SceneryThinker(mobj_t *mobj)
 // GAME SPAWN FUNCTIONS
 //
 
-static void P_DefaultMobjShadowScale(mobj_t *thing)
+void P_DefaultMobjShadowScale(mobj_t *thing)
 {
 	thing->shadowscale = 0;
 	thing->whiteshadow = (thing->frame & FF_FULLBRIGHT);
