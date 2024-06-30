@@ -2259,7 +2259,7 @@ static const char* OP_NeptuneTwoTooltips[] =
 	"Change boostflame color based on sneaker stack count.",
 	"Sneakers change sound when stacking.",
 	
-	"Allows you to see when others look back.\nThis may introduce input lag to lookback button when active.",
+	"Allows you to see when others look back when spectating.\nThis may introduce input lag to lookback button when active.\nThis also prevents you from looking back when spectating someone else as it reads their inputs.",
 	
 	"Hide Player followers from your view.",
 	"Toggle Chain sound on sneaker extension.",

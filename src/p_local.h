@@ -237,6 +237,7 @@ extern consvar_t cv_gravity/*, cv_viewheight*/;
 
 void P_RespawnSpecials(void);
 
+void P_DefaultMobjShadowScale(mobj_t *thing);
 mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type);
 
 //mobj_t *P_SpawnShadowMobj(mobj_t * caster);

@@ -1357,9 +1357,10 @@ static void SaveMobjThinker(const thinker_t *th, const UINT8 type)
 		WRITEFIXED(save_p, mobj->spriteyoffset);
 	if (diff2 & MD2_SHADOWS)
 	{
-		WRITEUINT8(save_p, mobj->haveshadow);
-		WRITEUINT8(save_p, mobj->whiteshadow);
+		CONS_Printf("sending shadows");
 		WRITEFIXED(save_p, mobj->shadowscale);
+		WRITEINT32(save_p, mobj->haveshadow);
+		WRITEINT32(save_p, mobj->whiteshadow);
 	}
 
 	WRITEUINT32(save_p, mobj->mobjnum);
@@ -2296,10 +2297,10 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		mobj->spriteyoffset = READFIXED(save_p);
 	if (diff2 & MD2_SHADOWS)
 	{	
-		mobj->haveshadow = READUINT8(save_p);
-		mobj->whiteshadow = READUINT8(save_p);
-		mobj->haveshadow = READFIXED(save_p);
-
+		CONS_Printf("reading shadows");
+		mobj->shadowscale = READFIXED(save_p);
+		mobj->haveshadow = READINT32(save_p);
+		mobj->whiteshadow = READINT32(save_p);
 	}
 	
 	//{ Saturn stuff, needs to be set, but shouldnt be synched
@@ -2333,6 +2334,9 @@ static void LoadMobjThinker(actionf_p1 thinker)
 		blueflag = mobj;
 		bflagpoint = mobj->spawnpoint;
 	}
+	
+	// set render shadows because these fucking things won't sync aaaaaa
+	P_DefaultMobjShadowScale(mobj);
 
 	// set sprev, snext, bprev, bnext, subsector
 	P_SetThingPosition(mobj);
