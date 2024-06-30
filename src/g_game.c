@@ -1534,7 +1534,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		LUAh_PlayerCmd(player, cmd);
 
 	//Reset away view if a command is given.
-	if ((cmd->forwardmove || cmd->sidemove || cmd->buttons)
+	if ((cmd->forwardmove || cmd->sidemove || (cmd->buttons && !(cmd->buttons & BT_LOOKBACK)))
 		&& displayplayers[0] != consoleplayer && ssplayer == 1)
 		displayplayers[0] = consoleplayer;
 
