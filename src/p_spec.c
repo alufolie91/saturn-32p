@@ -6576,12 +6576,6 @@ void P_SpawnSpecials(INT32 fromnetsave)
 					sectors[s].midmap = lines[i].frontsector->midmap;
 				break;
 
-			case 720:
-			case 721:
-			case 722:
-				P_CopySectorSlope(&lines[i]);
-				break;
-
 			default:
 				break;
 		}
