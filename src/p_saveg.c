@@ -1007,8 +1007,6 @@ typedef enum
 	tc_noenemies,
 	tc_eachtime,
 	tc_disappear,
-	tc_dynslopeline,
-	tc_dynslopevert,
 	tc_polyrotate, // haleyjd 03/26/06: polyobjects
 	tc_polymove,
 	tc_polywaypoint,
@@ -1040,12 +1038,6 @@ static UINT32 SaveLine(const line_t *line)
 static inline UINT32 SavePlayer(const player_t *player)
 {
 	if (player) return (UINT32)(player - players);
-	return 0xFFFFFFFF;
-}
-
-static UINT32 SaveSlope(const pslope_t *slope)
-{
-	if (slope) return (UINT32)(slope->id);
 	return 0xFFFFFFFF;
 }
 
@@ -1579,20 +1571,6 @@ static void SaveDisappearThinker(savebuffer_t *save, const thinker_t *th, const 
 	WRITEINT32(save->p, ht->exists);
 }
 
-/// Save a dynamic slope thinker.
-static inline void SaveDynamicSlopeThinker(savebuffer_t *save, const thinker_t *th, const UINT8 type)
-{
-	const dynplanethink_t* ht = (const void*)th;
-
-	WRITEUINT8(save->p, type);
-	WRITEUINT8(save->p, ht->type);
-	WRITEUINT32(save->p, SaveSlope(ht->slope));
-	WRITEUINT32(save->p, SaveLine(ht->sourceline));
-	WRITEFIXED(save->p, ht->extent);
-
-	WRITEMEM(save->p, ht->tags, sizeof(ht->tags));
-    WRITEMEM(save->p, ht->vex, sizeof(ht->vex));
-}
 
 //
 // SavePolyrotateThinker
@@ -1883,16 +1861,6 @@ static void P_NetArchiveThinkers(savebuffer_t *save)
 			SaveDisappearThinker(save, th, tc_disappear);
 			continue;
 		}
-		else if (th->function.acp1 == (actionf_p1)T_DynamicSlopeLine)
-		{
-			SaveDynamicSlopeThinker(save, th, tc_dynslopeline);
-			continue;
-		}
-		else if (th->function.acp1 == (actionf_p1)T_DynamicSlopeVert)
-		{
-			SaveDynamicSlopeThinker(save, th, tc_dynslopevert);
-			continue;
-		}
 		else if (th->function.acp1 == (actionf_p1)T_PolyObjRotate)
 		{
 			SavePolyrotatetThinker(save, th, tc_polyrotate);
@@ -1984,19 +1952,6 @@ static inline player_t *LoadPlayer(UINT32 player)
 	if (player >= MAXPLAYERS) return NULL;
 	return &players[player];
 }
-
-static inline pslope_t *LoadSlope(UINT32 slopeid)
-{
-	pslope_t *p = slopelist;
-	if (slopeid > slopecount) return NULL;
-	do
-	{
-		if (p->id == slopeid)
-			return p;
-	} while ((p = p->next));
-	return NULL;
-}
-
 
 //
 // LoadMobjThinker
@@ -2623,22 +2578,6 @@ static inline void LoadDisappearThinker(savebuffer_t *save, actionf_p1 thinker)
 	P_AddThinker(&ht->thinker);
 }
 
-/// Save a dynamic slope thinker.
-static inline void LoadDynamicSlopeThinker(savebuffer_t *save, actionf_p1 thinker)
-{
-	dynplanethink_t* ht = Z_Malloc(sizeof(*ht), PU_LEVSPEC, NULL);
-	ht->thinker.function.acp1 = thinker;
-
-	ht->type = READUINT8(save->p);
-	ht->slope = LoadSlope(READUINT32(save->p));
-	ht->sourceline = LoadLine(READUINT32(save->p));
-	ht->extent = READFIXED(save->p);
-	READMEM(save->p, ht->tags, sizeof(ht->tags));
-	READMEM(save->p, ht->vex, sizeof(ht->vex));
-
-	P_AddThinker(&ht->thinker);
-}
-
 
 //
 // LoadPolyrotateThinker
@@ -2932,15 +2871,6 @@ static void P_NetUnArchiveThinkers(savebuffer_t *save)
 			case tc_disappear:
 				LoadDisappearThinker(save, (actionf_p1)T_Disappear);
 				break;
-
-			case tc_dynslopeline:
-				LoadDynamicSlopeThinker(save, (actionf_p1)T_DynamicSlopeLine);
-				break;
-
-			case tc_dynslopevert:
-				LoadDynamicSlopeThinker(save, (actionf_p1)T_DynamicSlopeVert);
-				break;
-
 			case tc_polyrotate:
 				LoadPolyrotatetThinker(save, (actionf_p1)T_PolyObjRotate);
 				break;

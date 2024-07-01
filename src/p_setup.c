@@ -2917,8 +2917,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 		P_LoadMapFromFile();
 
 
-	P_ResetDynamicSlopes(fromnetsave);
-	P_LinkSlopeThinkers(); // Spawn slope thinkers just after plane move thinkers to avoid movement/update delays.
+	P_ResetDynamicSlopes();
 
 	P_LoadThings();
 
