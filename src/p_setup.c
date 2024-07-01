@@ -2905,13 +2905,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 	// SRB2 determines the sky texture to be used depending on the map header.
 	P_SetupLevelSky(mapheaderinfo[gamemap-1]->skynum, true);
 
-	numdmstarts = numredctfstarts = numbluectfstarts = 0;
-
-	// reset the player starts
-	for (i = 0; i < MAXPLAYERS; i++)
-		playerstarts[i] = NULL;
-	for (i = 0; i < 2; i++)
-		skyboxmo[i] = NULL;
+	P_MakeMapMD5(lastloadedmaplumpnum, &mapmd5);
 
 	P_ResetWaypoints();
 
