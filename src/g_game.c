@@ -2123,7 +2123,7 @@ void G_ResetView(UINT8 viewnum, INT32 playernum, boolean onlyactive)
 	olddisplayplayer = (*displayplayerp);
 
 	/* Check if anyone is available to view. */
-	if (( playernum = G_FindView(playernum, viewnum, onlyactive, playernum < olddisplayplayer) ) == -1)
+	if ((playernum = G_FindView(playernum, viewnum, onlyactive, playernum < olddisplayplayer)) == -1)
 		return;
 
 	/* Focus our target view first so that we don't take its player. */
@@ -2132,6 +2132,10 @@ void G_ResetView(UINT8 viewnum, INT32 playernum, boolean onlyactive)
 	{
 		camerap = &camera[viewnum-1];
 		P_ResetCamera(&players[(*displayplayerp)], camerap);
+
+		// Make sure the viewport doesn't interpolate at all into
+		// its new position -- just snap instantly into place.
+		R_ResetViewInterpolation(viewnum);
 	}
 
 	if (viewnum > splits)
@@ -2144,6 +2148,11 @@ void G_ResetView(UINT8 viewnum, INT32 playernum, boolean onlyactive)
 			(*displayplayerp) = G_FindView(0, viewd, onlyactive, false);
 
 			P_ResetCamera(&players[(*displayplayerp)], camerap);
+
+
+			// Make sure the viewport doesn't interpolate at all into
+			// its new position -- just snap instantly into place.
+			R_ResetViewInterpolation(viewd);
 		}
 	}
 
