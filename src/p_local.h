@@ -425,6 +425,8 @@ boolean P_CheckRacers(void);
 boolean P_CanPickupItem(player_t *player, UINT8 weapon);
 void P_DoNightsScore(player_t *player);
 
+extern SINT8 driftlock;
+
 //
 // P_SPEC
 //
