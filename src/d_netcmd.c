@@ -586,9 +586,11 @@ INT16 gametype = GT_RACE; // SRB2kart
 boolean forceresetplayers = false;
 boolean deferencoremode = false;
 UINT8 splitscreen = 0;
-UINT16 votemax = 1;
 boolean circuitmap = true; // SRB2kart
 INT32 adminplayers[MAXPLAYERS];
+
+#define VOTEROWS ((cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0))
+#define VOTEROWSADDSONE ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0))
 
 /// \warning Keep this up-to-date if you add/remove/rename net text commands
 const char *netxcmdnames[MAXNETXCMD - 1] =
@@ -2648,30 +2650,24 @@ void D_SetupVote(void)
 		WRITEUINT8(p, gt);
 	WRITEUINT8(p, secondgt);
 	secondgt &= ~0x80;
-	
-	votemax = cv_votemaxrows.value;
 
-	for (i = 0; i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ); i++)
+	for (i = 0; i < VOTEROWSADDSONE; i++)
 	{
 		UINT16 m;
-		//UINT16 forcehell = (((cv_votemaxrows.value*3))-2);
-		UINT16 voterows = cv_votemaxrows.value*3;
 		UINT16 hellpick = 0;
 
-		voterows = ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) );
+		hellpick = ((i == ((VOTEROWS) + 1) ) ? 2 : 0);
 
-		hellpick = ((i == ((voterows) + 1) ) ? 2 : 0);
-
-		if (i == ((cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ))
+		if (i == VOTEROWS)
 			hellpick = 1;
 
 		if (i == 2) // sometimes a different gametype
 			m = G_RandMap(G_TOLFlag(secondgt), prevmap, false, 0, true, votebuffer);
-		else if (i >= ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) )) // unknown-random and force-unknown MAP HELL
-			m = G_RandMap(G_TOLFlag(gt), prevmap, false, hellpick, (i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? 1 : 0) )), votebuffer); // let's TRY to make this simpler
+		else if (i >= VOTEROWS) // unknown-random and force-unknown MAP HELL
+			m = G_RandMap(G_TOLFlag(gt), prevmap, false, hellpick, (i < VOTEROWSADDSONE), votebuffer); // let's TRY to make this simpler
 		else
 			m = G_RandMap(G_TOLFlag(gt), prevmap, false, 0, true, votebuffer);
-		if (i < ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ))
+		if (i < VOTEROWS)
 			votebuffer[min(i, 2)] = m; // min() is a dumb workaround for gcc 4.4 array-bounds error
 		WRITEUINT16(p, m);
 	}
@@ -2718,12 +2714,6 @@ void D_PickVote(void)
 	if (numvotes > 0)
 	{
 		WRITESINT8(p, temppicks[key]);
-		
-		//if (templevels[key] == ( (votemax*3) + ((votemax > 1) ? (votemax - 1) : 0) ) && numvotes > 1)
-			//WRITESINT8(p, ( (votemax*3) + 1 + ((votemax > 1) ? (votemax - 1) : 0) ));
-		
-		//else
-
 		WRITESINT8(p, templevels[key]);
 	}
 	else
@@ -3700,11 +3690,11 @@ static void Command_ServerTeamChange_f(void)
 	if (COM_Argc() < 3)
 	{
 		if (G_TagGametype())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "it, notit, playing, or spectator");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "it, notit, playing, or spectator");
 		else if (G_GametypeHasTeams())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "red, blue or spectator");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "red, blue or spectator");
 		else if (G_GametypeHasSpectators())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "spectator or playing");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "spectator or playing");
 		else
 			CONS_Alert(CONS_NOTICE, M_GetText("This command cannot be used in this gametype.\n"));
 		return;
@@ -3752,19 +3742,19 @@ static void Command_ServerTeamChange_f(void)
 	if (error)
 	{
 		if (G_TagGametype())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "it, notit, playing, or spectator");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "it, notit, playing, or spectator");
 		else if (G_GametypeHasTeams())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "red, blue or spectator");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "red, blue or spectator");
 		else if (G_GametypeHasSpectators())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "spectator or playing");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "spectator or playing");
 		return;
 	}
 
-	NetPacket.packet.playernum = atoi(COM_Argv(1));
+	NetPacket.packet.playernum = nametonum(COM_Argv(1));
 
-	if (!playeringame[NetPacket.packet.playernum])
+	if (NetPacket.packet.playernum == -1 || !playeringame[NetPacket.packet.playernum])
 	{
-		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %d!\n"), NetPacket.packet.playernum);
+		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
 		return;
 	}
 
@@ -3810,22 +3800,6 @@ static void Command_ServerTeamChange_f(void)
 
 	usvalue = SHORT(NetPacket.value.l|NetPacket.value.b);
 	SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
-}
-
-void P_SetPlayerSpectator(INT32 playernum)
-{
-	//Make sure you're in the right gametype.
-	if (!G_GametypeHasTeams() && !G_GametypeHasSpectators())
-		return;
-
-	// Don't duplicate efforts.
-	if (players[playernum].spectator)
-		return;
-
-	players[playernum].spectator = true;
-	players[playernum].pflags &= ~PF_WANTSTOJOIN;
-
-	players[playernum].playerstate = PST_REBORN;
 }
 
 //todo: This and the other teamchange functions are getting too long and messy. Needs cleaning.
@@ -3957,37 +3931,81 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 
 	//Safety first!
 	// (not respawning spectators here...)
-	wasspectator = (players[playernum].spectator == true);
-
-	if (!wasspectator)
+	if (!players[playernum].spectator)
 	{
-		if (gamestate == GS_LEVEL && players[playernum].mo)
+		if (players[playernum].mo)
 		{
-			// The following will call P_SetPlayerSpectator if successful
-			P_DamageMobj(players[playernum].mo, NULL, NULL, 42000);
+			//if (!players[playernum].spectator)
+				P_DamageMobj(players[playernum].mo, NULL, NULL, 10000);
+			/*else
+			{
+				if (players[playernum].mo)
+				{
+					P_RemoveMobj(players[playernum].mo);
+					players[playernum].mo = NULL;
+				}
+				players[playernum].playerstate = PST_REBORN;
+			}*/
 		}
-
-		//...but because the above could return early under some contexts, we try again here
-		P_SetPlayerSpectator(playernum);
+		else
+			players[playernum].playerstate = PST_REBORN;
 	}
+	else
+		wasspectator = true;
+
+	players[playernum].pflags &= ~PF_WANTSTOJOIN;
 
 	//Now that we've done our error checking and killed the player
 	//if necessary, put the player on the correct team/status.
+	if (G_TagGametype())
+	{
+		if (!NetPacket.packet.newteam)
+		{
+			players[playernum].spectator = true;
+			players[playernum].pflags &= ~PF_TAGIT;
+			players[playernum].pflags &= ~PF_TAGGED;
+		}
+		else if (NetPacket.packet.newteam != 3) // .newteam == 1 or 2.
+		{
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+			players[playernum].pflags &= ~PF_TAGGED;//Just in case.
 
-	// This serves us in both teamchange contexts.
-	if (NetPacket.packet.newteam != 0)
-	{
-		players[playernum].pflags |= PF_WANTSTOJOIN;
-	}
-	else
-	{
-		players[playernum].pflags &= ~PF_WANTSTOJOIN;
-	}
+			if (NetPacket.packet.newteam == 1) //Make the player IT.
+				players[playernum].pflags |= PF_TAGIT;
+			else
+				players[playernum].pflags &= ~PF_TAGIT;
+		}
+		else // Just join the game.
+		{
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
 
-	if (G_GametypeHasTeams())
+			//If joining after hidetime in normal tag, default to being IT.
+			if (gametype == GT_TAG && (leveltime > (hidetime * TICRATE)))
+			{
+				NetPacket.packet.newteam = 1; //minor hack, causes the "is it" message to be printed later.
+				players[playernum].pflags |= PF_TAGIT; //make the player IT.
+			}
+		}
+	}
+	else if (G_GametypeHasTeams())
 	{
-		// This one is, of course, specific.
-		players[playernum].ctfteam = NetPacket.packet.newteam;
+		if (!NetPacket.packet.newteam)
+		{
+			players[playernum].ctfteam = 0;
+			players[playernum].spectator = true;
+		}
+		else
+		{
+			players[playernum].ctfteam = NetPacket.packet.newteam;
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+		}
+	}
+	else if (G_GametypeHasSpectators())
+	{
+		if (!NetPacket.packet.newteam)
+			players[playernum].spectator = true;
+		else
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
 	}
 
 	if (NetPacket.packet.autobalance)
@@ -4040,7 +4058,7 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 		}
 	}
 
-	if (gamestate != GS_LEVEL || wasspectator == true)
+	if (gamestate != GS_LEVEL)
 		return;
 
 	demo_extradata[playernum] |= DXD_PLAYSTATE;
@@ -4267,13 +4285,16 @@ static void Command_Verify_f(void)
 
 	if (COM_Argc() != 2)
 	{
-		CONS_Printf(M_GetText("promote <node>: give admin privileges to a node\n"));
+		CONS_Printf(M_GetText("promote <playername/playernum>: give admin privileges to a player\n"));
 		return;
 	}
 
-	strlcpy(buf, COM_Argv(1), sizeof (buf));
-
-	playernum = atoi(buf);
+	playernum = nametonum(COM_Argv(1));
+	if (playernum == -1)
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
+		return;
+	}
 
 	temp = buf;
 
@@ -4323,13 +4344,16 @@ static void Command_RemoveAdmin_f(void)
 
 	if (COM_Argc() != 2)
 	{
-		CONS_Printf(M_GetText("demote <node>: remove admin privileges from a node\n"));
+		CONS_Printf(M_GetText("demote <playernum>: remove admin privileges from a player\n"));
 		return;
 	}
 
-	strlcpy(buf, COM_Argv(1), sizeof(buf));
-
-	playernum = atoi(buf);
+	playernum = nametonum(COM_Argv(1));
+	if (playernum == -1)
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
+		return;
+	}
 
 	temp = buf;
 
@@ -5563,7 +5587,7 @@ static void Got_ExitLevelcmd(UINT8 **cp, INT32 playernum)
 static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 {
 	INT32 i;
-	UINT8 gt, secondgt, votemaxsetup;
+	UINT8 gt, secondgt;
 
 	if (playernum != serverplayer && !IsPlayerAdmin(playernum))
 	{
@@ -5582,7 +5606,6 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	// Get gametype data.
 	gt = (UINT8)READUINT8(*cp);
 	secondgt = (UINT8)READUINT8(*cp);
-	votemaxsetup = (cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0);
 
 	// Strip illegal Encore flag.
 	if (gt == (GT_MATCH|0x80))
@@ -5591,7 +5614,7 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	}
 
 	// Apply most data.
-	for (i = 0; i < votemaxsetup; i++)
+	for (i = 0; i < VOTEROWSADDSONE; i++)
 	{
 		votelevels[i][0] = (UINT16)READUINT16(*cp);
 		votelevels[i][1] = gt;
@@ -5764,10 +5787,9 @@ static void Command_Togglemodified_f(void)
 	modifiedgame = !modifiedgame;
 }
 
-extern UINT8 *save_p;
 static void Command_Archivetest_f(void)
 {
-	UINT8 *buf;
+	savebuffer_t save;
 	UINT32 i, wrote;
 	thinker_t *th;
 	if (gamestate != GS_LEVEL)
@@ -5783,28 +5805,28 @@ static void Command_Archivetest_f(void)
 			((mobj_t *)th)->mobjnum = i++;
 
 	// allocate buffer
-	buf = save_p = ZZ_Alloc(1024);
+	save.buffer = save.p = ZZ_Alloc(1024);
 
 	// test archive
 	CONS_Printf("LUA_Archive...\n");
-	LUA_Archive();
-	WRITEUINT8(save_p, 0x7F);
-	wrote = (UINT32)(save_p-buf);
+	LUA_Archive(&save.p, true);
+	WRITEUINT8(save.p, 0x7F);
+	wrote = (UINT32)(save.p - save.buffer);
 
 	// clear Lua state, so we can really see what happens!
 	CONS_Printf("Clearing state!\n");
 	LUA_ClearExtVars();
 
 	// test unarchive
-	save_p = buf;
+	save.p = save.buffer;
 	CONS_Printf("LUA_UnArchive...\n");
-	LUA_UnArchive();
-	i = READUINT8(save_p);
-	if (i != 0x7F || wrote != (UINT32)(save_p-buf))
-		CONS_Printf("Savegame corrupted. (write %u, read %u)\n", wrote, (UINT32)(save_p-buf));
+	LUA_UnArchive(&save.p, true);
+	i = READUINT8(save.p);
+	if (i != 0x7F || wrote != (UINT32)(save.p - save.buffer))
+		CONS_Printf("Savegame corrupted. (write %u, read %u)\n", wrote, (UINT32)(save.p - save.buffer));
 
 	// free buffer
-	Z_Free(buf);
+	Z_Free(save.buffer);
 	CONS_Printf("Done. No crash.\n");
 }
 #endif
@@ -6298,3 +6320,6 @@ void Got_DiscordInfo(UINT8 **p, INT32 playernum)
 	(*p) += 3;
 #endif
 }
+
+#undef VOTEROWS
+#undef VOTEROWSADDSONE

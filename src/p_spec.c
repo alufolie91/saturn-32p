@@ -2371,11 +2371,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 					y = sides[line->sidenum[0]].rowoffset;
 					z = line->frontsector->ceilingheight;
 
-					P_UnsetThingPosition(mo);
-					mo->x += x;
-					mo->y += y;
-					mo->z += z;
-					P_SetThingPosition(mo);
+					P_SetOrigin(mo, mo->x + x, mo->y + y, mo->z + z);
 
 					if (mo->player)
 					{
@@ -4078,9 +4074,7 @@ DoneSection2:
 				INT32 sequence;
 				fixed_t speed;
 				INT32 lineindex;
-				thinker_t *th;
 				mobj_t *waypoint = NULL;
-				mobj_t *mo2;
 				angle_t an;
 
 				if (player->mo->tracer && player->mo->tracer->type == MT_TUBEWAYPOINT)
@@ -4099,22 +4093,7 @@ DoneSection2:
 				speed = abs(lines[lineindex].dx)/8;
 				sequence = abs(lines[lineindex].dy)>>FRACBITS;
 
-				// scan the thinkers
-				// to find the first waypoint
-				for (th = thinkercap.next; th != &thinkercap; th = th->next)
-				{
-					if (th->function.acp1 != (actionf_p1)P_MobjThinker)
-						continue;
-
-					mo2 = (mobj_t *)th;
-
-					if (mo2->type == MT_TUBEWAYPOINT && mo2->threshold == sequence
-						&& mo2->health == 0)
-					{
-						waypoint = mo2;
-						break;
-					}
-				}
+				waypoint = P_GetFirstWaypoint(sequence);
 
 				if (!waypoint)
 				{
@@ -4154,9 +4133,7 @@ DoneSection2:
 				INT32 sequence;
 				fixed_t speed;
 				INT32 lineindex;
-				thinker_t *th;
 				mobj_t *waypoint = NULL;
-				mobj_t *mo2;
 				angle_t an;
 
 				if (player->mo->tracer && player->mo->tracer->type == MT_TUBEWAYPOINT)
@@ -4175,23 +4152,7 @@ DoneSection2:
 				speed = -(abs(lines[lineindex].dx)/8); // Negative means reverse
 				sequence = abs(lines[lineindex].dy)>>FRACBITS;
 
-				// scan the thinkers
-				// to find the last waypoint
-				for (th = thinkercap.next; th != &thinkercap; th = th->next)
-				{
-					if (th->function.acp1 != (actionf_p1)P_MobjThinker)
-						continue;
-
-					mo2 = (mobj_t *)th;
-
-					if (mo2->type == MT_TUBEWAYPOINT && mo2->threshold == sequence)
-					{
-						if (!waypoint)
-							waypoint = mo2;
-						else if (mo2->health > waypoint->health)
-							waypoint = mo2;
-					}
-				}
+				waypoint = P_GetLastWaypoint(sequence);
 
 				if (!waypoint)
 				{
@@ -4347,15 +4308,12 @@ DoneSection2:
 				INT32 sequence;
 				fixed_t speed;
 				INT32 lineindex;
-				thinker_t *th;
 				mobj_t *waypointmid = NULL;
 				mobj_t *waypointhigh = NULL;
 				mobj_t *waypointlow = NULL;
-				mobj_t *mo2;
 				mobj_t *closest = NULL;
 				line_t junk;
 				vertex_t v1, v2, resulthigh, resultlow;
-				mobj_t *highest = NULL;
 
 				if (player->mo->tracer && player->mo->tracer->type == MT_TUBEWAYPOINT)
 					break;
@@ -4395,98 +4353,16 @@ DoneSection2:
 				// Determine the closest spot on the line between the three waypoints
 				// Put player at that location.
 
-				// scan the thinkers
-				// to find the first waypoint
-				for (th = thinkercap.next; th != &thinkercap; th = th->next)
-				{
-					if (th->function.acp1 != (actionf_p1)P_MobjThinker)
-						continue;
+				waypointmid = P_GetClosestWaypoint(sequence, player->mo);
 
-					mo2 = (mobj_t *)th;
-
-					if (mo2->type != MT_TUBEWAYPOINT)
-						continue;
-
-					if (mo2->threshold != sequence)
-						continue;
-
-					if (!highest)
-						highest = mo2;
-					else if (mo2->health > highest->health) // Find the highest waypoint # in case we wrap
-						highest = mo2;
-
-					if (closest && P_AproxDistance(P_AproxDistance(player->mo->x-mo2->x, player->mo->y-mo2->y),
-						player->mo->z-mo2->z) > P_AproxDistance(P_AproxDistance(player->mo->x-closest->x,
-						player->mo->y-closest->y), player->mo->z-closest->z))
-						continue;
-
-					// Found a target
-					closest = mo2;
-				}
-
-				waypointmid = closest;
-
-				closest = NULL;
-
-				if (waypointmid == NULL)
+				if (!waypointmid)
 				{
 					CONS_Debug(DBG_GAMELOGIC, "ERROR: WAYPOINT(S) IN SEQUENCE %d NOT FOUND.\n", sequence);
 					break;
 				}
 
-				// Find waypoint before this one (waypointlow)
-				for (th = thinkercap.next; th != &thinkercap; th = th->next)
-				{
-					if (th->function.acp1 != (actionf_p1)P_MobjThinker)
-						continue;
-
-					mo2 = (mobj_t *)th;
-
-					if (mo2->type != MT_TUBEWAYPOINT)
-						continue;
-
-					if (mo2->threshold != sequence)
-						continue;
-
-					if (waypointmid->health == 0)
-					{
-						if (mo2->health != highest->health)
-							continue;
-					}
-					else if (mo2->health != waypointmid->health - 1)
-						continue;
-
-					// Found a target
-					waypointlow = mo2;
-					break;
-				}
-
-				// Find waypoint after this one (waypointhigh)
-				for (th = thinkercap.next; th != &thinkercap; th = th->next)
-				{
-					if (th->function.acp1 != (actionf_p1)P_MobjThinker)
-						continue;
-
-					mo2 = (mobj_t *)th;
-
-					if (mo2->type != MT_TUBEWAYPOINT)
-						continue;
-
-					if (mo2->threshold != sequence)
-						continue;
-
-					if (waypointmid->health == highest->health)
-					{
-						if (mo2->health != 0)
-							continue;
-					}
-					else if (mo2->health != waypointmid->health + 1)
-						continue;
-
-					// Found a target
-					waypointhigh = mo2;
-					break;
-				}
+				waypointlow = P_GetPreviousWaypoint(waypointmid, true);
+				waypointhigh = P_GetNextWaypoint(waypointmid, true);
 
 				CONS_Debug(DBG_GAMELOGIC, "WaypointMid: %d; WaypointLow: %d; WaypointHigh: %d\n",
 								waypointmid->health, waypointlow ? waypointlow->health : -1, waypointhigh ? waypointhigh->health : -1);
@@ -4537,6 +4413,7 @@ DoneSection2:
 
 				if (lines[lineindex].flags & ML_EFFECT1) // Don't wrap
 				{
+					mobj_t *highest = P_GetLastWaypoint(sequence);
 					highest->flags |= MF_SLIDEME;
 				}
 
@@ -4548,7 +4425,7 @@ DoneSection2:
 					player->mo->y = resulthigh.y;
 					player->mo->z = resulthigh.z - P_GetPlayerHeight(player);
 				}
-				else if ((lines[lineindex].flags & ML_EFFECT1) && waypointmid->health == highest->health)
+				else if ((lines[lineindex].flags & ML_EFFECT1) && waypointmid->health == numwaypoints[sequence] - 1)
 				{
 					closest = waypointmid;
 					player->mo->x = resultlow.x;
@@ -5691,6 +5568,7 @@ void P_SpawnSpecials(INT32 fromnetsave)
 	thinkerlist_t *secthinkers;
 	thinker_t *th;
 
+	virtres_t* virt = NULL;
 	// This used to be used, and *should* be used in the future,
 	// but currently isn't.
 	(void)fromnetsave;
@@ -6470,17 +6348,10 @@ void P_SpawnSpecials(INT32 fromnetsave)
 					UINT8 *data;
 					UINT16 b;
 
-					if (W_IsLumpWad(lastloadedmaplumpnum)) // welp it's a map wad in a pk3
-					{ // HACK: Open wad file rather quickly so we can get the data from the sidedefs lump
-						UINT8 *wadData = W_CacheLumpNum(lastloadedmaplumpnum, PU_STATIC);
-						filelump_t *fileinfo = (filelump_t *)(wadData + ((wadinfo_t *)wadData)->infotableofs);
-						fileinfo += ML_SIDEDEFS; // we only need the SIDEDEFS lump
-						data = Z_Malloc(fileinfo->size, PU_STATIC, NULL);
-						M_Memcpy(data, wadData + fileinfo->filepos, fileinfo->size); // copy data
-						Z_Free(wadData); // we're done with this now
-					}
-					else // phew it's just a WAD
-						data = W_CacheLumpNum(lastloadedmaplumpnum + ML_SIDEDEFS,PU_STATIC);
+					if (!virt)
+						virt = vres_GetMap(lastloadedmaplumpnum);
+
+					data = (UINT8*) vres_Find(virt, "SIDEDEFS")->data;
 
 					for (b = 0; b < (INT16)numsides; b++)
 					{
@@ -6500,7 +6371,6 @@ void P_SpawnSpecials(INT32 fromnetsave)
 								I_Error("Make-Your-Own-FOF (tag %d) needs a value in the linedef's second side upper texture field.", lines[i].tag);
 						}
 					}
-					Z_Free(data);
 				}
 				else
 					I_Error("Make-Your-Own FOF (tag %d) found without a 2nd linedef side!", lines[i].tag);
@@ -6707,6 +6577,9 @@ void P_SpawnSpecials(INT32 fromnetsave)
 				break;
 		}
 	}
+
+	if (virt)
+		vres_Free(virt);
 
 	// Allocate each list
 	for (i = 0; i < numsectors; i++)

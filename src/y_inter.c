@@ -160,11 +160,11 @@ typedef struct
 	boolean loaded;
 } y_voteclient;
 
-static y_votelvlinfo levelinfo[12];
+static y_votelvlinfo levelinfo[13];
 static y_voteclient voteclient;
 static INT32 votetic;
 static INT32 voteendtic = -1;
-static INT32 votemax = 3;
+static SINT8 votemax = 3;
 static INT32 voterowmem = 0;
 static boolean rowchange = false;
 static patch_t *cursor = NULL;
@@ -618,10 +618,10 @@ void Y_IntermissionDrawer(void)
 
 				STRBUFCPY(strtime, data.match.name[i]);
 
-				if (data.match.numplayers > NUMFORNEWCOLUMN)
-					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
-				else if (data.match.numplayers > NUMFORNEWCOLUMN*2)
+				if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 					V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+				else if (data.match.numplayers > NUMFORNEWCOLUMN)
+					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 				else
 					V_DrawString(x+36, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
 
@@ -1229,7 +1229,7 @@ void Y_VoteDrawer(void)
 		INT32 hypotadd = ((hypotmod > 1) ? (hypotmod/4) : hypotmod); // how much do we add the bounding box by?
 
 		// integer scaling makes me want to DIE
-		if ((hypotmod == 3))
+		if (hypotmod == 3)
 			hypotadd += (1);
 
 		scaledpicdiff *= 3;
@@ -1299,7 +1299,6 @@ void Y_VoteDrawer(void)
 				handy += 3*(3-splitscreen) + (13*j);
 
 				V_DrawMappedPatch(BASEVIDWIDTH-(1600/hypotdiv)-scaledpicdiff, handy, V_SNAPTORIGHT, thiscurs, colormap);
-
 
 				if (votetic % 10 < 4)
 					V_DrawFill(BASEVIDWIDTH-(1200/hypotdiv)-sizeadd-scaledpicdiff, y-sizeadd, (fillscale + (sizeadd*2) + hypotadd), ((500/hypotdiv)+(sizeadd*2)) + hypotadd, 120|V_SNAPTORIGHT);

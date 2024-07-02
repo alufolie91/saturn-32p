@@ -616,7 +616,7 @@ fixed_t P_MobjFloorZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed_t
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -692,7 +692,7 @@ fixed_t P_MobjCeilingZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -770,7 +770,7 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -847,7 +847,7 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 		testy += y;
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
-		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
+		if (R_IsPointInSector(boundsec ? boundsec : sector, testx, testy))
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
@@ -10481,22 +10481,37 @@ void P_RespawnSpecials(void)
 //
 void P_SpawnPlayer(INT32 playernum)
 {
-	UINT8 i;
+	UINT8 i, pcount = 0;
 	player_t *p = &players[playernum];
 	mobj_t *mobj;
-
-	boolean justjoined = (p->jointime <= 1);
 
 	if (p->playerstate == PST_REBORN)
 		G_PlayerReborn(playernum);
 
-	if (justjoined)
-		G_SpectatePlayerOnJoin(playernum);
+	for (i = 0; i < MAXPLAYERS; i++)
+	{
+		if (i == playernum)
+			continue;
+		if (!playeringame[i] || players[i].spectator)
+			continue;
+		if (players[i].jointime <= 1) // Prevent splitscreen hosters/joiners from only adding 1 player at a time in empty servers
+			continue;
+		pcount++;
+	}
 
-	if (G_GametypeHasTeams())
+	// spawn as spectator determination
+	if (multiplayer && demo.playback); // Don't mess with spectator values since the demo setup handles them already.
+	else if (!G_GametypeHasSpectators())
+		p->spectator = false;
+	else if (netgame && p->jointime <= 1 && pcount)
+	{
+		p->spectator = true;
+		p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
+	}
+	else if (multiplayer && !netgame)
 	{
 		// If you're in a team game and you don't have a team assigned yet...
-		if (!p->spectator && p->ctfteam == 0)
+		if (G_GametypeHasTeams() && p->ctfteam == 0)
 		{
 			changeteam_union NetPacket;
 			UINT16 usvalue;
@@ -10507,6 +10522,9 @@ void P_SpawnPlayer(INT32 playernum)
 			p->spectator = true;
 			p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
 
+			if (playernum&1) p->skincolor = skincolor_redteam;
+			else             p->skincolor = skincolor_blueteam;
+
 			// but immediately send a team change packet.
 			NetPacket.packet.playernum = playernum;
 			NetPacket.packet.verification = true;
@@ -10514,6 +10532,18 @@ void P_SpawnPlayer(INT32 playernum)
 
 			usvalue = SHORT(NetPacket.value.l|NetPacket.value.b);
 			SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
+		}
+		else // Otherwise, never spectator.
+			p->spectator = false;
+	}
+
+	if (G_GametypeHasTeams())
+	{
+		// Fix stupid non spectator spectators.
+		if (!p->spectator && !p->ctfteam)
+		{
+			p->spectator = true;
+			p->spectatorreentry = 0; //(cv_spectatorreentry.value * TICRATE);
 		}
 
 		// Fix team colors.
@@ -10571,16 +10601,6 @@ void P_SpawnPlayer(INT32 playernum)
 
 	if (G_BattleGametype()) // SRB2kart
 	{
-		UINT8 pcount = 0;
-		
-		for (i = 0; i < MAXPLAYERS; ++i)
-		{
-			if (G_CouldView(i))
-			{
-				pcount++;
-			}
-		}
-		
 		mobj_t *overheadarrow = P_SpawnMobj(mobj->x, mobj->y, mobj->z + P_GetPlayerHeight(p)+16*FRACUNIT, MT_PLAYERARROW);
 		P_SetTarget(&overheadarrow->target, mobj);
 		overheadarrow->flags2 |= MF2_DONTDRAW;
@@ -11348,9 +11368,14 @@ ML_NOCLIMB : Direction not controllable
 		mobj->threshold = min(mthing->extrainfo, 7);
 		break;
 	case MT_TUBEWAYPOINT:
-		mobj->health = mthing->angle & 255;
-		mobj->threshold = mthing->angle >> 8;
+	{
+		UINT8 sequence = mthing->angle >> 8;
+		UINT8 id = mthing->angle & 255;
+		mobj->health = id;
+		mobj->threshold = sequence;
+		P_AddWaypoint(sequence, id, mobj);
 		break;
+	}
 	case MT_NIGHTSDRONE:
 		if (mthing->angle > 0)
 			mobj->health = mthing->angle;
