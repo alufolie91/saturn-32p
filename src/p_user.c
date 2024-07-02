@@ -4384,10 +4384,6 @@ void P_PlayerThink(player_t *player)
 		player->kartstuff[k_throwdir] = 0;
 #endif
 
-	// Add some extra randomization.
-	if (cmd->forwardmove)
-		P_RandomFixed();
-
 #ifdef PARANOIA
 	if (player->playerstate == PST_REBORN)
 		I_Error("player %s is in PST_REBORN\n", sizeu1(playeri));
