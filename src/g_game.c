@@ -5167,7 +5167,7 @@ void G_ReadDemoExtraData(void)
 				{
 					if (players[p].mo)
 					{
-						P_DamageMobj(players[p].mo, NULL, NULL, 10000);
+						P_DamageMobj(players[p].mo, NULL, NULL, 42000);
 					}
 					P_SetPlayerSpectator(p);
 				}
