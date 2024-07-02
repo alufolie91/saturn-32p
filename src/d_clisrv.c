@@ -3701,6 +3701,8 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 
 	G_AddPlayer(newplayernum);
 
+	playeringame[newplayernum] = true;
+
 	if (newplayernum+1 > doomcom->numslots)
 		doomcom->numslots = (INT16)(newplayernum+1);
 

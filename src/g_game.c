@@ -2533,14 +2533,7 @@ void G_PlayerReborn(INT32 player)
 	continues = players[player].continues;
 	ctfteam = players[player].ctfteam;
 	exiting = players[player].exiting;
-
-	// This needs to be first, to permit it to wipe extra information
 	jointime = players[player].jointime;
-	if (jointime <= 1)
-	{
-		G_SpectatePlayerOnJoin(player);
-	}
-
 	splitscreenindex = players[player].splitscreenindex;
 	spectator = players[player].spectator;
 	pflags = (players[player].pflags & (PF_TIMEOVER|PF_FLIPCAM|PF_TAGIT|PF_TAGGED|PF_ANALOGMODE|PF_WANTSTOJOIN));
@@ -5169,16 +5162,12 @@ void G_ReadDemoExtraData(void)
 				if (players[p].spectator)
 				{
 					players[p].pflags &= ~PF_WANTSTOJOIN;
-
-					// There's likely an off-by-one error in timing recording or playback of joins. This hacks around it so I don't have to find out where that is. \o/
-					if (oldcmd[p].forwardmove)
-						P_RandomByte();
 				}
 				else
 				{
 					if (players[p].mo)
 					{
-						P_DamageMobj(players[p].mo, NULL, NULL, 42000);
+						P_DamageMobj(players[p].mo, NULL, NULL, 10000);
 					}
 					P_SetPlayerSpectator(p);
 				}

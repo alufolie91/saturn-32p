@@ -4485,25 +4485,22 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 	{
 		if (gamestate == GS_LEVEL && players[playernum].mo)
 		{
-			// The following will call P_SetPlayerSpectator if successful
-			P_DamageMobj(players[playernum].mo, NULL, NULL, 42000);
+			P_DamageMobj(players[playernum].mo, NULL, NULL, 10000);
 		}
 
 		//...but because the above could return early under some contexts, we try again here
 		P_SetPlayerSpectator(playernum);
 	}
 
+	//players[playernum].pflags &= ~PF_WANTSTOJOIN;
+
 	//Now that we've done our error checking and killed the player
 	//if necessary, put the player on the correct team/status.
 
-	// This serves us in both teamchange contexts.
 	if (NetPacket.packet.newteam != 0)
 	{
+		// This serves us in both teamchange contexts.
 		players[playernum].pflags |= PF_WANTSTOJOIN;
-	}
-	else
-	{
-		players[playernum].pflags &= ~PF_WANTSTOJOIN;
 	}
 
 	if (G_GametypeHasTeams())
