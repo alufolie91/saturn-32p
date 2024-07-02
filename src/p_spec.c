@@ -3570,8 +3570,6 @@ static boolean P_MobjReadyToTrigger(mobj_t *mo, sector_t *sec)
 		return (mo->z == P_GetSpecialBottomZ(mo, sec, sec) && sec->flags & SF_FLIPSPECIAL_FLOOR);
 }
 
-SINT8 driftlock = 0;
-
 /** Applies a sector special to a player.
   *
   * \param player       Player in the sector.
@@ -3865,7 +3863,7 @@ DoneSection2:
 				linespeed = P_AproxDistance(lines[i].v2->x-lines[i].v1->x, lines[i].v2->y-lines[i].v1->y);
 
 				player->mo->angle = lineangle;
-				driftlock = TICRATE/8; // seems like a good value so its not noticable and you still get the right angle
+				player->kartstuff[k_driftlock] = TICRATE/8; // seems like a good value so its not noticable and you still get the right angle
 
 				// SRB2Kart: Scale the speed you get from them!
 				// This is scaled differently from other horizontal speed boosts from stuff like springs, because of how this is used for some ramp jumps.
