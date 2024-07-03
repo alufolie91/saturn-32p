@@ -7688,7 +7688,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"MULBERRY",     // SKINCOLOR_MULBERRY
 	"BOYSENBERRY",  // SKINCOLOR_BOYSENBERRY
 	"MYSTIC",       // SKINCOLOR_MYSTIC
-	"WICKED"        // SKINCOLOR_WICKED
+	"WICKED",        // SKINCOLOR_WICKED
 
 	// Special super colors
 	// Super Sonic Yellow
