@@ -288,6 +288,7 @@ if(${SRB2_CONFIG_HAVE_BLUA})
 		blua/lundump.c
 		blua/lvm.c
 		blua/lzio.c
+		blua/loslib.c
 	)
 	set(SRB2_BLUA_HEADERS
 		blua/lapi.h
