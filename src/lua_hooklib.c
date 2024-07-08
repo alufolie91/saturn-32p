@@ -1435,7 +1435,7 @@ boolean LUAh_HurtMsg(player_t *player, mobj_t *inflictor, mobj_t *source)
 	return hooked;
 }
 
-void LUAh_NetArchiveHook(lua_CFunction archFunc)
+void LUAh_NetArchiveHook(lua_CFunction archFunc, savebuffer_t *save)
 {
 	hook_p hookp;
 	int errorhandlerindex;
@@ -1456,8 +1456,9 @@ void LUAh_NetArchiveHook(lua_CFunction archFunc)
 
 	// tables becomes an upvalue of archFunc
 	lua_pushvalue(gL, -3);
-	lua_pushcclosure(gL, archFunc, 1);
-	// stack: tables, archFunc
+	lua_pushlightuserdata(gL, save);
+	lua_pushcclosure(gL, archFunc, 2);
+	// stack: tables, savebuffer_t, archFunc
 
 	for (hookp = roothook; hookp; hookp = hookp->next)
 		if (hookp->type == hook_NetVars)
