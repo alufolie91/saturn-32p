@@ -3633,7 +3633,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 		
 	if (player->kartstuff[k_invincibilitytimer]) // Invincibility
 	{
-		ADDBOOST(cv_invincibilityspeed.value,cv_invincibilityaccel.value,0)  // + 37.5% 2457, + 300% 196608, 0
+		ADDBOOST(cv_invincibilityspeed.value,cv_invincibilityaccel.value,0);  // + 37.5% 2457, + 300% 196608, 0
 		player->kartstuff[k_invincibilitystack] = 1;
 	}
 	else
@@ -3643,12 +3643,12 @@ static void K_GetKartStackingBoostPower(player_t *player)
 
 	if (player->kartstuff[k_growshrinktimer] > 0) // Grow
 	{
-		ADDBOOST(cv_growspeed.value, cv_growaccel.value,-cv_growmult.value) // ???
+		ADDBOOST(cv_growspeed.value, cv_growaccel.value,-cv_growmult.value); // ???
 	}
 
 	if (player->kartstuff[k_driftboost]) // Drift Boost
 	{
-		ADDBOOST(cv_driftspeed.value, cv_driftaccel.value, 0) ; // + 25% 16384, + 400% 262144, 0
+		ADDBOOST(cv_driftspeed.value, cv_driftaccel.value, 0); // + 25% 16384, + 400% 262144, 0
 		player->kartstuff[k_driftstack] = 1;
 	}										
 	else
@@ -3658,7 +3658,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 
 	if (player->kartstuff[k_startboost]) // Startup Boost
 	{
-		ADDBOOST(cv_startspeed.value, cv_startaccel.value, 0) ; // + 25% 16384, + 300% 393216, 0
+		ADDBOOST(cv_startspeed.value, cv_startaccel.value, 0); // + 25% 16384, + 300% 393216, 0
 		player->kartstuff[k_startstack] = 1;
 	}
 	else
@@ -3668,12 +3668,12 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	
 	if (player->kartstuff[k_hyudorotimer])
 	{
-		ADDBOOST(cv_hyuudorospeed.value, cv_hyuudoroaccel.value, 0) // ???
+		ADDBOOST(cv_hyuudorospeed.value, cv_hyuudoroaccel.value, 0); // ???
 	}
 	
 	if (player->kartstuff[k_slopespeedboost] || player->kartstuff[k_slopeaccelboost])
 	{
-		ADDBOOST(player->kartstuff[k_slopespeedboost], player->kartstuff[k_slopeaccelboost], 0) // ???
+		ADDBOOST(player->kartstuff[k_slopespeedboost], player->kartstuff[k_slopeaccelboost], 0); // ???
 		player->kartstuff[k_ssstack] = 1;
 	}
 	else
@@ -3683,7 +3683,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	
 	if (player->kartstuff[k_ssspeedboost] || player->kartstuff[k_ssaccelboost])
 	{
-		ADDBOOST(player->kartstuff[k_ssspeedboost], player->kartstuff[k_ssaccelboost], 0) // ???
+		ADDBOOST(player->kartstuff[k_ssspeedboost], player->kartstuff[k_ssaccelboost], 0); // ???
 		player->kartstuff[k_ssstack] = 1;
 	}
 	else
@@ -3693,7 +3693,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	
 	if (player->kartstuff[k_trickspeedboost] || player->kartstuff[k_trickaccelboost])
 	{
-		ADDBOOST(player->kartstuff[k_trickspeedboost], player->kartstuff[k_trickaccelboost], 0) // ???
+		ADDBOOST(player->kartstuff[k_trickspeedboost], player->kartstuff[k_trickaccelboost], 0); // ???
 		player->kartstuff[k_trickstack] = 1;
 	}
 	else
