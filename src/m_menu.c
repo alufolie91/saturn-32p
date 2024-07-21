@@ -2196,6 +2196,7 @@ static const char* OP_NeptuneTooltips[] =
 	//NULL,
 	"Allow boosts to stack together.",
 	"Diminish boost strength the more things are stacked on each other.",
+	"Apply a bonus top speed to lower speeds only while boosting.",
 	
 	"Should Maximum speed be capped?",
 	"Value of Maximum speed cap.",

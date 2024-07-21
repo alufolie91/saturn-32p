@@ -3571,10 +3571,6 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	fixed_t boostpower = FRACUNIT;
 	fixed_t speedboost = 0, accelboost = 0;
 	fixed_t boostmult = FRACUNIT;
-	
-	fixed_t boostincrease = 0;
-	fixed_t intermediate = 0;
-	fixed_t harddiminish = 0;
 
 	if (player->kartstuff[k_spinouttimer] && player->kartstuff[k_wipeoutslow] == 1) // Slow down after you've been bumped
 	{
@@ -3706,20 +3702,24 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	// This here is the boostmult, its implemented as an adjustment to boostpower
 	player->kartstuff[k_boostpower] = boostpower + (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost]);
 	
-	if (speedboost > 0 && player->kartspeed < 6 && cv_stackinglowspeedbuff.value) {
-		//Apply a bonus top speed to lower speeds only while boosting and not in offroad.
-		if (!player->kartstuff[k_offroad] || (player->kartstuff[k_hyudorotimer] 
-			|| player->kartstuff[k_invincibilitytimer] 
-			|| (player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer])))
+	if (speedboost > 0 && player->kartspeed < 6 && cv_stackinglowspeedbuff.value) 
+	{
+		//Apply a bonus top speed to lower speeds only while boosting
+		if (player->kartstuff[k_offroad] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_invincibilitytimer] && ( !player->kartstuff[k_sneakertimer] || !player->kartstuff[k_paneltimer] ))
+			;
+		else
 		{
+			fixed_t boostincrease;
 			boostincrease = 7 - player->kartspeed;
 			player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + ((FRACUNIT*boostincrease)/100);
 		}
 	}
-
+	
 	// Diminish based on old version of blib diminsh calcs.
 	if (cv_stackingdim.value)
 	{	
+		fixed_t intermediate;
+		fixed_t harddiminish;
 		if (gamespeed <= 1 && speedboost > FRACUNIT/2)
 		{	
 			intermediate = FixedDiv(FixedMul(cv_stackingdimval.value,FRACUNIT*-1/2) - FRACUNIT/4,-cv_stackingdimval.value+FRACUNIT/2);
