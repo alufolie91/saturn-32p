@@ -3628,7 +3628,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 				sneakerspeedboost = cv_sneakerspeednormal.value;
 				break;
 		}
-			ADDBOOST(sneakerspeedboost * (combostack ? combostack : 1), cv_sneakeraccel.value, 0) ); // + ???%,  + 800%  524288, 0
+			ADDBOOST(sneakerspeedboost * (combostack ? combostack : 1), cv_sneakeraccel.value, 0); // + ???%,  + 800%  524288, 0
 	}
 		
 	if (player->kartstuff[k_invincibilitytimer]) // Invincibility
@@ -3706,14 +3706,17 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	// This here is the boostmult, its implemented as an adjustment to boostpower
 	player->kartstuff[k_boostpower] = boostpower + (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost]);
 	
-	if (speedboost > 0 && player->kartspeed < 6 && cv_stackinglowspeedbuff.value) {
-		//Apply a bonus top speed to lower speeds only while boosting and not in offroad.
-		if (!player->kartstuff[k_offroad] || (player->kartstuff[k_hyudorotimer] 
-			|| player->kartstuff[k_invincibilitytimer] 
-			|| (player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer])))
-		{
-			boostincrease = 7 - player->kartspeed;
-			player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + ((FRACUNIT*boostincrease)/100);
+	if (cv_stackinglowspeedbuff.value)
+	{
+		if (speedboost > 0 && player->kartspeed < 6) {
+			//Apply a bonus top speed to lower speeds only while boosting
+			if (player->kartstuff[k_offroad] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_invincibilitytimer] && ( !player->kartstuff[k_sneakertimer] || !player->kartstuff[k_paneltimer] ))
+				;
+			else
+			{
+				boostincrease = 7 - player->kartspeed;
+				player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + ((FRACUNIT*boostincrease)/100);
+			}
 		}
 	}
 
