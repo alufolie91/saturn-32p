@@ -2165,8 +2165,7 @@ static menuitem_t OP_NeptuneMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	75},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		80},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Lowspeed Buff", 		&cv_stackinglowspeedbuff, 		85},
-	{IT_STRING | IT_CVAR, NULL, "Stack Accleration", 			&cv_stackingaccel, 		90},
-	{IT_STRING | IT_CVAR, NULL, "Stack Old Grow", 				&cv_stackinglowspeedbuff, 		95},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Old Compat", 			&cv_stackingoldcompat, 		90},
 	
 	//{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			95}, .// No longer really needed since it was to fix a bug thats not even in this version :p
 	//{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		100},
@@ -2199,8 +2198,7 @@ static const char* OP_NeptuneTooltips[] =
 	"Allow boosts to stack together.",
 	"Diminish boost strength the more things are stacked on each other.",
 	"Apply a bonus top speed to lower speeds only while boosting.",
-	"Due to an oversight acceleration was stacking\nwhen it wasn'tsupposed to in earlier versions.\nThis recreates that behaviour.",
-	"Due to an oversight grow speed was stacking\nwhen it wasn't supposed to in earlier versions.\nThis recreates that behaviour.\nA grow multvalue of -0.4 is recommended when this is enabled",
+	"Due to oversights the stacking code\nwasn't accurate in earlier versions.\nThis recreates those behaviours.\nA grow multvalue of -0.4 is recommended when this is enabled",
 	
 	"Should Maximum speed be capped?",
 	"Value of Maximum speed cap.",
