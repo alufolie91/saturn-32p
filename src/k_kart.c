@@ -3795,10 +3795,6 @@ static void K_GetKartStackingOldBoostPower(player_t *player)
 	fixed_t boostmult = 0;
 	fixed_t finalboostmult = 0;
 	fixed_t boostincrease = 0;
-	
-	fixed_t intermediate = 0;
-	
-	fixed_t harddiminish = 0;
 		
 	int s;
 	fixed_t speedtablesum = 0;
