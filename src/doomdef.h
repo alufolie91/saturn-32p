@@ -128,11 +128,11 @@ extern char  logfilename[1024];
 #define VERSION    6 // Game version
 #define SUBVERSION 9 // more precise version number
 #ifndef USE_FBO_OGL
-#define VERSIONSTRING "Neptune BoostPower Testing Build"
-#define VERSIONSTRINGW L"Neptune BoostPower Testing Build"
+#define VERSIONSTRING "Nep Boost Testing Build"
+#define VERSIONSTRINGW L"Nep Boost Testing Build"
 #else
-#define VERSIONSTRING "Neptune BoostPower Testing Build - FBO "
-#define VERSIONSTRINGW L"Neptune BoostPower Testing Build - FBO"
+#define VERSIONSTRING "Nep Boost Testing Build - FBO "
+#define VERSIONSTRINGW L"Nep Boost Testing Build - FBO"
 #endif
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!

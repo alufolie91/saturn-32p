@@ -2198,7 +2198,7 @@ static const char* OP_NeptuneTooltips[] =
 	"Allow boosts to stack together.",
 	"Diminish boost strength the more things are stacked on each other.",
 	"Apply a bonus top speed to lower speeds only while boosting.",
-	"Due to oversights the stacking code\nwasn't accurate in earlier versions.\nThis recreates those behaviours.\nA grow multvalue of 0.4 is when this is enabled\nto recreate old behaviour",
+	"Due to oversights the stacking code wasn't accurate in earlier versions.\nThis recreates those behaviours.\nA stacking_growmult value of 0.4 should be used for accuracy",
 	
 	"Should Maximum speed be capped?",
 	"Value of Maximum speed cap.",

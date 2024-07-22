@@ -3735,7 +3735,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	
 	// Diminish based on old version of blib diminsh calcs.
 	if (cv_stackingdim.value)
-		K_SpeedboostDiminish(speedboost, cv_stackingdimval.value);
+		speedboost = K_SpeedboostDiminish(speedboost, cv_stackingdimval.value);
 
 	// value smoothing
 	if (speedboost > player->kartstuff[k_speedboost])
@@ -3812,9 +3812,7 @@ static void K_GetKartStackingOldBoostPower(player_t *player)
 	}
 
 	// Offroad is separate, it's difficult to factor it in with a variable value anyway.
-	if (!(player->kartstuff[k_invincibilitytimer] || player->kartstuff[k_hyudorotimer] 
-		  || ( (cv_chainoffroad.value == 1 || cv_chainoffroad.value == 2) ? player->kartstuff[k_sneakertimer]:player->kartstuff[k_sneakertimer] && player->kartstuff[k_realsneakertimer] )
-		  	|| ( (cv_chainoffroad.value == 1 || cv_chainoffroad.value == 3) ? player->kartstuff[k_paneltimer]:player->kartstuff[k_paneltimer] && player->kartstuff[k_realpaneltimer]) )
+	if (K_IsOffroadAffected(player) == true)
 				&& player->kartstuff[k_offroad] >= 0)
 		boostpower = FixedDiv(boostpower, player->kartstuff[k_offroad] + FRACUNIT);
 
@@ -3955,9 +3953,9 @@ static void K_GetKartStackingOldBoostPower(player_t *player)
 	//This here is the boostmult, its implemented as an adjustment to boostpower
 	player->kartstuff[k_boostpower] = boostpower+ (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost]);
 	
-	if (speedboost > 0 && player->kartspeed < 6) {
+	if (speedboost > 0 && player->kartspeed < 6 && cv_stackinglowspeedbuff.value) {
 		//Apply a bonus top speed to lower speeds only while boosting
-		if (player->kartstuff[k_offroad] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_invincibilitytimer] && ( !player->kartstuff[k_sneakertimer] || !player->kartstuff[k_paneltimer] ))
+		if (K_IsOffroadAffected(player) == true)
 		{	
 			//No getting free offroad with drift boosts alone
 		}
@@ -3969,32 +3967,13 @@ static void K_GetKartStackingOldBoostPower(player_t *player)
 
 	}
 
-	//Diminish based on old version of blib diminsh calcs.
+	// Diminish based on old version of blib diminsh calcs.
 	if (cv_stackingdim.value)
-	{	
-		if (gamespeed <= 1 && speedboost > FRACUNIT/2)
-		{	
-			intermediate = FixedDiv(FixedMul(cv_stackingdimval.value,FRACUNIT*-1/2) - FRACUNIT/4,-cv_stackingdimval.value+FRACUNIT/2);
-			speedboost = FixedMul(cv_stackingdimval.value,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
-		}
-		else if (gamespeed == 2 && speedboost > FRACUNIT*375/1000)
-		{
-			harddiminish = K_BoostRescale(cv_stackingdimval.value, FRACUNIT, 2*FRACUNIT, FRACUNIT*95/100, FRACUNIT*180/100);
-			intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
-			speedboost = FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
-		}
-		else if (gamespeed == 3 && speedboost > FRACUNIT*375/1000)
-		{
-			harddiminish = K_BoostRescale(cv_stackingdimval.value, FRACUNIT, 2*FRACUNIT, FRACUNIT*95/100, FRACUNIT*180/100);
-			intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
-			speedboost = FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
-		}
-	}
+		speedboost = K_SpeedboostDiminish(speedboost, cv_stackingdimval.value);
 
 	// value smoothing
 	if (speedboost > player->kartstuff[k_speedboost])
 		player->kartstuff[k_speedboost] = speedboost;
-
 	//brakemod. slowdown on braking or sliptide (based on version from booststack)
 	else if (cv_stacking.value && cv_stackingbrakemod.value && ((player->kartstuff[k_aizdriftstrat] && abs(player->kartstuff[k_drift]) < 5) || (player->cmd.buttons & BT_BRAKE)))
     	player->kartstuff[k_speedboost] = max(speedboost - cv_stackingbrakemod.value, min(player->kartstuff[k_speedboost], 3*FRACUNIT/8));
