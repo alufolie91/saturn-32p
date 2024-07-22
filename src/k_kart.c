@@ -3813,7 +3813,6 @@ static void K_GetKartStackingOldBoostPower(player_t *player)
 
 	// Offroad is separate, it's difficult to factor it in with a variable value anyway.
 	if (K_IsOffroadAffected(player) == true)
-				&& player->kartstuff[k_offroad] >= 0)
 		boostpower = FixedDiv(boostpower, player->kartstuff[k_offroad] + FRACUNIT);
 
 	if (player->kartstuff[k_bananadrag] > TICRATE)
