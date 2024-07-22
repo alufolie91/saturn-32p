@@ -143,6 +143,8 @@ extern consvar_t cv_stackingdim;
 extern consvar_t cv_stackingdimval;
 extern consvar_t cv_stackingbrakemod;
 extern consvar_t cv_stackinglowspeedbuff;
+extern consvar_t cv_stackingaccel;
+extern consvar_t cv_stackingoldgrow;
 //boosts
 extern consvar_t cv_sneakerstack;
 

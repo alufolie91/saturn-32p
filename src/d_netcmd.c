@@ -419,16 +419,16 @@ consvar_t cv_rainbowsparktics = {"rainbowsparktics", "125", CV_NETVAR|CV_CHEAT, 
 
 //stacking
 consvar_t cv_stacking = {"stacking", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_stackingdim = {"stackingdim", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingdim = {"stacking_dim", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingdimval = {"stacking_dimval", "1.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingaccel = {"stacking_stackaccleration", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingoldgrow = {"stacking_oldgrow", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_stackingdimval = {"stackingdimval", "1.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-static CV_PossibleValue_t sneakerstack_cons_t[] = {{1, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
-consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, sneakerstack_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_panel = {"stacking_paneltimer", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_panelsharestack = {"stacking_panelsharestack", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_panelstack = {"stacking_panelstack", "2", CV_NETVAR|CV_CHEAT, sneakerstack_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_panelstack = {"stacking_panelstack", "2", CV_NETVAR|CV_CHEAT, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_stackingbrakemod = {"stackingbrakemod", "1.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_stackinglowspeedbuff = {"stacking_lowspeedbuff", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -445,7 +445,7 @@ consvar_t cv_invincibilityaccel = {"stacking_invincibilityaccel", "3.0", CV_NETV
 
 consvar_t cv_growspeed = {"stacking_growspeed", "0.3", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_growaccel = {"stacking_growaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_growmult = {"stacking_growmult", "0.4", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_growmult = {"stacking_growmult", "-0.4", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Signed, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_driftspeed = {"stacking_drfitspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftaccel = {"stacking_drfitaccel", "4.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -456,11 +456,11 @@ consvar_t cv_startaccel = {"stacking_startaccel", "6.0", CV_NETVAR|CV_FLOAT|CV_C
 consvar_t cv_hyuudorospeed = {"stacking_hyuudorospeed", "0.1", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_hyuudoroaccel = {"stacking_hyuudoroaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_speedcap = 	{"stacking_speedcap", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_speedcap = {"stacking_speedcap", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_speedcapval = {"stacking_speedcapval", "128", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
-//F uckal Odds`
+//Fuckal Odds`
 static CV_PossibleValue_t itemoddstype_cons_t[] = {{1, "Uranus"}, {2, "CEP"}, {0, NULL}};
 consvar_t cv_itemodds = {"itemoddsystem", "CEP", CV_NETVAR|CV_CHEAT, itemoddstype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 

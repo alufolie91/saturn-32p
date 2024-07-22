@@ -3469,11 +3469,13 @@ void K_MomentumToFacing(player_t *player)
 	player->mo->momy = FixedMul(player->mo->momy - player->cmomy, player->mo->friction) + player->cmomy;
 }
 
-
-//Rescale oh boy based on old version of blib
-static fixed_t K_BoostRescale(fixed_t value,fixed_t oldmin,fixed_t oldmax,fixed_t newmin,fixed_t newmax)
+static boolean K_IsOffroadAffected(player_t *player)
 {
-		return newmin +  FixedMul(FixedDiv( value-oldmin , oldmax-oldmin), newmax-newmin);
+	return (!(player->kartstuff[k_invincibilitytimer] || player->kartstuff[k_hyudorotimer] 
+		  || ( (cv_chainoffroad.value == 1 || cv_chainoffroad.value == 2) ? player->kartstuff[k_sneakertimer]:player->kartstuff[k_sneakertimer] && player->kartstuff[k_realsneakertimer] )
+		  	|| ( (cv_chainoffroad.value == 1 || cv_chainoffroad.value == 3) ? player->kartstuff[k_paneltimer]:player->kartstuff[k_paneltimer] && player->kartstuff[k_realpaneltimer]) )
+				&& player->kartstuff[k_offroad] >= 0);
+	
 }
 
 // sets k_boostpower, k_speedboost, and k_accelboost to whatever we need it to be
@@ -3489,10 +3491,7 @@ static void K_GetKartBoostPower(player_t *player)
 	}
 
 	// Offroad is separate, it's difficult to factor it in with a variable value anyway.
-	if (!(player->kartstuff[k_invincibilitytimer] || player->kartstuff[k_hyudorotimer] 
-		  || ( (cv_chainoffroad.value == 1 || cv_chainoffroad.value == 2) ? player->kartstuff[k_sneakertimer]:player->kartstuff[k_sneakertimer] && player->kartstuff[k_realsneakertimer] )
-		  	|| ( (cv_chainoffroad.value == 1 || cv_chainoffroad.value == 3) ? player->kartstuff[k_paneltimer]:player->kartstuff[k_paneltimer] && player->kartstuff[k_realpaneltimer]) )
-				&& player->kartstuff[k_offroad] >= 0)
+	if (K_IsOffroadAffected(player) == true)
 		boostpower = FixedDiv(boostpower, player->kartstuff[k_offroad] + FRACUNIT);
 
 	if (player->kartstuff[k_bananadrag] > TICRATE)
@@ -3567,7 +3566,7 @@ static void K_GetKartBoostPower(player_t *player)
 }
 
 // sets k_boostpower, k_speedboost, and k_accelboost to whatever we need it to be
-static void K_GetKartStackingBoostPower(player_t *player)
+/*static void K_GetKartStackingBoostPower(player_t *player)
 {
 	fixed_t boostpower = FRACUNIT;
 	fixed_t speedboost = 0, accelboost = 0;
@@ -3808,12 +3807,44 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	   player->speed = min(player->speed, FixedMul(cv_speedcapval.value, mapobjectscale));
 	}
 
+}*/
+
+// Rescale oh boy based on old version of blib
+static fixed_t K_BoostRescale(fixed_t value,fixed_t oldmin,fixed_t oldmax,fixed_t newmin,fixed_t newmax)
+{
+		return newmin +  FixedMul(FixedDiv( value-oldmin , oldmax-oldmin), newmax-newmin);
 }
 
-/*static void K_GetKartStackingBoostPower(player_t *player)
+// Diminish based on old version of blib diminsh calcs.
+static fixed_t K_SpeedboostDiminish(fixed_t speedboost, fixed_t diminishvalue)
+{
+	fixed_t intermediate;
+	fixed_t harddiminish;
+	if (gamespeed <= 1 && speedboost > FRACUNIT/2)
+	{	
+		intermediate = FixedDiv(FixedMul(diminishvalue,FRACUNIT*-1/2) - FRACUNIT/4,-diminishvalue+FRACUNIT/2);
+		return FixedMul(diminishvalue,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
+	}
+	else if (gamespeed == 2 && speedboost > FRACUNIT*375/1000)
+	{
+		harddiminish = K_BoostRescale(diminishvalue, FRACUNIT, 2*FRACUNIT, FRACUNIT*95/100, FRACUNIT*180/100);
+		intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
+		return FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
+	}
+	else if (gamespeed == 3 && speedboost > FRACUNIT*375/1000)
+	{
+		harddiminish = K_BoostRescale(diminishvalue, FRACUNIT, 2*FRACUNIT, FRACUNIT*95/100, FRACUNIT*180/100);
+		intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
+		return FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
+	}
+	
+	return speedboost;
+}
+
+static void K_GetKartStackingBoostPower(player_t *player)
 {
 	fixed_t boostpower = FRACUNIT;
-	fixed_t speedboost = 0, accelboost = 0;
+	fixed_t speedboost = 0, accelboost = 0, nonstackboost = 0;
 	fixed_t boostmult = FRACUNIT;
 
 	if (player->kartstuff[k_spinouttimer] && player->kartstuff[k_wipeoutslow] == 1) // Slow down after you've been bumped
@@ -3823,10 +3854,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	}
 
 	// Offroad is separate, it's difficult to factor it in with a variable value anyway.
-	if (!(player->kartstuff[k_invincibilitytimer] || player->kartstuff[k_hyudorotimer] 
-		  || ( (cv_chainoffroad.value == 1 || cv_chainoffroad.value == 2) ? player->kartstuff[k_sneakertimer]:player->kartstuff[k_sneakertimer] && player->kartstuff[k_realsneakertimer] )
-		  	|| ( (cv_chainoffroad.value == 1 || cv_chainoffroad.value == 3) ? player->kartstuff[k_paneltimer]:player->kartstuff[k_paneltimer] && player->kartstuff[k_realpaneltimer]) )
-				&& player->kartstuff[k_offroad] >= 0)
+	if (K_IsOffroadAffected(player) == true)
 		boostpower = FixedDiv(boostpower, player->kartstuff[k_offroad] + FRACUNIT);
 
 	if (player->kartstuff[k_bananadrag] > TICRATE)
@@ -3843,10 +3871,14 @@ static void K_GetKartStackingBoostPower(player_t *player)
 			S_StartSound(player->mo, sfx_cdfm70);
 	}
 	
-#define ADDBOOST(s,a,b) { \
+#define ADDBOOST(s,a,b,ns) { \
 	speedboost += max(s, speedboost); \
-	accelboost += max(a, accelboost); \
+	if (cv_stackingaccel.value) \
+		accelboost += max(a, accelboost); \
+	else \
+		accelboost = max(a, accelboost); \
 	boostmult += b; \
+	nonstackboost = max(ns, nonstackboost); \
 }
 	
 	if (player->kartstuff[k_sneakertimer] || player->kartstuff[k_paneltimer]) // Sneaker
@@ -3858,22 +3890,22 @@ static void K_GetKartStackingBoostPower(player_t *player)
 			case 0:
 				sneakerspeedboost = cv_sneakerspeedeasy.value;
 				break;
+			case 1:
+				sneakerspeedboost = cv_sneakerspeednormal.value;
+				break;
 			case 2:
 				sneakerspeedboost = cv_sneakerspeedhard.value; 
 				break;
 			case 3:
 				sneakerspeedboost = cv_sneakerspeedexpert.value; 
 				break;
-			default:
-				sneakerspeedboost = cv_sneakerspeednormal.value;
-				break;
 		}
-			ADDBOOST(sneakerspeedboost * (combostack ? combostack : 1), cv_sneakeraccel.value, 0); // + ???%,  + 800%  524288, 0
+			ADDBOOST(sneakerspeedboost * (combostack ? combostack : 1), cv_sneakeraccel.value, 0,0); // + ???%,  + 800%  524288, 0
 	}
 		
 	if (player->kartstuff[k_invincibilitytimer]) // Invincibility
 	{
-		ADDBOOST(cv_invincibilityspeed.value,cv_invincibilityaccel.value,0);  // + 37.5% 2457, + 300% 196608, 0
+		ADDBOOST(cv_invincibilityspeed.value,cv_invincibilityaccel.value,0,0);  // + 37.5% 2457, + 300% 196608, 0
 		player->kartstuff[k_invincibilitystack] = 1;
 	}
 	else
@@ -3883,12 +3915,21 @@ static void K_GetKartStackingBoostPower(player_t *player)
 
 	if (player->kartstuff[k_growshrinktimer] > 0) // Grow
 	{
-		ADDBOOST(cv_growspeed.value, cv_growaccel.value,-cv_growmult.value); // ???
+		if (cv_stackingoldgrow.value)
+		{
+			ADDBOOST(cv_growspeed.value, cv_growaccel.value,cv_growmult.value, 0); // ???
+			
+		} 
+		else
+		{
+			ADDBOOST(0, cv_growaccel.value,cv_growmult.value,cv_growspeed.value); // ???
+			
+		} 
 	}
 
 	if (player->kartstuff[k_driftboost]) // Drift Boost
 	{
-		ADDBOOST(cv_driftspeed.value, cv_driftaccel.value, 0); // + 25% 16384, + 400% 262144, 0
+		ADDBOOST(cv_driftspeed.value, cv_driftaccel.value, 0,0); // + 25% 16384, + 400% 262144, 0
 		player->kartstuff[k_driftstack] = 1;
 	}										
 	else
@@ -3898,7 +3939,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 
 	if (player->kartstuff[k_startboost]) // Startup Boost
 	{
-		ADDBOOST(cv_startspeed.value, cv_startaccel.value, 0); // + 25% 16384, + 300% 393216, 0
+		ADDBOOST(cv_startspeed.value, cv_startaccel.value, 0,0); // + 25% 16384, + 300% 393216, 0
 		player->kartstuff[k_startstack] = 1;
 	}
 	else
@@ -3908,12 +3949,12 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	
 	if (player->kartstuff[k_hyudorotimer])
 	{
-		ADDBOOST(cv_hyuudorospeed.value, cv_hyuudoroaccel.value, 0); // ???
+		ADDBOOST(cv_hyuudorospeed.value, cv_hyuudoroaccel.value, 0,0); // ???
 	}
 	
 	if (player->kartstuff[k_slopespeedboost] || player->kartstuff[k_slopeaccelboost])
 	{
-		ADDBOOST(player->kartstuff[k_slopespeedboost], player->kartstuff[k_slopeaccelboost], 0); // ???
+		ADDBOOST(player->kartstuff[k_slopespeedboost], player->kartstuff[k_slopeaccelboost], 0,0); // ???
 		player->kartstuff[k_ssstack] = 1;
 	}
 	else
@@ -3923,7 +3964,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	
 	if (player->kartstuff[k_ssspeedboost] || player->kartstuff[k_ssaccelboost])
 	{
-		ADDBOOST(player->kartstuff[k_ssspeedboost], player->kartstuff[k_ssaccelboost], 0); // ???
+		ADDBOOST(player->kartstuff[k_ssspeedboost], player->kartstuff[k_ssaccelboost], 0,0); // ???
 		player->kartstuff[k_ssstack] = 1;
 	}
 	else
@@ -3933,7 +3974,7 @@ static void K_GetKartStackingBoostPower(player_t *player)
 	
 	if (player->kartstuff[k_trickspeedboost] || player->kartstuff[k_trickaccelboost])
 	{
-		ADDBOOST(player->kartstuff[k_trickspeedboost], player->kartstuff[k_trickaccelboost], 0); // ???
+		ADDBOOST(player->kartstuff[k_trickspeedboost], player->kartstuff[k_trickaccelboost], 0,0); // ???
 		player->kartstuff[k_trickstack] = 1;
 	}
 	else
@@ -3941,64 +3982,42 @@ static void K_GetKartStackingBoostPower(player_t *player)
 		player->kartstuff[k_trickstack] = 0;
 	}
 	
-	player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_panelstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack] + player->kartstuff[k_trickstack];
-
-	// This here is the boostmult, its implemented as an adjustment to boostpower
-	player->kartstuff[k_boostpower] = boostpower + (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost]);
+	speedboost = max(speedboost,nonstackboost); // Handle Non-Stack Boosts
 	
-	if (speedboost > 0 && player->kartspeed < 6 && cv_stackinglowspeedbuff.value) 
-	{
-		//Apply a bonus top speed to lower speeds only while boosting
-		if (player->kartstuff[k_offroad] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_invincibilitytimer] && ( !player->kartstuff[k_sneakertimer] || !player->kartstuff[k_paneltimer] ))
-			;
-		else
-		{
-			fixed_t boostincrease;
-			boostincrease = 7 - player->kartspeed;
-			player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + ((FRACUNIT*boostincrease)/100);
-		}
-	}
+	player->kartstuff[k_totalstacks] = player->kartstuff[k_startstack] + player->kartstuff[k_driftstack] + player->kartstuff[k_sneakerstack] + player->kartstuff[k_panelstack] + player->kartstuff[k_ssstack] + player->kartstuff[k_invincibilitystack] + player->kartstuff[k_trickstack];
 	
 	// Diminish based on old version of blib diminsh calcs.
 	if (cv_stackingdim.value)
-	{	
-		fixed_t intermediate;
-		fixed_t harddiminish;
-		if (gamespeed <= 1 && speedboost > FRACUNIT/2)
-		{	
-			intermediate = FixedDiv(FixedMul(cv_stackingdimval.value,FRACUNIT*-1/2) - FRACUNIT/4,-cv_stackingdimval.value+FRACUNIT/2);
-			speedboost = FixedMul(cv_stackingdimval.value,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
-		}
-		else if (gamespeed == 2 && speedboost > FRACUNIT*375/1000)
-		{
-			harddiminish = K_BoostRescale(cv_stackingdimval.value, FRACUNIT, 2*FRACUNIT, FRACUNIT*95/100, FRACUNIT*180/100);
-			intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
-			speedboost = FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
-		}
-		else if (gamespeed == 3 && speedboost > FRACUNIT*375/1000)
-		{
-			harddiminish = K_BoostRescale(cv_stackingdimval.value, FRACUNIT, 2*FRACUNIT, FRACUNIT*95/100, FRACUNIT*180/100);
-			intermediate = FixedDiv(FixedMul(harddiminish,FRACUNIT*-625/1000) - 9216,-harddiminish+FRACUNIT*375/1000);
-			speedboost = FixedMul(harddiminish,(FRACUNIT-FixedDiv(FRACUNIT,(speedboost+intermediate))));
-		}
-	}
+		K_SpeedboostDiminish(speedboost, cv_stackingdimval.value);
 
 	// value smoothing
 	if (speedboost > player->kartstuff[k_speedboost])
 		player->kartstuff[k_speedboost] = speedboost;
-	//brakemod. slowdown on braking or sliptide (based on version from booststack)
+	// brakemod. slowdown on braking or sliptide (based on version from booststack)
 	else if (cv_stacking.value && cv_stackingbrakemod.value && ((player->kartstuff[k_aizdriftstrat] && abs(player->kartstuff[k_drift]) < 5) || (player->cmd.buttons & BT_BRAKE)))
     	player->kartstuff[k_speedboost] = max(speedboost - cv_stackingbrakemod.value, min(player->kartstuff[k_speedboost], 3*FRACUNIT/8));
 	else
 		player->kartstuff[k_speedboost] += (speedboost - player->kartstuff[k_speedboost])/(TICRATE/2);
 
 	player->kartstuff[k_accelboost] = accelboost;
+	
+	// This here is the boostmult, its implemented as an adjustment to boostpower
+	player->kartstuff[k_boostpower] = boostpower + (FixedMul(player->kartstuff[k_speedboost], boostmult) - player->kartstuff[k_speedboost]);
+	if (speedboost > 0 && player->kartspeed < 6 && cv_stackinglowspeedbuff.value) 
+	{
+		if (K_IsOffroadAffected(player) == false)
+		{
+			fixed_t boostincrease;
+			boostincrease = 7 - player->kartspeed;
+			player->kartstuff[k_boostpower] = player->kartstuff[k_boostpower] + ((FRACUNIT*boostincrease)/100);
+		}
+	}
 
-	if (cv_speedcap.value)
+	if (cv_speedcap.value) // Why does this even need to exist now. I guess I'll keep for compat.
 	{
 	   player->speed = min(player->speed, FixedMul(cv_speedcapval.value, mapobjectscale));
 	}
-}*/
+}
 
 fixed_t K_GetKartSpeed(player_t *player, boolean doboostpower)
 {
