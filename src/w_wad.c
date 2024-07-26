@@ -62,9 +62,6 @@
 #include "md5.h"
 #include "lua_script.h"
 #include "st_stuff.h"
-#ifdef SCANTHINGS
-#include "p_setup.h" // P_ScanThings
-#endif
 #include "m_misc.h" // M_MapNumber
 #include "p_setup.h" // P_PartialAddFile mayb
 
@@ -117,7 +114,8 @@ void W_Shutdown(void)
 		if (wad->handle)
 			fclose(wad->handle);
 		Z_Free(wad->filename);
-		while (wad->numlumps--) {
+		while (wad->numlumps--)
+		{
 			Z_Free(wad->lumpinfo[wad->numlumps].longname);
 			Z_Free(wad->lumpinfo[wad->numlumps].fullname);
 		}
@@ -287,22 +285,6 @@ static inline void W_LoadDehackedLumps(UINT16 wadnum)
 				DEH_LoadDehackedLumpPwad(wadnum, lump);
 			}
 	}
-
-#ifdef SCANTHINGS
-	// Scan maps for emblems 'n shit
-	{
-		lumpinfo_t *lump_p = wadfiles[wadnum]->lumpinfo;
-		for (lump = 0; lump < wadfiles[wadnum]->numlumps; lump++, lump_p++)
-		{
-			const char *name = lump_p->name;
-			if (name[0] == 'M' && name[1] == 'A' && name[2] == 'P' && name[5]=='\0')
-			{
-				INT16 mapnum = (INT16)M_MapNumber(name[3], name[4]);
-				P_ScanThings(mapnum, wadnum, lump + ML_THINGS);
-			}
-		}
-	}
-#endif
 }
 
 /** Compute MD5 message digest for bytes read from STREAM of this filname.
@@ -2132,25 +2114,51 @@ virtres_t* vres_GetMap(lumpnum_t lumpnum)
 	virtlump_t* vlumps = NULL;
 	size_t numlumps = 0;
 
+	if (lastloadedmaplumpnum == lumpnum && curmapvirt != NULL)
+	{
+		// Avoid duplicating all our hard work.
+		return curmapvirt;
+	}
+
 	if (W_IsLumpWad(lumpnum))
 	{
+		UINT32 realentry;
+		size_t *vsizecache;
+
 		// Remember that we're assuming that the WAD will have a specific set of lumps in a specific order.
 		UINT8 *wadData = W_CacheLumpNum(lumpnum, PU_LEVEL);
 		filelump_t *fileinfo = (filelump_t *)(wadData + ((wadinfo_t *)wadData)->infotableofs);
-		numlumps = ((wadinfo_t *)wadData)->numlumps;
-		vlumps = Z_Malloc(sizeof(virtlump_t)*numlumps, PU_LEVEL, NULL);
 
-		// Build the lumps.
-		for (i = 0; i < numlumps; i++)
+		i = ((wadinfo_t *)wadData)->numlumps;
+		vsizecache = Z_Malloc(sizeof(size_t)*i, PU_LEVEL, NULL);
+
+		for (realentry = 0; realentry < i; realentry++)
 		{
-			vlumps[i].size = (size_t)(((filelump_t *)(fileinfo + i))->size);
-			// Play it safe with the name in this case.
-			memcpy(vlumps[i].name, (fileinfo + i)->name, 8);
-			vlumps[i].name[8] = '\0';
-			vlumps[i].data = Z_Malloc(vlumps[i].size, PU_LEVEL, NULL); // This is memory inefficient, sorry about that.
-			memcpy(vlumps[i].data, wadData + (fileinfo + i)->filepos, vlumps[i].size);
+			vsizecache[realentry] = (size_t)(((filelump_t *)(fileinfo + realentry))->size);
+
+			if (!vsizecache[realentry])
+				continue;
+
+			numlumps++;
 		}
 
+		vlumps = Z_Malloc(sizeof(virtlump_t)*numlumps, PU_LEVEL, NULL);
+
+		// Build the lumps, skipping over empty entries.
+		for (i = 0, realentry = 0; i < numlumps; realentry++)
+		{
+			if (vsizecache[realentry] == 0)
+				continue;
+			vlumps[i].size = vsizecache[realentry];
+			// Play it safe with the name in this case.
+			memcpy(vlumps[i].name, (fileinfo + realentry)->name, 8);
+			vlumps[i].name[8] = '\0';
+			vlumps[i].data = Z_Malloc(vlumps[i].size, PU_LEVEL, NULL); // This is memory inefficient, sorry about that.
+			memcpy(vlumps[i].data, wadData + (fileinfo + realentry)->filepos, vlumps[i].size);
+			i++;
+		}
+
+		Z_Free(vsizecache);
 		Z_Free(wadData);
 	}
 	else
@@ -2158,8 +2166,12 @@ virtres_t* vres_GetMap(lumpnum_t lumpnum)
 		// Count number of lumps until the end of resource OR up until next "MAPXX" lump.
 		lumpnum_t lumppos = lumpnum + 1;
 		for (i = LUMPNUM(lumppos); i < wadfiles[WADFILENUM(lumpnum)]->numlumps; i++, lumppos++, numlumps++)
-			if (memcmp(W_CheckNameForNum(lumppos), "MAP", 3) == 0)
+		{
+			if (memcmp(W_CheckNameForNum(lumppos), "MAP", 3) == 0 || W_LumpLength(lumppos) == 0)
+			{
 				break;
+			}
+		}
 		numlumps++;
 
 		vlumps = Z_Malloc(sizeof(virtlump_t)*numlumps, PU_LEVEL, NULL);
@@ -2184,6 +2196,12 @@ virtres_t* vres_GetMap(lumpnum_t lumpnum)
  */
 void vres_Free(virtres_t* vres)
 {
+	if (vres == curmapvirt)
+	{
+		// No-sell multiple references.
+		return;
+	}
+
 	while (vres->numlumps--)
 		Z_Free(vres->vlumps[vres->numlumps].data);
 	Z_Free(vres->vlumps);

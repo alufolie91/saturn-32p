@@ -56,7 +56,6 @@
 #endif
 
 #ifdef HWRENDER
-#include "hardware/hw_light.h"
 #include "hardware/hw_main.h"
 #endif
 
@@ -800,7 +799,7 @@ void P_RestoreMusic(player_t *player)
 		}
 
 		// Item - Grow
-		if (wantedmus == 2 && cv_growmusic.value)
+		if (wantedmus == 2 && cv_growmusic.value == 1)
 		{
 			S_ChangeMusicInternal("kgrow", true);
 			
@@ -808,7 +807,7 @@ void P_RestoreMusic(player_t *player)
 				S_SetRestoreMusicFadeInCvar(&cv_growmusicfade);
 		}
 		// Item - Invincibility
-		else if (wantedmus == 1 && cv_supermusic.value)
+		else if (wantedmus == 1 && cv_supermusic.value == 1)
 		{
 			S_ChangeMusicInternal("kinvnc", true);
 			
@@ -1147,6 +1146,8 @@ void P_SpawnShieldOrb(player_t *player)
 	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
 		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue;
+		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 			continue;
 
 		shieldobj = (mobj_t *)th;
@@ -1875,6 +1876,8 @@ void P_Telekinesis(player_t *player, fixed_t thrust, fixed_t range)
 	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
 		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue;
+		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 			continue;
 
 		mo2 = (mobj_t *)th;
@@ -2799,6 +2802,8 @@ void P_NukeEnemies(mobj_t *inflictor, mobj_t *source, fixed_t radius)
 	{
 		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue; // not a mobj thinker
+		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+			continue;
 
 		mo = (mobj_t *)think;
 
@@ -2879,6 +2884,8 @@ boolean P_LookForEnemies(player_t *player)
 	{
 		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue; // not a mobj thinker
+		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+			continue;
 
 		mo = (mobj_t *)think;
 		if (!(mo->flags & (MF_ENEMY|MF_BOSS|MF_MONITOR|MF_SPRING)))
@@ -3003,6 +3010,8 @@ void P_FindEmerald(void)
 	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
 		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue;
+		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 			continue;
 
 		mo2 = (mobj_t *)th;
@@ -4130,7 +4139,7 @@ boolean P_SpectatorJoinGame(player_t *player)
 		if (player->mo)
 		{
 			P_RemoveMobj(player->mo);
-			player->mo = NULL;
+			P_SetTarget(&player->mo, NULL);
 		}
 		player->spectator = false;
 		player->pflags &= ~PF_WANTSTOJOIN;
@@ -4291,11 +4300,7 @@ Quaketilt (player_t *player)
 	INT32 delta = (INT32)( player->mo->angle - moma );
 	fixed_t speed;
 
-	boolean sliptiding =
-		(
-				player->kartstuff[k_aizdriftstrat] != 0 &&
-				player->kartstuff[k_drift]         == 0
-		);
+	boolean sliptiding = player->kartstuff[k_drift] ? 0 : player->kartstuff[k_aizdriftstrat];
 
 	if (delta == (INT32)ANGLE_180)/* FUCK YOU HAVE A HACK */
 	{
@@ -4323,6 +4328,7 @@ Quaketilt (player_t *player)
 		tilt = ANGLE_22h;
 		lowb = 10*FRACUNIT;
 	}
+	lowb = FixedMul(lowb, player->mo->scale);
 	moma = FixedMul(FixedDiv(delta, ANGLE_90), tilt);
 	speed = abs( player->mo->momx + player->mo->momy );
 	if (speed < lowb)
@@ -4338,6 +4344,19 @@ DoABarrelRoll (player_t *player)
 {
 	angle_t slope;
 	angle_t delta;
+
+	fixed_t smoothing;
+
+	if (player->exiting)
+	{
+		return;
+	}
+
+	if (player->kartstuff[k_respawn])
+	{
+		player->tilt = 0;
+		return;
+	}
 
 	if (player->mo->standingslope)
 	{
@@ -4363,26 +4382,16 @@ DoABarrelRoll (player_t *player)
 		slope -= Quaketilt(player);
 	}
 
-	delta = (INT32)( slope - player->tilt )/ cv_tiltsmoothing.value;
+	delta = slope - player->tilt;
+	smoothing = FixedDiv(AbsAngle(slope), ANGLE_45);
+
+	delta = FixedDiv(delta, cv_tiltsmoothing.value *
+	FixedDiv(FRACUNIT, FRACUNIT + smoothing));
 
 	if (delta)
 		player->tilt += delta;
 	else
-		player->tilt  = slope;
-
-	if (cv_tilting.value)
-	{
-		player->viewrollangle = player->tilt;
-
-		if (cv_actionmovie.value)
-		{
-			player->viewrollangle += quake.roll;
-		}
-	}
-	else
-	{
-		player->viewrollangle = 0;
-	}
+		player->tilt = slope;
 }
 
 /* 	set follower state with our weird hacks
@@ -4777,11 +4786,6 @@ void P_PlayerThink(player_t *player)
 	ticcmd_t *cmd;
 	const size_t playeri = (size_t)(player - players);
 
-	player->lerp.aiming = player->aiming;
-	player->lerp.awayviewaiming = player->awayviewaiming;
-	player->lerp.frameangle = player->frameangle;
-	player->lerp.viewrollangle = player->viewrollangle;
-
 #ifdef PARANOIA
 	if (!player->mo)
 		I_Error("p_playerthink: players[%s].mo == NULL", sizeu1(playeri));
@@ -5098,6 +5102,8 @@ void P_PlayerThink(player_t *player)
 		for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		{
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+				continue;
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 				continue;
 
 			mo2 = (mobj_t *)th;

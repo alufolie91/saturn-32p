@@ -38,12 +38,6 @@
 
 #include "qs22j.h"
 
-#ifdef PC_DOS
-#include <stdio.h> // for snprintf
-int	snprintf(char *str, size_t n, const char *fmt, ...);
-//int	vsnprintf(char *str, size_t n, const char *fmt, va_list ap);
-#endif
-
 CV_PossibleValue_t Forceskin_cons_t[MAXSKINS+2];
 
 static void R_InitSkins(void);
@@ -567,15 +561,6 @@ void R_InitSprites(void)
 		R_AddSkins((UINT16)i, false);
 		R_LoadSpriteInfoLumps(i, wadfiles[i]->numlumps);
 	}
-		
-	//
-	// check if all sprites have frames
-	//
-	/*
-	for (i = 0; i < numsprites; i++)
-		if (sprites[i].numframes < 1)
-			CONS_Debug(DBG_SETUP, "R_InitSprites: sprite %s has no frames at all\n", sprnames[i]);
-	*/
 }
 
 //
@@ -1081,13 +1066,6 @@ static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 
 			newsprite->extra_colormap = sector->lightlist[i].extra_colormap;
 
-/*
-			if (thing->frame & FF_TRANSMASK)
-				;
-			else if (thing->flags2 & MF2_SHADOW)
-				;
-			else
-*/
 			if (!((thing->frame & (FF_FULLBRIGHT|FF_TRANSMASK) || thing->flags2 & MF2_SHADOW)
 				&& (!newsprite->extra_colormap || !(newsprite->extra_colormap->fog & 1))))
 			{
@@ -1590,7 +1568,7 @@ static void R_ProjectSprite(mobj_t *thing)
 			rollangle = thing->rollangle;
 		}
 
-		if ((rollangle) || (pitchnroll) || (thing->player && thing->player->sliproll))
+		if (rollangle || pitchnroll || (thing->player && thing->player->sliproll))
 		{
 			rollsum = pitchnroll;
 
@@ -1828,7 +1806,8 @@ static void R_ProjectSprite(mobj_t *thing)
 		for (lightnum = 1; lightnum < thing->subsector->sector->numlights; lightnum++) {
 			fixed_t h = thing->subsector->sector->lightlist[lightnum].slope ? P_GetZAt(thing->subsector->sector->lightlist[lightnum].slope, interp.x, interp.y)
 			            : thing->subsector->sector->lightlist[lightnum].height;
-			if (h <= gzt) {
+			if (h <= gzt)
+			{
 				light = lightnum - 1;
 				break;
 			}
@@ -1844,7 +1823,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	}
 
 	heightsec = thing->subsector->sector->heightsec;
-	if (viewplayer->mo && viewplayer->mo->subsector)
+	if (viewplayer && viewplayer->mo && viewplayer->mo->subsector)
 		phs = viewplayer->mo->subsector->sector->heightsec;
 	else
 		phs = -1;
@@ -2472,13 +2451,15 @@ static void R_CreateDrawNodes(void)
 			}
 		}
 		// Check for a polyobject plane, but only if this is a front line
-		if (ds->curline->polyseg && ds->curline->polyseg->visplane && !ds->curline->side) {
+		if (ds->curline->polyseg && ds->curline->polyseg->visplane && !ds->curline->side)
+		{
 			plane = ds->curline->polyseg->visplane;
 			R_PlaneBounds(plane);
 
 			if (plane->low < 0 || plane->high > vid.height || plane->high > plane->low)
 				;
-			else {
+			else
+			{
 				// Put it in!
 				entry = R_CreateDrawNode(&nodehead);
 				entry->plane = plane;
@@ -2501,6 +2482,7 @@ static void R_CreateDrawNodes(void)
 				{
 					if (!ds->ffloorplanes[p])
 						continue;
+
 					plane = ds->ffloorplanes[p];
 					R_PlaneBounds(plane);
 
@@ -2573,10 +2555,12 @@ static void R_CreateDrawNodes(void)
 					continue;
 
 				// Effective height may be different for each comparison in the case of slopes
-				if (r2->plane->slope) {
+				if (r2->plane->slope)
+				{
 					planeobjectz = P_GetZAt(r2->plane->slope, rover->gx, rover->gy);
 					planecameraz = P_GetZAt(r2->plane->slope, viewx, viewy);
-				} else
+				}
+				else
 					planeobjectz = planecameraz = r2->plane->height;
 
 				if (rover->mobjflags & MF_NOCLIPHEIGHT)
@@ -2635,16 +2619,20 @@ static void R_CreateDrawNodes(void)
 				if (scale <= rover->sortscale)
 					continue;
 
-				if (*r2->ffloor->t_slope) {
+				if (*r2->ffloor->t_slope)
+				{
 					topplaneobjectz = P_GetZAt(*r2->ffloor->t_slope, rover->gx, rover->gy);
 					topplanecameraz = P_GetZAt(*r2->ffloor->t_slope, viewx, viewy);
-				} else
+				}
+				else
 					topplaneobjectz = topplanecameraz = *r2->ffloor->topheight;
 
-				if (*r2->ffloor->b_slope) {
+				if (*r2->ffloor->b_slope)
+				{
 					botplaneobjectz = P_GetZAt(*r2->ffloor->b_slope, rover->gx, rover->gy);
 					botplanecameraz = P_GetZAt(*r2->ffloor->b_slope, viewx, viewy);
-				} else
+				}
+				else
 					botplaneobjectz = botplanecameraz = *r2->ffloor->bottomheight;
 
 				if ((topplanecameraz > viewz && botplanecameraz < viewz) ||
@@ -3439,12 +3427,15 @@ void SetLocalPlayerSkin(INT32 playernum, const char *skinname, consvar_t *cvar)
 		}
 	}
 
-	if (cvar != NULL) {
-		if (player->localskin > 0) {
+	if (cvar != NULL)
+	{
+		if (player->localskin > 0)
+		{
 			CV_StealthSet(&cv_fakelocalskin, ( (player->skinlocal) ? localskins : skins )[player->localskin - 1].name);
 			CV_StealthSet(cvar, ( (player->skinlocal) ? localskins : skins )[player->localskin - 1].name);
 		}
-		else {
+		else
+		{
 			CV_StealthSet(&cv_fakelocalskin, "none");
 			CV_StealthSet(cvar, "none");
 		}
@@ -3968,8 +3959,8 @@ next_token:
 
 		CONS_Printf(M_GetText("Added skin '%s'\n"), skin->name);
 #ifdef SKINVALUES
-		( (local) ? localskin_cons_t : skin_cons_t )[( (local) ? numlocalskins : numskins )].value = ( (local) ? numlocalskins : numskins );
-		( (local) ? localskin_cons_t : skin_cons_t )[( (local) ? numlocalskins : numskins )].strvalue = skin->name;
+		(local ? localskin_cons_t : skin_cons_t)[(local ? numlocalskins : numskins)].value = (local ? numlocalskins : numskins);
+		(local ? localskin_cons_t : skin_cons_t)[(local ? numlocalskins : numskins)].strvalue = skin->name;
 #endif
 
 		// Update the forceskin possiblevalues
@@ -3980,6 +3971,7 @@ next_token:
 		}
 		
 		skin->localskin = local;
+
 		// so we dont have to guess
 		if (local)
 			skin->localnum = numlocalskins;
@@ -3987,28 +3979,27 @@ next_token:
 			skin->localnum = numskins;
 
 		// add face graphics
-		if (local) {
+		if (local)
 			ST_LoadLocalFaceGraphics(skin->facerank, skin->facewant, skin->facemmap, numlocalskins);
-		} else {
+		else
 			ST_LoadFaceGraphics(skin->facerank, skin->facewant, skin->facemmap, numskins);
-		}
 
 #ifdef HWRENDER
 		if (rendermode == render_opengl)
-			HWR_AddPlayerMD2(( (local) ? numlocalskins : numskins ), local);
+			HWR_AddPlayerMD2(((local) ? numlocalskins : numskins), local);
 #endif
-		if (!local) {
+		if (!local)
+		{
 			skinstats[skin->kartspeed-1][skin->kartweight-1][skinstatscount[skin->kartspeed-1][skin->kartweight-1]] = numskins;
 			CONS_Debug(DBG_SETUP, M_GetText("Added %d to %d, %d\n"), numskins, skin->kartweight, skin->kartweight);
 			skinstatscount[skin->kartspeed-1][skin->kartweight-1]++;
 			CONS_Debug(DBG_SETUP, M_GetText("Incremented %d, %d to %d\n"), skin->kartspeed, skin->kartweight, skinstatscount[skin->kartspeed - 1][skin->kartweight - 1]);
-			
 			skinsorted[numskins] = numskins;
 		}
 		
 		allskins[numallskins] = ( (local) ? localskins : skins )[( (local) ? numlocalskins : numskins )];
 
-		( (local) ? numlocalskins++ : numskins++ );
+		local ? numlocalskins++ : numskins++;
 		numallskins++;
 	}
 

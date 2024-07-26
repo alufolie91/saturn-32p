@@ -18,6 +18,7 @@
 #include "z_zone.h"
 #include "s_sound.h"
 #include "st_stuff.h"
+#include "p_setup.h"
 #include "p_polyobj.h"
 #include "m_random.h"
 #include "lua_script.h"
@@ -153,6 +154,8 @@ void Command_CountMobjs_f(void)
 			{
 				if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 					continue;
+				if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+					continue;
 
 				if (((mobj_t *)th)->type == i)
 					count++;
@@ -172,6 +175,8 @@ void Command_CountMobjs_f(void)
 		for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		{
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+				continue;
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 				continue;
 
 			if (((mobj_t *)th)->type == i)
@@ -224,23 +229,27 @@ static thinker_t *currentthinker;
 // remove it, and set currentthinker to one node preceeding it, so
 // that the next step in P_RunThinkers() will get its successor.
 //
-void P_RemoveThinkerDelayed(void *pthinker)
+void P_RemoveThinkerDelayed(thinker_t *thinker)
 {
-	thinker_t *thinker = pthinker;
-	if (!thinker->references)
-	{
-		{
-			/* Remove from main thinker list */
-			thinker_t *next = thinker->next;
-			/* Note that currentthinker is guaranteed to point to us,
-			 * and since we're freeing our memory, we had better change that. So
-			 * point it to thinker->prev, so the iterator will correctly move on to
-			 * thinker->prev->next = thinker->next */
-			(next->prev = currentthinker = thinker->prev)->next = next;
-		}
-		R_DestroyLevelInterpolators(thinker);
-		Z_Free(thinker);
-	}
+	thinker_t *next;
+#ifdef PARANOIA
+	if (thinker->next)
+		thinker->next = NULL;
+	else if (thinker->references) // Usually gets cleared up in one frame; what's going on here, then?
+		CONS_Printf("Number of potentially faulty references: %d\n", thinker->references);
+#endif
+	if (thinker->references)
+		return;
+
+	/* Remove from main thinker list */
+	next = thinker->next;
+	/* Note that currentthinker is guaranteed to point to us,
+	* and since we're freeing our memory, we had better change that. So
+	* point it to thinker->prev, so the iterator will correctly move on to
+	* thinker->prev->next = thinker->next */
+	(next->prev = currentthinker = thinker->prev)->next = next;
+	R_DestroyLevelInterpolators(thinker);
+	Z_Free(thinker);
 }
 
 //
@@ -258,7 +267,7 @@ void P_RemoveThinkerDelayed(void *pthinker)
 void P_RemoveThinker(thinker_t *thinker)
 {
 	LUA_InvalidateUserdata(thinker);
-	thinker->function.acp1 = P_RemoveThinkerDelayed;
+	thinker->function.acp1 = (actionf_p1)P_RemoveThinkerDelayed;
 }
 
 /*
@@ -277,7 +286,7 @@ mobj_t *P_SetTarget(mobj_t **mop, mobj_t *targ)
 {
 	if (*mop)              // If there was a target already, decrease its refcount
 		(*mop)->thinker.references--;
-if ((*mop = targ) != NULL) // Set new target and if non-NULL, increase its counter
+	if ((*mop = targ) != NULL) // Set new target and if non-NULL, increase its counter
 		targ->thinker.references++;
 	return targ;
 }
@@ -308,269 +317,31 @@ static inline void P_RunThinkers(void)
 {
 	for (currentthinker = thinkercap.next; currentthinker != &thinkercap; currentthinker = currentthinker->next)
 	{
-		if (currentthinker->function.acp1)
+#ifdef PARANOIA
+		I_Assert(currentthinker->function.acp1 != NULL)
+#endif
 			currentthinker->function.acp1(currentthinker);
 	}
 }
 
-//
-// P_DoAutobalanceTeams()
-//
-// Determine if the teams are unbalanced, and if so, move a player to the other team.
-//
-/*static void P_DoAutobalanceTeams(void)
+void P_RunChaseCameras(void)
 {
-	changeteam_union NetPacket;
-	UINT16 usvalue;
-	INT32 i=0;
-	INT32 red=0, blue=0;
-	INT32 redarray[MAXPLAYERS], bluearray[MAXPLAYERS];
-	INT32 redflagcarrier = 0, blueflagcarrier = 0;
-	INT32 totalred = 0, totalblue = 0;
+	UINT8 i;
 
-	NetPacket.value.l = NetPacket.value.b = 0;
-	memset(redarray, 0, sizeof(redarray));
-	memset(bluearray, 0, sizeof(bluearray));
-
-	// Only do it if we have enough room in the net buffer to send it.
-	// Otherwise, come back next time and try again.
-	if (sizeof(usvalue) > GetFreeXCmdSize())
-		return;
-
-	//We have to store the players in an array with the rest of their team.
-	//We can then pick a random player to be forced to change teams.
-	for (i = 0; i < MAXPLAYERS; i++)
+	if (!splitscreen)
 	{
-		if (playeringame[i] && players[i].ctfteam)
-		{
-			if (players[i].ctfteam == 1)
-			{
-				if (!players[i].gotflag)
-				{
-					redarray[red] = i; //store the player's node.
-					red++;
-				}
-				else
-					redflagcarrier++;
-			}
-			else
-			{
-				if (!players[i].gotflag)
-				{
-					bluearray[blue] = i; //store the player's node.
-					blue++;
-				}
-				else
-					blueflagcarrier++;
-			}
-		}
-	}
-
-	totalred = red + redflagcarrier;
-	totalblue = blue + blueflagcarrier;
-
-	if ((abs(totalred - totalblue) > cv_autobalance.value))
-	{
-		if (totalred > totalblue)
-		{
-			i = M_RandomKey(red);
-			NetPacket.packet.newteam = 2;
-			NetPacket.packet.playernum = redarray[i];
-			NetPacket.packet.verification = true;
-			NetPacket.packet.autobalance = true;
-
-			usvalue  = SHORT(NetPacket.value.l|NetPacket.value.b);
-			SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
-		}
-
-		if (totalblue > totalred)
-		{
-			i = M_RandomKey(blue);
-			NetPacket.packet.newteam = 1;
-			NetPacket.packet.playernum = bluearray[i];
-			NetPacket.packet.verification = true;
-			NetPacket.packet.autobalance = true;
-
-			usvalue  = SHORT(NetPacket.value.l|NetPacket.value.b);
-			SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
-		}
-	}
-}
-
-//
-// P_DoTeamscrambling()
-//
-// If a team scramble has been started, scramble one person from the
-// pre-made scramble array. Said array is created in TeamScramble_OnChange()
-//
-void P_DoTeamscrambling(void)
-{
-	changeteam_union NetPacket;
-	UINT16 usvalue;
-	NetPacket.value.l = NetPacket.value.b = 0;
-
-	// Only do it if we have enough room in the net buffer to send it.
-	// Otherwise, come back next time and try again.
-	if (sizeof(usvalue) > GetFreeXCmdSize())
-		return;
-
-	if (scramblecount < scrambletotal)
-	{
-		if (players[scrambleplayers[scramblecount]].ctfteam != scrambleteams[scramblecount])
-		{
-			NetPacket.packet.newteam = scrambleteams[scramblecount];
-			NetPacket.packet.playernum = scrambleplayers[scramblecount];
-			NetPacket.packet.verification = true;
-			NetPacket.packet.scrambled = true;
-
-			usvalue = SHORT(NetPacket.value.l|NetPacket.value.b);
-			SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
-		}
-
-		scramblecount++; //Increment, and get to the next player when we come back here next time.
+		if (camera[0].chase)
+			P_MoveChaseCamera(&players[displayplayers[0]], &camera[0], false);
 	}
 	else
-		CV_SetValue(&cv_teamscramble, 0);
-}
-
-static inline void P_DoSpecialStageStuff(void)
-{
-	boolean inwater = false;
-	INT32 i;
-
-	// Can't drown in a special stage
-	for (i = 0; i < MAXPLAYERS; i++)
 	{
-		if (!playeringame[i] || players[i].spectator)
-			continue;
-
-		players[i].powers[pw_underwater] = players[i].powers[pw_spacetime] = 0;
-	}
-
-	if (sstimer < 15*TICRATE+6 && sstimer > 7 && (mapheaderinfo[gamemap-1]->levelflags & LF_SPEEDMUSIC))
-		S_SpeedMusic(1.4f);
-
-	if (sstimer < 7 && sstimer > 0) // The special stage time is up!
-	{
-		sstimer = 0;
-		for (i = 0; i < MAXPLAYERS; i++)
+		for (i = 0; i <= splitscreen; i++)
 		{
-			if (playeringame[i])
-			{
-				players[i].exiting = raceexittime+1;
-				players[i].pflags &= ~PF_GLIDING;
-			}
-
-			if (i == consoleplayer)
-				S_StartSound(NULL, sfx_lose);
-		}
-
-		if (mapheaderinfo[gamemap-1]->levelflags & LF_SPEEDMUSIC)
-			S_SpeedMusic(1.0f);
-
-		stagefailed = true;
-	}
-
-	if (sstimer > 1) // As long as time isn't up...
-	{
-		UINT32 ssrings = 0;
-		// Count up the rings of all the players and see if
-		// they've collected the required amount.
-		for (i = 0; i < MAXPLAYERS; i++)
-			if (playeringame[i])
-			{
-				ssrings += (players[i].mo->health-1);
-
-				// If in water, deplete timer 6x as fast.
-				if ((players[i].mo->eflags & MFE_TOUCHWATER)
-					|| (players[i].mo->eflags & MFE_UNDERWATER))
-					inwater = true;
-			}
-
-		if (ssrings >= totalrings && totalrings > 0)
-		{
-			// Halt all the players
-			for (i = 0; i < MAXPLAYERS; i++)
-				if (playeringame[i])
-				{
-					players[i].mo->momx = players[i].mo->momy = 0;
-					players[i].exiting = raceexittime+1;
-				}
-
-			sstimer = 0;
-
-			P_GiveEmerald(true);
-		}
-
-		// Decrement the timer
-		if (!objectplacing)
-		{
-			if (inwater)
-				sstimer -= 6;
-			else
-				sstimer--;
+			if (camera[i].chase)
+				P_MoveChaseCamera(&players[displayplayers[i]], &camera[i], false);
 		}
 	}
 }
-
-static inline void P_DoTagStuff(void)
-{
-	INT32 i;
-
-	// tell the netgame who the initial IT person is.
-	if (leveltime == TICRATE)
-	{
-		for (i = 0; i < MAXPLAYERS; i++)
-		{
-			if (players[i].pflags & PF_TAGIT)
-			{
-				CONS_Printf(M_GetText("%s is now IT!\n"), player_names[i]); // Tell everyone who is it!
-				break;
-			}
-		}
-	}
-
-	//increment survivor scores
-	if (leveltime % TICRATE == 0 && leveltime > (hidetime * TICRATE))
-	{
-		INT32 participants = 0;
-
-		for (i=0; i < MAXPLAYERS; i++)
-		{
-			if (playeringame[i] && !players[i].spectator)
-				participants++;
-		}
-
-		for (i=0; i < MAXPLAYERS; i++)
-		{
-			if (playeringame[i] && !players[i].spectator && players[i].playerstate == PST_LIVE
-			&& !(players[i].pflags & (PF_TAGIT|PF_TAGGED)))
-				//points given is the number of participating players divided by two.
-				P_AddPlayerScore(&players[i], participants/2);
-		}
-	}
-}
-
-static inline void P_DoCTFStuff(void)
-{
-	// Automatic team balance for CTF and team match
-	if (leveltime % (TICRATE * 5) == 0) //only check once per five seconds for the sake of CPU conservation.
-	{
-		// Do not attempt to autobalance and scramble teams at the same time.
-		// Only the server should execute this. No verified admins, please.
-		if ((cv_autobalance.value && !cv_teamscramble.value) && cv_allowteamchange.value && server)
-			P_DoAutobalanceTeams();
-	}
-
-	// Team scramble code for team match and CTF.
-	if ((leveltime % (TICRATE/7)) == 0)
-	{
-		// If we run out of time in the level, the beauty is that
-		// the Y_Ticker() team scramble code will pick it up.
-		if (cv_teamscramble.value && server)
-			P_DoTeamscrambling();
-	}
-}*/
 
 //
 // P_Ticker
@@ -680,7 +451,8 @@ void P_Ticker(boolean run)
 	if (run)
 	{
 		// Dynamic slopeness
-		P_RunDynamicSlopes();
+		if (midgamejoin) // only run here if we joined midgame to fix some desynchs
+			P_RunDynamicSlopes();
 
 		PS_START_TIMING(ps_thinkertime);
 		P_RunThinkers();
@@ -714,12 +486,6 @@ void P_Ticker(boolean run)
 	// as this is mostly used for HUD stuff, add the record attack specific hack to it as well!
 	if (!(modeattacking && !demo.playback) || leveltime >= starttime - TICRATE*4)
 		timeinmap++;
-
-	/*if (G_TagGametype())
-		P_DoTagStuff();
-
-	if (G_GametypeHasTeams())
-		P_DoCTFStuff();*/
 
 	if (run)
 	{
@@ -824,11 +590,7 @@ void P_Ticker(boolean run)
 	}
 
 	// Always move the camera.
-	for (i = 0; i <= splitscreen; i++)
-	{
-		if (camera[i].chase)
-			P_MoveChaseCamera(&players[displayplayers[i]], &camera[i], false);
-	}
+	P_RunChaseCameras();
 
 	if (run)
 	{
@@ -899,7 +661,8 @@ void P_PreTicker(INT32 frames)
 			}
 
 		// Dynamic slopeness
-		P_RunDynamicSlopes();
+		if (midgamejoin)
+			P_RunDynamicSlopes();
 
 		P_RunThinkers();
 

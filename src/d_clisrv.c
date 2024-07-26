@@ -76,6 +76,8 @@
 #define MAX_REASONLENGTH 30
 #define FORCECLOSE 0x8000
 
+static long long unsigned packetstat[NUMPACKETTYPE+1] = {0};
+
 boolean server = true; // true or false but !server == client
 #define client (!server)
 boolean nodownload = false;
@@ -1308,15 +1310,6 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 	demo.title = false;
 	automapactive = false;
 
-	if (!postautoloaded) 
-	{
-		CONS_Printf("D_AutoloadFile(): Loading autoloaded addons...\n");
-		if (W_AddAutoloadedLocalFiles(autoloadwadfilespost) == 0)
-			CONS_Printf("D_AutoloadFile(): Are you sure you put in valid files or what?\n");
-		D_CleanFile(autoloadwadfilespost);
-		postautoloaded = true;
-	}
-
 	// load a base level
 	if (P_LoadNetGame(&save, reloading))
 	{
@@ -2534,6 +2527,17 @@ static void Command_connect(void)
 	botskin = 0;
 	CL_ConnectToServer();
 }
+
+static void Command_Packetstat(void)
+{
+	CONS_Printf("Number of packets handled:\n");
+
+	for (UINT8 i = 0; i <= NUMPACKETTYPE; ++i)
+	{
+		CONS_Printf("%16s: %llu%s", Net_GetPacketName(i), packetstat[i], (i % 2 == 1) ? "\n" : "\t|\t");
+	}
+}
+
 #endif
 
 static void ResetNode(INT32 node);
@@ -2705,6 +2709,7 @@ void CL_Reset(void)
 	// make sure we don't leave any fileneeded gunk over from a failed join
 	fileneedednum = 0;
 	memset(fileneeded, 0, sizeof(fileneeded));
+	memset(packetstat, 0, sizeof(packetstat));
 
 #ifndef NONET
 	totalfilesrequestednum = 0;
@@ -3491,6 +3496,7 @@ void D_ClientServerInit(void)
 	COM_AddCommand("nodes", Command_Nodes);
 	COM_AddCommand("resendgamestate", Command_ResendGamestate);
 	COM_AddCommand("listplayers", Command_Listplayers);
+	COM_AddCommand("packetstat", Command_Packetstat);
 #ifdef HAVE_CURL
 	COM_AddCommand("set_http_login", Command_set_http_login);
 	COM_AddCommand("list_http_logins", Command_list_http_logins);
@@ -3591,6 +3597,7 @@ void SV_ResetServer(void)
 
 	// clear server_context
 	memset(server_context, '-', 8);
+	memset(packetstat, 0, sizeof(packetstat));
 
 	DEBFILE("\n-=-=-=-=-=-=-= Server Reset =-=-=-=-=-=-=-\n\n");
 }
@@ -3749,6 +3756,8 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 
 	if (server && multiplayer && motd[0] != '\0')
 		COM_BufAddText(va("sayto %d %s\n", newplayernum, motd));
+
+	D_AddAutoloadFiles();
 
 	LUAh_PlayerJoin(newplayernum);
 
@@ -4956,6 +4965,10 @@ static void GetPackets(void)
 		if (netbuffer->packettype == PT_PLAYERINFO)
 			continue; // We do nothing with PLAYERINFO, that's for the MS browser.
 
+		// We also count unknown packets, hence "<="
+		if (netbuffer->packettype <= NUMPACKETTYPE)
+			++packetstat[netbuffer->packettype];
+
 		// Packet received from someone already playing
 		if (nodeingame[node])
 			HandlePacketFromPlayer(node);
@@ -5003,16 +5016,14 @@ static INT16 Consistancy(void)
 		ret += P_GetRandSeed();
 
 #ifdef MOBJCONSISTANCY
-	if (!thinkercap.next)
-	{
-		DEBFILE(va("Consistancy = %u\n", ret));
-		return ret;
-	}
 	if (gamestate == GS_LEVEL)
 	{
 		for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		{
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+				continue;
+
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 				continue;
 
 			mo = (mobj_t *)th;

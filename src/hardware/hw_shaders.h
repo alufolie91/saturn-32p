@@ -53,18 +53,19 @@
 // Include GLSL_FLOOR_FUDGES or GLSL_WALL_FUDGES or define the fudges in shaders that use this macro.
 #define GLSL_DOOM_COLORMAP_DITHER \
 	"float baseValue = max(startmap * STARTMAP_FUDGE - scale * 0.5 * SCALE_FUDGE, cap);\n" \
-	"float halfResolutionx = scr_resolution.x;\n" \
-	"float halfResolutiony = scr_resolution.y;\n" \
+	"float endResolutionx = scr_resolution.x;\n" \
+	"float endResolutiony = scr_resolution.y;\n" \
 	"if (scr_resolution.x > 1280.0) {\n" \
-		"halfResolutionx = scr_resolution.x * 0.5;\n" \
+		"endResolutionx = scr_resolution.x * 0.5;\n" \
 	"}\n" \
 	"if (scr_resolution.y > 720.0) {\n" \
-		"halfResolutiony = scr_resolution.y * 0.5;\n" \
+		"endResolutiony = scr_resolution.y * 0.5;\n" \
 	"}\n" \
-	"float zFactor = clamp((z - 768.0) / (2304.0 - 768.0), 0.0, 1.0);\n" \
-	"halfResolutionx = mix(halfResolutionx, halfResolutionx * 2.0, zFactor);\n" \
-	"halfResolutiony = mix(halfResolutiony, halfResolutiony * 2.0, zFactor);\n" \
-	"vec2 normalizedPosition = position * vec2(halfResolutionx / scr_resolution.x, halfResolutiony / scr_resolution.y);\n" \
+	"float zFactor = clamp((z - 192.0) / (6144.0 - 192.0), 0.0, 1.0);\n" \
+	"int scaleFactor = int(mix(1.0, 8.0, zFactor));\n" \
+	"endResolutionx = endResolutionx * scaleFactor;\n" \
+	"endResolutiony = endResolutiony * scaleFactor;\n" \
+	"vec2 normalizedPosition = position * vec2(endResolutionx / scr_resolution.x, endResolutiony / scr_resolution.y);\n" \
 	"int x = int(mod(normalizedPosition.x, 4.0));\n" \
 	"int y = int(mod(normalizedPosition.y, 4.0));\n" \
 	"float bayerMatrix[4*4] = float[4*4](\n" \
@@ -78,7 +79,7 @@
 	"#else\n" \
 	"float threshold = (1.0 - pow(zFactor, 2.0)) * (bayerMatrix[y*4 + x] / 16.0);\n" \
 	"#endif\n" \
-	"return baseValue + threshold - 0.5 / 16.0;\n" \
+	"return mix(baseValue + threshold - 0.5 / 16.0, baseValue, zFactor);\n"
 
 #define GLSL_DOOM_COLORMAP_NODITHER \
 	"return max(startmap * STARTMAP_FUDGE - scale * 0.5 * SCALE_FUDGE, cap);\n" \

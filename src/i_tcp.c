@@ -1688,8 +1688,6 @@ boolean I_InitTcpNetwork(void)
 		// FIXME: for dedicated server, numnodes needs to be set to 0 upon start
 		if (dedicated)
 			doomcom->numnodes = 0;
-/*		else if (M_IsNextParm())
-			doomcom->numnodes = (INT16)atoi(M_GetNextParm());*/
 		else
 			doomcom->numnodes = 1;
 
@@ -1703,7 +1701,6 @@ boolean I_InitTcpNetwork(void)
 		// FIXME:
 		// ??? and now ?
 		// server on a big modem ??? 4*isdn
-		net_bandwidth = 16000;
 		hardware_MAXPACKETLENGTH = INETPACKETLENGTH;
 
 		ret = true;
@@ -1734,7 +1731,6 @@ boolean I_InitTcpNetwork(void)
 			// so we're on a LAN
 			COM_BufAddText("connect any\n");
 
-			net_bandwidth = 800000;
 			hardware_MAXPACKETLENGTH = MAXPACKETLENGTH;
 		}
 	}
@@ -1759,8 +1755,6 @@ boolean I_InitTcpNetwork(void)
 		{
 			// so we're on a LAN
 			COM_BufAddText("connect any\n");
-
-			net_bandwidth = 800000;
 			hardware_MAXPACKETLENGTH = MAXPACKETLENGTH;
 		}
 	}

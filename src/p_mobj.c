@@ -3327,7 +3327,12 @@ static void P_SceneryCheckWater(mobj_t *mobj)
 static boolean P_CameraCheckHeat(camera_t *thiscam)
 {
 	sector_t *sector;
-	fixed_t halfheight = thiscam->z + (thiscam->height >> 1);
+	fixed_t halfheight;
+
+	if (!thiscam)
+		return false;
+
+	halfheight = thiscam->z + (thiscam->height >> 1);
 
 	// see if we are in water
 	sector = thiscam->subsector->sector;
@@ -3360,7 +3365,12 @@ static boolean P_CameraCheckHeat(camera_t *thiscam)
 static boolean P_CameraCheckWater(camera_t *thiscam)
 {
 	sector_t *sector;
-	fixed_t halfheight = thiscam->z + (thiscam->height >> 1);
+	fixed_t halfheight;
+
+	if (!thiscam)
+		return false;
+
+	halfheight = thiscam->z + (thiscam->height >> 1);
 
 	// see if we are in water
 	sector = thiscam->subsector->sector;
@@ -3396,6 +3406,8 @@ void P_DestroyRobots(void)
 	{
 		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue; // not a mobj thinker
+		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+			continue;
 
 		mo = (mobj_t *)think;
 		if (mo->health <= 0 || !(mo->flags & MF_ENEMY || mo->flags & MF_BOSS))
@@ -4208,6 +4220,8 @@ static void P_Boss3Thinker(mobj_t *mobj)
 			{
 				if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 					continue;
+				if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+					continue;
 
 				mo2 = (mobj_t *)th;
 				if (mo2->type == (mobjtype_t)mobj->info->mass && mo2->tracer == mobj)
@@ -4299,13 +4313,25 @@ static void P_Boss3Thinker(mobj_t *mobj)
 		{
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 				continue;
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+				continue;
 
 			mo2 = (mobj_t *)th;
-			if (mo2->type == MT_BOSS3WAYPOINT && mo2->spawnpoint && mo2->spawnpoint->angle == mobj->threshold)
-			{
-				P_SetTarget(&mobj->target, mo2);
-				break;
-			}
+
+			if (!mo2)
+				continue;
+
+			if (mo2->type != MT_BOSS3WAYPOINT)
+				continue;
+
+			if (!mo2->spawnpoint)
+				continue;
+
+			if (mo2->spawnpoint->angle != mobj->threshold)
+				continue;
+
+			P_SetTarget(&mobj->target, mo2);
+			break;
 		}
 
 		if (!mobj->target) // Should NEVER happen
@@ -4920,6 +4946,8 @@ static void P_Boss7Thinker(mobj_t *mobj)
 				{
 					if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 						continue;
+					if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+						continue;
 
 					mo2 = (mobj_t *)th;
 					if (mo2->type == MT_BOSS3WAYPOINT && mo2->spawnpoint)
@@ -4974,6 +5002,8 @@ static void P_Boss7Thinker(mobj_t *mobj)
 		for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		{
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+				continue;
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 				continue;
 
 			mo2 = (mobj_t *)th;
@@ -5098,6 +5128,8 @@ static void P_Boss9Thinker(mobj_t *mobj)
 		{
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 				continue;
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+				continue;
 
 			mo2 = (mobj_t *)th;
 			if (mo2->type == MT_BOSS9GATHERPOINT)
@@ -5143,13 +5175,15 @@ static void P_Boss9Thinker(mobj_t *mobj)
 		else
 			mobj->momz = (mobj->watertop-mobj->z)/40; // Float to your desired position
 
-		if (mobj->movecount == 2) {
+		if (mobj->movecount == 2)
+		{
 			mobj_t *spawner;
 			fixed_t dist = 0;
 			angle = 0x06000000*leveltime;
 
 			// Alter your energy bubble's size/position
-			if (mobj->health > 3) {
+			if (mobj->health > 3)
+			{
 				mobj->tracer->destscale = FRACUNIT + (4*TICRATE - mobj->fuse)*(FRACUNIT/2)/TICRATE + FixedMul(FINECOSINE(angle>>ANGLETOFINESHIFT),FRACUNIT/2);
 				P_SetScale(mobj->tracer, mobj->tracer->destscale);
 				P_SetOrigin(mobj->tracer, mobj->x, mobj->y, mobj->z + mobj->height/2 - mobj->tracer->height/2);
@@ -5185,8 +5219,10 @@ static void P_Boss9Thinker(mobj_t *mobj)
 		}
 
 		// Pre-threshold reactiontime stuff for attack phases
-		if (mobj->reactiontime && mobj->movecount == 3) {
-			if (mobj->movedir == 0 || mobj->movedir == 2) { // Pausing between bounces in the pinball phase
+		if (mobj->reactiontime && mobj->movecount == 3)
+		{
+			if (mobj->movedir == 0 || mobj->movedir == 2) // Pausing between bounces in the pinball phase
+			{
 				if (mobj->target->player->powers[pw_tailsfly]) // Trying to escape, eh?
 					mobj->watertop = mobj->target->z + mobj->target->momz*6; // Readjust your aim. >:3
 				else
@@ -5200,13 +5236,16 @@ static void P_Boss9Thinker(mobj_t *mobj)
 		}
 
 		// threshold is used for attacks/maneuvers.
-		if (mobj->threshold) {
+		if (mobj->threshold)
+		{
 			fixed_t speed = 20*FRACUNIT + FixedMul(40*FRACUNIT, FixedDiv((mobj->info->spawnhealth - mobj->health)<<FRACBITS, mobj->info->spawnhealth<<FRACBITS));
 			int tries = 0;
 
 			// Firin' mah lazors
-			if (mobj->movecount == 3 && mobj->movedir == 1) {
-				if (!(mobj->threshold&1)) {
+			if (mobj->movecount == 3 && mobj->movedir == 1)
+			{
+				if (!(mobj->threshold&1))
+				{
 					mobj_t *missile;
 					if (mobj->info->seesound)
 						S_StartSound(mobj, mobj->info->seesound);
@@ -5218,18 +5257,21 @@ static void P_Boss9Thinker(mobj_t *mobj)
 
 					A_FaceTarget(mobj);
 					missile = P_SpawnMissile(mobj, mobj->target, mobj->info->speed);
-					if (mobj->extravalue1 == 2 || mobj->extravalue1 == 3) {
+					if (mobj->extravalue1 == 2 || mobj->extravalue1 == 3)
+					{
 						missile->destscale = FRACUNIT>>1;
 						P_SetScale(missile, missile->destscale);
 					}
 					missile->fuse = 3*TICRATE;
 					missile->z -= missile->height/2;
 
-					if (mobj->extravalue1 == 2) {
+					if (mobj->extravalue1 == 2)
+					{
 						int i;
 						mobj_t *spread;
 						missile->flags |= MF_MISSILE;
-						for (i = 0; i < 5; i++) {
+						for (i = 0; i < 5; i++)
+						{
 							if (i == 2)
 								continue;
 							spread = P_SpawnMobj(missile->x, missile->y, missile->z, missile->type);
@@ -5242,7 +5284,9 @@ static void P_Boss9Thinker(mobj_t *mobj)
 						}
 						missile->flags &= ~MF_MISSILE;
 					}
-				} else {
+				}
+				else
+				{
 					P_SetMobjState(mobj, mobj->state->nextstate);
 					if (mobj->extravalue1 == 3)
 						mobj->reactiontime = TICRATE/8;
@@ -5256,7 +5300,8 @@ static void P_Boss9Thinker(mobj_t *mobj)
 			P_SpawnGhostMobj(mobj);
 
 			// Pinball attack!
-			if (mobj->movecount == 3 && (mobj->movedir == 0 || mobj->movedir == 2)) {
+			if (mobj->movecount == 3 && (mobj->movedir == 0 || mobj->movedir == 2))
+			{
 				if ((statenum_t)(mobj->state-states) != mobj->info->seestate)
 					P_SetMobjState(mobj, mobj->info->seestate);
 				if (mobj->movedir == 0) // mobj health == 1
@@ -5265,16 +5310,22 @@ static void P_Boss9Thinker(mobj_t *mobj)
 					P_InstaThrust(mobj, mobj->angle, 22*FRACUNIT);
 				else // mobj health == 2
 					P_InstaThrust(mobj, mobj->angle, 30*FRACUNIT);
-				if (!P_TryMove(mobj, mobj->x+mobj->momx, mobj->y+mobj->momy, true)) { // Hit a wall? Find a direction to bounce
+
+				if (!P_TryMove(mobj, mobj->x+mobj->momx, mobj->y+mobj->momy, true)) // Hit a wall? Find a direction to bounce
+				{
 					mobj->threshold--;
-					if (mobj->threshold) {
+					if (mobj->threshold)
+					{
 						P_SetMobjState(mobj, mobj->state->nextstate);
 						if (mobj->info->mass)
 							S_StartSound(mobj, mobj->info->mass);
-						if (!(mobj->threshold%4)) { // We've decided to lock onto the player this bounce.
+						if (!(mobj->threshold%4)) // We've decided to lock onto the player this bounce.
+						{
 							mobj->angle = R_PointToAngle2(mobj->x, mobj->y, mobj->target->x + mobj->target->momx*4, mobj->target->y + mobj->target->momy*4);
 							mobj->reactiontime = TICRATE; // targetting time
-						} else { // No homing, just use P_BounceMove
+						}
+						else // No homing, just use P_BounceMove
+						{
 							P_BounceMove(mobj);
 							mobj->angle = R_PointToAngle2(0,0,mobj->momx,mobj->momy);
 							mobj->reactiontime = TICRATE/4; // just a pause before you bounce away
@@ -5288,7 +5339,8 @@ static void P_Boss9Thinker(mobj_t *mobj)
 			// Vector form dodge!
 			mobj->angle += mobj->movedir;
 			P_InstaThrust(mobj, mobj->angle, -speed);
-			while (!P_TryMove(mobj, mobj->x+mobj->momx, mobj->y+mobj->momy, true) && tries++ < 16) {
+			while (!P_TryMove(mobj, mobj->x+mobj->momx, mobj->y+mobj->momy, true) && tries++ < 16)
+			{
 				mobj->angle += mobj->movedir;
 				P_InstaThrust(mobj, mobj->angle, -speed);
 			}
@@ -5344,9 +5396,10 @@ static void P_Boss9Thinker(mobj_t *mobj)
 		if (mobj->flags2 & MF2_FRET)
 			return;
 
-		if (mobj->state == &states[mobj->info->raisestate])
-		{ // Charging energy
-			if (mobj->momx != 0 || mobj->momy != 0) { // Apply the air breaks
+		if (mobj->state == &states[mobj->info->raisestate]) // Charging energy
+		{
+			if (mobj->momx != 0 || mobj->momy != 0) // Apply the air breaks
+			{
 				if (abs(mobj->momx)+abs(mobj->momy) < FRACUNIT)
 					mobj->momx = mobj->momy = 0;
 				else
@@ -5371,7 +5424,8 @@ static void P_Boss9Thinker(mobj_t *mobj)
 					mobj->watertop = mobj->target->floorz + 256*FRACUNIT;
 				break;
 
-			case 1: {
+			case 1:
+			{
 				// Okay, we're up? Good, time to gather energy...
 				if (mobj->health > mobj->info->damage)
 				{ // No more bubble if we're broken (pinch phase)
@@ -5397,7 +5451,8 @@ static void P_Boss9Thinker(mobj_t *mobj)
 					P_SetTarget(&mobj->tracer, mobj->hnext);
 					P_RemoveMobj(removemobj);
 				}
-				if (mobj->health <= mobj->info->damage) {
+				if (mobj->health <= mobj->info->damage)
+				{
 					// Attack 1: Pinball dash!
 					if (mobj->health == 1)
 						mobj->movedir = 0;
@@ -5412,7 +5467,9 @@ static void P_Boss9Thinker(mobj_t *mobj)
 						mobj->threshold = 32; // bounce 32 times
 					mobj->watertop = mobj->target->floorz + 16*FRACUNIT;
 					P_LinedefExecute(LE_PINCHPHASE, mobj, NULL);
-				} else {
+				}
+				else
+				{
 					// Attack 2: Energy shot!
 					mobj->movedir = 1;
 
@@ -5425,7 +5482,8 @@ static void P_Boss9Thinker(mobj_t *mobj)
 					else
 						mobj->extravalue1 = 3;
 
-					switch(mobj->extravalue1) {
+					switch(mobj->extravalue1)
+					{
 					case 0: // shoot once
 					case 2: // spread-shot
 					default:
@@ -5489,7 +5547,8 @@ static void P_Boss9Thinker(mobj_t *mobj)
 				danger = false;
 			if (mobj->target->z+mobj->target->momz*2 > mobj->z+mobj->height)
 				danger = false;
-			if (danger) {
+			if (danger)
+			{
 				// An incoming attack is detected! What should we do?!
 				// Go into vector form!
 				mobj->movedir = ANGLE_11hh - FixedAngle(FixedMul(AngleFixed(ANGLE_11hh), FixedDiv((mobj->info->spawnhealth - mobj->health)<<FRACBITS, (mobj->info->spawnhealth-1)<<FRACBITS)));
@@ -5530,6 +5589,8 @@ mobj_t *P_GetClosestAxis(mobj_t *source)
 	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
 		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue;
+		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 			continue;
 
 		mo2 = (mobj_t *)th;
@@ -6042,7 +6103,8 @@ static void P_AddOverlay(mobj_t *thing)
 
 	if (overlaycap == NULL)
 		P_SetTarget(&overlaycap, thing);
-	else {
+	else
+	{
 		mobj_t *mo;
 		for (mo = overlaycap; mo && mo->hnext; mo = mo->hnext)
 			;
@@ -6155,7 +6217,8 @@ static void P_RemoveOverlay(mobj_t *thing)
 
 	if (shadowcap == NULL)
 		P_SetTarget(&shadowcap, thing);
-	else {
+	else
+	{
 		mobj_t *mo;
 		for (mo = shadowcap; mo && mo->hnext; mo = mo->hnext)
 			;
@@ -6357,7 +6420,8 @@ void P_MobjThinker(mobj_t *mobj)
 	mobj->flags2 &= ~MF2_PUSHED;
 	mobj->eflags &= ~(MFE_SPRUNG|MFE_JUSTBOUNCEDWALL);
 
-	tmfloorthing = tmhitthing = NULL;
+	P_SetTarget(&tmfloorthing, NULL);
+	P_SetTarget(&tmhitthing, NULL);
 
 	// 970 allows ANY mobj to trigger a linedef exec
 	if (mobj->subsector && GETSECSPECIAL(mobj->subsector->sector->special, 2) == 8)
@@ -9184,190 +9248,193 @@ void P_MobjThinker(mobj_t *mobj)
 			mobj_t *flagmo, *newmobj;
 
 			if (!LUAh_MobjFuse(mobj) && !P_MobjWasRemoved(mobj))
-			switch (mobj->type)
 			{
-				// gargoyle and snowman handled in P_PushableThinker, not here
-				case MT_THROWNGRENADE:
-				case MT_CYBRAKDEMON_NAPALM_BOMB_LARGE:
-					P_SetMobjState(mobj, mobj->info->deathstate);
-					break;
-				case MT_BLUEFLAG:
-				case MT_REDFLAG:
-					if (mobj->spawnpoint)
-					{
-						x = mobj->spawnpoint->x << FRACBITS;
-						y = mobj->spawnpoint->y << FRACBITS;
-						ss = R_PointInSubsector(x, y);
-						if (mobj->spawnpoint->options & MTF_OBJECTFLIP)
+				switch (mobj->type)
+				{
+					// gargoyle and snowman handled in P_PushableThinker, not here
+					case MT_THROWNGRENADE:
+					case MT_CYBRAKDEMON_NAPALM_BOMB_LARGE:
+						P_SetMobjState(mobj, mobj->info->deathstate);
+						break;
+					case MT_BLUEFLAG:
+					case MT_REDFLAG:
+						if (mobj->spawnpoint)
 						{
-							z = ss->sector->ceilingheight - mobjinfo[mobj->type].height;
-							if (mobj->spawnpoint->options >> ZSHIFT)
-								z -= (mobj->spawnpoint->options >> ZSHIFT) << FRACBITS;
+							x = mobj->spawnpoint->x << FRACBITS;
+							y = mobj->spawnpoint->y << FRACBITS;
+							ss = R_PointInSubsector(x, y);
+							if (mobj->spawnpoint->options & MTF_OBJECTFLIP)
+							{
+								z = ss->sector->ceilingheight - mobjinfo[mobj->type].height;
+								if (mobj->spawnpoint->options >> ZSHIFT)
+									z -= (mobj->spawnpoint->options >> ZSHIFT) << FRACBITS;
+							}
+							else
+							{
+								z = ss->sector->floorheight;
+								if (mobj->spawnpoint->options >> ZSHIFT)
+									z += (mobj->spawnpoint->options >> ZSHIFT) << FRACBITS;
+							}
+							flagmo = P_SpawnMobj(x, y, z, mobj->type);
+							flagmo->spawnpoint = mobj->spawnpoint;
+							if (mobj->spawnpoint->options & MTF_OBJECTFLIP)
+							{
+								flagmo->eflags |= MFE_VERTICALFLIP;
+								flagmo->flags2 |= MF2_OBJECTFLIP;
+							}
+
+							if (mobj->type == MT_REDFLAG)
+							{
+								if (!(mobj->flags2 & MF2_JUSTATTACKED))
+									CONS_Printf(M_GetText("The %c%s%c has returned to base.\n"), 0x85, M_GetText("Red flag"), 0x80);
+
+								// Assumedly in splitscreen players will be on opposing teams
+								if (players[consoleplayer].ctfteam == 1 || splitscreen)
+									S_StartSound(NULL, sfx_hoop1);
+								else if (players[consoleplayer].ctfteam == 2)
+									S_StartSound(NULL, sfx_hoop3);
+
+								redflag = flagmo;
+							}
+							else // MT_BLUEFLAG
+							{
+								if (!(mobj->flags2 & MF2_JUSTATTACKED))
+									CONS_Printf(M_GetText("The %c%s%c has returned to base.\n"), 0x84, M_GetText("Blue flag"), 0x80);
+
+								// Assumedly in splitscreen players will be on opposing teams
+								if (players[consoleplayer].ctfteam == 2 || splitscreen)
+									S_StartSound(NULL, sfx_hoop1);
+								else if (players[consoleplayer].ctfteam == 1)
+									S_StartSound(NULL, sfx_hoop3);
+
+								blueflag = flagmo;
+							}
 						}
-						else
+						P_RemoveMobj(mobj);
+						return;
+					case MT_YELLOWTV: // Ring shield box
+					case MT_BLUETV: // Force shield box
+					case MT_GREENTV: // Water shield box
+					case MT_BLACKTV: // Bomb shield box
+					case MT_WHITETV: // Jump shield box
+					case MT_SNEAKERTV: // Super Sneaker box
+					case MT_SUPERRINGBOX: // 10-Ring box
+					case MT_REDRINGBOX: // Red Team 10-Ring box
+					case MT_BLUERINGBOX: // Blue Team 10-Ring box
+					case MT_INV: // Invincibility box
+					case MT_MIXUPBOX: // Teleporter Mixup box
+					case MT_RECYCLETV: // Recycler box
+					case MT_SCORETVSMALL:
+					case MT_SCORETVLARGE:
+					case MT_PRUP: // 1up!
+					case MT_EGGMANBOX: // Eggman box
+					case MT_GRAVITYBOX: // Gravity box
+					case MT_QUESTIONBOX:
+						if ((mobj->flags2 & MF2_AMBUSH || mobj->flags2 & MF2_STRONGBOX) && mobj->type != MT_QUESTIONBOX)
 						{
-							z = ss->sector->floorheight;
-							if (mobj->spawnpoint->options >> ZSHIFT)
-								z += (mobj->spawnpoint->options >> ZSHIFT) << FRACBITS;
-						}
-						flagmo = P_SpawnMobj(x, y, z, mobj->type);
-						flagmo->spawnpoint = mobj->spawnpoint;
-						if (mobj->spawnpoint->options & MTF_OBJECTFLIP)
-						{
-							flagmo->eflags |= MFE_VERTICALFLIP;
-							flagmo->flags2 |= MF2_OBJECTFLIP;
-						}
+							mobjtype_t spawnchance[64];
+							INT32 numchoices = 0, i = 0;
 
-						if (mobj->type == MT_REDFLAG)
-						{
-							if (!(mobj->flags2 & MF2_JUSTATTACKED))
-								CONS_Printf(M_GetText("The %c%s%c has returned to base.\n"), 0x85, M_GetText("Red flag"), 0x80);
-
-							// Assumedly in splitscreen players will be on opposing teams
-							if (players[consoleplayer].ctfteam == 1 || splitscreen)
-								S_StartSound(NULL, sfx_hoop1);
-							else if (players[consoleplayer].ctfteam == 2)
-								S_StartSound(NULL, sfx_hoop3);
-
-							redflag = flagmo;
-						}
-						else // MT_BLUEFLAG
-						{
-							if (!(mobj->flags2 & MF2_JUSTATTACKED))
-								CONS_Printf(M_GetText("The %c%s%c has returned to base.\n"), 0x84, M_GetText("Blue flag"), 0x80);
-
-							// Assumedly in splitscreen players will be on opposing teams
-							if (players[consoleplayer].ctfteam == 2 || splitscreen)
-								S_StartSound(NULL, sfx_hoop1);
-							else if (players[consoleplayer].ctfteam == 1)
-								S_StartSound(NULL, sfx_hoop3);
-
-							blueflag = flagmo;
-						}
-					}
-					P_RemoveMobj(mobj);
-					return;
-				case MT_YELLOWTV: // Ring shield box
-				case MT_BLUETV: // Force shield box
-				case MT_GREENTV: // Water shield box
-				case MT_BLACKTV: // Bomb shield box
-				case MT_WHITETV: // Jump shield box
-				case MT_SNEAKERTV: // Super Sneaker box
-				case MT_SUPERRINGBOX: // 10-Ring box
-				case MT_REDRINGBOX: // Red Team 10-Ring box
-				case MT_BLUERINGBOX: // Blue Team 10-Ring box
-				case MT_INV: // Invincibility box
-				case MT_MIXUPBOX: // Teleporter Mixup box
-				case MT_RECYCLETV: // Recycler box
-				case MT_SCORETVSMALL:
-				case MT_SCORETVLARGE:
-				case MT_PRUP: // 1up!
-				case MT_EGGMANBOX: // Eggman box
-				case MT_GRAVITYBOX: // Gravity box
-				case MT_QUESTIONBOX:
-					if ((mobj->flags2 & MF2_AMBUSH || mobj->flags2 & MF2_STRONGBOX) && mobj->type != MT_QUESTIONBOX)
-					{
-						mobjtype_t spawnchance[64];
-						INT32 numchoices = 0, i = 0;
-
-// This define should make it a lot easier to organize and change monitor weights
+	// This define should make it a lot easier to organize and change monitor weights
 #define SETMONITORCHANCES(type, strongboxamt, weakboxamt) \
-for (i = ((mobj->flags2 & MF2_STRONGBOX) ? strongboxamt : weakboxamt); i; --i) spawnchance[numchoices++] = type
+	for (i = ((mobj->flags2 & MF2_STRONGBOX) ? strongboxamt : weakboxamt); i; --i) spawnchance[numchoices++] = type
 
-						//                Type            SRM WRM
-						SETMONITORCHANCES(MT_SNEAKERTV,     0, 10); // Super Sneakers
-						SETMONITORCHANCES(MT_INV,           2,  0); // Invincibility
-						SETMONITORCHANCES(MT_WHITETV,       3,  8); // Whirlwind Shield
-						SETMONITORCHANCES(MT_GREENTV,       3,  8); // Elemental Shield
-						SETMONITORCHANCES(MT_YELLOWTV,      2,  0); // Attraction Shield
-						SETMONITORCHANCES(MT_BLUETV,        3,  3); // Force Shield
-						SETMONITORCHANCES(MT_BLACKTV,       2,  0); // Armageddon Shield
-						SETMONITORCHANCES(MT_MIXUPBOX,      0,  1); // Teleporters
-						SETMONITORCHANCES(MT_RECYCLETV,     0,  1); // Recycler
-						SETMONITORCHANCES(MT_PRUP,          1,  1); // 1-Up
-						// ======================================
-						//                Total            16  32
+							//                Type            SRM WRM
+							SETMONITORCHANCES(MT_SNEAKERTV,     0, 10); // Super Sneakers
+							SETMONITORCHANCES(MT_INV,           2,  0); // Invincibility
+							SETMONITORCHANCES(MT_WHITETV,       3,  8); // Whirlwind Shield
+							SETMONITORCHANCES(MT_GREENTV,       3,  8); // Elemental Shield
+							SETMONITORCHANCES(MT_YELLOWTV,      2,  0); // Attraction Shield
+							SETMONITORCHANCES(MT_BLUETV,        3,  3); // Force Shield
+							SETMONITORCHANCES(MT_BLACKTV,       2,  0); // Armageddon Shield
+							SETMONITORCHANCES(MT_MIXUPBOX,      0,  1); // Teleporters
+							SETMONITORCHANCES(MT_RECYCLETV,     0,  1); // Recycler
+							SETMONITORCHANCES(MT_PRUP,          1,  1); // 1-Up
+							// ======================================
+							//                Total            16  32
 
 #undef SETMONITORCHANCES
 
-						i = P_RandomKey(numchoices); // Gotta love those random numbers!
-						newmobj = P_SpawnMobj(mobj->x, mobj->y, mobj->z, spawnchance[i]);
+							i = P_RandomKey(numchoices); // Gotta love those random numbers!
+							newmobj = P_SpawnMobj(mobj->x, mobj->y, mobj->z, spawnchance[i]);
 
-						// Transfer flags2 (strongbox, objectflip, ambush)
-						newmobj->flags2 = mobj->flags2;
-					}
-					else
-					{
-						newmobj = P_SpawnMobj(mobj->x, mobj->y, mobj->z, mobj->type);
-
-						// Transfer flags2 (strongbox, objectflip)
-						newmobj->flags2 = mobj->flags2;
-					}
-					P_RemoveMobj(mobj); // make sure they disappear
-					return;
-				case MT_RANDOMITEM:
-					if (G_BattleGametype())
-					{
-						if (mobj->threshold != 69)
-							break;
-					}
-					else
-					{
-						// Respawn from mapthing if you have one!
-						if (mobj->spawnpoint)
-						{
-							P_SpawnMapThing(mobj->spawnpoint);
-							newmobj = mobj->spawnpoint->mobj; // this is set to the new mobj in P_SpawnMapThing
+							// Transfer flags2 (strongbox, objectflip, ambush)
+							newmobj->flags2 = mobj->flags2;
 						}
 						else
+						{
 							newmobj = P_SpawnMobj(mobj->x, mobj->y, mobj->z, mobj->type);
 
-						// Transfer flags2 (strongbox, objectflip)
-						newmobj->flags2 = mobj->flags2 & ~MF2_DONTDRAW;
-					}
-					P_RemoveMobj(mobj); // make sure they disappear
-					return;
-				case MT_METALSONIC_BATTLE:
-					break; // don't remove
-				case MT_SPIKE:
-					P_SetMobjState(mobj, mobj->state->nextstate);
-					mobj->fuse = mobj->info->speed;
-					if (mobj->spawnpoint)
-						mobj->fuse += mobj->spawnpoint->angle;
-					break;
-				case MT_NIGHTSCORE:
-					P_RemoveMobj(mobj);
-					return;
-				case MT_PLAYER:
-					break; // don't remove
-				case MT_SMK_ICEBLOCK:
-					{
-						mobj_t *cur = mobj->hnext, *next;
-						UINT8 i;
-
-						for (i = 0; i < 5; i++)
-						{
-							mobj_t *debris = P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_SMK_ICEBLOCK_DEBRIS);
-							debris->angle = FixedAngle(P_RandomRange(0,360)<<FRACBITS);
-							P_InstaThrust(debris, debris->angle, P_RandomRange(3,18)*(FRACUNIT/4));
-							debris->momz = P_RandomRange(4,8)<<FRACBITS;
-							if (!i) // kinda hacky :V
-								S_StartSound(debris, sfx_s3k82);
+							// Transfer flags2 (strongbox, objectflip)
+							newmobj->flags2 = mobj->flags2;
 						}
-
-						while (cur && !P_MobjWasRemoved(cur))
+						P_RemoveMobj(mobj); // make sure they disappear
+						return;
+					case MT_RANDOMITEM:
+						if (G_BattleGametype())
 						{
-							next = cur->hnext;
-							P_RemoveMobj(cur);
-							cur = next;
+							if (mobj->threshold != 69)
+								break;
 						}
+						else
+						{
+							// Respawn from mapthing if you have one!
+							if (mobj->spawnpoint)
+							{
+								P_SpawnMapThing(mobj->spawnpoint);
+								newmobj = mobj->spawnpoint->mobj; // this is set to the new mobj in P_SpawnMapThing
+							}
+							else
+								newmobj = P_SpawnMobj(mobj->x, mobj->y, mobj->z, mobj->type);
 
+							// Transfer flags2 (strongbox, objectflip)
+							newmobj->flags2 = mobj->flags2 & ~MF2_DONTDRAW;
+						}
+						P_RemoveMobj(mobj); // make sure they disappear
+						return;
+					case MT_METALSONIC_BATTLE:
+						break; // don't remove
+					case MT_SPIKE:
+						P_SetMobjState(mobj, mobj->state->nextstate);
+						mobj->fuse = mobj->info->speed;
+						if (mobj->spawnpoint)
+							mobj->fuse += mobj->spawnpoint->angle;
+						break;
+					case MT_NIGHTSCORE:
 						P_RemoveMobj(mobj);
 						return;
-					}			
-				default:
-					P_SetMobjState(mobj, mobj->info->xdeathstate); // will remove the mobj if S_NULL.
-					break;
+
+					case MT_PLAYER:
+						break; // don't remove
+					case MT_SMK_ICEBLOCK:
+						{
+							mobj_t *cur = mobj->hnext, *next;
+							UINT8 i;
+
+							for (i = 0; i < 5; i++)
+							{
+								mobj_t *debris = P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_SMK_ICEBLOCK_DEBRIS);
+								debris->angle = FixedAngle(P_RandomRange(0,360)<<FRACBITS);
+								P_InstaThrust(debris, debris->angle, P_RandomRange(3,18)*(FRACUNIT/4));
+								debris->momz = P_RandomRange(4,8)<<FRACBITS;
+								if (!i) // kinda hacky :V
+									S_StartSound(debris, sfx_s3k82);
+							}
+
+							while (cur && !P_MobjWasRemoved(cur))
+							{
+								next = cur->hnext;
+								P_RemoveMobj(cur);
+								cur = next;
+							}
+
+							P_RemoveMobj(mobj);
+							return;
+						}
+					default:
+						P_SetMobjState(mobj, mobj->info->xdeathstate); // will remove the mobj if S_NULL.
+						break;
+				}
 			}
 			if (P_MobjWasRemoved(mobj))
 				return;
@@ -10546,71 +10613,67 @@ void P_RemoveMobj(mobj_t *mobj)
 	// killough 11/98:
 	//
 	// Remove any references to other mobjs.
-	P_SetTarget(&mobj->target, P_SetTarget(&mobj->tracer, NULL));
+	P_SetTarget(&mobj->target, NULL);
+	P_SetTarget(&mobj->tracer, NULL);
 
 	// repair hnext chain
-	{
-		mobj_t *cachenext = mobj->hnext;
+	mobj_t *cachenext = mobj->hnext;
 
-		if (mobj->hnext && !P_MobjWasRemoved(mobj->hnext))
+	if (mobj->hnext && !P_MobjWasRemoved(mobj->hnext))
+	{
+		if (mobj->hnext->hprev == mobj)
 		{
 			P_SetTarget(&mobj->hnext->hprev, mobj->hprev);
-			P_SetTarget(&mobj->hnext, NULL);
 		}
 
-		if (mobj->hprev && !P_MobjWasRemoved(mobj->hprev))
+		P_SetTarget(&mobj->hnext, NULL);
+	}
+
+	if (mobj->hprev && !P_MobjWasRemoved(mobj->hprev))
+	{
+		if (mobj->hprev->hnext == mobj)
 		{
 			P_SetTarget(&mobj->hprev->hnext, cachenext);
-			P_SetTarget(&mobj->hprev, NULL);
 		}
+
+		P_SetTarget(&mobj->hprev, NULL);
 	}
 	
 	// clear the reference from the mapthing
 	if (mobj->spawnpoint)
-		mobj->spawnpoint->mobj = NULL;
+		P_SetTarget(&mobj->spawnpoint->mobj, NULL);
 
 	R_RemoveMobjInterpolator(mobj);
 
 	// free block
-	// DBG: set everything in mobj_t to 0xFF instead of leaving it. debug memory error.
-	if (mobj->flags & MF_NOTHINK && !mobj->thinker.next)
+	if (!mobj->thinker.next)
 	{ // Uh-oh, the mobj doesn't think, P_RemoveThinker would never go through!
+		INT32 prevreferences;
 		if (!mobj->thinker.references)
 		{
-#ifdef SCRAMBLE_REMOVED
-			// Invalidate mobj_t data to cause crashes if accessed!
-			memset(mobj, 0xff, sizeof(mobj_t));
-#endif
-			Z_Free(mobj); // No refrences? Can be removed immediately! :D
+			Z_Free(mobj); // No references? Can be removed immediately! :D
+			return;
 		}
-		else
-		{ // Add thinker just to delay removing it until refrences are gone.
-			mobj->flags &= ~MF_NOTHINK;
-			P_AddThinker((thinker_t *)mobj);
-#ifdef SCRAMBLE_REMOVED
-			// Invalidate mobj_t data to cause crashes if accessed!
-			memset((UINT8 *)mobj + sizeof(thinker_t), 0xff, sizeof(mobj_t) - sizeof(thinker_t));
-#endif
-			P_RemoveThinker((thinker_t *)mobj);
-		}
+
+		prevreferences = mobj->thinker.references;
+		P_AddThinker((thinker_t *)mobj);
+		mobj->thinker.references = prevreferences;
 	}
-	else
-	{
+
+	P_RemoveThinker((thinker_t *)mobj);
+
+	// DBG: set everything in mobj_t to 0xFF instead of leaving it. debug memory error.
 #ifdef SCRAMBLE_REMOVED
-		// Invalidate mobj_t data to cause crashes if accessed!
-		memset((UINT8 *)mobj + sizeof(thinker_t), 0xff, sizeof(mobj_t) - sizeof(thinker_t));
+	// Invalidate mobj_t data to cause crashes if accessed!
+	memset((UINT8 *)mobj + sizeof(thinker_t), 0xff, sizeof(mobj_t) - sizeof(thinker_t));
 #endif
-		P_RemoveThinker((thinker_t *)mobj);
-	}
 }
 
 // This does not need to be added to Lua.
 // To test it in Lua, check mobj.valid
 boolean P_MobjWasRemoved(mobj_t *mobj)
 {
-	if (mobj && mobj->thinker.function.acp1 == (actionf_p1)P_MobjThinker)
-		return false;
-	return true;
+	return !(mobj && mobj->thinker.function.acp1 == (actionf_p1)P_MobjThinker);
 }
 
 void P_RemovePrecipMobj(precipmobj_t *mobj)
@@ -10901,6 +10964,8 @@ void P_RespawnSpecials(void)
 			mobj_t *newmobj;
 
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)	// not a mobj
+				continue;
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 				continue;
 
 			box = (mobj_t *)th;
@@ -12055,6 +12120,8 @@ ML_NOCLIMB : Direction not controllable
 		{
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 				continue;
+			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+				continue;
 
 			mo2 = (mobj_t *)th;
 
@@ -12325,11 +12392,12 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 			{
 				P_SetTarget(&mobj->hprev, nextmobj);
 				P_SetTarget(&mobj->hprev->hnext, mobj);
-				//mobj->hprev = nextmobj;
-				//mobj->hprev->hnext = mobj;
 			}
 			else
-				mobj->hprev = mobj->hnext = NULL;
+			{
+				P_SetTarget(&mobj->hprev, NULL);
+				P_SetTarget(&mobj->hnext, NULL);
+			}
 
 			nextmobj = mobj;
 		}
@@ -12355,11 +12423,9 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 			mobj->z -= mobj->height/2;
 
 			// Link all the collision sprites together.
-			mobj->hnext = NULL;
+			P_SetTarget(&mobj->hnext, NULL);
 			P_SetTarget(&mobj->hprev, nextmobj);
 			P_SetTarget(&mobj->hprev->hnext, mobj);
-			//mobj->hprev = nextmobj;
-			//mobj->hprev->hnext = mobj;
 
 			nextmobj = mobj;
 		}
@@ -12384,11 +12450,9 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 			mobj->z -= mobj->height/2;
 
 			// Link all the collision sprites together.
-			mobj->hnext = NULL;
+			P_SetTarget(&mobj->hnext, NULL);
 			P_SetTarget(&mobj->hprev, nextmobj);
 			P_SetTarget(&mobj->hprev->hnext, mobj);
-			//mobj->hprev = nextmobj;
-			//mobj->hprev->hnext = mobj;
 
 			nextmobj = mobj;
 		}
@@ -12471,11 +12535,12 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 			{
 				P_SetTarget(&mobj->hprev, nextmobj);
 				P_SetTarget(&mobj->hprev->hnext, mobj);
-				//mobj->hprev = nextmobj;
-				//mobj->hprev->hnext = mobj;
 			}
 			else
-				mobj->hprev = mobj->hnext = NULL;
+			{
+				P_SetTarget(&mobj->hprev, NULL);
+				P_SetTarget(&mobj->hnext, NULL);
+			}
 
 			nextmobj = mobj;
 		}
@@ -12512,11 +12577,9 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 				mobj->z -= mobj->height/2;
 
 				// Link all the collision sprites together.
-				mobj->hnext = NULL;
+				P_SetTarget(&mobj->hnext, NULL);
 				P_SetTarget(&mobj->hprev, nextmobj);
 				P_SetTarget(&mobj->hprev->hnext, mobj);
-				//mobj->hprev = nextmobj;
-				//mobj->hprev->hnext = mobj;
 
 				nextmobj = mobj;
 			}

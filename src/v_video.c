@@ -15,6 +15,7 @@
 
 #include "doomdef.h"
 #include "r_local.h"
+#include "p_local.h"
 #include "v_video.h"
 #include "hu_stuff.h"
 #include "r_draw.h"
@@ -3238,7 +3239,7 @@ INT32 heatindex[MAXSPLITSCREENPLAYERS] = {0, 0, 0, 0};
 //
 // Perform a particular image postprocessing function.
 //
-#include "p_local.h"
+
 void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 {
 #if NUMSCREENS < 5
@@ -3306,8 +3307,8 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 				}
 			}
 
-/*
-Unoptimized version
+			/*
+			Unoptimized version
 			for (x = 0; x < vid.width*vid.bpp; x++)
 			{
 				newpix = (x + sine);

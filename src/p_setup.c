@@ -77,7 +77,6 @@
 #endif
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
-#include "hardware/hw_light.h"
 #endif
 
 #include "p_slopes.h"
@@ -108,6 +107,8 @@ mapthing_t *mapthings;
 INT32 numstarposts;
 boolean levelloading;
 UINT8 levelfadecol;
+
+virtres_t *curmapvirt;
 
 // BLOCKMAP
 // Created from axis aligned bounding box
@@ -244,6 +245,8 @@ mobj_t *P_GetClosestWaypoint(UINT8 sequence, mobj_t *mo)
 static SINT8 partadd_stage = -1;
 static boolean partadd_replacescurrentmap = false;
 static boolean partadd_important = false;
+
+SINT8 midgamejoin = 0;
 
 /** Logs an error about a map being corrupt, then terminate.
   * This allows reporting highly technical errors for usefulness, without
@@ -843,6 +846,8 @@ void P_ReloadRings(void)
 	{
 		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue;
+		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+			continue;
 
 		mo = (mobj_t *)th;
 
@@ -889,69 +894,6 @@ void P_ReloadRings(void)
 		P_SpawnHoopsAndRings(hoopsToRespawn[i]);
 	}
 }
-
-#ifdef SCANTHINGS
-void P_ScanThings(INT16 mapnum, INT16 wadnum, INT16 lumpnum)
-{
-	size_t i, n;
-	UINT8 *data, *datastart;
-	UINT16 type, maprings;
-	INT16 tol;
-	UINT32 flags;
-
-	tol = mapheaderinfo[mapnum-1]->typeoflevel;
-	if (!(tol & TOL_SP))
-		return;
-	flags = mapheaderinfo[mapnum-1]->levelflags;
-
-	n = W_LumpLengthPwad(wadnum, lumpnum) / (5 * sizeof (INT16));
-	//CONS_Printf("%u map things found!\n", n);
-
-	maprings = 0;
-	data = datastart = W_CacheLumpNumPwad(wadnum, lumpnum, PU_STATIC);
-	for (i = 0; i < n; i++)
-	{
-		data += 3 * sizeof (INT16); // skip x y position, angle
-		type = READUINT16(data) & 4095;
-		data += sizeof (INT16); // skip options
-
-		switch (type)
-		{
-		case 300: // MT_RING
-		case 1800: // MT_COIN
-		case 308: // red team ring
-		case 309: // blue team ring
-			maprings++;
-			break;
-		case 400: // MT_SUPERRINGBOX
-		case 414: // red ring box
-		case 415: // blue ring box
-		case 603: // 10 diagonal rings
-			maprings += 10;
-			break;
-		case 600: // 5 vertical rings
-		case 601: // 5 vertical rings
-		case 602: // 5 diagonal rings
-			maprings += 5;
-			break;
-		case 604: // 8 circle rings
-		case 609: // 16 circle rings & wings
-			maprings += 8;
-			break;
-		case 605: // 16 circle rings
-			maprings += 16;
-			break;
-		case 608: // 8 circle rings & wings
-			maprings += 4;
-			break;
-		}
-	}
-	Z_Free(datastart);
-
-	if (maprings)
-		CONS_Printf("%s has %u rings\n", G_BuildMapName(mapnum), maprings);
-}
-#endif
 
 //
 // P_LoadThings
@@ -2357,7 +2299,6 @@ static void P_LevelInitStuff(boolean reloadinggamestate)
 void P_LoadThingsOnly(void)
 {
 	// Search through all the thinkers.
-	mobj_t *mo;
 	thinker_t *think;
 
 	virtres_t* virt = vres_GetMap(lastloadedmaplumpnum);
@@ -2366,12 +2307,10 @@ void P_LoadThingsOnly(void)
 	for (think = thinkercap.next; think != &thinkercap; think = think->next)
 	{
 		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
-			continue; // not a mobj thinker
-
-		mo = (mobj_t *)think;
-
-		if (mo)
-			P_RemoveMobj(mo);
+			continue;
+		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
+			continue;
+		P_RemoveMobj((mobj_t *)think);
 	}
 
 	P_LevelInitStuff(false);
@@ -2439,20 +2378,26 @@ static void P_MakeMapMD5(virtres_t *virt, void *dest)
 
 static void P_LoadMapFromFile(void)
 {
-	virtres_t *virt = vres_GetMap(lastloadedmaplumpnum);
-
-	P_LoadMapData(virt);
-	P_LoadMapBSP(virt);
-	P_LoadMapLUT(virt);
+	P_LoadMapData(curmapvirt);
+	P_LoadMapBSP(curmapvirt);
+	P_LoadMapLUT(curmapvirt);
 
 	P_LoadLineDefs2();
 	P_GroupLines();
 
-	P_PrepareRawThings(vres_Find(virt, "THINGS")->data);
+	P_PrepareRawThings(vres_Find(curmapvirt, "THINGS")->data);
 
-	P_MakeMapMD5(virt, &mapmd5);
+	P_MakeMapMD5(curmapvirt, &mapmd5);
 
-	vres_Free(virt);
+	// We do the following silly
+	// construction because vres_Free
+	// no-sells deletions of pointers
+	// that are == curmapvirt.
+	{
+		virtres_t *temp = curmapvirt;
+		curmapvirt = NULL;
+		vres_Free(temp);
+	}
 }
 
 static void P_RunLevelScript(const char *scriptname)
@@ -2695,6 +2640,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 	INT32 i, loadprecip = 1, ranspecialwipe = 0;
 	INT32 loademblems = 1;
 	INT32 fromnetsave = 0;
+	midgamejoin = 0;
 	sector_t *ss;
 	boolean chase;
 
@@ -2739,10 +2685,6 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 
 	if (!dedicated)
 	{
-		// Salt: CV_ClearChangedFlags() messes with your settings :(
-		/*if (!cv_cam_speed.changed)
-			CV_Set(&cv_cam_speed, cv_cam_speed.defaultvalue);*/
-
 		if (!cv_chasecam.changed)
 			CV_SetValue(&cv_chasecam, chase);
 
@@ -2897,6 +2839,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 		fromnetsave = 1;
 		loadprecip = 0;
 		loademblems = 0;
+		midgamejoin = 1;
 	}
 
 	// internal game map
@@ -2904,6 +2847,8 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 	lastloadedmaplumpnum = W_CheckNumForName(maplumpname);
 	if (lastloadedmaplumpnum == INT16_MAX)
 		I_Error("Map %s not found.\n", maplumpname);
+
+	curmapvirt = vres_GetMap(lastloadedmaplumpnum);
 
 	R_ReInitColormaps(mapheaderinfo[gamemap-1]->palette,
 		(encoremode ? W_CheckNumForName(va("%sE", maplumpname)) : LUMPERROR));
@@ -2992,8 +2937,6 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 
 	if (modeattacking == ATTACKING_RECORD && !demo.playback)
 		P_LoadRecordGhosts();
-	/*else if (modeattacking == ATTACKING_NIGHTS && !demo.playback)
-		P_LoadNightsGhosts();*/
 
 	if (G_TagGametype())
 	{
@@ -3094,19 +3037,6 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 			for (i = 0; i <= splitscreen; i++)
 				P_SetupCamera(displayplayers[i], &camera[i]);
 
-		// Salt: CV_ClearChangedFlags() messes with your settings :(
-		/*if (!cv_cam_height.changed)
-			CV_Set(&cv_cam_height, cv_cam_height.defaultvalue);
-
-		if (!cv_cam_dist.changed)
-			CV_Set(&cv_cam_dist, cv_cam_dist.defaultvalue);
-
-		if (!cv_cam2_height.changed)
-			CV_Set(&cv_cam2_height, cv_cam2_height.defaultvalue);
-
-		if (!cv_cam2_dist.changed)
-			CV_Set(&cv_cam2_dist, cv_cam2_dist.defaultvalue);*/
-
 		// Though, I don't think anyone would care about cam_rotate being reset back to the only value that makes sense :P
 		if (!cv_cam_rotate.changed)
 			CV_Set(&cv_cam_rotate, cv_cam_rotate.defaultvalue);
@@ -3120,44 +3050,8 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 		if (!cv_cam4_rotate.changed)
 			CV_Set(&cv_cam4_rotate, cv_cam4_rotate.defaultvalue);
 
-		/*if (!cv_analog.changed)
-			CV_SetValue(&cv_analog, 0);
-		if (!cv_analog2.changed)
-			CV_SetValue(&cv_analog2, 0);
-		if (!cv_analog3.changed)
-			CV_SetValue(&cv_analog3, 0);
-		if (!cv_analog4.changed)
-			CV_SetValue(&cv_analog4, 0);*/
-
-		// Shouldn't be necessary with render parity?
-		/*if (rendermode != render_none)
-			CV_Set(&cv_fov, cv_fov.defaultvalue);*/
-
 		displayplayers[0] = consoleplayer; // Start with your OWN view, please!
 	}
-
-	/*if (cv_useranalog.value)
-		CV_SetValue(&cv_analog, true);
-
-	if ((splitscreen && cv_useranalog2.value) || botingame)
-		CV_SetValue(&cv_analog2, true);
-
-	if (splitscreen > 1 && cv_useranalog3.value)
-		CV_SetValue(&cv_analog3, true);
-
-	if (splitscreen > 2 && cv_useranalog4.value)
-		CV_SetValue(&cv_analog4, true);
-
-	if (twodlevel)
-	{
-		CV_SetValue(&cv_analog4, false);
-		CV_SetValue(&cv_analog3, false);
-		CV_SetValue(&cv_analog2, false);
-		CV_SetValue(&cv_analog, false);
-	}*/
-
-	if (!reloadinggamestate)
-		memset(localaiming, 0, sizeof(localaiming));
 
 	// clear special respawning que
 	iquehead = iquetail = 0;

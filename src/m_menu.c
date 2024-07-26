@@ -82,6 +82,9 @@
 // protocol handling
 #include "d_protocol.h"
 
+#include "z_zone.h"
+#include "mserv.h"
+
 #if defined(HAVE_SDL)
 #include "SDL.h"
 #if SDL_VERSION_ATLEAST(2,0,0)
@@ -1362,7 +1365,7 @@ static menuitem_t OP_VideoOptionsMenu[] =
 #ifdef HWRENDER
 	{IT_SUBMENU|IT_STRING,	NULL,	"OpenGL Options...",	&OP_OpenGLOptionsDef,	 155},
 #endif
-	{IT_SUBMENU|IT_STRING,  NULL,   "Experimental Options...", &OP_ExpOptionsDef,    165},
+	{IT_SUBMENU|IT_STRING,  NULL,   "Advanced Options...", &OP_ExpOptionsDef,    165},
 
 };
 
@@ -1386,7 +1389,7 @@ static const char* OP_VideoTooltips[] =
 #ifdef HWRENDER
 	"Options for OpenGL renderer.",
 #endif
-	"Experimental graphical options.",
+	"Advanced graphical options.",
 };
 
 
@@ -1461,31 +1464,22 @@ static menuitem_t OP_ColorOptionsMenu[] =
 
 static menuitem_t OP_ExpOptionsMenu[] =
 {
-	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
-	
+	{IT_HEADER, NULL, "Advanced Options", NULL, 10},
 	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",			&cv_grmaxinterpdist,		 20},
-	{IT_STRING|IT_CVAR,		NULL, "Mobj Subsector Interpolation",	&cv_mobjssector,		 	 25},
 	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 30},
 	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 35},
 
-	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 42},
+	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 45},
 
-	{IT_STRING | IT_CVAR, 	NULL, "Clipping R_PointToAngle Version", &cv_pointoangleexor64, 	 49},
-
-	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 56},
-	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	61},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 68},
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 55},
 #ifdef USE_FBO_OGL
-	{IT_STRING | IT_CVAR, 	NULL, "FBO Downsampling support", 		&cv_grframebuffer, 			 73},
+	{IT_STRING | IT_CVAR, 	NULL, "FBO Downsampling support", 		&cv_grframebuffer, 			 60},
 #endif
 
-	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		80},
+	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		70},
 
-	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	87},
-	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	92},
-	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	97},
-	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		102},
+	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	80},
 #endif	
 };
 
@@ -1493,13 +1487,9 @@ static const char* OP_ExpTooltips[] =
 {
 	NULL,
 	"How far Mobj interpolation should take effect.",
-	"Toggles Mobj Subsector Interpolation.",
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
 	"Toggle being able to see the sky.",
-	"Which version of R_PointToAngle should\nbe used for Sector Clipping?\n64 may fix rendering issues on larger maps\nat the cost of performance.",
-	"Hides 3DFloors which are not visible\npotentially resulting in a performance boost.",
-	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
 #ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
 #ifdef USE_FBO_OGL
@@ -1507,9 +1497,6 @@ static const char* OP_ExpTooltips[] =
 #endif
 	"Change the depth of the Palette in Palette rendering mod\n 16 bits is like software looks ingame\nwhile 24 bits is how software looks in screenshots.",
 	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
-	"Fixes issues that resulted in Textures not being properly skewed\n example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result in worse performance in some cases.",
-	"Fixes issues that resulted in Textures on Floor over Floors\nZFighting heavily.",
-	"Toggle for FOF wall cutoff with slopes.",
 #endif
 };
 
@@ -1517,13 +1504,9 @@ enum
 {
 	op_exp_header,
 	op_exp_interpdist,
-	op_exp_mobjssector,
 	op_exp_precipinter,
 	op_exp_lessprecip,
 	op_exp_skybox,
-	op_exp_angleshit,
-	op_exp_ffclip,
-	op_exp_sprclip,
 #ifdef HWRENDER
 	op_exp_grscrtx,
 #ifdef USE_FBO_OGL
@@ -1531,9 +1514,6 @@ enum
 #endif
 	op_exp_paldepth,
 	op_exp_spltwal,
-	op_exp_pegging,
-	op_exp_fofzfight,
-	op_exp_fofcut,
 #endif
 };
 
@@ -1541,23 +1521,24 @@ enum
 #ifdef HWRENDER
 static menuitem_t OP_OpenGLOptionsMenu[] =
 {
-	{IT_STRING | IT_CVAR,	NULL, "3D Models",					&cv_grmdls,					 15},
-	{IT_STRING | IT_CVAR,	NULL, "Fallback Player 3D Model",	&cv_grfallbackplayermodel,	 20},
-	{IT_STRING | IT_CVAR,	NULL, "Shaders",					&cv_grshaders,				 25},
-	{IT_STRING | IT_CVAR,	NULL, "Palette Rendering",			&cv_grpaletterendering,		 30},
-	{IT_STRING | IT_CVAR,   NULL, "Flashpals in Palette Renderer", &cv_grflashpal, 		 	 35},
-	{IT_STRING | IT_CVAR, 	NULL, "Min Shader Brightness", 		&cv_secbright, 		 		 40},
+	{IT_STRING | IT_CVAR,	NULL, "3D Models",					&cv_grmdls,					15},
+	{IT_STRING | IT_CVAR,	NULL, "Fallback Player 3D Model",	&cv_grfallbackplayermodel,	20},
+	{IT_STRING | IT_CVAR,	NULL, "Shaders",					&cv_grshaders,				25},
+	{IT_STRING | IT_CVAR,	NULL, "Palette Rendering",			&cv_grpaletterendering,		30},
+	{IT_STRING | IT_CVAR,   NULL, "Flashpals in Palette Renderer", &cv_grflashpal,			35},
+	{IT_STRING | IT_CVAR, 	NULL, "Min Shader Brightness", 		&cv_secbright,				40},
 
-	{IT_STRING|IT_CVAR,		NULL, "Texture Quality",			&cv_scr_depth,				 50},
-	{IT_STRING|IT_CVAR,		NULL, "Texture Filter",				&cv_grfiltermode,			 55},
-	{IT_STRING|IT_CVAR,		NULL, "Anisotropic",				&cv_granisotropicmode,		 60},
-	{IT_STRING|IT_CVAR,		NULL, "Visual Portals",		  		&cv_grportals,				 65},
+	{IT_STRING|IT_CVAR,		NULL, "Texture Quality",			&cv_scr_depth,				50},
+	{IT_STRING|IT_CVAR,		NULL, "Texture Filter",				&cv_grfiltermode,			55},
+	{IT_STRING|IT_CVAR,		NULL, "Anisotropic",				&cv_granisotropicmode,		60},
+	{IT_STRING|IT_CVAR,		NULL, "Visual Portals",		  		&cv_grportals,				65},
 
 	{IT_STRING|IT_CVAR,		NULL, "Wall Contrast Style",		&cv_grfakecontrast,			75},
 	{IT_STRING|IT_CVAR,		NULL, "Slope Contrast",				&cv_grslopecontrast,		80},
-	{IT_STRING|IT_CVAR,		NULL, "Sprite Billboarding",		&cv_grspritebillboarding,	85},
-	{IT_STRING|IT_CVAR,		NULL, "Software Perspective",		&cv_grshearing,				90},
-	{IT_STRING|IT_CVAR,		NULL, "Rendering Distance",			&cv_grrenderdistance,		95},
+	{IT_STRING | IT_CVAR, 	NULL, "Dithered Lightning", 		&cv_lightdither,			85},
+	{IT_STRING|IT_CVAR,		NULL, "Sprite Billboarding",		&cv_grspritebillboarding,	90},
+	{IT_STRING|IT_CVAR,		NULL, "Software Perspective",		&cv_grshearing,				95},
+	{IT_STRING|IT_CVAR,		NULL, "Rendering Distance",			&cv_grrenderdistance,		100},
 };
 
 static const char* OP_OpenGLTooltips[] =
@@ -1574,6 +1555,7 @@ static const char* OP_OpenGLTooltips[] =
 	"Recreates an effect from software mode that is used on some maps.",
 	"The look of the wall contrast effect.",
 	"Wall contrast but for slopes.",
+	"Should OpenGL lightning be dithered?",
 	"Should sprites always face the camera?",
 	"Recreates the look of software mode camera perspective.",
 	"How far the game world should be drawn.",
@@ -1666,7 +1648,9 @@ static menuitem_t OP_SoundAdvancedMenu[] =
 	{IT_HEADER, 			NULL, "Misc", 						NULL, 				105},
 
 	{IT_STRING | IT_CVAR, 	NULL, "Grow Music", 				&cv_growmusic, 		117},
-	{IT_STRING | IT_CVAR, 	NULL, "Invulnerability Music", 		&cv_supermusic, 	137},
+	{IT_STRING | IT_CVAR, 	NULL, "Invulnerability Music", 		&cv_supermusic, 	127},
+
+	{IT_STRING | IT_CVAR, 	NULL, "Audio Buffer Size", 			&cv_audbuffersize, 	147},
 };
 
 static const char* OP_SoundAdvancedTooltips[] =
@@ -1684,7 +1668,7 @@ static const char* OP_SoundAdvancedTooltips[] =
 	NULL,
 	"Should the Grow music be on or off?",
 	"Should the Invulnerability music be on or off?",
-
+	"Size of the Audio Buffer\nreducing it will result in less sound latency\nbut may cause issues such as crackling or distorted Sound.",
 };
 
 static menuitem_t OP_DataOptionsMenu[] =
@@ -4714,15 +4698,10 @@ void M_Init(void)
 		OP_ExpOptionsMenu[op_exp_fbo].status = IT_DISABLED;
 #endif
 		OP_ExpOptionsMenu[op_exp_spltwal].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_pegging].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_fofzfight].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_fofcut].status = IT_DISABLED;
 	}
 
 	if (rendermode == render_opengl)
 	{
-		OP_ExpOptionsMenu[op_exp_ffclip].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_sprclip].status = IT_DISABLED;
 #ifdef USE_FBO_OGL
 		if (!supportFBO)
 			OP_ExpOptionsMenu[op_exp_fbo].status = IT_GRAYEDOUT;
@@ -5252,16 +5231,6 @@ static void M_DrawGenericMenu(void)
 		}
 	}
 
-	if (currentMenu == &OP_ExpOptionsDef)
-	{
-		if (!(OP_ExpTooltips[itemOn] == NULL))
-		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ExpTooltips[itemOn], coolalphatimer);
-			if (coolalphatimer > 0 && interpTimerHackAllow)
-				coolalphatimer--;
-		}
-	}
-
 	if (currentMenu == &OP_ChatOptionsDef)
 	{
 		if (!(OP_ChatOptionsTooltips[itemOn] == NULL))
@@ -5507,6 +5476,16 @@ static void M_DrawGenericScrollMenu(void)
 		if (!(OP_OpenGLTooltips[itemOn] == NULL)) 
 		{
 			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_OpenGLTooltips[itemOn], coolalphatimer);
+			if (coolalphatimer > 0 && interpTimerHackAllow)
+				coolalphatimer--;
+		}
+	}
+
+	if (currentMenu == &OP_ExpOptionsDef)
+	{
+		if (!(OP_ExpTooltips[itemOn] == NULL))
+		{
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ExpTooltips[itemOn], coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -8418,9 +8397,53 @@ static void M_HandleSoundTest(INT32 choice)
 
 static musicdef_t *curplaying = NULL;
 static INT32 st_sel = 0;
-static tic_t st_time = 0;
-static size_t st_namescroll = 0;
-static size_t st_namescrollstate = 0;
+static tic_t st_musictime = 0;
+
+static void scrollMusicName(const char name[], size_t len, size_t maxlen, char result[])
+{
+	// How much should we scroll. Not sure why +1 is needed, but without it this function skips 2
+	// characters at once sometimes
+	const size_t amount = len - maxlen + 1;
+
+	// Note: anything above 17 will cause zero division
+	const size_t MAXSPEED = 6;
+	const size_t t = st_musictime / (35/min(amount, MAXSPEED));
+
+	const size_t state = (t / amount) % 4;
+
+	switch (state)
+	{
+		// Show beginning of the name
+		case 0:
+			memcpy(result, name, maxlen-1);
+		break;
+
+		// Scroll towards end of the name
+		case 1:
+		{
+			const size_t advance = t % amount;
+			memcpy(result, name+advance, maxlen-1);
+		}
+		break;
+
+		// Show end of the name
+		case 2:
+			memcpy(result, name+len+1-maxlen, maxlen-1);
+		break;
+
+		// Scroll towards start of the name
+		case 3:
+		{
+			const size_t advance = t % amount;
+			memcpy(result, name+len+1-maxlen-advance, maxlen-1);
+		}
+		break;
+	}
+
+	// Technically not necessary, since it gets set again after function call, but just in case
+	result[maxlen] = 0;
+}
+
 //static patch_t* st_radio[9];
 //static patch_t* st_launchpad[4];
 
@@ -8435,7 +8458,6 @@ static void M_MusicTest(INT32 choice)
 	}
 
 	curplaying = NULL;
-	st_time = 0;
 
 	st_sel = 0;
 
@@ -8446,30 +8468,17 @@ static void M_DrawMusicTest(void)
 {
 	INT32 x, y, i;
 
-	// let's handle the ticker first. ideally we'd tick this somewhere else, BUT...
-	if (curplaying)
-	{
-		{
-			fixed_t work;
-			work = st_time;
-
-			if (st_time >= (FRACUNIT << (FRACBITS - 2))) // prevent overflow jump - takes about 15 minutes of loop on the same song to reach
-					st_time = work;
-
-			st_time += renderdeltatics;
-		}
-	}
-
 	x = 90<<FRACBITS;
 	y = (BASEVIDHEIGHT-32)<<FRACBITS;
 
 	y = (BASEVIDWIDTH-(vid.width/vid.dupx))/2;
 
 	V_DrawFill(y-1, 20, vid.width/vid.dupx+1, 24, 239);
+
 	{
 		static fixed_t st_scroll = -FRACUNIT;
 		const char* titl;
-		
+
 		x = 16;
 		V_DrawString(x, 10, 0, "NOW PLAYING:");
 		if (curplaying)
@@ -8508,9 +8517,8 @@ static void M_DrawMusicTest(void)
 		{
 			if (!curplaying->usage[0])
 				V_DrawString(vid.dupx, vid.height - 10*vid.dupy, V_NOSCALESTART|V_ALLOWLOWERCASE, va("%.6s", curplaying->name));
-			else {
+			else
 				V_DrawSmallString(vid.dupx, vid.height - 5*vid.dupy, V_NOSCALESTART|V_ALLOWLOWERCASE, va("%.6s - %.255s\n", curplaying->name, curplaying->usage));
-			}
 			
 			if (cv_showmusicfilename.value)
 				V_DrawSmallString(0, 0, V_SNAPTOTOP|V_SNAPTOLEFT|V_ALLOWLOWERCASE, curplaying->filename);
@@ -8563,7 +8571,7 @@ static void M_DrawMusicTest(void)
 		x = 24;
 		y = 64;
 
-		if (renderisnewtic) ++st_namescroll;
+		if (renderisnewtic) st_musictime++;
 
 		while (t <= b)
 		{
@@ -8572,76 +8580,16 @@ static void M_DrawMusicTest(void)
 
 			{
 				const size_t MAXLENGTH = 34;
-				const tic_t SCROLLSPEED = TICRATE/5; // Number of tics for name being scrolled by 1 letter
-				size_t nameoffset = 0;
-				size_t namelength = strlen(soundtestdefs[t]->source);
-				if (soundtestdefs[t]->title[0])
-					namelength = strlen(soundtestdefs[t]->title);
+				const char *songname = soundtestdefs[t]->title[0] ? soundtestdefs[t]->title : soundtestdefs[t]->source;
+
+				size_t namelength = strlen(songname);
 
 				char buf[MAXLENGTH+1];
 
 				if (t == st_sel && namelength > MAXLENGTH)
-				{
-					switch (st_namescrollstate)
-					{
-						case 0:
-						{
-							// Scroll forward
-							nameoffset = (st_namescroll/SCROLLSPEED) % (namelength - MAXLENGTH + 1);
-
-							if (nameoffset == namelength - MAXLENGTH)
-							{
-								st_namescroll = 0;
-								st_namescrollstate++;
-							}
-						}
-						break;
-
-						case 1:
-						{
-							nameoffset = namelength - MAXLENGTH;
-
-							// Show name end for 1 second, then start scrolling back
-							if (st_namescroll == TICRATE)
-							{
-								st_namescroll = 0;
-								st_namescrollstate++;
-							}
-						}
-						break;
-
-						case 2:
-						{
-							// Scroll back
-							nameoffset = (namelength - MAXLENGTH - 1) - (st_namescroll/SCROLLSPEED) % (namelength - MAXLENGTH);
-
-							if (nameoffset == 0)
-							{
-								st_namescroll = 0;
-								st_namescrollstate++;
-							}
-						}
-						break;
-
-						case 3:
-						{
-							nameoffset = 0;
-
-							// Show name beginning for 1 second, then start scrolling forward again
-							if (st_namescroll == TICRATE)
-							{
-								st_namescroll = 0;
-								st_namescrollstate = 0;
-							}
-						}
-						break;
-					}
-				}
-
-				if (soundtestdefs[t]->title[0])
-					memcpy(buf, soundtestdefs[t]->title + nameoffset, MAXLENGTH);
+					scrollMusicName(songname, namelength, MAXLENGTH, buf);
 				else
-					memcpy(buf, soundtestdefs[t]->source + nameoffset, MAXLENGTH);
+					strncpy(buf, songname, MAXLENGTH);
 				buf[MAXLENGTH] = 0;
 
 				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE|V_MONOSPACE, buf);
@@ -8668,8 +8616,7 @@ static void M_HandleMusicTest(INT32 choice)
 			{
 				S_StartSound(NULL, sfx_menu1);
 			}
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 		case KEY_UPARROW:
 			if (!st_sel--)
@@ -8677,8 +8624,7 @@ static void M_HandleMusicTest(INT32 choice)
 			{
 				S_StartSound(NULL, sfx_menu1);
 			}
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 		case KEY_PGDN:
 			if (st_sel < numsoundtestdefs-1)
@@ -8688,8 +8634,7 @@ static void M_HandleMusicTest(INT32 choice)
 					st_sel = numsoundtestdefs-1;
 				S_StartSound(NULL, sfx_menu1);
 			}
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 		case KEY_PGUP:
 			if (st_sel)
@@ -8699,8 +8644,7 @@ static void M_HandleMusicTest(INT32 choice)
 					st_sel = 0;
 				S_StartSound(NULL, sfx_menu1);
 			}
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 		case KEY_BACKSPACE:
 			if (curplaying)
@@ -8708,14 +8652,12 @@ static void M_HandleMusicTest(INT32 choice)
 				S_StopSounds();
 				S_StopMusic();
 				curplaying = NULL;
-				st_time = 0;
 				S_StartSound(NULL, sfx_skid);
 			}
 			break;
 		case KEY_ESCAPE:
 			exitmenu = true;
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 
 		case KEY_RIGHTARROW:
@@ -8723,7 +8665,6 @@ static void M_HandleMusicTest(INT32 choice)
 		case KEY_ENTER:
 			S_StopSounds();
 			S_StopMusic();
-			st_time = 0;
 			curplaying = soundtestdefs[st_sel];		
 			S_ChangeMusicInternal(curplaying->name, true);
 			break;
@@ -10336,6 +10277,9 @@ static void M_StartServerMenu(INT32 choice)
 	levellistmode = LLM_CREATESERVER;
 	M_PrepareLevelSelect();
 	M_SetupNextMenu(&MP_ServerDef);
+#ifdef MASTERSERVER
+	Get_rules();
+#endif
 	M_PopupMasterServerRules();
 }
 
