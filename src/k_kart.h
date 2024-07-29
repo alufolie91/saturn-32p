@@ -37,6 +37,7 @@ extern consvar_t cv_stackingeffect;
 extern consvar_t cv_stackingeffectscaling;
 extern consvar_t cv_coloredsneakertrail;
 extern consvar_t cv_alwaysshowitemstacks;
+extern consvar_t cv_showlaptimes;
 extern consvar_t cv_battlespeedo;
 extern consvar_t cv_sneakerstacksound;
 extern consvar_t cv_synchedlookback;

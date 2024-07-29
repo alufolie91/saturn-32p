@@ -3081,12 +3081,19 @@ static void P_DeathThink(player_t *player)
 				else
 					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 			}
+
+			if (player->spectator)
+				player->laptime[LAP_CUR] = 0;
+			else
+				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 		}
 		else
 		{
 			player->realtime = 0;
 			if (player == &players[consoleplayer])
 				curlap = 0;
+
+			player->laptime[LAP_CUR] = 0;
 		}
 	}
 
@@ -5010,12 +5017,19 @@ void P_PlayerThink(player_t *player)
 				else
 					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 			}
+
+			if (player->spectator)
+				player->laptime[LAP_CUR] = 0;
+			else
+				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 		}
 		else
 		{
 			player->realtime = 0;
 			if (player == &players[consoleplayer])
 				curlap = 0;
+
+			player->laptime[LAP_CUR] = 0;
 		}
 	}
 
