@@ -37,6 +37,7 @@
 #include "d_net.h"
 #include "f_finale.h"
 #include "g_game.h"
+#include "g_input.h"
 #include "hu_stuff.h"
 #include "i_sound.h"
 #include "i_system.h"
@@ -150,6 +151,8 @@ INT32 eventhead, eventtail;
 
 boolean dedicated = false;
 
+boolean loaded_config = false;
+
 //
 // D_PostEvent
 // Called by the I/O functions when input is detected
@@ -166,6 +169,31 @@ UINT8 shiftdown = 0; // 0x1 left, 0x2 right
 UINT8 ctrldown = 0; // 0x1 left, 0x2 right
 UINT8 altdown = 0; // 0x1 left, 0x2 right
 boolean capslock = 0;	// gee i wonder what this does.
+
+static inline void D_DeviceLEDTick(void)
+{
+	UINT8 i;
+	UINT16 color[MAXSPLITSCREENPLAYERS];
+	UINT16 curcolor[MAXSPLITSCREENPLAYERS];
+
+	// no gamepads connected
+	if (I_NumJoys() == 0)
+		return;
+
+	for (i = 0; i <= splitscreen; i++)
+	{
+		if (G_GetDeviceForPlayer(i) == 0)
+			continue;
+
+		color[i] = G_GetSkinColor(i);
+
+		if (curcolor[i] == color[i]) // dont update if same colour
+			continue;
+
+		G_SetPlayerGamepadIndicatorColor(i, color[i]);
+		curcolor[i] = color[i];
+	}
+}
 
 //
 // D_ProcessEvents
@@ -836,9 +864,14 @@ void D_SRB2Loop(void)
 		else
 			menuInputDelayTimer = 0;
 
+		if (!dedicated && renderisnewtic) // idk does this need dedi check??
+			D_DeviceLEDTick();
+
 		// Fully completed frame made.
 		finishprecise = I_GetPreciseTime();
 
+		// Use the time before sleep for frameskip calculations:
+		// post-sleep time is literally being intentionally wasted
 		deltasecs = (double)((INT64)(finishprecise - enterprecise)) / I_GetPrecisePrecision();
 		deltatics = deltasecs * NEWTICRATE;
 		
@@ -873,6 +906,8 @@ void D_SRB2Loop(void)
 		}
 		// Capture the time once more to get the real delta time.
 		finishprecise = I_GetPreciseTime();
+		deltasecs = (double)((INT64)(finishprecise - enterprecise)) / I_GetPrecisePrecision();
+		deltatics = deltasecs * NEWTICRATE;
 	}
 }
 
@@ -1758,6 +1793,8 @@ void D_SRB2Main(void)
 	wipegamestate = gamestate;
 
 	savedata.lives = 0; // flag this as not-used
+
+	loaded_config = true; // so pallettechange doesent get called 500 times at startup lol
 
 	//------------------------------------------------ COMMAND LINE PARAMS
 

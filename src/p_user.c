@@ -1147,8 +1147,6 @@ void P_SpawnShieldOrb(player_t *player)
 	{
 		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue;
-		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-			continue;
 
 		shieldobj = (mobj_t *)th;
 
@@ -1876,8 +1874,6 @@ void P_Telekinesis(player_t *player, fixed_t thrust, fixed_t range)
 	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
 		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
-			continue;
-		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 			continue;
 
 		mo2 = (mobj_t *)th;
@@ -2802,8 +2798,6 @@ void P_NukeEnemies(mobj_t *inflictor, mobj_t *source, fixed_t radius)
 	{
 		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue; // not a mobj thinker
-		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-			continue;
 
 		mo = (mobj_t *)think;
 
@@ -2884,8 +2878,6 @@ boolean P_LookForEnemies(player_t *player)
 	{
 		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue; // not a mobj thinker
-		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-			continue;
 
 		mo = (mobj_t *)think;
 		if (!(mo->flags & (MF_ENEMY|MF_BOSS|MF_MONITOR|MF_SPRING)))
@@ -3010,8 +3002,6 @@ void P_FindEmerald(void)
 	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 	{
 		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
-			continue;
-		if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 			continue;
 
 		mo2 = (mobj_t *)th;
@@ -4058,7 +4048,6 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	{
 		P_MoveChaseCamera(player, thiscam, false);
 		R_ResetViewInterpolation(num + 1);
-		R_ResetViewInterpolation(num + 1);
 	}
 
 	return (x == thiscam->x && y == thiscam->y && z == thiscam->z && angle == thiscam->aiming);
@@ -4089,7 +4078,7 @@ boolean P_SpectatorJoinGame(player_t *player)
 	// Pressing fire assigns you to a team that needs players if allowed.
 	// Partial code reproduction from p_tick.c autobalance code.
 	else if (G_GametypeHasTeams())
-	{		
+	{
 		INT32 changeto = 0;
 		INT32 z, numplayersred = 0, numplayersblue = 0;
 
@@ -4118,7 +4107,7 @@ boolean P_SpectatorJoinGame(player_t *player)
 		if (player->mo)
 		{
 			P_RemoveMobj(player->mo);
-			P_SetTarget(&player->mo, NULL);
+			player->mo = NULL;
 		}
 		player->spectator = false;
 		player->pflags &= ~PF_WANTSTOJOIN;
@@ -4142,11 +4131,11 @@ boolean P_SpectatorJoinGame(player_t *player)
 	}
 	// Joining in game from firing.
 	else
-	{		
+	{
 		if (player->mo)
 		{
 			P_RemoveMobj(player->mo);
-			P_SetTarget(&player->mo, NULL);
+			player->mo = NULL;
 		}
 		player->spectator = false;
 		player->pflags &= ~PF_WANTSTOJOIN;
@@ -5116,8 +5105,6 @@ void P_PlayerThink(player_t *player)
 		for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		{
 			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
-				continue;
-			if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
 				continue;
 
 			mo2 = (mobj_t *)th;

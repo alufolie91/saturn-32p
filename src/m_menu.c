@@ -1227,11 +1227,13 @@ static menuitem_t OP_Joystick1Menu[] =
 	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis         , 80},
 	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis     , 90},
 	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis         , 100},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1" , 	&cv_custom1axis      , 110},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2" , 	&cv_custom2axis      , 120},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3" , 	&cv_custom3axis      , 130},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis      , 110},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis      , 120},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis      , 130},
 	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone        , 140},
 	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone        , 150},
+
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[0]        , 170},
 };
 
 static menuitem_t OP_Joystick2Menu[] =
@@ -1245,11 +1247,13 @@ static menuitem_t OP_Joystick2Menu[] =
 	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis2        , 80},
 	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis2    , 90},
 	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis2        , 100},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1" , 	&cv_custom1axis2     , 110},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2" , 	&cv_custom2axis2     , 120},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3" , 	&cv_custom3axis2     , 130},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis2     , 110},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis2     , 120},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis2     , 130},
 	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone2       , 140},
 	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone2       , 150},
+
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[1]        , 170},
 };
 
 static menuitem_t OP_Joystick3Menu[] =
@@ -1263,11 +1267,13 @@ static menuitem_t OP_Joystick3Menu[] =
 	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis3        , 80},
 	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis3    , 90},
 	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis3        , 100},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1" , 	&cv_custom1axis3     , 110},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2" , 	&cv_custom2axis3     , 120},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3" , 	&cv_custom3axis3     , 130},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis3     , 110},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis3     , 120},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis3     , 130},
 	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone3       , 140},
 	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone3       , 150},
+
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[2]        , 170},
 };
 
 static menuitem_t OP_Joystick4Menu[] =
@@ -1281,11 +1287,13 @@ static menuitem_t OP_Joystick4Menu[] =
 	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis4        , 80},
 	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis4    , 90},
 	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis4        , 100},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1" , 	&cv_custom1axis4     , 110},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2" , 	&cv_custom2axis4     , 120},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3" , 	&cv_custom3axis4     , 130},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis4     , 110},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis4     , 120},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis4     , 130},
 	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone4       , 140},
 	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone4       , 150},
+
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[3]        , 170},
 };
 
 static menuitem_t OP_JoystickSetMenu[] =
@@ -10630,6 +10638,8 @@ static INT32 setupm_skinselect;
 static boolean setupm_skinlockedselect;
 static INT32 setupm_colormode;
 
+static UINT8 setupm_playernum; //brap
+
 #define SELECTEDSTATSCOUNT skinstatscount[setupm_skinxpos][setupm_skinypos]
 #define LASTSELECTEDSTAT skinstats[setupm_skinxpos][setupm_skinypos][skinstatscount[setupm_skinxpos][setupm_skinypos]]
 
@@ -11668,12 +11678,15 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				S_StartSound(NULL,sfx_menu1); // Tails
 				
 				if (setupm_colormode == 0)
+				{
 					setupm_fakecolor--;
+					setupm_fakecolor--;
+					G_SetPlayerGamepadIndicatorColor(setupm_playernum, setupm_fakecolor);
+				}
 				else
 				{
 					setupm_fakefollowercolor--;
 				}
-				
 			}
 			break;
 
@@ -11735,7 +11748,11 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
 				if (setupm_colormode == 0)
+				{
 					setupm_fakecolor++;
+					G_SetPlayerGamepadIndicatorColor(setupm_playernum, setupm_fakecolor);
+					
+				}
 				else
 				{
 					setupm_fakefollowercolor++;
@@ -11789,6 +11806,7 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 					{
 						S_StartSound(NULL,sfx_menu1); // Tails
 						setupm_fakecolor = col;
+						G_SetPlayerGamepadIndicatorColor(setupm_playernum, setupm_fakecolor);
 					}
 				}
 				else 
@@ -11975,6 +11993,8 @@ static void M_SetupMultiPlayer(INT32 choice)
 	setupm_skinlockedselect = false;
 	setupm_colormode = 0;
 
+	setupm_playernum = 0;
+
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
 	if (setupm_fakeskin == -1)
@@ -12029,6 +12049,8 @@ static void M_SetupMultiPlayer2(INT32 choice)
 	setupm_skinlockedselect = false;
 	setupm_colormode = 0;
 
+	setupm_playernum = 1;
+
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
 	if (setupm_fakeskin == -1)
@@ -12082,6 +12104,8 @@ static void M_SetupMultiPlayer3(INT32 choice)
 	setupm_skinlockedselect = false;
 	setupm_colormode = 0;
 
+	setupm_playernum = 2;
+
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
 	if (setupm_fakeskin == -1)
@@ -12134,6 +12158,8 @@ static void M_SetupMultiPlayer4(INT32 choice)
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
 	setupm_colormode = 0;
+
+	setupm_playernum = 3;
 
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);

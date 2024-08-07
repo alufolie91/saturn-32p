@@ -501,9 +501,6 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
 	tint_color.rgba = (colormap != NULL) ? (UINT32)colormap->rgba : GL_DEFAULTMIX;
 	fade_color.rgba = (colormap != NULL) ? (UINT32)colormap->fadergba : GL_DEFAULTFOG;
 
-	// Clamp the light level, since it can sometimes go out of the 0-255 range from animations
-	light_level = CLAMP(SOFTLIGHT(light_level), cv_secbright.value, 255);
-
 	// Crappy backup coloring if you can't do shaders
 	if (!HWR_UseShader())
 	{
@@ -540,6 +537,9 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
 		poly_color.s.green = (UINT8)green;
 		poly_color.s.blue = (UINT8)blue;
 	}
+
+	// Clamp the light level, since it can sometimes go out of the 0-255 range from animations
+	light_level = CLAMP(SOFTLIGHT(light_level), cv_secbright.value, 255);
 
 	// in palette rendering mode, this is not needed since it properly takes the changes to the palette itself
 	if (!HWR_ShouldUsePaletteRendering())
@@ -3188,7 +3188,7 @@ static void HWR_Subsector(size_t num)
 										   false,
 					                       *rover->bottomheight,
 					                       *gr_frontsector->lightlist[light].lightlevel,
-					                       rover->alpha, rover->master->frontsector, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Translucent,
+					                       CLAMP(rover->alpha, 0 ,255), rover->master->frontsector, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Translucent,
 					                       false, gr_frontsector->lightlist[light].extra_colormap);
 				}
 				else
@@ -3232,7 +3232,7 @@ static void HWR_Subsector(size_t num)
 											true,
 											*rover->topheight,
 											*gr_frontsector->lightlist[light].lightlevel,
-											rover->alpha, rover->master->frontsector, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Translucent,
+											CLAMP(rover->alpha, 0 ,255), rover->master->frontsector, (rover->flags & FF_RIPPLE ? PF_Ripple : 0)|PF_Translucent,
 											false, gr_frontsector->lightlist[light].extra_colormap);
 				}
 				else
@@ -3485,8 +3485,9 @@ static fixed_t HWR_OpaqueFloorAtPos(fixed_t x, fixed_t y, fixed_t z, fixed_t hei
 	return floorz;
 }
 
-static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float this_scale)
+static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch)
 {
+	float this_scale = 1.0f;
 	FOutVector swallVerts[4];
 	FSurfaceInfo sSurf;
 	FBITFIELD blendmode = 0;
@@ -3496,6 +3497,13 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float t
 	float offset = 0;
 	
 	INT32 shader = SHADER_NONE;
+
+	// technically this_scale gets multiplied and added to sprite y/x scale, but this thing needs it for some crap so ill just throw it in here again
+	const boolean hires = (spr->mobj && spr->mobj->skin && ((skin_t *)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ))->flags & SF_HIRES);
+	if (spr->mobj)
+		this_scale = FIXED_TO_FLOAT(spr->mobj->scale);
+	if (hires)
+		this_scale = this_scale * FIXED_TO_FLOAT(((skin_t *)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ))->highresscale);
 	
 	R_GetShadowZ(spr->mobj, &floorslope);
 
@@ -3564,7 +3572,7 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float t
 	if (spr->mobj && fabsf(this_scale - 1.0f) > 1.0E-36f)
 	{
 		// Always a pixel above the floor, perfectly flat.
-		swallVerts[0].y = swallVerts[1].y = swallVerts[2].y = swallVerts[3].y = spr->ty - gpatch->topoffset * this_scale - (floorheight+3);
+		swallVerts[0].y = swallVerts[1].y = swallVerts[2].y = swallVerts[3].y = spr->gzt - gpatch->topoffset * this_scale - (floorheight+3);
 
 		// Now transform the TOP vertices along the floor in the direction of the camera
 		swallVerts[3].x = spr->x1 + ((gpatch->height * this_scale) + offset) * gr_viewcos;
@@ -3575,7 +3583,7 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch, float t
 	else
 	{
 		// Always a pixel above the floor, perfectly flat.
-		swallVerts[0].y = swallVerts[1].y = swallVerts[2].y = swallVerts[3].y = spr->ty - gpatch->topoffset - (floorheight+3);
+		swallVerts[0].y = swallVerts[1].y = swallVerts[2].y = swallVerts[3].y = spr->gzt - gpatch->topoffset - (floorheight+3);
 
 		// Now transform the TOP vertices along the floor in the direction of the camera
 		swallVerts[3].x = spr->x1 + (gpatch->height + offset) * gr_viewcos;
@@ -3849,12 +3857,10 @@ static void HWR_RotateSpritePolyToAim(gr_vissprite_t *spr, FOutVector *wallVerts
 
 static void HWR_SplitSprite(gr_vissprite_t *spr)
 {
-	float this_scale = 1.0f;
 	FOutVector wallVerts[4];
 	FOutVector baseWallVerts[4]; // This is what the verts should end up as
 	GLPatch_t *gpatch;
 	FSurfaceInfo Surf;
-	const boolean hires = (spr->mobj && spr->mobj->skin && ((skin_t *)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ))->flags & SF_HIRES);
 	extracolormap_t *colormap;
 	FUINT lightlevel;
 	FBITFIELD blend = 0;
@@ -3874,11 +3880,6 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	fixed_t v1x, v1y, v2x, v2y;
 	INT32 shader = SHADER_NONE;
 
-	this_scale = FIXED_TO_FLOAT(spr->mobj->scale);
-
-	if (hires)
-		this_scale = this_scale * FIXED_TO_FLOAT(((skin_t *)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ))->highresscale);
-
 	gpatch = spr->gpatch; //W_CachePatchNum(spr->patchlumpnum, PU_CACHE);
 
 	// cache the patch in the graphics card memory
@@ -3895,7 +3896,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 		////////////////////
 		// SHADOW SPRITE! //
 		////////////////////
-		HWR_DrawSpriteShadow(spr, gpatch, this_scale);
+		HWR_DrawSpriteShadow(spr, gpatch);
 	}
 
 	baseWallVerts[0].x = baseWallVerts[3].x = spr->x1;
@@ -3939,7 +3940,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 
 	// push it toward the camera to mitigate floor-clipping sprites
 	{
-		float sprdist = sqrtf((spr->x1 - gr_viewx)*(spr->x1 - gr_viewx) + (spr->z1 - gr_viewy)*(spr->z1 - gr_viewy) + (spr->ty - gr_viewz)*(spr->ty - gr_viewz));
+		float sprdist = sqrtf((spr->x1 - gr_viewx)*(spr->x1 - gr_viewx) + (spr->z1 - gr_viewy)*(spr->z1 - gr_viewy) + (spr->gzt - gr_viewz)*(spr->gzt - gr_viewz));
 		float distfact = ((2.0f*spr->dispoffset) + 20.0f) / sprdist;
 		for (i = 0; i < 4; i++)
 		{
@@ -4010,7 +4011,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 			continue;
 
 		if (!(spr->mobj->frame & FF_FULLBRIGHT))
-			lightlevel = *list[i-1].lightlevel;
+			lightlevel = min(*list[i-1].lightlevel, 255);
 		colormap = list[i-1].extra_colormap;
 		break;
 	}
@@ -4024,7 +4025,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 		if (!(list[i].flags & FF_NOSHADE) && (list[i].flags & FF_CUTSPRITES))
 		{
 			if (!(spr->mobj->frame & FF_FULLBRIGHT))
-				lightlevel = *list[i].lightlevel;
+				lightlevel = min(*list[i-1].lightlevel, 255);
 			colormap = list[i].extra_colormap;
 		}
 
@@ -4128,7 +4129,6 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 // -----------------+
 static void HWR_DrawSprite(gr_vissprite_t *spr)
 {
-	float this_scale = 1.0f;
 	FOutVector wallVerts[4];
 	GLPatch_t *gpatch; // sprite patch converted to hardware
 	FSurfaceInfo Surf;
@@ -4145,12 +4145,6 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 		HWR_SplitSprite(spr);
 		return;
 	}
-	
-	const boolean hires = (spr->mobj && spr->mobj->skin && ((skin_t *)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ))->flags & SF_HIRES);
-	if (spr->mobj)
-		this_scale = FIXED_TO_FLOAT(spr->mobj->scale);
-	if (hires)
-		this_scale = this_scale * FIXED_TO_FLOAT(((skin_t *)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ))->highresscale);
 
 	// cache sprite graphics
 	//12/12/99: Hurdler:
@@ -4211,7 +4205,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 		////////////////////
 		// SHADOW SPRITE! //
 		////////////////////
-		HWR_DrawSpriteShadow(spr, gpatch, this_scale);
+		HWR_DrawSpriteShadow(spr, gpatch);
 	}
 
 	// Let dispoffset work first since this adjust each vertex
@@ -4220,7 +4214,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 
 	// push it toward the camera to mitigate floor-clipping sprites
 	{
-		float sprdist = sqrtf((spr->x1 - gr_viewx)*(spr->x1 - gr_viewx) + (spr->z1 - gr_viewy)*(spr->z1 - gr_viewy) + (spr->ty - gr_viewz)*(spr->ty - gr_viewz));
+		float sprdist = sqrtf((spr->x1 - gr_viewx)*(spr->x1 - gr_viewx) + (spr->z1 - gr_viewy)*(spr->z1 - gr_viewy) + (spr->gzt - gr_viewz)*(spr->gzt - gr_viewz));
 		float distfact = ((2.0f*spr->dispoffset) + 20.0f) / sprdist;
 		size_t i;
 		for (i = 0; i < 4; i++)
@@ -4241,7 +4235,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 	extracolormap_t *colormap = sector->extra_colormap;
 
 	if (!(spr->mobj->frame & FF_FULLBRIGHT))
-		lightlevel = sector->lightlevel;
+		lightlevel = min(sector->lightlevel, 255);
 
 	HWR_Lighting(&Surf, lightlevel, colormap);
 
@@ -4306,8 +4300,8 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 	//  0--1
 	wallVerts[0].x = wallVerts[3].x = spr->x1;
 	wallVerts[2].x = wallVerts[1].x = spr->x2;
-	wallVerts[2].y = wallVerts[3].y = spr->ty;
-	wallVerts[0].y = wallVerts[1].y = spr->ty - gpatch->height;
+	wallVerts[2].y = wallVerts[3].y = spr->gzt;
+	wallVerts[0].y = wallVerts[1].y = spr->gz;
 
 	// make a wall polygon (with 2 triangles), using the floor/ceiling heights,
 	// and the 2d map coords of start/end vertices
@@ -4340,7 +4334,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 		light = R_GetPlaneLight(sector, spr->mobj->z + spr->mobj->height, false); // Always use the light at the top instead of whatever I was doing before
 
 		if (!(spr->mobj->frame & FF_FULLBRIGHT))
-			lightlevel = *sector->lightlist[light].lightlevel;
+			lightlevel = min(*sector->lightlist[light].lightlevel, 255);
 
 		if (sector->lightlist[light].extra_colormap)
 			colormap = sector->lightlist[light].extra_colormap;
@@ -4348,7 +4342,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 	else
 	{
 		if (!(spr->mobj->frame & FF_FULLBRIGHT))
-			lightlevel = sector->lightlevel;
+			lightlevel = min(sector->lightlevel, 255);
 
 		if (sector->extra_colormap)
 			colormap = sector->extra_colormap;
@@ -4548,7 +4542,7 @@ void HWR_AddTransparentFloor(lumpnum_t lumpnum, extrasubsector_t *xsub, boolean 
 	
 	planeinfo->lumpnum = lumpnum;
 	planeinfo->xsub = xsub;
-	planeinfo->alpha = CLAMP(alpha, 0, 255);
+	planeinfo->alpha = alpha;
 	planeinfo->FOFSector = FOFSector;
 	planeinfo->blend = blend;
 	planeinfo->fogplane = fogplane;
@@ -4568,7 +4562,7 @@ void HWR_AddTransparentPolyobjectFloor(lumpnum_t lumpnum, polyobj_t *polysector,
 	
 	polyplaneinfo->lumpnum = lumpnum;
 	polyplaneinfo->polysector = polysector;
-	polyplaneinfo->alpha = CLAMP(alpha, 0, 255);
+	polyplaneinfo->alpha = alpha;
 	polyplaneinfo->FOFSector = FOFSector;
 	polyplaneinfo->blend = blend;
 	polyplaneinfo->planecolormap = planecolormap;
@@ -4916,7 +4910,7 @@ void HWR_ProjectSprite(mobj_t *thing)
 	float x1, x2;
 	float z1, z2;
 	float rightsin, rightcos;
-	float this_scale, this_xscale, this_yscale;
+	float this_scale;
 	float spritexscale, spriteyscale;
 	float gz, gzt;
 	spritedef_t *sprdef;
@@ -4928,6 +4922,7 @@ void HWR_ProjectSprite(mobj_t *thing)
 	unsigned rot;
 
 	UINT8 flip;
+	boolean vflip;
 	boolean mirrored;
 	boolean hflip;
 
@@ -4951,6 +4946,7 @@ void HWR_ProjectSprite(mobj_t *thing)
 	if (!thing)
 		return;
 
+	vflip = (thing->eflags & MFE_VERTICALFLIP);
 	mirrored = thing->mirrored;
 	hflip = (!(thing->frame & FF_HORIZONTALFLIP) != !mirrored);
 	papersprite = (thing->frame & FF_PAPERSPRITE);
@@ -5075,7 +5071,7 @@ void HWR_ProjectSprite(mobj_t *thing)
 	}
 
 	if (thing->skin && ((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->flags & SF_HIRES)
-		this_scale = this_scale * FIXED_TO_FLOAT(((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->highresscale);
+		this_scale *= FIXED_TO_FLOAT(((skin_t *)( (thing->localskin) ? thing->localskin : thing->skin ))->highresscale);
 
 	spr_width = spritecachedinfo[lumpoff].width;
 	spr_height = spritecachedinfo[lumpoff].height;
@@ -5146,20 +5142,20 @@ void HWR_ProjectSprite(mobj_t *thing)
 		rightcos = FIXED_TO_FLOAT(FINECOSINE((viewangle + ANGLE_90)>>ANGLETOFINESHIFT));
 	}
 
-	this_xscale = spritexscale * this_scale;
-	this_yscale = spriteyscale * this_scale;
+	spritexscale *= this_scale;
+	spriteyscale *= this_scale;
 	
 	flip = !flip != !hflip;
 
 	if (flip)
 	{
-		x1 = (FIXED_TO_FLOAT(spr_width - spr_offset) * this_xscale);
-		x2 = (FIXED_TO_FLOAT(spr_offset) * this_xscale);
+		x1 = (FIXED_TO_FLOAT(spr_width - spr_offset) * spritexscale);
+		x2 = (FIXED_TO_FLOAT(spr_offset) * spritexscale);
 	}
 	else
 	{
-		x1 = (FIXED_TO_FLOAT(spr_offset) * this_xscale);
-		x2 = (FIXED_TO_FLOAT(spr_width - spr_offset) * this_xscale);
+		x1 = (FIXED_TO_FLOAT(spr_offset) * spritexscale);
+		x2 = (FIXED_TO_FLOAT(spr_width - spr_offset) * spritexscale);
 	}
 
 	z1 = tr_y + x1 * rightsin;
@@ -5167,16 +5163,15 @@ void HWR_ProjectSprite(mobj_t *thing)
 	x1 = tr_x + x1 * rightcos;
 	x2 = tr_x - x2 * rightcos;
 
-
-	if (thing->eflags & MFE_VERTICALFLIP)
+	if (vflip)
 	{
-		gz = FIXED_TO_FLOAT(interp.z + thing->height) - (FIXED_TO_FLOAT(spr_topoffset) * this_yscale);
-		gzt = gz + (FIXED_TO_FLOAT(spr_height) * this_yscale);
+		gz = FIXED_TO_FLOAT(interp.z + thing->height) - (FIXED_TO_FLOAT(spr_topoffset) * spriteyscale);
+		gzt = gz + (FIXED_TO_FLOAT(spr_height) * spriteyscale);
 	}
 	else
 	{
-		gzt = FIXED_TO_FLOAT(interp.z) + (FIXED_TO_FLOAT(spr_topoffset) * this_yscale);
-		gz = gzt - (FIXED_TO_FLOAT(spr_height) * this_yscale);
+		gzt = FIXED_TO_FLOAT(interp.z) + (FIXED_TO_FLOAT(spr_topoffset) * spriteyscale);
+		gz = gzt - (FIXED_TO_FLOAT(spr_height) * spriteyscale);
 	}
 
 	if (thing->subsector->sector->cullheight)
@@ -5228,7 +5223,6 @@ void HWR_ProjectSprite(mobj_t *thing)
 
 	vis->mobj = thing;
 
-
 	//Hurdler: 25/04/2000: now support colormap in hardware mode
 	if ((vis->mobj->flags & MF_BOSS) && (vis->mobj->flags2 & MF2_FRET) && (leveltime & 1)) // Bosses "flash"
 	{
@@ -5259,18 +5253,13 @@ void HWR_ProjectSprite(mobj_t *thing)
 	}
 
 	// set top/bottom coords
-	vis->ty = gzt;
-
 	vis->gzt = gzt;
 	vis->gz = gz;
 
 	//CONS_Debug(DBG_RENDER, "------------------\nH: sprite  : %d\nH: frame   : %x\nH: type    : %d\nH: sname   : %s\n\n",
 	//            thing->sprite, thing->frame, thing->type, sprnames[thing->sprite]);
 
-	if (thing->eflags & MFE_VERTICALFLIP)
-		vis->vflip = true;
-	else
-		vis->vflip = false;
+	vis->vflip = vflip;
 
 	vis->precip = false;
 }
@@ -5389,8 +5378,6 @@ void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
 #endif
 
 	// set top/bottom coords
-	vis->ty = FIXED_TO_FLOAT(interp.z + spritecachedinfo[lumpoff].topoffset);
-
 	vis->gzt = FIXED_TO_FLOAT(interp.z + spritecachedinfo[lumpoff].topoffset);
 	vis->gz = vis->gzt - FIXED_TO_FLOAT(spritecachedinfo[lumpoff].height);
 

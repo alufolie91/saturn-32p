@@ -2479,6 +2479,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 		case 422: // Cut away to another view
 			{
 				mobj_t *altview;
+				INT32 i;
 
 				if (!mo || !mo->player) // only players have views
 					return;
@@ -2492,6 +2493,14 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 
 				P_SetTarget(&mo->player->awayviewmobj, altview);
 				mo->player->awayviewtics = P_AproxDistance(line->dx, line->dy)>>FRACBITS;
+
+				for (i = 0; i <= splitscreen; i++)
+				{
+					if (displayplayers[i] == (mo->player - players))
+					{
+						R_ResetViewInterpolation(i + 1);
+					}
+				}
 
 				if (line->flags & ML_NOCLIMB) // lets you specify a vertical angle
 				{
@@ -2985,8 +2994,6 @@ void P_SetupSignExit(player_t *player)
 	{
 		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue; // not a mobj thinker
-		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-			continue;
 
 		thing = (mobj_t *)think;
 		if (thing->type != MT_SIGN)
@@ -3030,19 +3037,22 @@ boolean P_IsFlagAtBase(mobjtype_t flag)
 {
 	thinker_t *think;
 	mobj_t *mo;
-	INT32 specialnum = (flag == MT_REDFLAG) ? 3 : 4;
+	INT32 specialnum = 0;
 
 	for (think = thinkercap.next; think != &thinkercap; think = think->next)
 	{
 		if (think->function.acp1 != (actionf_p1)P_MobjThinker)
 			continue; // not a mobj thinker
-		if (think->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-			continue;
 
 		mo = (mobj_t *)think;
 
 		if (mo->type != flag)
 			continue;
+
+		if (mo->type == MT_REDFLAG)
+			specialnum = 3;
+		else if (mo->type == MT_BLUEFLAG)
+			specialnum = 4;
 
 		if (GETSECSPECIAL(mo->subsector->sector->special, 4) == specialnum)
 			return true;
@@ -3058,11 +3068,9 @@ boolean P_IsFlagAtBase(mobjtype_t flag)
 				if (GETSECSPECIAL(rover->master->frontsector->special, 4) != specialnum)
 					continue;
 
-				if (!(mo->z <= P_GetSpecialTopZ(mo, sectors + rover->secnum, mo->subsector->sector)
-					&& mo->z >= P_GetSpecialBottomZ(mo, sectors + rover->secnum, mo->subsector->sector)))
-					continue;
-
-				return true;
+				if (mo->z <= P_GetSpecialTopZ(mo, sectors + rover->secnum, mo->subsector->sector)
+					&& mo->z >= P_GetSpecialBottomZ(mo, sectors + rover->secnum, mo->subsector->sector))
+					return true;
 			}
 		}
 	}
@@ -3472,15 +3480,10 @@ void P_ProcessSpecialSector(player_t *player, sector_t *sector, sector_t *rovers
 			{
 				if (th->function.acp1 != (actionf_p1)P_MobjThinker)
 					continue;
-				if (th->function.acp1 == (actionf_p1)P_RemoveThinkerDelayed)
-					continue;
 
 				mo2 = (mobj_t *)th;
-
-				if (mo2->type != MT_EGGTRAP)
-					continue;
-
-				P_KillMobj(mo2, NULL, player->mo);
+				if (mo2->type == MT_EGGTRAP)
+					P_KillMobj(mo2, NULL, player->mo);
 			}
 
 			// clear the special so you can't push the button twice.
@@ -4068,7 +4071,6 @@ DoneSection2:
 				// Find the proceeding waypoint
 				// Determine the closest spot on the line between the three waypoints
 				// Put player at that location.
-
 				waypointmid = P_GetClosestWaypoint(sequence, player->mo);
 
 				if (!waypointmid)
@@ -4076,7 +4078,6 @@ DoneSection2:
 					CONS_Debug(DBG_GAMELOGIC, "ERROR: WAYPOINT(S) IN SEQUENCE %d NOT FOUND.\n", sequence);
 					break;
 				}
-
 				waypointlow = P_GetPreviousWaypoint(waypointmid, true);
 				waypointhigh = P_GetNextWaypoint(waypointmid, true);
 
@@ -4568,12 +4569,12 @@ void P_UpdateSpecials(void)
 	// LEVEL TIMER
 	P_CheckTimeLimit();
 
+	// POINT LIMIT
+	P_CheckPointLimit();
+
 	// Dynamic slopeness
 	if (!midgamejoin) // run here when not joined midgame to prevent any potential issues that may arise
 		P_RunDynamicSlopes();
-
-	// POINT LIMIT
-	P_CheckPointLimit();
 
 	// ANIMATE TEXTURES
 	for (anim = anims; anim < lastanim; anim++)

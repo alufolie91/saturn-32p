@@ -1476,6 +1476,11 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_controlperkey);
 	CV_RegisterVar(&cv_turnsmooth);
 
+	CV_RegisterVar(&cv_rumble[0]);
+	CV_RegisterVar(&cv_rumble[1]);
+	CV_RegisterVar(&cv_rumble[2]);
+	CV_RegisterVar(&cv_rumble[3]);
+
 	CV_RegisterVar(&cv_usemouse);
 	CV_RegisterVar(&cv_usemouse2);
 	CV_RegisterVar(&cv_invertmouse);
@@ -6335,8 +6340,7 @@ static void Command_Archivetest_f(void)
 	i = 1;
 	for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		if (th->function.acp1 == (actionf_p1)P_MobjThinker)
-			if (th->function.acp1 != (actionf_p1)P_RemoveThinkerDelayed)
-				((mobj_t *)th)->mobjnum = i++;
+			((mobj_t *)th)->mobjnum = i++;
 
 	// allocate buffer
 	save.buffer = save.p = ZZ_Alloc(1024);
