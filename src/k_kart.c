@@ -1338,6 +1338,7 @@ void K_RegisterKartStuff(void)
 	CV_RegisterVar(&cv_kartgametypepreference);
 	CV_RegisterVar(&cv_kartspeedometer);
 	CV_RegisterVar(&cv_kartvoices);
+	CV_RegisterVar(&cv_karthitemdialog);
 	CV_RegisterVar(&cv_karteliminatelast);
 	CV_RegisterVar(&cv_votetime);
 
@@ -3385,6 +3386,31 @@ static void K_RegularVoiceTimers(player_t *player)
 		player->kartstuff[k_tauntvoices] = 4*TICRATE;
 }
 
+static void K_PlayGenericCombatSound(mobj_t *source, mobj_t *other, sfxenum_t sfx_id)
+{
+	skin_t *skin = NULL;
+
+	// I HATE LOCALSKINS! I HATE LOCALSKINS! :AAAAAAAAAA:
+	if (source->player)
+	{
+		INT32 skinnum = source->player->skinlocal ? (source->player->localskin - 1) : source->player->skin;
+		skin = &(source->player->skinlocal ? localskins : skins)[skinnum];
+	}
+
+	if (!skin)
+		return;
+
+	boolean alwaysHear = false;
+
+	if (other != NULL && P_MobjWasRemoved(other) == false && other->player != NULL)
+		alwaysHear = P_IsDisplayPlayer(other->player);
+
+	if (cv_kartvoices.value)
+		S_StartSound(alwaysHear ? NULL : source, skin->soundsid[S_sfx[sfx_id].skinsound]);
+
+	K_RegularVoiceTimers(source->player);
+}
+
 void K_PlayAttackTaunt(mobj_t *source)
 {
 	sfxenum_t pick = P_RandomKey(2); // Gotta roll the RNG every time this is called for sync reasons
@@ -3433,7 +3459,24 @@ void K_PlayOvertakeSound(mobj_t *source)
 	K_RegularVoiceTimers(source->player);
 }
 
-void K_PlayHitEmSound(mobj_t *source)
+static boolean K_SetDelayedHitEm(player_t *player, player_t *victim)
+{
+	player_t *prevvictim = NULL;
+
+	if (player->hitemtimer)
+		prevvictim = &players[player->hitemvictim];
+
+	// We prioritize local players to hear "hit em" sfx
+	if (prevvictim && P_IsDisplayPlayer(prevvictim) && !P_IsDisplayPlayer(victim))
+		return false;
+
+	player->hitemtimer = TICRATE/2;
+	player->hitemvictim = victim - players;
+
+	return true;
+}
+
+void K_PlayHitEmSound(mobj_t *source, mobj_t *victim)
 {
 	if (source->player->follower)
 	{
@@ -3442,7 +3485,14 @@ void K_PlayHitEmSound(mobj_t *source)
 	}
 
 	if (cv_kartvoices.value)
+	{
+		if (cv_karthitemdialog.value
+			&& source->player && victim && victim->player
+			&& K_SetDelayedHitEm(source->player, victim->player))
+			return; // Don't call K_RegularVoiceTimers yet, we didn't do any sound
+
 		S_StartSound(source, sfx_khitem);
+	}
 	else
 		S_StartSound(source, sfx_s1c9); // The only lost gameplay functionality with voices disabled
 
@@ -3455,6 +3505,33 @@ void K_PlayPowerGloatSound(mobj_t *source)
 		S_StartSound(source, sfx_kgloat);
 
 	K_RegularVoiceTimers(source->player);
+}
+
+static void K_HandleDelayedHitByEm(player_t *player)
+{
+	if (player->hitemtimer == 0)
+	{
+		return;
+	}
+
+	player->hitemtimer--;
+
+	if (player->hitemtimer == 0)
+	{
+		mobj_t *victim = NULL;
+
+		if (player->hitemvictim < MAXPLAYERS && playeringame[player->hitemvictim])
+		{
+			player_t *victimPlayer = &players[player->hitemvictim];
+
+			if (victimPlayer != NULL && victimPlayer->spectator == false)
+			{
+				victim = victimPlayer->mo;
+			}
+		}
+
+		K_PlayGenericCombatSound(player->mo, victim, sfx_khitem);
+	}
 }
 
 void K_MomentumToFacing(player_t *player)
@@ -4194,7 +4271,7 @@ void K_SpinPlayer(player_t *player, mobj_t *source, INT32 type, mobj_t *inflicto
 		return;
 
 	if (source && source != player->mo && source->player)
-		K_PlayHitEmSound(source);
+		K_PlayHitEmSound(source, player->mo);
 
 	//player->kartstuff[k_sneakertimer] = 0;
 	player->kartstuff[k_driftboost] = 0;
@@ -4395,7 +4472,7 @@ void K_SquishPlayer(player_t *player, mobj_t *source, mobj_t *inflictor)
 	if (player->mo->state != &states[S_KART_SQUISH]) // Squash
 		P_SetPlayerMobjState(player->mo, S_KART_SQUISH);
 
-	P_PlayRinglossSound(player->mo);
+	P_PlayRinglossSound(player->mo, source);
 
 	player->kartstuff[k_instashield] = 15;
 	if (cv_kartdebughuddrop.value && !modeattacking)
@@ -4447,7 +4524,7 @@ void K_ExplodePlayer(player_t *player, mobj_t *source, mobj_t *inflictor) // A b
 		return;
 
 	if (source && source != player->mo && source->player)
-		K_PlayHitEmSound(source);
+		K_PlayHitEmSound(source, player->mo);
 
 	player->kartstuff[k_sneakertimer] = 0;
 	player->kartstuff[k_paneltimer] = 0;
@@ -4529,7 +4606,7 @@ void K_ExplodePlayer(player_t *player, mobj_t *source, mobj_t *inflictor) // A b
 	if (player->mo->state != &states[S_KART_SPIN])
 		P_SetPlayerMobjState(player->mo, S_KART_SPIN);
 
-	P_PlayRinglossSound(player->mo);
+	P_PlayRinglossSound(player->mo, source);
 
 	if (P_IsLocalPlayer(player))
 	{
@@ -7592,6 +7669,9 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		K_FuckalKartItemRoulette(player, cmd);
 	else
 		K_KartItemRoulette(player, cmd);
+
+	// Used when karthitemdialog is On
+	K_HandleDelayedHitByEm(player);
 
 	// Handle invincibility sfx
 	K_UpdateInvincibilitySounds(player); // Also thanks, VAda!
