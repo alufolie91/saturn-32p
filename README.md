@@ -23,9 +23,9 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - 65534 skins limit (everything skin num releated was made UINT16)
 - Title Screen Thinker and HUD Hook
 - Colored sneakertrails
-- Double and triple sneaker icons
+- Multi item icons for most items
 - Hardcoded Namtags and Driftgauge
-- SRB2.2 Resync system
+- SRB2 2.2 Resync system
 - Followers from RR
 - More to come!
 - All added features are toggable via convars
