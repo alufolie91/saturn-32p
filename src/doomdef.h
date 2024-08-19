@@ -125,14 +125,14 @@ extern char  logfilename[1024];
 // most interface strings are ignored in development mode.
 // we use comprevision and compbranch instead.
 #else
-#define VERSION    6 // Game version
-#define SUBVERSION 9 // more precise version number
+#define VERSION    2 // Game version
+#define SUBVERSION 16 // more precise version number
 #ifndef USE_FBO_OGL
-#define VERSIONSTRING "Nep Boost Testing Build"
-#define VERSIONSTRINGW L"Nep Boost Testing Build"
+#define VERSIONSTRING "Neptune v2.3"
+#define VERSIONSTRINGW L"Neptune v2.3"
 #else
-#define VERSIONSTRING "Nep Boost Testing Build - FBO "
-#define VERSIONSTRINGW L"Nep Boost Testing Build - FBO"
+#define VERSIONSTRING "Neptune v2.3 - FBO "
+#define VERSIONSTRINGW L"Neptune v2.3 - FBO"
 #endif
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!

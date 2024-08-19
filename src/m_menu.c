@@ -2186,8 +2186,8 @@ static menuitem_t OP_NeptuneMenu[] =
 	//{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		100},
 	
 	//{IT_HEADER, NULL, "Items", NULL, 70},
-	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			110},
-	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			115},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			100},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			105},
 	
 
 
@@ -2215,8 +2215,8 @@ static const char* OP_NeptuneTooltips[] =
 	"Apply a bonus top speed to lower speeds only while boosting.",
 	"Due to oversights the stacking code wasn't accurate in earlier versions.\nThis recreates those behaviours.\nA stacking_growmult value of 0.4 should be used for accuracy",
 	
-	"Should Maximum speed be capped?",
-	"Value of Maximum speed cap.",
+	//"Should Maximum speed be capped?",
+	//"Value of Maximum speed cap.",
 	//NULL,
 	"Item system used for rolls.\nUranus is vanilla-like with some scaling modifications.\nCEP is congacalc-like with some scaling modifications.",
 	"Use custom itemtable. This is set via convars.",
