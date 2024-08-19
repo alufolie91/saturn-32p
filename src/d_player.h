@@ -353,6 +353,8 @@ typedef enum
 	
 	// Used for chaining thats done by combining a sneaker and a drift
 	k_chainsound,
+	
+	k_driftlock,
 
 	NUMKARTSTUFF
 } kartstufftype_t;
@@ -375,6 +377,14 @@ typedef enum
 	RW_EXPLODE = 16,
 	RW_RAIL    = 32
 } ringweapons_t;
+
+// enum for saved lap times
+typedef enum
+{
+	LAP_CUR,
+	LAP_LAST,
+	LAP__MAX
+} laptime_e;
 
 // ========================================================================
 //                          PLAYER STRUCTURE
@@ -503,6 +513,7 @@ typedef struct player_s
 	INT16 numboxes; // Number of item boxes obtained for Race Mode
 	INT16 totalring; // Total number of rings obtained for Race Mode
 	tic_t realtime; // integer replacement for leveltime
+	tic_t laptime[LAP__MAX];
 	UINT8 laps; // Number of laps (optional)
 
 	////////////////////
@@ -575,15 +586,13 @@ typedef struct player_s
 	tic_t grieftime;
 	UINT8 griefstrikes;
 
+	tic_t hitemtimer;
+	UINT8 hitemvictim;
+
 	UINT8 splitscreenindex;
 #ifdef HWRENDER
 	fixed_t fovadd; // adjust FOV for hw rendering
 #endif
-
-	struct {
-		angle_t aiming, awayviewaiming, frameangle;
-		angle_t viewrollangle;
-	} lerp;
 } player_t;
 
 #endif

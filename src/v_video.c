@@ -14,7 +14,9 @@
 ///        Functions to blit a block to the screen.
 
 #include "doomdef.h"
+#include "d_main.h"
 #include "r_local.h"
+#include "p_local.h"
 #include "v_video.h"
 #include "hu_stuff.h"
 #include "r_draw.h"
@@ -130,6 +132,9 @@ static boolean InitCube(void)
 	float desatur[3]; // grey
 	float globalgammamul, globalgammaoffs;
 	boolean doinggamma;
+
+	if (loaded_config == false)
+		return false;
 
 #define diffcons(cv) (cv.value != atoi(cv.defaultvalue))
 
@@ -567,6 +572,8 @@ void V_SetPaletteLump(const char *pal)
 
 static void CV_palette_OnChange(void)
 {
+	if (loaded_config == false)
+		return;
 	// reload palette
 	LoadMapPalette();
 	V_SetPalette(0);
@@ -3238,7 +3245,7 @@ INT32 heatindex[MAXSPLITSCREENPLAYERS] = {0, 0, 0, 0};
 //
 // Perform a particular image postprocessing function.
 //
-#include "p_local.h"
+
 void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 {
 #if NUMSCREENS < 5
@@ -3306,8 +3313,8 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 				}
 			}
 
-/*
-Unoptimized version
+			/*
+			Unoptimized version
 			for (x = 0; x < vid.width*vid.bpp; x++)
 			{
 				newpix = (x + sine);

@@ -1415,7 +1415,10 @@ static boolean Polyobj_rotate(polyobj_t *po, angle_t delta, UINT8 turnthings)
 	{
 		// update seg angles (used only by renderer)
 		for (i = 0; i < po->segCount; ++i)
+		{
 			po->segs[i]->angle += delta;
+			P_UpdateSegLightOffset(po->segs[i]);
+		}
 
 		// update polyobject's angle
 		po->angle += delta;
@@ -2419,6 +2422,36 @@ INT32 EV_DoPolyObjWaypoint(polywaypointdata_t *pwdata)
 
 	// Find the actual target movement waypoint
 	target = first;
+	/*for (wp = thinkercap.next; wp != &thinkercap; wp = wp->next)
+	{
+		if (wp->function.acp1 != (actionf_p1)P_MobjThinker) // Not a mobj thinker
+			continue;
+
+		mo2 = (mobj_t *)wp;
+
+		if (mo2->type != MT_TUBEWAYPOINT)
+			continue;
+
+		if (mo2->threshold == th->sequence)
+		{
+			if (th->direction == -1) // highest waypoint #
+			{
+				if (mo2->health == first->health - 1)
+				{
+					target = mo2;
+					break;
+				}
+			}
+			else // waypoint 0
+			{
+				if (mo2->health == first->health + 1)
+				{
+					target = mo2;
+					break;
+				}
+			}
+		}
+	}*/
 
 	if (!target)
 	{

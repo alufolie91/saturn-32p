@@ -326,6 +326,9 @@ consvar_t cv_spectatestrafe = {"spectatestrafe", "Off", CV_SAVE, CV_OnOff, NULL,
 
 
 
+// Lagless camera! Yay!
+consvar_t cv_laglesscam = {"laglesscamera", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 #if defined(HAVE_SDL) || defined(_WINDOWS) //joystick 1 and 2
 consvar_t cv_usejoystick = {"use_joystick", "1", CV_SAVE|CV_CALL, usejoystick_cons_t,
 	I_InitJoystick, 0, NULL, NULL, 0, 0, NULL};
@@ -399,7 +402,7 @@ consvar_t cv_tripleorbinaut = 		{"tripleorbinaut", 		"On", CV_NETVAR|CV_CHEAT, C
 consvar_t cv_quadorbinaut = 		{"quadorbinaut", 		"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_dualjawz = 			{"dualjawz", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//sneakerextender
+// Sneaker Extender
 static CV_PossibleValue_t extensiontype_cons_t[] = {{1, "bs"}, {2, "zbl"}, {0, NULL}};
 consvar_t cv_sneakerextend = {"sneakerextend", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sneakerextendtype = {"sneakerextendtype", "zbl", CV_NETVAR|CV_CHEAT, extensiontype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -408,73 +411,63 @@ consvar_t cv_sneakerextendtype = {"sneakerextendtype", "zbl", CV_NETVAR|CV_CHEAT
 static CV_PossibleValue_t chainoffroadtype_cons_t[] = {{0, "Off"}, {1, "Both"}, {2, "Sneaker Only"}, {3, "Panel Only"}, {0, NULL}};
 consvar_t cv_chainoffroad = {"chainoffroad", "Both", CV_NETVAR|CV_CHEAT, chainoffroadtype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//additiveminiturbos
-consvar_t cv_additivemt  = 				{"additivemt", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+// Additiveminiturbos
+consvar_t cv_additivemt  = 	{"additivemt", 	"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//mini-turbo adjustment cvars
+// Mini-turbo adjustment cvars
 static CV_PossibleValue_t sparktics_cons_t[] = {{1, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
 consvar_t cv_bluesparktics = {"bluesparktics", "20", CV_NETVAR|CV_CHEAT, sparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_redsparktics = {"redsparktics", "50", CV_NETVAR|CV_CHEAT, sparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_rainbowsparktics = {"rainbowsparktics", "125", CV_NETVAR|CV_CHEAT, sparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//stacking
+// Stacking
 consvar_t cv_stacking = {"stacking", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_stackingdim = {"stackingdim", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingdim = {"stacking_dim", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingdimval = {"stacking_dimval", "1.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingoldcompat = {"stacking_oldcompat", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t stackingdimval_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
-consvar_t cv_stackingdimval = {"stackingdimval", "1.20", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingdimval_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-static CV_PossibleValue_t sneakerstack_cons_t[] = {{1, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
-consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, sneakerstack_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
+consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_panel = {"stacking_paneltimer", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_panelsharestack = {"stacking_panelsharestack", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_panelstack = {"stacking_panelstack", "2", CV_NETVAR|CV_CHEAT, sneakerstack_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_panelstack = {"stacking_panelstack", "2", CV_NETVAR|CV_CHEAT, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_stackingbrakemod = {"stackingbrakemod", "1.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackinglowspeedbuff = {"stacking_lowspeedbuff", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+// Speed of boosts
+consvar_t cv_sneakerspeedeasy = {"stacking_sneakerspeedeasy", "0.8317", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerspeednormal = {"stacking_sneakerspeednormal", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerspeedhard = {"stacking_sneakerspeedhard", "0.2756", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerspeedexpert = {"stacking_sneakerspeedexpert", "0.2243", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakeraccel = {"stacking_sneakeraccel", "8.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t stackingbrakemod_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
-consvar_t cv_stackingbrakemod = {"stackingbrakemod", "0.05", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingbrakemod_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_invincibilityspeed = {"stacking_invincibilitypeed", "0.375", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_invincibilityaccel = {"stacking_invincibilityaccel", "3.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//Speed of boosts
-static CV_PossibleValue_t speed_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
-static CV_PossibleValue_t mult_cons_t[] = {{INT32_MIN, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
+consvar_t cv_growspeed = {"stacking_growspeed", "0.3", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_growaccel = {"stacking_growaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_growmult = {"stacking_growmult", "-0.3", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Signed, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_sneakerspeedeasy = {"stacking_sneakerspeedeasy", "0.8317", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sneakerspeednormal = {"stacking_sneakerspeednormal", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sneakerspeedhard = {"stacking_sneakerspeedhard", "0.2756", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sneakerspeedexpert = {"stacking_sneakerspeedexpert", "0.2243", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sneakeraccel = {"stacking_sneakeraccel", "8.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftspeed = {"stacking_drfitspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftaccel = {"stacking_drfitaccel", "4.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_invincibilityspeed = {"stacking_invincibilitypeed", "0.375", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_invincibilityaccel = {"stacking_invincibilityaccel", "3.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_startspeed = {"stacking_startspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_startaccel = {"stacking_startaccel", "6.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_growspeed = {"stacking_growspeed", "0.30", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_growaccel = {"stacking_growaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_growmult = {"stacking_growmult", "0.4", CV_NETVAR|CV_FLOAT|CV_CHEAT, mult_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_hyuudorospeed = {"stacking_hyuudorospeed", "0.1", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_hyuudoroaccel = {"stacking_hyuudoroaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_driftspeed = {"stacking_drfitspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_driftaccel = {"stacking_drfitaccel", "4.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_speedcap = {"stacking_speedcap", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_speedcapval = {"stacking_speedcapval", "128", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_startspeed = {"stacking_startspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_startaccel = {"stacking_startaccel", "6.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_hyuudorospeed = {"stacking_hyuudorospeed", "0.1", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_hyuudoroaccel = {"stacking_hyuudoroaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_speedcap = 	{"stacking_speedcap", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_speedcapval = {"stacking_speedcapval", "128", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-
-//Fuckal Odds`
+// Fuckal Odds`
 static CV_PossibleValue_t itemoddstype_cons_t[] = {{1, "Uranus"}, {2, "CEP"}, {0, NULL}};
 consvar_t cv_itemodds = {"itemoddsystem", "CEP", CV_NETVAR|CV_CHEAT, itemoddstype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t itemtable_cons_t[] = {{0, "MIN"}, {100, "MAX"}, {0, NULL}};
-//Item table customization 220 (Yes really)
-
-consvar_t cv_customodds = 				{"customodds", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+// Item table customization 220 (Yes really)
+consvar_t cv_customodds = {"customodds", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t distvar_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
 consvar_t cv_cepdistvar = {"CEPDISTVAR", "1280", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -773,6 +766,7 @@ static CV_PossibleValue_t kartspeedometer_cons_t[] = {{0, "Off"}, {1, "Kilometer
 consvar_t cv_kartspeedometer = {"kartdisplayspeed", "Off", CV_SAVE, kartspeedometer_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL}; // use tics in display
 static CV_PossibleValue_t kartvoices_cons_t[] = {{0, "Never"}, {1, "Tasteful"}, {2, "Meme"}, {0, NULL}};
 consvar_t cv_kartvoices = {"kartvoices", "Tasteful", CV_SAVE, kartvoices_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_karthitemdialog = {"karthitemdialog", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_karteliminatelast = {"karteliminatelast", "Yes", CV_NETVAR|CV_CHEAT|CV_CALL|CV_NOSHOWHELP, CV_YesNo, KartEliminateLast_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
@@ -952,6 +946,9 @@ static CV_PossibleValue_t ps_descriptor_cons_t[] = {
 	{1, "Average"}, {2, "SD"}, {3, "Minimum"}, {4, "Maximum"}, {0, NULL}};
 consvar_t cv_ps_descriptor = {"ps_descriptor", "Average", 0, ps_descriptor_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_director = {"director", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugdirector = {"debugdirector", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 consvar_t cv_showtrackaddon = {"showtrackaddon", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t skinselectmenu_t[] = {{SKINMENUTYPE_SCROLL, "Scroll"}, {SKINMENUTYPE_2D, "2d"}, {SKINMENUTYPE_GRID, "Grid"}, {SKINMENUTYPE_EXTENDED, "Extended"}, {0, NULL}};
@@ -974,9 +971,11 @@ INT16 gametype = GT_RACE; // SRB2kart
 boolean forceresetplayers = false;
 boolean deferencoremode = false;
 UINT8 splitscreen = 0;
-UINT16 votemax = 1;
 boolean circuitmap = true; // SRB2kart
 INT32 adminplayers[MAXPLAYERS];
+
+#define VOTEROWS ((cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0))
+#define VOTEROWSADDSONE ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0))
 
 /// \warning Keep this up-to-date if you add/remove/rename net text commands
 const char *netxcmdnames[MAXNETXCMD - 1] =
@@ -1224,8 +1223,6 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
 	CV_RegisterVar(&cv_keyboardlayout);
-	
-	CV_RegisterVar(&cv_betainterscreen);
 }
 
 // =========================================================================
@@ -1390,6 +1387,9 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_showtrackaddon);
 	CV_RegisterVar(&cv_showviewpointtext);
 
+	CV_RegisterVar(&cv_director);
+	CV_RegisterVar(&cv_kartdebugdirector);
+
 	CV_RegisterVar(&cv_luaimmersion);
 	CV_RegisterVar(&cv_fakelocalskin);
 
@@ -1403,6 +1403,7 @@ void D_RegisterClientCommands(void)
 	//CV_RegisterVar(&cv_alwaysfreelook2);
 	//CV_RegisterVar(&cv_chasefreelook);
 	//CV_RegisterVar(&cv_chasefreelook2);
+	CV_RegisterVar(&cv_replaysearchrate);
 	CV_RegisterVar(&cv_showfocuslost);
 	CV_RegisterVar(&cv_pauseifunfocused);
 
@@ -1476,6 +1477,21 @@ void D_RegisterClientCommands(void)
 #endif
 	CV_RegisterVar(&cv_controlperkey);
 	CV_RegisterVar(&cv_turnsmooth);
+
+	CV_RegisterVar(&cv_rumble[0]);
+	CV_RegisterVar(&cv_rumble[1]);
+	CV_RegisterVar(&cv_rumble[2]);
+	CV_RegisterVar(&cv_rumble[3]);
+
+	CV_RegisterVar(&cv_gamepadled[0]);
+	CV_RegisterVar(&cv_gamepadled[1]);
+	CV_RegisterVar(&cv_gamepadled[2]);
+	CV_RegisterVar(&cv_gamepadled[3]);
+
+	CV_RegisterVar(&cv_ledpowerup[0]);
+	CV_RegisterVar(&cv_ledpowerup[1]);
+	CV_RegisterVar(&cv_ledpowerup[2]);
+	CV_RegisterVar(&cv_ledpowerup[3]);
 
 	CV_RegisterVar(&cv_usemouse);
 	CV_RegisterVar(&cv_usemouse2);
@@ -1573,6 +1589,10 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_lastserver);
 
 	CV_RegisterVar(&cv_showmusicfilename);
+
+	CV_RegisterVar(&cv_betainterscreen);
+
+	CV_RegisterVar(&cv_laglesscam);
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
@@ -3180,30 +3200,24 @@ void D_SetupVote(void)
 		WRITEUINT8(p, gt);
 	WRITEUINT8(p, secondgt);
 	secondgt &= ~0x80;
-	
-	votemax = cv_votemaxrows.value;
 
-	for (i = 0; i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ); i++)
+	for (i = 0; i < VOTEROWSADDSONE; i++)
 	{
 		UINT16 m;
-		//UINT16 forcehell = (((cv_votemaxrows.value*3))-2);
-		UINT16 voterows = cv_votemaxrows.value*3;
 		UINT16 hellpick = 0;
 
-		voterows = ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) );
+		hellpick = ((i == ((VOTEROWS) + 1) ) ? 2 : 0);
 
-		hellpick = ((i == ((voterows) + 1) ) ? 2 : 0);
-
-		if (i == ((cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ))
+		if (i == VOTEROWS)
 			hellpick = 1;
 
 		if (i == 2) // sometimes a different gametype
 			m = G_RandMap(G_TOLFlag(secondgt), prevmap, false, 0, true, votebuffer);
-		else if (i >= ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) )) // unknown-random and force-unknown MAP HELL
-			m = G_RandMap(G_TOLFlag(gt), prevmap, false, hellpick, (i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? 1 : 0) )), votebuffer); // let's TRY to make this simpler
+		else if (i >= VOTEROWS) // unknown-random and force-unknown MAP HELL
+			m = G_RandMap(G_TOLFlag(gt), prevmap, false, hellpick, (i < VOTEROWSADDSONE), votebuffer); // let's TRY to make this simpler
 		else
 			m = G_RandMap(G_TOLFlag(gt), prevmap, false, 0, true, votebuffer);
-		if (i < ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ))
+		if (i < VOTEROWS)
 			votebuffer[min(i, 2)] = m; // min() is a dumb workaround for gcc 4.4 array-bounds error
 		WRITEUINT16(p, m);
 	}
@@ -3250,12 +3264,6 @@ void D_PickVote(void)
 	if (numvotes > 0)
 	{
 		WRITESINT8(p, temppicks[key]);
-		
-		//if (templevels[key] == ( (votemax*3) + ((votemax > 1) ? (votemax - 1) : 0) ) && numvotes > 1)
-			//WRITESINT8(p, ( (votemax*3) + 1 + ((votemax > 1) ? (votemax - 1) : 0) ));
-		
-		//else
-
 		WRITESINT8(p, templevels[key]);
 	}
 	else
@@ -4344,22 +4352,6 @@ static void Command_ServerTeamChange_f(void)
 	SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
 }
 
-void P_SetPlayerSpectator(INT32 playernum)
-{
-	//Make sure you're in the right gametype.
-	if (!G_GametypeHasTeams() && !G_GametypeHasSpectators())
-		return;
-
-	// Don't duplicate efforts.
-	if (players[playernum].spectator)
-		return;
-
-	players[playernum].spectator = true;
-	players[playernum].pflags &= ~PF_WANTSTOJOIN;
-
-	players[playernum].playerstate = PST_REBORN;
-}
-
 //todo: This and the other teamchange functions are getting too long and messy. Needs cleaning.
 static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 {
@@ -4489,37 +4481,81 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 
 	//Safety first!
 	// (not respawning spectators here...)
-	wasspectator = (players[playernum].spectator == true);
-
-	if (!wasspectator)
+	if (!players[playernum].spectator)
 	{
-		if (gamestate == GS_LEVEL && players[playernum].mo)
+		if (players[playernum].mo)
 		{
-			// The following will call P_SetPlayerSpectator if successful
-			P_DamageMobj(players[playernum].mo, NULL, NULL, 42000);
+			//if (!players[playernum].spectator)
+				P_DamageMobj(players[playernum].mo, NULL, NULL, 10000);
+			/*else
+			{
+				if (players[playernum].mo)
+				{
+					P_RemoveMobj(players[playernum].mo);
+					players[playernum].mo = NULL;
+				}
+				players[playernum].playerstate = PST_REBORN;
+			}*/
 		}
-
-		//...but because the above could return early under some contexts, we try again here
-		P_SetPlayerSpectator(playernum);
+		else
+			players[playernum].playerstate = PST_REBORN;
 	}
+	else
+		wasspectator = true;
+
+	players[playernum].pflags &= ~PF_WANTSTOJOIN;
 
 	//Now that we've done our error checking and killed the player
 	//if necessary, put the player on the correct team/status.
+	if (G_TagGametype())
+	{
+		if (!NetPacket.packet.newteam)
+		{
+			players[playernum].spectator = true;
+			players[playernum].pflags &= ~PF_TAGIT;
+			players[playernum].pflags &= ~PF_TAGGED;
+		}
+		else if (NetPacket.packet.newteam != 3) // .newteam == 1 or 2.
+		{
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+			players[playernum].pflags &= ~PF_TAGGED;//Just in case.
 
-	// This serves us in both teamchange contexts.
-	if (NetPacket.packet.newteam != 0)
-	{
-		players[playernum].pflags |= PF_WANTSTOJOIN;
-	}
-	else
-	{
-		players[playernum].pflags &= ~PF_WANTSTOJOIN;
-	}
+			if (NetPacket.packet.newteam == 1) //Make the player IT.
+				players[playernum].pflags |= PF_TAGIT;
+			else
+				players[playernum].pflags &= ~PF_TAGIT;
+		}
+		else // Just join the game.
+		{
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
 
-	if (G_GametypeHasTeams())
+			//If joining after hidetime in normal tag, default to being IT.
+			if (gametype == GT_TAG && (leveltime > (hidetime * TICRATE)))
+			{
+				NetPacket.packet.newteam = 1; //minor hack, causes the "is it" message to be printed later.
+				players[playernum].pflags |= PF_TAGIT; //make the player IT.
+			}
+		}
+	}
+	else if (G_GametypeHasTeams())
 	{
-		// This one is, of course, specific.
-		players[playernum].ctfteam = NetPacket.packet.newteam;
+		if (!NetPacket.packet.newteam)
+		{
+			players[playernum].ctfteam = 0;
+			players[playernum].spectator = true;
+		}
+		else
+		{
+			players[playernum].ctfteam = NetPacket.packet.newteam;
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+		}
+	}
+	else if (G_GametypeHasSpectators())
+	{
+		if (!NetPacket.packet.newteam)
+			players[playernum].spectator = true;
+		else
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
 	}
 
 	if (NetPacket.packet.autobalance)
@@ -4572,7 +4608,7 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 		}
 	}
 
-	if (gamestate != GS_LEVEL || wasspectator == true)
+	if (gamestate != GS_LEVEL)
 		return;
 
 	demo_extradata[playernum] |= DXD_PLAYSTATE;
@@ -6101,7 +6137,7 @@ static void Got_ExitLevelcmd(UINT8 **cp, INT32 playernum)
 static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 {
 	INT32 i;
-	UINT8 gt, secondgt, votemaxsetup;
+	UINT8 gt, secondgt;
 
 	if (playernum != serverplayer && !IsPlayerAdmin(playernum))
 	{
@@ -6120,7 +6156,6 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	// Get gametype data.
 	gt = (UINT8)READUINT8(*cp);
 	secondgt = (UINT8)READUINT8(*cp);
-	votemaxsetup = (cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0);
 
 	// Strip illegal Encore flag.
 	if (gt == (GT_MATCH|0x80))
@@ -6129,7 +6164,7 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	}
 
 	// Apply most data.
-	for (i = 0; i < votemaxsetup; i++)
+	for (i = 0; i < VOTEROWSADDSONE; i++)
 	{
 		votelevels[i][0] = (UINT16)READUINT16(*cp);
 		votelevels[i][1] = gt;
@@ -6302,10 +6337,9 @@ static void Command_Togglemodified_f(void)
 	modifiedgame = !modifiedgame;
 }
 
-extern UINT8 *save_p;
 static void Command_Archivetest_f(void)
 {
-	UINT8 *buf;
+	savebuffer_t save;
 	UINT32 i, wrote;
 	thinker_t *th;
 	if (gamestate != GS_LEVEL)
@@ -6321,28 +6355,28 @@ static void Command_Archivetest_f(void)
 			((mobj_t *)th)->mobjnum = i++;
 
 	// allocate buffer
-	buf = save_p = ZZ_Alloc(1024);
+	save.buffer = save.p = ZZ_Alloc(1024);
 
 	// test archive
 	CONS_Printf("LUA_Archive...\n");
-	LUA_Archive();
-	WRITEUINT8(save_p, 0x7F);
-	wrote = (UINT32)(save_p-buf);
+	LUA_Archive(&save, true);
+	WRITEUINT8(save.p, 0x7F);
+	wrote = (UINT32)(save.p - save.buffer);
 
 	// clear Lua state, so we can really see what happens!
 	CONS_Printf("Clearing state!\n");
 	LUA_ClearExtVars();
 
 	// test unarchive
-	save_p = buf;
+	save.p = save.buffer;
 	CONS_Printf("LUA_UnArchive...\n");
-	LUA_UnArchive();
-	i = READUINT8(save_p);
-	if (i != 0x7F || wrote != (UINT32)(save_p-buf))
-		CONS_Printf("Savegame corrupted. (write %u, read %u)\n", wrote, (UINT32)(save_p-buf));
+	LUA_UnArchive(&save, true);
+	i = READUINT8(save.p);
+	if (i != 0x7F || wrote != (UINT32)(save.p - save.buffer))
+		CONS_Printf("Savegame corrupted. (write %u, read %u)\n", wrote, (UINT32)(save.p - save.buffer));
 
 	// free buffer
-	Z_Free(buf);
+	Z_Free(save.buffer);
 	CONS_Printf("Done. No crash.\n");
 }
 #endif
@@ -7019,3 +7053,6 @@ void Got_DiscordInfo(UINT8 **p, INT32 playernum)
 	(*p) += 3;
 #endif
 }
+
+#undef VOTEROWS
+#undef VOTEROWSADDSONE

@@ -126,13 +126,13 @@ extern char  logfilename[1024];
 // we use comprevision and compbranch instead.
 #else
 #define VERSION    2 // Game version
-#define SUBVERSION 15 // more precise version number
+#define SUBVERSION 16 // more precise version number
 #ifndef USE_FBO_OGL
-#define VERSIONSTRING "Neptune v2.2g "
-#define VERSIONSTRINGW L"Neptune v2.2g"
+#define VERSIONSTRING "Neptune v2.3"
+#define VERSIONSTRINGW L"Neptune v2.3"
 #else
-#define VERSIONSTRING "Neptune v2.2g - FBO "
-#define VERSIONSTRINGW L"Neptune v2.2g - FBO"
+#define VERSIONSTRING "Neptune v2.3 - FBO "
+#define VERSIONSTRINGW L"Neptune v2.3 - FBO"
 #endif
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
@@ -633,6 +633,10 @@ INT32 I_GetKey(void);
 #endif
 #ifndef max // Double-Check with WATTCP-32's cdefs.h
 #define max(x, y) (((x) > (y)) ? (x) : (y))
+#endif
+
+#ifndef CLAMP
+#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
 #endif
 
 #ifndef M_PIl

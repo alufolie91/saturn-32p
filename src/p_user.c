@@ -56,7 +56,6 @@
 #endif
 
 #ifdef HWRENDER
-#include "hardware/hw_light.h"
 #include "hardware/hw_main.h"
 #endif
 
@@ -596,11 +595,29 @@ void P_PlayLivesJingle(player_t *player)
 	}
 }
 
-void P_PlayRinglossSound(mobj_t *source)
+void P_PlayRinglossSound(mobj_t *source, mobj_t *damager)
 {
 	sfxenum_t key = P_RandomKey(2);
 	if (cv_kartvoices.value)
-		S_StartSound(source, (mariomode) ? sfx_mario8 : sfx_khurt1 + key);
+	{
+		if (cv_karthitemdialog.value && source != damager && damager && damager->player && P_IsLocalPlayer(damager->player))
+		{
+			sfxenum_t sfx = sfx_khurt1 + key;
+
+			INT32 skinnum = -1;
+
+			// I HATE LOCALSKINS! I HATE LOCALSKINS! :AAAAAAAAAA:
+			if (source->player)
+				skinnum = source->player->skinlocal ? (source->player->localskin - 1) : source->player->skin;
+
+			if (skinnum >= 0)
+				sfx = (source->player->skinlocal ? localskins : skins)[skinnum].soundsid[SKSKPAN1 + key];
+
+			S_StartSound(NULL, sfx);
+		}
+		else
+			S_StartSound(source, (mariomode) ? sfx_mario8 : sfx_khurt1 + key);
+	}
 	else
 		S_StartSound(source, sfx_slip);
 }
@@ -800,7 +817,7 @@ void P_RestoreMusic(player_t *player)
 		}
 
 		// Item - Grow
-		if (wantedmus == 2 && cv_growmusic.value)
+		if (wantedmus == 2 && cv_growmusic.value == 1)
 		{
 			S_ChangeMusicInternal("kgrow", true);
 			
@@ -808,7 +825,7 @@ void P_RestoreMusic(player_t *player)
 				S_SetRestoreMusicFadeInCvar(&cv_growmusicfade);
 		}
 		// Item - Invincibility
-		else if (wantedmus == 1 && cv_supermusic.value)
+		else if (wantedmus == 1 && cv_supermusic.value == 1)
 		{
 			S_ChangeMusicInternal("kinvnc", true);
 			
@@ -1199,9 +1216,6 @@ void P_SpawnShieldOrb(player_t *player)
 mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 {
 	mobj_t *ghost;
-
-	if (!mobj || P_MobjWasRemoved(mobj))
-		return NULL;
 
 	ghost = P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_GHOST);
 
@@ -1957,7 +1971,7 @@ static void P_3dMovement(player_t *player)
 	}
 	else
 	{
-		if (player->kartstuff[k_drift] != 0)
+		if (player->kartstuff[k_drift] != 0 && player->kartstuff[k_driftlock] == 0) // dont do this when driftlock is engaged ex: on zippers
 			movepushangle = player->mo->angle-(ANGLE_45/5)*player->kartstuff[k_drift];
 		else if (player->kartstuff[k_spinouttimer] || player->kartstuff[k_wipeoutslow])	// if spun out, use the boost angle
 			movepushangle = (angle_t)player->kartstuff[k_boostangle];
@@ -3075,12 +3089,19 @@ static void P_DeathThink(player_t *player)
 				else
 					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 			}
+
+			if (player->spectator)
+				player->laptime[LAP_CUR] = 0;
+			else
+				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 		}
 		else
 		{
 			player->realtime = 0;
 			if (player == &players[consoleplayer])
 				curlap = 0;
+
+			player->laptime[LAP_CUR] = 0;
 		}
 	}
 
@@ -4045,7 +4066,6 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	{
 		P_MoveChaseCamera(player, thiscam, false);
 		R_ResetViewInterpolation(num + 1);
-		R_ResetViewInterpolation(num + 1);
 	}
 
 	return (x == thiscam->x && y == thiscam->y && z == thiscam->z && angle == thiscam->aiming);
@@ -4075,8 +4095,8 @@ boolean P_SpectatorJoinGame(player_t *player)
 	// Team changing in Team Match and CTF
 	// Pressing fire assigns you to a team that needs players if allowed.
 	// Partial code reproduction from p_tick.c autobalance code.
-	else if (G_GametypeHasTeams() && player->ctfteam == 0)
-	{		
+	else if (G_GametypeHasTeams())
+	{
 		INT32 changeto = 0;
 		INT32 z, numplayersred = 0, numplayersblue = 0;
 
@@ -4129,7 +4149,7 @@ boolean P_SpectatorJoinGame(player_t *player)
 	}
 	// Joining in game from firing.
 	else
-	{		
+	{
 		if (player->mo)
 		{
 			P_RemoveMobj(player->mo);
@@ -4294,11 +4314,7 @@ Quaketilt (player_t *player)
 	INT32 delta = (INT32)( player->mo->angle - moma );
 	fixed_t speed;
 
-	boolean sliptiding =
-		(
-				player->kartstuff[k_aizdriftstrat] != 0 &&
-				player->kartstuff[k_drift]         == 0
-		);
+	boolean sliptiding = player->kartstuff[k_drift] ? 0 : player->kartstuff[k_aizdriftstrat];
 
 	if (delta == (INT32)ANGLE_180)/* FUCK YOU HAVE A HACK */
 	{
@@ -4326,6 +4342,7 @@ Quaketilt (player_t *player)
 		tilt = ANGLE_22h;
 		lowb = 10*FRACUNIT;
 	}
+	lowb = FixedMul(lowb, player->mo->scale);
 	moma = FixedMul(FixedDiv(delta, ANGLE_90), tilt);
 	speed = abs( player->mo->momx + player->mo->momy );
 	if (speed < lowb)
@@ -4341,6 +4358,19 @@ DoABarrelRoll (player_t *player)
 {
 	angle_t slope;
 	angle_t delta;
+
+	fixed_t smoothing;
+
+	if (player->exiting)
+	{
+		return;
+	}
+
+	if (player->kartstuff[k_respawn])
+	{
+		player->tilt = 0;
+		return;
+	}
 
 	if (player->mo->standingslope)
 	{
@@ -4366,26 +4396,16 @@ DoABarrelRoll (player_t *player)
 		slope -= Quaketilt(player);
 	}
 
-	delta = (INT32)( slope - player->tilt )/ cv_tiltsmoothing.value;
+	delta = slope - player->tilt;
+	smoothing = FixedDiv(AbsAngle(slope), ANGLE_45);
+
+	delta = FixedDiv(delta, cv_tiltsmoothing.value *
+	FixedDiv(FRACUNIT, FRACUNIT + smoothing));
 
 	if (delta)
 		player->tilt += delta;
 	else
-		player->tilt  = slope;
-
-	if (cv_tilting.value)
-	{
-		player->viewrollangle = player->tilt;
-
-		if (cv_actionmovie.value)
-		{
-			player->viewrollangle += quake.roll;
-		}
-	}
-	else
-	{
-		player->viewrollangle = 0;
-	}
+		player->tilt = slope;
 }
 
 /* 	set follower state with our weird hacks
@@ -4780,11 +4800,6 @@ void P_PlayerThink(player_t *player)
 	ticcmd_t *cmd;
 	const size_t playeri = (size_t)(player - players);
 
-	player->lerp.aiming = player->aiming;
-	player->lerp.awayviewaiming = player->awayviewaiming;
-	player->lerp.frameangle = player->frameangle;
-	player->lerp.viewrollangle = player->viewrollangle;
-
 #ifdef PARANOIA
 	if (!player->mo)
 		I_Error("p_playerthink: players[%s].mo == NULL", sizeu1(playeri));
@@ -4879,10 +4894,6 @@ void P_PlayerThink(player_t *player)
 	else
 		player->kartstuff[k_throwdir] = 0;
 #endif
-
-	// Add some extra randomization.
-	if (cmd->forwardmove)
-		P_RandomFixed();
 
 #ifdef PARANOIA
 	if (player->playerstate == PST_REBORN)
@@ -5013,12 +5024,19 @@ void P_PlayerThink(player_t *player)
 				else
 					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 			}
+
+			if (player->spectator)
+				player->laptime[LAP_CUR] = 0;
+			else
+				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 		}
 		else
 		{
 			player->realtime = 0;
 			if (player == &players[consoleplayer])
 				curlap = 0;
+
+			player->laptime[LAP_CUR] = 0;
 		}
 	}
 

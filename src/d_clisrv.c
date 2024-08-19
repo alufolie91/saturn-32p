@@ -49,6 +49,7 @@
 #include "s_sound.h" // sfx_syfail
 #include "m_perfstats.h"
 #include "d_main.h"
+#include "r_fps.h"
 
 #ifdef CLIENT_LOADINGSCREEN
 // cl loading screen
@@ -75,6 +76,8 @@
 
 #define MAX_REASONLENGTH 30
 #define FORCECLOSE 0x8000
+
+static long long unsigned packetstat[NUMPACKETTYPE+1] = {0};
 
 boolean server = true; // true or false but !server == client
 #define client (!server)
@@ -1163,28 +1166,28 @@ static boolean SV_ResendingSavegameToAnyone(void)
 static void SV_SendSaveGame(INT32 node, boolean resending)
 {
 	size_t length, compressedlen;
-	UINT8 *savebuffer;
+	savebuffer_t save;
 	UINT8 *compressedsave;
 	UINT8 *buffertosend;
 
 	// first save it in a malloced buffer
-	savebuffer = (UINT8 *)malloc(SAVEGAMESIZE);
-	if (!savebuffer)
+	save.buffer = (UINT8 *)malloc(SAVEGAMESIZE);
+	if (!save.buffer)
 	{
 		CONS_Alert(CONS_ERROR, M_GetText("No more free memory for savegame\n"));
 		return;
 	}
 
 	// Leave room for the uncompressed length.
-	save_p = savebuffer + sizeof(UINT32);
+	save.p = save.buffer + sizeof(UINT32);
 
-	P_SaveNetGame(resending);
+	P_SaveNetGame(&save, resending);
 
-	length = save_p - savebuffer;
+	length = save.p - save.buffer;
 	if (length > SAVEGAMESIZE)
 	{
-		free(savebuffer);
-		save_p = NULL;
+		free(save.buffer);
+		save.p = NULL;
 		I_Error("Savegame buffer overrun");
 	}
 
@@ -1198,11 +1201,11 @@ static void SV_SendSaveGame(INT32 node, boolean resending)
 	}
 
 	// Attempt to compress it.
-	if((compressedlen = lzf_compress(savebuffer + sizeof(UINT32), length - sizeof(UINT32), compressedsave + sizeof(UINT32), length - sizeof(UINT32) - 1)))
+	if((compressedlen = lzf_compress(save.buffer + sizeof(UINT32), length - sizeof(UINT32), compressedsave + sizeof(UINT32), length - sizeof(UINT32) - 1)))
 	{
 		// Compressing succeeded; send compressed data
 
-		free(savebuffer);
+		free(save.buffer);
 
 		// State that we're compressed.
 		buffertosend = compressedsave;
@@ -1216,12 +1219,12 @@ static void SV_SendSaveGame(INT32 node, boolean resending)
 		free(compressedsave);
 
 		// State that we're not compressed
-		buffertosend = savebuffer;
-		WRITEUINT32(savebuffer, 0);
+		buffertosend = save.buffer;
+		WRITEUINT32(save.buffer, 0);
 	}
 
 	SV_SendRam(node, buffertosend, length, SF_RAM, 0);
-	save_p = NULL;
+	save.p = NULL;
 
 	// Remember when we started sending the savegame so we can handle timeouts
 	sendingsavegame[node] = true;
@@ -1235,7 +1238,7 @@ static consvar_t cv_dumpconsistency = {"dumpconsistency", "Off", CV_NETVAR, CV_O
 static void SV_SavedGame(void)
 {
 	size_t length;
-	UINT8 *savebuffer;
+	savebuffer_t save;
 	char tmpsave[264];
 
 	if (!cv_dumpconsistency.value)
@@ -1244,29 +1247,29 @@ static void SV_SavedGame(void)
 	sprintf(tmpsave, "%s" PATHSEP TMPSAVENAME, srb2home);
 
 	// first save it in a malloced buffer
-	save_p = savebuffer = (UINT8 *)malloc(SAVEGAMESIZE);
-	if (!save_p)
+	save.p = save.buffer = (UINT8 *)malloc(SAVEGAMESIZE);
+	if (!save.p)
 	{
 		CONS_Alert(CONS_ERROR, M_GetText("No more free memory for savegame\n"));
 		return;
 	}
 
-	P_SaveNetGame();
+	P_SaveNetGame(&save);
 
-	length = save_p - savebuffer;
+	length = save.p - save.buffer;
 	if (length > SAVEGAMESIZE)
 	{
-		free(savebuffer);
-		save_p = NULL;
+		free(save.buffer);
+		save.p = NULL;
 		I_Error("Savegame buffer overrun");
 	}
 
 	// then save it!
-	if (!FIL_WriteFile(tmpsave, savebuffer, length))
+	if (!FIL_WriteFile(tmpsave, save.buffer, length))
 		CONS_Printf(M_GetText("Didn't save %s for netgame"), tmpsave);
 
-	free(savebuffer);
-	save_p = NULL;
+	free(save.buffer);
+	save.p = NULL;
 }
 
 #undef  TMPSAVENAME
@@ -1276,13 +1279,13 @@ static void SV_SavedGame(void)
 
 static void CL_LoadReceivedSavegame(boolean reloading)
 {
-	UINT8 *savebuffer = NULL;
+	savebuffer_t save;
 	size_t length, decompressedlen;
 	char tmpsave[264];
 
 	sprintf(tmpsave, "%s" PATHSEP TMPSAVENAME, srb2home);
 
-	length = FIL_ReadFile(tmpsave, &savebuffer);
+	length = FIL_ReadFile(tmpsave, &save.buffer);
 
 	CONS_Printf(M_GetText("Loading savegame length %s\n"), sizeu1(length));
 	if (!length)
@@ -1291,16 +1294,16 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 		return;
 	}
 
-	save_p = savebuffer;
+	save.p = save.buffer;
 
 	// Decompress saved game if necessary.
-	decompressedlen = READUINT32(save_p);
+	decompressedlen = READUINT32(save.p);
 	if(decompressedlen > 0)
 	{
 		UINT8 *decompressedbuffer = Z_Malloc(decompressedlen, PU_STATIC, NULL);
-		lzf_decompress(save_p, length - sizeof(UINT32), decompressedbuffer, decompressedlen);
-		Z_Free(savebuffer);
-		save_p = savebuffer = decompressedbuffer;
+		lzf_decompress(save.p, length - sizeof(UINT32), decompressedbuffer, decompressedlen);
+		Z_Free(save.buffer);
+		save.p = save.buffer = decompressedbuffer;
 	}
 
 	paused = false;
@@ -1308,17 +1311,8 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 	demo.title = false;
 	automapactive = false;
 
-	if (!postautoloaded) 
-	{
-		CONS_Printf("D_AutoloadFile(): Loading autoloaded addons...\n");
-		if (W_AddAutoloadedLocalFiles(autoloadwadfilespost) == 0)
-			CONS_Printf("D_AutoloadFile(): Are you sure you put in valid files or what?\n");
-		D_CleanFile(autoloadwadfilespost);
-		postautoloaded = true;
-	}
-
 	// load a base level
-	if (P_LoadNetGame(reloading))
+	if (P_LoadNetGame(&save, reloading))
 	{
 		CON_LogMessage(va(M_GetText("Map is now \"%s"), G_BuildMapName(gamemap)));
 		if (strlen(mapheaderinfo[gamemap-1]->lvlttl) > 0)
@@ -1335,8 +1329,8 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 	}
 
 	// done
-	Z_Free(savebuffer);
-	save_p = NULL;
+	Z_Free(save.buffer);
+	save.p = NULL;
 	if (unlink(tmpsave) == -1)
 		CONS_Alert(CONS_ERROR, M_GetText("Can't delete %s\n"), tmpsave);
 	consistancy[gametic%TICQUEUE] = Consistancy();
@@ -2164,8 +2158,6 @@ static void CL_ConnectToServer(void)
 	DEBFILE(va("Synchronisation Finished\n"));
 
 	displayplayers[0] = consoleplayer;
-
-	LUAh_ServerJoin();
 }
 
 #ifndef NONET
@@ -2536,6 +2528,17 @@ static void Command_connect(void)
 	botskin = 0;
 	CL_ConnectToServer();
 }
+
+static void Command_Packetstat(void)
+{
+	CONS_Printf("Number of packets handled:\n");
+
+	for (UINT8 i = 0; i <= NUMPACKETTYPE; ++i)
+	{
+		CONS_Printf("%16s: %llu%s", Net_GetPacketName(i), packetstat[i], (i % 2 == 1) ? "\n" : "\t|\t");
+	}
+}
+
 #endif
 
 static void ResetNode(INT32 node);
@@ -2707,6 +2710,7 @@ void CL_Reset(void)
 	// make sure we don't leave any fileneeded gunk over from a failed join
 	fileneedednum = 0;
 	memset(fileneeded, 0, sizeof(fileneeded));
+	memset(packetstat, 0, sizeof(packetstat));
 
 #ifndef NONET
 	totalfilesrequestednum = 0;
@@ -3493,6 +3497,7 @@ void D_ClientServerInit(void)
 	COM_AddCommand("nodes", Command_Nodes);
 	COM_AddCommand("resendgamestate", Command_ResendGamestate);
 	COM_AddCommand("listplayers", Command_Listplayers);
+	COM_AddCommand("packetstat", Command_Packetstat);
 #ifdef HAVE_CURL
 	COM_AddCommand("set_http_login", Command_set_http_login);
 	COM_AddCommand("list_http_logins", Command_list_http_logins);
@@ -3593,6 +3598,7 @@ void SV_ResetServer(void)
 
 	// clear server_context
 	memset(server_context, '-', 8);
+	memset(packetstat, 0, sizeof(packetstat));
 
 	DEBFILE("\n-=-=-=-=-=-=-= Server Reset =-=-=-=-=-=-=-\n\n");
 }
@@ -3701,8 +3707,11 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 	splitscreenplayer = newplayernum/MAXPLAYERS;
 	newplayernum %= MAXPLAYERS;
 
-	G_AddPlayer(newplayernum);
+	// Clear player before joining, lest some things get set incorrectly
+	CL_ClearPlayer(newplayernum);
 
+	playeringame[newplayernum] = true;
+	G_AddPlayer(newplayernum);
 	if (newplayernum+1 > doomcom->numslots)
 		doomcom->numslots = (INT16)(newplayernum+1);
 
@@ -3749,7 +3758,12 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 	if (server && multiplayer && motd[0] != '\0')
 		COM_BufAddText(va("sayto %d %s\n", newplayernum, motd));
 
+	D_AddAutoloadFiles();
+
 	LUAh_PlayerJoin(newplayernum);
+
+	if (newplayernum == consoleplayer)
+		LUAh_ServerJoin();
 
 #ifdef HAVE_DISCORDRPC
 	DRPC_UpdatePresence();
@@ -4952,6 +4966,10 @@ static void GetPackets(void)
 		if (netbuffer->packettype == PT_PLAYERINFO)
 			continue; // We do nothing with PLAYERINFO, that's for the MS browser.
 
+		// We also count unknown packets, hence "<="
+		if (netbuffer->packettype <= NUMPACKETTYPE)
+			++packetstat[netbuffer->packettype];
+
 		// Packet received from someone already playing
 		if (nodeingame[node])
 			HandlePacketFromPlayer(node);
@@ -5513,6 +5531,8 @@ boolean TryRunTics(tic_t realtics)
 
 	if (ticking)
 	{
+		boolean tickInterp = true;
+
 		// run the count * tics
 		while (neededtic > gametic)
 		{
@@ -5523,7 +5543,18 @@ boolean TryRunTics(tic_t realtics)
 			if (update_stats)
 				PS_START_TIMING(ps_tictime);
 
-			G_Ticker((gametic % NEWTICRATERATIO) == 0);
+			boolean run = (gametic % NEWTICRATERATIO) == 0;
+
+			if (run && tickInterp)
+			{
+				// Update old view state BEFORE ticking so resetting
+				// the old interpolation state from game logic works.
+				R_UpdateViewInterpolation();
+				tickInterp = false; // do not update again in sped-up tics
+			}
+
+			G_Ticker(run);
+
 			ExtraDataTicker();
 			gametic++;
 			consistancy[gametic%TICQUEUE] = Consistancy();
@@ -5947,6 +5978,7 @@ void CL_ClearRewinds(void)
 
 rewind_t *CL_SaveRewindPoint(size_t demopos)
 {
+	savebuffer_t save;
 	rewind_t *rewind;
 
 	if (rewindhead && rewindhead->leveltime + REWIND_POINT_INTERVAL > leveltime)
@@ -5956,8 +5988,10 @@ rewind_t *CL_SaveRewindPoint(size_t demopos)
 	if (!rewind)
 		return NULL;
 
-	save_p = rewind->savebuffer;
-	P_SaveNetGame(true);
+	save.buffer = save.p = rewind->savebuffer;
+
+	P_SaveNetGame(&save, false);
+
 	rewind->leveltime = leveltime;
 	rewind->next = rewindhead;
 	rewind->demopos = demopos;
@@ -5968,6 +6002,7 @@ rewind_t *CL_SaveRewindPoint(size_t demopos)
 
 rewind_t *CL_RewindToTime(tic_t time)
 {
+	savebuffer_t save;
 	rewind_t *rewind;
 
 	while (rewindhead && rewindhead->leveltime > time)
@@ -5980,8 +6015,10 @@ rewind_t *CL_RewindToTime(tic_t time)
 	if (!rewindhead)
 		return NULL;
 
-	save_p = rewindhead->savebuffer;
-	P_LoadNetGame(true);
+	save.buffer = save.p = rewindhead->savebuffer;
+
+	P_LoadNetGame(&save, false);
+
 	wipegamestate = gamestate; // No fading back in!
 	timeinmap = leveltime;
 

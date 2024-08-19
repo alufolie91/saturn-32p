@@ -82,6 +82,9 @@
 // protocol handling
 #include "d_protocol.h"
 
+#include "z_zone.h"
+#include "mserv.h"
+
 #if defined(HAVE_SDL)
 #include "SDL.h"
 #if SDL_VERSION_ATLEAST(2,0,0)
@@ -388,6 +391,7 @@ menu_t OP_DriftGaugeDef;
 menu_t MISC_ReplayHutDef;
 menu_t MISC_ReplayOptionsDef;
 static void M_HandleReplayHutList(INT32 choice);
+static void M_HutCheckReplays(size_t maxnum);
 static void M_DrawReplayHut(void);
 static void M_DrawReplayStartMenu(void);
 static boolean M_QuitReplayHut(void);
@@ -465,6 +469,9 @@ static void Dummystaff_OnChange(void);
 // ==========================================================================
 // CONSOLE VARIABLES AND THEIR POSSIBLE VALUES GO HERE.
 // ==========================================================================
+
+// How much replays are checked per frame when using search
+consvar_t cv_replaysearchrate = {"replaysearchrate", "1000", CV_SAVE, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL };
 
 consvar_t cv_showfocuslost = {"showfocuslost", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL };
 
@@ -621,6 +628,7 @@ static menuitem_t MISC_ReplayOptionsMenu[] =
 	{IT_CVAR|IT_STRING, NULL, "Record Replays",      &cv_recordmultiplayerdemos, 0},
 	{IT_CVAR|IT_STRING, NULL, "Sync Check Interval", &cv_netdemosyncquality,     10},
 	{IT_CVAR|IT_STRING, NULL, "Max demo size (MiB)", &cv_maxdemosize,			 20},
+	{IT_CVAR|IT_STRING, NULL, "Replay Search Rate",  &cv_replaysearchrate,       30},
 };
 
 static tic_t playback_last_menu_interaction_leveltime = 0;
@@ -1205,6 +1213,7 @@ static menuitem_t OP_AllControlsMenu[] =
 	{IT_CONTROL, NULL, "Look Up",               M_ChangeControl, gc_lookup     },
 	{IT_CONTROL, NULL, "Look Down",             M_ChangeControl, gc_lookdown   },
 	{IT_CONTROL, NULL, "Center View",           M_ChangeControl, gc_centerview },
+	{IT_CONTROL, NULL, "Toggle Director",       M_ChangeControl, gc_director   },
 	{IT_HEADER, NULL, "Custom Lua Actions", NULL, 0},
 	{IT_SPACE, NULL, NULL, NULL, 0},
 	{IT_CONTROL, NULL, "Custom Action 1",       M_ChangeControl, gc_custom1    },
@@ -1215,73 +1224,89 @@ static menuitem_t OP_AllControlsMenu[] =
 static menuitem_t OP_Joystick1Menu[] =
 {
 	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup1PJoystickMenu, 10},
-	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis          , 30},
-	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis         , 40},
-	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis         , 50},
-	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis        , 60},
-	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis        , 70},
-	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis         , 80},
-	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis     , 90},
-	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis         , 100},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1" , 	&cv_custom1axis      , 110},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2" , 	&cv_custom2axis      , 120},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3" , 	&cv_custom3axis      , 130},
-	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone        , 140},
-	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone        , 150},
+	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis          , 20},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis         , 25},
+	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis         , 30},
+	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis        , 35},
+	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis        , 40},
+	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis         , 45},
+	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis     , 50},
+	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis         , 55},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis      , 60},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis      , 65},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis      , 70},
+	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone        , 75},
+	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone        , 80},
+
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[0]        , 90},
+	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[0]    , 95},
+	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[0]    , 100},
 };
 
 static menuitem_t OP_Joystick2Menu[] =
 {
 	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup2PJoystickMenu, 10},
-	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis2         , 30},
-	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis2        , 40},
-	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis2        , 50},
-	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis2       , 60},
-	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis2       , 70},
-	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis2        , 80},
-	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis2    , 90},
-	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis2        , 100},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1" , 	&cv_custom1axis2     , 110},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2" , 	&cv_custom2axis2     , 120},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3" , 	&cv_custom3axis2     , 130},
-	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone2       , 140},
-	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone2       , 150},
+	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis2         , 20},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis2        , 25},
+	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis2        , 30},
+	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis2       , 35},
+	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis2       , 40},
+	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis2        , 45},
+	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis2    , 50},
+	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis2        , 55},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis2     , 60},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis2     , 65},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis2     , 70},
+	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone2       , 75},
+	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone2       , 80},
+
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[1]        , 90},
+	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[1]    , 95},
+	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[1]    , 100},
 };
 
 static menuitem_t OP_Joystick3Menu[] =
 {
 	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup3PJoystickMenu, 10},
-	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis3         , 30},
-	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis3        , 40},
-	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis3        , 50},
-	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis3       , 60},
-	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis3       , 70},
-	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis3        , 80},
-	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis3    , 90},
-	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis3        , 100},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1" , 	&cv_custom1axis3     , 110},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2" , 	&cv_custom2axis3     , 120},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3" , 	&cv_custom3axis3     , 130},
-	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone3       , 140},
-	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone3       , 150},
+	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis3         , 20},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis3        , 25},
+	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis3        , 30},
+	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis3       , 35},
+	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis3       , 40},
+	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis3        , 45},
+	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis3    , 50},
+	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis3        , 55},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis3     , 60},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis3     , 65},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis3     , 70},
+	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone3       , 75},
+	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone3       , 80},
+
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[2]        , 90},
+	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[2]    , 95},
+	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[2]    , 100},
 };
 
 static menuitem_t OP_Joystick4Menu[] =
 {
 	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup4PJoystickMenu, 10},
-	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis4         , 30},
-	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis4        , 40},
-	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis4        , 50},
-	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis4       , 60},
-	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis4       , 70},
-	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis4        , 80},
-	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis4    , 90},
-	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis4        , 100},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1" , 	&cv_custom1axis4     , 110},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2" , 	&cv_custom2axis4     , 120},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3" , 	&cv_custom3axis4     , 130},
-	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone4       , 140},
-	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone4       , 150},
+	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis4         , 20},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis4        , 25},
+	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis4        , 30},
+	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis4       , 35},
+	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis4       , 40},
+	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis4        , 45},
+	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis4    , 50},
+	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis4        , 55},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis4     , 60},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis4     , 65},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis4     , 70},
+	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone4       , 75},
+	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone4       , 80},
+
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[3]        , 90},
+	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[3]    , 95},
+	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[3]    , 100},
 };
 
 static menuitem_t OP_JoystickSetMenu[] =
@@ -1362,7 +1387,7 @@ static menuitem_t OP_VideoOptionsMenu[] =
 #ifdef HWRENDER
 	{IT_SUBMENU|IT_STRING,	NULL,	"OpenGL Options...",	&OP_OpenGLOptionsDef,	 155},
 #endif
-	{IT_SUBMENU|IT_STRING,  NULL,   "Experimental Options...", &OP_ExpOptionsDef,    165},
+	{IT_SUBMENU|IT_STRING,  NULL,   "Advanced Options...", &OP_ExpOptionsDef,    165},
 
 };
 
@@ -1386,7 +1411,7 @@ static const char* OP_VideoTooltips[] =
 #ifdef HWRENDER
 	"Options for OpenGL renderer.",
 #endif
-	"Experimental graphical options.",
+	"Advanced graphical options.",
 };
 
 
@@ -1461,31 +1486,22 @@ static menuitem_t OP_ColorOptionsMenu[] =
 
 static menuitem_t OP_ExpOptionsMenu[] =
 {
-	{IT_HEADER, NULL, "Experimental Options", NULL, 10},
-	
+	{IT_HEADER, NULL, "Advanced Options", NULL, 10},
 	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",			&cv_grmaxinterpdist,		 20},
-	{IT_STRING|IT_CVAR,		NULL, "Mobj Subsector Interpolation",	&cv_mobjssector,		 	 25},
 	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 30},
 	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 35},
 
-	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 42},
+	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 45},
 
-	{IT_STRING | IT_CVAR, 	NULL, "Clipping R_PointToAngle Version", &cv_pointoangleexor64, 	 49},
-
-	{IT_STRING | IT_CVAR, 	NULL, "FFloorclip", 					&cv_ffloorclip, 		 	 56},
-	{IT_STRING | IT_CVAR, 	NULL, "Spriteclip", 					&cv_spriteclip, 		 	61},
 #ifdef HWRENDER	
-	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 68},
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_grscreentextures, 		 55},
 #ifdef USE_FBO_OGL
-	{IT_STRING | IT_CVAR, 	NULL, "FBO Downsampling support", 		&cv_grframebuffer, 			 73},
+	{IT_STRING | IT_CVAR, 	NULL, "FBO Downsampling support", 		&cv_grframebuffer, 			 60},
 #endif
 
-	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		80},
+	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_grpalettedepth, 		70},
 
-	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	87},
-	{IT_STRING | IT_CVAR, 	NULL, "Slope midtexture peg fix", 		&cv_slopepegfix, 		 	92},
-	{IT_STRING | IT_CVAR, 	NULL, "ZFighting fix for fofs", 		&cv_fofzfightfix, 		 	97},
-	{IT_STRING | IT_CVAR, 	NULL, "FOF wall cutoff for slopes", 	&cv_grfofcut, 		 		102},
+	{IT_STRING | IT_CVAR, 	NULL, "Splitwall/Slope texture fix",	&cv_splitwallfix, 		 	80},
 #endif	
 };
 
@@ -1493,23 +1509,16 @@ static const char* OP_ExpTooltips[] =
 {
 	NULL,
 	"How far Mobj interpolation should take effect.",
-	"Toggles Mobj Subsector Interpolation.",
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"When weather is on this will cut the object amount used in half.",
 	"Toggle being able to see the sky.",
-	"Which version of R_PointToAngle should\nbe used for Sector Clipping?\n64 may fix rendering issues on larger maps\nat the cost of performance.",
-	"Hides 3DFloors which are not visible\npotentially resulting in a performance boost.",
-	"Hides Sprites which are not visible\npotentially resulting in a performance boost.",
 #ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
 #ifdef USE_FBO_OGL
-	"Allows the game to downsample from a higher resolution than your display in OpenGL renderer mode\nrequires a GPU with atleast OpenGL 3.0 support.",
+	"Allows the game to downsample from a higher resolution than your display\nin OpenGL renderer mode requires a GPU with atleast OpenGL 3.0 support.",
 #endif
-	"Change the depth of the Palette in Palette rendering mod\n 16 bits is like software looks ingame\nwhile 24 bits is how software looks in screenshots.",
-	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
-	"Fixes issues that resulted in Textures not being properly skewed\n example: Fences on slopes that didnt show proper.\n This may be CPU heavy and result in worse performance in some cases.",
-	"Fixes issues that resulted in Textures on Floor over Floors\nZFighting heavily.",
-	"Toggle for FOF wall cutoff with slopes.",
+	"Change the depth of the Palette in Palette rendering mod\n16 bits is like software looks ingame\nwhile 24 bits is how software looks in screenshots.",
+	"Fixes issues that resulted in Textures sticking from the ground.\nThis may result in worse performance in some cases.",
 #endif
 };
 
@@ -1517,13 +1526,9 @@ enum
 {
 	op_exp_header,
 	op_exp_interpdist,
-	op_exp_mobjssector,
 	op_exp_precipinter,
 	op_exp_lessprecip,
 	op_exp_skybox,
-	op_exp_angleshit,
-	op_exp_ffclip,
-	op_exp_sprclip,
 #ifdef HWRENDER
 	op_exp_grscrtx,
 #ifdef USE_FBO_OGL
@@ -1531,9 +1536,6 @@ enum
 #endif
 	op_exp_paldepth,
 	op_exp_spltwal,
-	op_exp_pegging,
-	op_exp_fofzfight,
-	op_exp_fofcut,
 #endif
 };
 
@@ -1541,23 +1543,24 @@ enum
 #ifdef HWRENDER
 static menuitem_t OP_OpenGLOptionsMenu[] =
 {
-	{IT_STRING | IT_CVAR,	NULL, "3D Models",					&cv_grmdls,					 15},
-	{IT_STRING | IT_CVAR,	NULL, "Fallback Player 3D Model",	&cv_grfallbackplayermodel,	 20},
-	{IT_STRING | IT_CVAR,	NULL, "Shaders",					&cv_grshaders,				 25},
-	{IT_STRING | IT_CVAR,	NULL, "Palette Rendering",			&cv_grpaletterendering,		 30},
-	{IT_STRING | IT_CVAR,   NULL, "Flashpals in Palette Renderer", &cv_grflashpal, 		 	 35},
-	{IT_STRING | IT_CVAR, 	NULL, "Min Shader Brightness", 		&cv_secbright, 		 		 40},
+	{IT_STRING | IT_CVAR,	NULL, "3D Models",					&cv_grmdls,					15},
+	{IT_STRING | IT_CVAR,	NULL, "Fallback Player 3D Model",	&cv_grfallbackplayermodel,	20},
+	{IT_STRING | IT_CVAR,	NULL, "Shaders",					&cv_grshaders,				25},
+	{IT_STRING | IT_CVAR,	NULL, "Palette Rendering",			&cv_grpaletterendering,		30},
+	{IT_STRING | IT_CVAR,   NULL, "Flashpals in Palette Renderer", &cv_grflashpal,			35},
+	{IT_STRING | IT_CVAR, 	NULL, "Min Shader Brightness", 		&cv_secbright,				40},
 
-	{IT_STRING|IT_CVAR,		NULL, "Texture Quality",			&cv_scr_depth,				 50},
-	{IT_STRING|IT_CVAR,		NULL, "Texture Filter",				&cv_grfiltermode,			 55},
-	{IT_STRING|IT_CVAR,		NULL, "Anisotropic",				&cv_granisotropicmode,		 60},
-	{IT_STRING|IT_CVAR,		NULL, "Visual Portals",		  		&cv_grportals,				 65},
+	{IT_STRING|IT_CVAR,		NULL, "Texture Quality",			&cv_scr_depth,				50},
+	{IT_STRING|IT_CVAR,		NULL, "Texture Filter",				&cv_grfiltermode,			55},
+	{IT_STRING|IT_CVAR,		NULL, "Anisotropic",				&cv_granisotropicmode,		60},
+	{IT_STRING|IT_CVAR,		NULL, "Visual Portals",		  		&cv_grportals,				65},
 
 	{IT_STRING|IT_CVAR,		NULL, "Wall Contrast Style",		&cv_grfakecontrast,			75},
 	{IT_STRING|IT_CVAR,		NULL, "Slope Contrast",				&cv_grslopecontrast,		80},
-	{IT_STRING|IT_CVAR,		NULL, "Sprite Billboarding",		&cv_grspritebillboarding,	85},
-	{IT_STRING|IT_CVAR,		NULL, "Software Perspective",		&cv_grshearing,				90},
-	{IT_STRING|IT_CVAR,		NULL, "Rendering Distance",			&cv_grrenderdistance,		95},
+	{IT_STRING | IT_CVAR, 	NULL, "Dithered Lightning", 		&cv_lightdither,			85},
+	{IT_STRING|IT_CVAR,		NULL, "Sprite Billboarding",		&cv_grspritebillboarding,	90},
+	{IT_STRING|IT_CVAR,		NULL, "Software Perspective",		&cv_grshearing,				95},
+	{IT_STRING|IT_CVAR,		NULL, "Rendering Distance",			&cv_grrenderdistance,		100},
 };
 
 static const char* OP_OpenGLTooltips[] =
@@ -1574,6 +1577,7 @@ static const char* OP_OpenGLTooltips[] =
 	"Recreates an effect from software mode that is used on some maps.",
 	"The look of the wall contrast effect.",
 	"Wall contrast but for slopes.",
+	"Should OpenGL lightning be dithered?",
 	"Should sprites always face the camera?",
 	"Recreates the look of software mode camera perspective.",
 	"How far the game world should be drawn.",
@@ -1603,20 +1607,7 @@ static menuitem_t OP_SoundOptionsMenu[] =
 
 	{IT_STRING|IT_CVAR,							NULL, "Chat Notifications",				&cv_chatnotifications,	 	75},
 	{IT_STRING|IT_CVAR,							NULL, "Character voices",				&cv_kartvoices,			 	85},
-	{IT_STRING|IT_CVAR,							NULL, "Powerup Warning",				&cv_kartinvinsfx,		 	95},
-	
-	{IT_KEYHANDLER|IT_STRING,					NULL, "Sound Test",						M_HandleSoundTest,			105},
-	{IT_STRING|IT_CALL,							NULL, "Music Test",						M_MusicTest,				115},
-
-	{IT_STRING|IT_CVAR,        					NULL, "Play Music While Unfocused", 	&cv_playmusicifunfocused, 	125},
-	{IT_STRING|IT_CVAR,        					NULL, "Play SFX While Unfocused", 		&cv_playsoundifunfocused, 	135},
-	{IT_STRING|IT_SUBMENU, 						NULL, "Advanced Settings...", 			&OP_SoundAdvancedDef, 		155}
-#else
-	{IT_STRING|IT_CVAR,							NULL, "Reverse L/R Channels",			&stereoreverse,			 	60},
-	{IT_STRING|IT_CVAR,							NULL, "Surround Sound",					&surround,			 	 	70},
-
-	{IT_STRING|IT_CVAR,							NULL, "Chat Notifications",				&cv_chatnotifications,	 	85},
-	{IT_STRING|IT_CVAR,							NULL, "Character voices",				&cv_kartvoices,			 	95},
+	{IT_STRING|IT_CVAR,							NULL, "Hit Em Delay",				    &cv_karthitemdialog,		95},
 	{IT_STRING|IT_CVAR,							NULL, "Powerup Warning",				&cv_kartinvinsfx,		 	105},
 	
 	{IT_KEYHANDLER|IT_STRING,					NULL, "Sound Test",						M_HandleSoundTest,			115},
@@ -1624,6 +1615,21 @@ static menuitem_t OP_SoundOptionsMenu[] =
 
 	{IT_STRING|IT_CVAR,        					NULL, "Play Music While Unfocused", 	&cv_playmusicifunfocused, 	135},
 	{IT_STRING|IT_CVAR,        					NULL, "Play SFX While Unfocused", 		&cv_playsoundifunfocused, 	145},
+	{IT_STRING|IT_SUBMENU, 						NULL, "Advanced Settings...", 			&OP_SoundAdvancedDef, 		155}
+#else
+	{IT_STRING|IT_CVAR,							NULL, "Reverse L/R Channels",			&stereoreverse,			 	60},
+	{IT_STRING|IT_CVAR,							NULL, "Surround Sound",					&surround,			 	 	70},
+
+	{IT_STRING|IT_CVAR,							NULL, "Chat Notifications",				&cv_chatnotifications,	 	85},
+	{IT_STRING|IT_CVAR,							NULL, "Character voices",				&cv_kartvoices,			 	95},
+	{IT_STRING|IT_CVAR,							NULL, "Hit Em Delay",				    &cv_karthitemdialog,		105},
+	{IT_STRING|IT_CVAR,							NULL, "Powerup Warning",				&cv_kartinvinsfx,		 	115},
+	
+	{IT_KEYHANDLER|IT_STRING,					NULL, "Sound Test",						M_HandleSoundTest,			125},
+	{IT_STRING|IT_CALL,							NULL, "Music Test",						M_MusicTest,				135},
+
+	{IT_STRING|IT_CVAR,        					NULL, "Play Music While Unfocused", 	&cv_playmusicifunfocused, 	145},
+	{IT_STRING|IT_CVAR,        					NULL, "Play SFX While Unfocused", 		&cv_playsoundifunfocused, 	155},
 	{IT_STRING|IT_SUBMENU, 						NULL, "Advanced Settings...", 			&OP_SoundAdvancedDef, 		165}
 #endif
 };
@@ -1642,6 +1648,7 @@ static const char* OP_SoundTooltips[] =
 	"Surround Sound.",
 	"Chat notification sound.",
 	"Frequency of character voice lines.",
+	"Play 'Hit Em' character line after other player's hurt line.",
 	"Should the powerup warning be a sound effect or music?",
 	"Testing sounds...",
 	"Testing music...",
@@ -1666,7 +1673,9 @@ static menuitem_t OP_SoundAdvancedMenu[] =
 	{IT_HEADER, 			NULL, "Misc", 						NULL, 				105},
 
 	{IT_STRING | IT_CVAR, 	NULL, "Grow Music", 				&cv_growmusic, 		117},
-	{IT_STRING | IT_CVAR, 	NULL, "Invulnerability Music", 		&cv_supermusic, 	137},
+	{IT_STRING | IT_CVAR, 	NULL, "Invulnerability Music", 		&cv_supermusic, 	127},
+
+	{IT_STRING | IT_CVAR, 	NULL, "Audio Buffer Size", 			&cv_audbuffersize, 	147},
 };
 
 static const char* OP_SoundAdvancedTooltips[] =
@@ -1684,7 +1693,7 @@ static const char* OP_SoundAdvancedTooltips[] =
 	NULL,
 	"Should the Grow music be on or off?",
 	"Should the Invulnerability music be on or off?",
-
+	"Size of the Audio Buffer\nreducing it will result in less sound latency\nbut may cause issues such as crackling or distorted Sound.",
 };
 
 static menuitem_t OP_DataOptionsMenu[] =
@@ -2055,32 +2064,34 @@ static menuitem_t OP_SaturnMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Input Display outside of RA",		 	&cv_showinput, 	 			35},
 	{IT_STRING | IT_CVAR, NULL, "Speedometer Style",		 			&cv_newspeedometer, 	 	40},
 	{IT_STRING | IT_CVAR, NULL, "Stat Display",		 					&cv_showstats, 	 			45},
-	{IT_STRING | IT_CVAR, NULL, "Higher Resolution Portraits",			&cv_highresportrait, 	 	50},
-	{IT_STRING | IT_CVAR, NULL, "Colourized HUD",						&cv_colorizedhud,		 	55},
-	{IT_STRING | IT_CVAR, NULL, "Colourized Itembox",					&cv_colorizeditembox,		60},
-	{IT_STRING | IT_CVAR, NULL, "Colourized HUD Color",					&cv_colorizedhudcolor,		65},
-	{IT_STRING | IT_CVAR, NULL, "Show Lap Emblem",		 				&cv_showlapemblem, 	 		70},
-	{IT_STRING | IT_CVAR, NULL,	"Show Minimap Names",   				&cv_showminimapnames, 		75},
-	{IT_STRING | IT_CVAR, NULL,	"Small Minimap Players",   				&cv_minihead, 				80},
+	{IT_STRING | IT_CVAR, NULL, "Show Lap Times",		 				&cv_showlaptimes, 	 		50},
+	{IT_STRING | IT_CVAR, NULL, "Higher Resolution Portraits",			&cv_highresportrait, 	 	55},
+	{IT_STRING | IT_CVAR, NULL, "Colourized HUD",						&cv_colorizedhud,		 	60},
+	{IT_STRING | IT_CVAR, NULL, "Colourized Itembox",					&cv_colorizeditembox,		66},
+	{IT_STRING | IT_CVAR, NULL, "Colourized HUD Color",					&cv_colorizedhudcolor,		70},
+	{IT_STRING | IT_CVAR, NULL, "Show Lap Emblem",		 				&cv_showlapemblem, 	 		75},
+	{IT_STRING | IT_CVAR, NULL,	"Show Minimap Names",   				&cv_showminimapnames, 		80},
+	{IT_STRING | IT_CVAR, NULL,	"Small Minimap Players",   				&cv_minihead, 				85},
+	
+	{IT_STRING | IT_CVAR, NULL,	"Lagless Camera",   					&cv_laglesscam, 			95},
 
-	{IT_STRING | IT_CVAR, NULL, "Uncapped HUD", 						&cv_uncappedhud, 		    90},
+	{IT_STRING | IT_CVAR, NULL, "Uncapped HUD", 						&cv_uncappedhud, 		    105},
 
-	{IT_STRING | IT_CVAR, NULL, "Show Cecho Messages", 					&cv_cechotoggle, 			95},
-	{IT_STRING | IT_CVAR, NULL, "Show Localskin Menus", 				&cv_showlocalskinmenus, 	100},
-	{IT_STRING | IT_CVAR, NULL, "Uppercase Menu",						&cv_menucaps,   		    105},
+	{IT_STRING | IT_CVAR, NULL, "Show Cecho Messages", 					&cv_cechotoggle, 			115},
+	{IT_STRING | IT_CVAR, NULL, "Show Localskin Menus", 				&cv_showlocalskinmenus, 	120},
+	{IT_STRING | IT_CVAR, NULL, "Uppercase Menu",						&cv_menucaps,   		    125},
 
-	{IT_STRING | IT_CVAR, NULL, "Keyboard Layout",						&cv_keyboardlayout,   	   110},
+	{IT_STRING | IT_CVAR, NULL, "Keyboard Layout",						&cv_keyboardlayout,   	   135},
 
-	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		   125},
+	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		   145},
 
-	{IT_STRING | IT_SUBMENU, NULL, "Nametags...", 						&OP_NametagDef, 		   135},
-	{IT_STRING | IT_SUBMENU, NULL, "Driftgauge...", 					&OP_DriftGaugeDef, 		   140},
+	{IT_STRING | IT_SUBMENU, NULL, "Nametags...", 						&OP_NametagDef, 		   155},
+	{IT_STRING | IT_SUBMENU, NULL, "Driftgauge...", 					&OP_DriftGaugeDef, 		   160},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Sprite Distortion...", 			&OP_PlayerDistortDef,	   150},
-	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		   155},
+	{IT_SUBMENU|IT_STRING,	NULL,	"Sprite Distortion...", 			&OP_PlayerDistortDef,	   170},
+	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		   175},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,	   160}, // uwu
-
+	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,	   185}, // uwu
 };
 
 static const char* OP_SaturnTooltips[] =
@@ -2092,13 +2103,15 @@ static const char* OP_SaturnTooltips[] =
 	"Displays the input display outside of Record Attack. Also adjusts the\nposition scale to match.",
 	"Change what style the speedometer is.",
 	"Enable the stat display.",
+	"Show Lap Time when doing a Lap on the Timer.",
 	"Enable the use of the higher resolution want icons instead of rank\nfor some places.",
 	"Enable colourized hud.",
 	"Enable the colourized itembox when colourized hud is enabled.",
-	"The color to use instead of the player color when colourized hud is enabled.",
+	"The color to use instead of the player color when\ncolourized hud is enabled.",
 	"Show the big 'LAP' text on a lap change.",
 	"Show player names on the minimap.",
 	"Minimize the player icons on the minimap.",
+	"Makes the Camera Lagless in netgames.",
 	"Uncaps the HUD framerate, making it appear smoother.",
 	"Show the big Cecho Messages.",
 	"Show Localskin Menus.",
@@ -2121,6 +2134,7 @@ enum
 	sm_input,
 	sm_speedometer,
 	sm_statdisplay,
+	sm_laptime,
 	sm_highresport,
 	sm_colorhud,
 	sm_coloritem,
@@ -2128,6 +2142,7 @@ enum
 	sm_lapemblem,
 	sm_mapnames,
 	sm_smallmap,
+	sm_laglesscam,
 	sm_uncappedhud,
 	sm_cechotogle,
 	sm_showlocalskin,
@@ -2164,13 +2179,15 @@ static menuitem_t OP_NeptuneMenu[] =
 	//{IT_HEADER, NULL, "Stacking", NULL, 55},
 	{IT_STRING | IT_CVAR, NULL, "Stacking", 					&cv_stacking, 		 	75},
 	{IT_STRING | IT_CVAR, NULL, "Stacking Diminish", 			&cv_stackingdim, 		80},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Lowspeed Buff", 		&cv_stackinglowspeedbuff, 		85},
+	{IT_STRING | IT_CVAR, NULL, "Stacking Old Compat", 			&cv_stackingoldcompat, 		90},
 	
-	{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			90},
-	{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		95},
+	//{IT_STRING | IT_CVAR, NULL, "Speedcap", 					&cv_speedcap, 			95}, .// No longer really needed since it was to fix a bug thats not even in this version :p
+	//{IT_STRING | IT_CVAR, NULL, "Speedcap Value", 				&cv_speedcapval, 		100},
 	
 	//{IT_HEADER, NULL, "Items", NULL, 70},
-	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			105},
-	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			110},
+	{IT_STRING | IT_CVAR, NULL, "Item Odds System", 			&cv_itemodds, 			100},
+	{IT_STRING | IT_CVAR, NULL, "Custom Itemtable", 			&cv_customodds, 			105},
 	
 
 
@@ -2195,9 +2212,11 @@ static const char* OP_NeptuneTooltips[] =
 	//NULL,
 	"Allow boosts to stack together.",
 	"Diminish boost strength the more things are stacked on each other.",
+	"Apply a bonus top speed to lower speeds only while boosting.",
+	"Due to oversights the stacking code wasn't accurate in earlier versions.\nThis recreates those behaviours.\nA stacking_growmult value of 0.4 should be used for accuracy",
 	
-	"Should Maximum speed be capped?",
-	"Value of Maximum speed cap.",
+	//"Should Maximum speed be capped?",
+	//"Value of Maximum speed cap.",
 	//NULL,
 	"Item system used for rolls.\nUranus is vanilla-like with some scaling modifications.\nCEP is congacalc-like with some scaling modifications.",
 	"Use custom itemtable. This is set via convars.",
@@ -2259,7 +2278,7 @@ static const char* OP_NeptuneTwoTooltips[] =
 	"Change boostflame color based on sneaker stack count.",
 	"Sneakers change sound when stacking.",
 	
-	"Allows you to see when others look back when spectating.\nThis may introduce input lag to lookback button when active.\nThis also prevents you from looking back when spectating someone else as it reads their inputs.",
+	"Allows you to see when others look back when spectating.\nThis may introduce input lag to lookback button when active.\nThis also prevents you from looking back when spectating\nsomeone else as it reads their inputs.",
 	
 	"Hide Player followers from your view.",
 	"Toggle Chain sound on sneaker extension.",
@@ -2983,10 +3002,10 @@ menu_t OP_ControlsDef = DEFAULTMENUSTYLE("M_CONTRO", OP_ControlsMenu, &OP_MainDe
 //WTF
 menu_t OP_MouseOptionsDef = DEFAULTMENUSTYLE("M_CONTRO", OP_MouseOptionsMenu, &OP_ControlsDef, 60, 30);
 menu_t OP_AllControlsDef = CONTROLMENUSTYLE(OP_AllControlsMenu, &OP_ControlsDef);
-menu_t OP_Joystick1Def = DEFAULTMENUSTYLE("M_CONTRO", OP_Joystick1Menu, &OP_AllControlsDef, 60, 30);
-menu_t OP_Joystick2Def = DEFAULTMENUSTYLE("M_CONTRO", OP_Joystick2Menu, &OP_AllControlsDef, 60, 30);
-menu_t OP_Joystick3Def = DEFAULTMENUSTYLE("M_CONTRO", OP_Joystick3Menu, &OP_AllControlsDef, 60, 30);
-menu_t OP_Joystick4Def = DEFAULTMENUSTYLE("M_CONTRO", OP_Joystick4Menu, &OP_AllControlsDef, 60, 30);
+menu_t OP_Joystick1Def = DEFAULTSCROLLSTYLE("M_CONTRO", OP_Joystick1Menu, &OP_AllControlsDef, 60, 36);
+menu_t OP_Joystick2Def = DEFAULTSCROLLSTYLE("M_CONTRO", OP_Joystick2Menu, &OP_AllControlsDef, 60, 36);
+menu_t OP_Joystick3Def = DEFAULTSCROLLSTYLE("M_CONTRO", OP_Joystick3Menu, &OP_AllControlsDef, 60, 36);
+menu_t OP_Joystick4Def = DEFAULTSCROLLSTYLE("M_CONTRO", OP_Joystick4Menu, &OP_AllControlsDef, 60, 36);
 menu_t OP_JoystickSetDef =
 {
 	"M_CONTRO",
@@ -4612,6 +4631,9 @@ void M_Ticker(void)
 	else
 		playback_enterheld = 0;
 
+	if (demo.inreplayhut)
+		M_HutCheckReplays(cv_replaysearchrate.value);
+
 	interpTimerHackAllow = true;
 
 	//added : 30-01-98 : test mode for five seconds
@@ -4710,15 +4732,10 @@ void M_Init(void)
 		OP_ExpOptionsMenu[op_exp_fbo].status = IT_DISABLED;
 #endif
 		OP_ExpOptionsMenu[op_exp_spltwal].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_pegging].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_fofzfight].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_fofcut].status = IT_DISABLED;
 	}
 
 	if (rendermode == render_opengl)
 	{
-		OP_ExpOptionsMenu[op_exp_ffclip].status = IT_DISABLED;
-		OP_ExpOptionsMenu[op_exp_sprclip].status = IT_DISABLED;
 #ifdef USE_FBO_OGL
 		if (!supportFBO)
 			OP_ExpOptionsMenu[op_exp_fbo].status = IT_GRAYEDOUT;
@@ -4919,6 +4936,12 @@ void M_DrawTextBox(INT32 x, INT32 y, INT32 width, INT32 boxlines)
 {
 	// Solid color textbox.
 	V_DrawFill(x+5, y+5, width*8+6, boxlines*8+6, 239);
+}
+
+void M_DrawTextBoxFlags(INT32 x, INT32 y, INT32 width, INT32 boxlines, INT32 flags)
+{
+	// Solid color textbox.
+	V_DrawFill(x+5, y+5, width*8+6, boxlines*8+6, 239|flags);
 }
 
 // horizontally centered text
@@ -5248,16 +5271,6 @@ static void M_DrawGenericMenu(void)
 		}
 	}
 
-	if (currentMenu == &OP_ExpOptionsDef)
-	{
-		if (!(OP_ExpTooltips[itemOn] == NULL))
-		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ExpTooltips[itemOn], coolalphatimer);
-			if (coolalphatimer > 0 && interpTimerHackAllow)
-				coolalphatimer--;
-		}
-	}
-
 	if (currentMenu == &OP_ChatOptionsDef)
 	{
 		if (!(OP_ChatOptionsTooltips[itemOn] == NULL))
@@ -5503,6 +5516,16 @@ static void M_DrawGenericScrollMenu(void)
 		if (!(OP_OpenGLTooltips[itemOn] == NULL)) 
 		{
 			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_OpenGLTooltips[itemOn], coolalphatimer);
+			if (coolalphatimer > 0 && interpTimerHackAllow)
+				coolalphatimer--;
+		}
+	}
+
+	if (currentMenu == &OP_ExpOptionsDef)
+	{
+		if (!(OP_ExpTooltips[itemOn] == NULL))
+		{
+			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_ExpTooltips[itemOn], coolalphatimer);
 			if (coolalphatimer > 0 && interpTimerHackAllow)
 				coolalphatimer--;
 		}
@@ -6915,42 +6938,196 @@ static void M_HandleAddons(INT32 choice)
 }
 
 // ---- REPLAY HUT -----
-menudemo_t *demolist;
+menudemo_t *demolist; // Replays that that have been checked to match with query
+
+// Locked behind Lock_search_state
+menudemo_t *demolist_all; // All replays
+boolean replaynamesloaded = false;
+
+#ifdef HAVE_THREADS
+I_mutex replayquerymutex;
+
+// g_in_exiting_signal_handler is an evil hack
+// to avoid infinite SIGABRT recursion in the signal handler
+// due to poisoned locks or mach-o kernel not supporting locks in signals
+// or something like that. idk
+#  define Lock_search_state()    if (!g_in_exiting_signal_handler) { I_lock_mutex(&replayquerymutex); }
+#  define Unlock_search_state()  if (!g_in_exiting_signal_handler) { I_unlock_mutex(replayquerymutex); }
+#else/*HAVE_THREADS*/
+#  define Lock_search_state()
+#  define Unlock_search_state()
+#endif/*HAVE_THREADS*/
+
+
+#define MAXREPLAYQUERY 40
+char replayqueryinput[MAXREPLAYQUERY+1]; // The input typed
+size_t replayquerypos = 0; // Position in input window
+
+size_t replayqueryfound = 0; // Number of checked replay entries
+size_t replayquerycheck = 0; // Index of next replay entry to check in demolist_all
 
 #define DF_ENCORE       0x40
 static INT16 replayScrollTitle = 0;
 static SINT8 replayScrollDelay = TICRATE, replayScrollDir = 1;
 
-static void PrepReplayList(void)
+static void ReplayNamesLoadThread(void* userdata)
+{
+	Lock_search_state();
+
+	size_t demolist_all_size = sizedirmenu;
+	menudemo_t *demolist_all_local = (menudemo_t*)malloc(sizeof(menudemo_t)*sizedirmenu);
+	memcpy(demolist_all_local, demolist_all, sizeof(menudemo_t)*sizedirmenu);
+	char *replaydirpath = (char*)userdata;
+
+	Unlock_search_state();
+
+	for (size_t i = 0; i < demolist_all_size; ++i)
+	{
+		if (demolist_all_local[i].type != MD_SUBDIR)
+			G_LoadDemoTitle(&demolist_all_local[i]);
+	}
+
+	Lock_search_state();
+
+	if (strcmp(menupath, replaydirpath) == 0)
+	{
+		memcpy(demolist_all, demolist_all_local, sizeof(menudemo_t)*sizedirmenu);
+		replaynamesloaded = true;
+	}
+
+	Unlock_search_state();
+
+	// Was allocated before thread start, we need to free it
+	free(replaydirpath);
+	free(demolist_all_local);
+}
+
+static void LoadReplayNames(void)
+{
+	char *replaydirpath = strdup(menupath);
+
+	Lock_search_state();
+	replaynamesloaded = false;
+	Unlock_search_state();
+
+#ifdef HAVE_THREADS
+	I_spawn_thread("replay-names-load", ReplayNamesLoadThread, replaydirpath);
+#else
+	ReplayNamesLoadThread(replaydirpath);
+#endif
+}
+
+static void ResetReplayQuery(void)
+{
+	memset(replayqueryinput, 0, MAXREPLAYQUERY);
+	replayquerypos = 0;
+
+	replayqueryfound = 0;
+	replayquerycheck = 0;
+}
+
+static void AddCheckedReplay(void)
+{
+	memcpy(&demolist[replayqueryfound], &demolist_all[replayquerycheck], sizeof(menudemo_t));
+	++replayqueryfound;
+	++replayquerycheck;
+}
+
+// Check up to maxnum replays if they match with query
+static void M_HutCheckReplays(size_t maxnum)
+{
+	if (!replaynamesloaded)
+		return;
+
+	// Already checked everything
+	if (replayquerycheck == sizedirmenu)
+		return;
+
+	// If we don't have any query, just copy all demos and consider them checked
+	if (replayquerypos == 0)
+	{
+		// Mark as done
+		replayqueryfound = replayquerycheck = sizedirmenu;
+
+		memcpy(demolist, demolist_all, sizeof(menudemo_t) * sizedirmenu);
+
+		return;
+	}
+
+	while (maxnum-- && replayquerycheck < sizedirmenu)
+	{
+		switch (demolist_all[replayquerycheck].type)
+		{
+			case MD_SUBDIR:
+				AddCheckedReplay(); // Just add subdirs
+				// Will also be decremented on next iteration. Basically, we just don't want to
+				// spend our number of tries on subdirs, since we don't check anything for them
+				++maxnum;
+				break;
+
+			case MD_NOTLOADED:
+			case MD_OUTDATED:
+			case MD_LOADED:
+				if (demolist_all[replayquerycheck].title[0] && strcasestr(demolist_all[replayquerycheck].title, replayqueryinput) != NULL)
+					AddCheckedReplay(); // It matches, add it!
+				else
+					replayquerycheck++; // Doesn't match, moving on...
+
+				break;
+
+			// Don't show invalid replays
+			case MD_INVALID:
+				replayquerycheck++;
+		}
+	}
+}
+
+static void PrepReplayList(boolean reset)
 {
 	size_t i;
+
+	replayquerycheck = replayqueryfound = 0;
 
 	if (demolist)
 		Z_Free(demolist);
 
 	demolist = Z_Calloc(sizeof(menudemo_t) * sizedirmenu, PU_STATIC, NULL);
 
+	// If directory didn't change, keep demolist_all
+	if (!reset) return;
+
+	Lock_search_state();
+
+	if (demolist_all)
+		Z_Free(demolist_all);
+
+	demolist_all = Z_Calloc(sizeof(menudemo_t) * sizedirmenu, PU_STATIC, NULL);
+
 	for (i = 0; i < sizedirmenu; i++)
 	{
 		if (dirmenu[i][DIR_TYPE] == EXT_UP)
 		{
-			demolist[i].type = MD_SUBDIR;
-			sprintf(demolist[i].title, "UP");
+			demolist_all[i].type = MD_SUBDIR;
+			sprintf(demolist_all[i].title, "UP");
 		}
 		else if (dirmenu[i][DIR_TYPE] == EXT_FOLDER)
 		{
-			demolist[i].type = MD_SUBDIR;
-			strncpy(demolist[i].title, dirmenu[i] + DIR_STRING, 64);
+			demolist_all[i].type = MD_SUBDIR;
+			strncpy(demolist_all[i].title, dirmenu[i] + DIR_STRING, 64);
 		}
 		else
 		{
-			demolist[i].type = MD_NOTLOADED;
+			demolist_all[i].type = MD_NOTLOADED;
 			// FIXME - do something with buffer sizes. menupath is 1024 chars but filepath is only
 			// 256. I'm not really sure what to do here but don't want to leave warnings...
-			snprintf(demolist[i].filepath, 255, "%.254s%s", menupath, dirmenu[i] + DIR_STRING);
-			sprintf(demolist[i].title, ".....");
+			snprintf(demolist_all[i].filepath, 255, "%.254s%s", menupath, dirmenu[i] + DIR_STRING);
+			sprintf(demolist_all[i].title, ".....");
 		}
 	}
+
+	Unlock_search_state();
+
+	LoadReplayNames();
 }
 
 void M_ReplayHut(INT32 choice)
@@ -6962,6 +7139,9 @@ void M_ReplayHut(INT32 choice)
 		snprintf(menupath, 1024, "%s"PATHSEP"replay"PATHSEP"online"PATHSEP, srb2home);
 		menupathindex[(menudepthleft = menudepth-1)] = strlen(menupath);
 	}
+
+	ResetReplayQuery();
+
 	if (!preparefilemenu(false, true))
 	{
 		M_StartMessage("No replays found.\n\n(Press a key)\n", NULL, MM_NOTHING);
@@ -6973,7 +7153,7 @@ void M_ReplayHut(INT32 choice)
 
 	replayScrollTitle = 0; replayScrollDelay = TICRATE; replayScrollDir = 1;
 
-	PrepReplayList();
+	PrepReplayList(true);
 
 	menuactive = true;
 	M_SetupNextMenu(&MISC_ReplayHutDef);
@@ -6985,11 +7165,59 @@ void M_ReplayHut(INT32 choice)
 	S_ChangeMusicInternal("replst", true);
 }
 
-static void M_HandleReplayHutList(INT32 choice)
+static boolean M_HandleReplayHutQuery(INT32 choice)
 {
 	switch (choice)
 	{
+		case KEY_BACKSPACE:
+			if (replayquerypos == 0)
+				break;
+
+			S_StartSound(NULL,sfx_menu1);
+
+			replayquerypos--;
+			replayqueryinput[replayquerypos] = 0;
+
+			preparefilemenu(false, true);
+			dir_on[menudepthleft] = 0;
+			PrepReplayList(false);
+
+			return true;
+
+		default:
+			if (choice < 32 || choice > 127)
+				break;
+
+			if (replayquerypos < MAXREPLAYQUERY)
+			{
+				S_StartSound(NULL,sfx_menu1);
+
+				replayqueryinput[replayquerypos] = choice;
+				replayqueryinput[replayquerypos+1] = 0;
+				++replayquerypos;
+
+				preparefilemenu(false, true);
+				dir_on[menudepthleft] = 0;
+				PrepReplayList(false);
+			}
+
+			return true;
+	}
+
+	return false;
+}
+
+static void M_HandleReplayHutList(INT32 choice)
+{
+	if (M_HandleReplayHutQuery(choice))
+		return;
+
+	switch (choice)
+	{
 	case KEY_UPARROW:
+		if (!replaynamesloaded)
+			return;
+
 		if (dir_on[menudepthleft])
 			dir_on[menudepthleft]--;
 		else
@@ -7001,7 +7229,10 @@ static void M_HandleReplayHutList(INT32 choice)
 		break;
 
 	case KEY_DOWNARROW:
-		if (dir_on[menudepthleft] < sizedirmenu-1)
+		if (!replaynamesloaded)
+			return;
+
+		if (dir_on[menudepthleft] < replayqueryfound-1)
 			dir_on[menudepthleft]++;
 		else
 			return;
@@ -7016,6 +7247,9 @@ static void M_HandleReplayHutList(INT32 choice)
 		break;
 
 	case KEY_ENTER:
+		if (!replaynamesloaded)
+			return;
+
 		switch (dirmenu[dir_on[menudepthleft]][DIR_TYPE])
 		{
 			case EXT_FOLDER:
@@ -7041,7 +7275,8 @@ static void M_HandleReplayHutList(INT32 choice)
 					{
 						S_StartSound(NULL, sfx_menu1);
 						dir_on[menudepthleft] = 1;
-						PrepReplayList();
+						ResetReplayQuery();
+						PrepReplayList(true);
 					}
 				}
 				else
@@ -7059,7 +7294,7 @@ static void M_HandleReplayHutList(INT32 choice)
 					M_QuitReplayHut();
 					return;
 				}
-				PrepReplayList();
+				PrepReplayList(true);
 				break;
 			default:
 				// We can't just use M_SetupNextMenu because that'll run ReplayDef's quitroutine and boot us back to the title screen!
@@ -7260,7 +7495,7 @@ static void M_DrawReplayHut(void)
 	if (itemOn > replaylistitem)
 	{
 		itemOn = replaylistitem;
-		dir_on[menudepthleft] = sizedirmenu-1;
+		dir_on[menudepthleft] = replayqueryfound-1;
 		replayScrollTitle = 0; replayScrollDelay = TICRATE; replayScrollDir = 1;
 	}
 	else if (itemOn < replaylistitem)
@@ -7274,7 +7509,7 @@ static void M_DrawReplayHut(void)
 		INT32 maxy;
 		// Scroll menu items if needed
 		cursory = y + currentMenu->menuitems[replaylistitem].alphaKey + dir_on[menudepthleft]*10;
-		maxy = y + currentMenu->menuitems[replaylistitem].alphaKey + sizedirmenu*10;
+		maxy = y + currentMenu->menuitems[replaylistitem].alphaKey + replayqueryfound*10;
 
 		if (cursory > maxy - 20)
 			cursory = maxy - 20;
@@ -7308,14 +7543,20 @@ static void M_DrawReplayHut(void)
 
 	y += currentMenu->menuitems[replaylistitem].alphaKey;
 
-	for (i = 0; i < (INT16)sizedirmenu; i++)
+	if (!replaynamesloaded)
+	{
+		const char *msg = "Loading replays, please wait...";
+		V_DrawCenteredString(160, 100, V_ALLOWLOWERCASE, msg);
+	}
+
+	for (i = 0; i < (INT16)replayqueryfound; i++)
 	{
 		INT32 localy = y+i*10;
 		INT32 localx = x;
 
 		if (localy < 65)
 			continue;
-		if (localy >= SCALEDVIEWHEIGHT)
+		if (localy >= SCALEDVIEWHEIGHT - 24)
 			break;
 
 		if (demolist[i].type == MD_NOTLOADED && !processed_one_this_frame)
@@ -7366,7 +7607,7 @@ static void M_DrawReplayHut(void)
 	}
 
 	// Draw scrollbar
-	y = sizedirmenu*10 + currentMenu->menuitems[replaylistitem].alphaKey + 30;
+	y = replayqueryfound*10 + currentMenu->menuitems[replaylistitem].alphaKey + 30;
 	if (y > SCALEDVIEWHEIGHT-80)
 	{
 		V_DrawFill(BASEVIDWIDTH-4, 75, 4, SCALEDVIEWHEIGHT-80, V_SNAPTOTOP|V_SNAPTORIGHT|239);
@@ -7385,6 +7626,23 @@ static void M_DrawReplayHut(void)
 	{
 		DrawReplayHutReplayInfo();
 	}
+
+	x -= 40;
+
+	// Draw search query
+	M_DrawTextBoxFlags(x, 200 - 22, MAXREPLAYQUERY, 1, V_SNAPTOBOTTOM);
+
+	if (replayquerypos)
+		V_DrawString(x + 8, 200 - 14, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, replayqueryinput);
+	else
+		V_DrawString(x + 8, 200 - 14, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, "\x86Type to search...");
+
+	// draw text cursor for name
+	if (replayquerypos && skullAnimCounter < 4) // blink cursor
+		V_DrawCharacter(x + 8 + V_StringWidth(replayqueryinput, V_ALLOWLOWERCASE), 200 - 14, '_'|V_SNAPTOBOTTOM, false);
+
+	if (replaynamesloaded && replayquerycheck < sizedirmenu)
+		V_DrawString(x + 8, 200 - 30, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, va("Searching %u/%u...", (unsigned)replayquerycheck, (unsigned)sizedirmenu));
 }
 
 static void M_DrawReplayStartMenu(void)
@@ -8414,9 +8672,53 @@ static void M_HandleSoundTest(INT32 choice)
 
 static musicdef_t *curplaying = NULL;
 static INT32 st_sel = 0;
-static tic_t st_time = 0;
-static size_t st_namescroll = 0;
-static size_t st_namescrollstate = 0;
+static tic_t st_musictime = 0;
+
+static void scrollMusicName(const char name[], size_t len, size_t maxlen, char result[])
+{
+	// How much should we scroll. Not sure why +1 is needed, but without it this function skips 2
+	// characters at once sometimes
+	const size_t amount = len - maxlen + 1;
+
+	// Note: anything above 17 will cause zero division
+	const size_t MAXSPEED = 6;
+	const size_t t = st_musictime / (35/min(amount, MAXSPEED));
+
+	const size_t state = (t / amount) % 4;
+
+	switch (state)
+	{
+		// Show beginning of the name
+		case 0:
+			memcpy(result, name, maxlen-1);
+		break;
+
+		// Scroll towards end of the name
+		case 1:
+		{
+			const size_t advance = t % amount;
+			memcpy(result, name+advance, maxlen-1);
+		}
+		break;
+
+		// Show end of the name
+		case 2:
+			memcpy(result, name+len+1-maxlen, maxlen-1);
+		break;
+
+		// Scroll towards start of the name
+		case 3:
+		{
+			const size_t advance = t % amount;
+			memcpy(result, name+len+1-maxlen-advance, maxlen-1);
+		}
+		break;
+	}
+
+	// Technically not necessary, since it gets set again after function call, but just in case
+	result[maxlen] = 0;
+}
+
 //static patch_t* st_radio[9];
 //static patch_t* st_launchpad[4];
 
@@ -8431,7 +8733,6 @@ static void M_MusicTest(INT32 choice)
 	}
 
 	curplaying = NULL;
-	st_time = 0;
 
 	st_sel = 0;
 
@@ -8442,30 +8743,17 @@ static void M_DrawMusicTest(void)
 {
 	INT32 x, y, i;
 
-	// let's handle the ticker first. ideally we'd tick this somewhere else, BUT...
-	if (curplaying)
-	{
-		{
-			fixed_t work;
-			work = st_time;
-
-			if (st_time >= (FRACUNIT << (FRACBITS - 2))) // prevent overflow jump - takes about 15 minutes of loop on the same song to reach
-					st_time = work;
-
-			st_time += renderdeltatics;
-		}
-	}
-
 	x = 90<<FRACBITS;
 	y = (BASEVIDHEIGHT-32)<<FRACBITS;
 
 	y = (BASEVIDWIDTH-(vid.width/vid.dupx))/2;
 
 	V_DrawFill(y-1, 20, vid.width/vid.dupx+1, 24, 239);
+
 	{
 		static fixed_t st_scroll = -FRACUNIT;
 		const char* titl;
-		
+
 		x = 16;
 		V_DrawString(x, 10, 0, "NOW PLAYING:");
 		if (curplaying)
@@ -8504,9 +8792,8 @@ static void M_DrawMusicTest(void)
 		{
 			if (!curplaying->usage[0])
 				V_DrawString(vid.dupx, vid.height - 10*vid.dupy, V_NOSCALESTART|V_ALLOWLOWERCASE, va("%.6s", curplaying->name));
-			else {
+			else
 				V_DrawSmallString(vid.dupx, vid.height - 5*vid.dupy, V_NOSCALESTART|V_ALLOWLOWERCASE, va("%.6s - %.255s\n", curplaying->name, curplaying->usage));
-			}
 			
 			if (cv_showmusicfilename.value)
 				V_DrawSmallString(0, 0, V_SNAPTOTOP|V_SNAPTOLEFT|V_ALLOWLOWERCASE, curplaying->filename);
@@ -8559,7 +8846,7 @@ static void M_DrawMusicTest(void)
 		x = 24;
 		y = 64;
 
-		if (renderisnewtic) ++st_namescroll;
+		if (renderisnewtic) st_musictime++;
 
 		while (t <= b)
 		{
@@ -8568,76 +8855,16 @@ static void M_DrawMusicTest(void)
 
 			{
 				const size_t MAXLENGTH = 34;
-				const tic_t SCROLLSPEED = TICRATE/5; // Number of tics for name being scrolled by 1 letter
-				size_t nameoffset = 0;
-				size_t namelength = strlen(soundtestdefs[t]->source);
-				if (soundtestdefs[t]->title[0])
-					namelength = strlen(soundtestdefs[t]->title);
+				const char *songname = soundtestdefs[t]->title[0] ? soundtestdefs[t]->title : soundtestdefs[t]->source;
+
+				size_t namelength = strlen(songname);
 
 				char buf[MAXLENGTH+1];
 
 				if (t == st_sel && namelength > MAXLENGTH)
-				{
-					switch (st_namescrollstate)
-					{
-						case 0:
-						{
-							// Scroll forward
-							nameoffset = (st_namescroll/SCROLLSPEED) % (namelength - MAXLENGTH + 1);
-
-							if (nameoffset == namelength - MAXLENGTH)
-							{
-								st_namescroll = 0;
-								st_namescrollstate++;
-							}
-						}
-						break;
-
-						case 1:
-						{
-							nameoffset = namelength - MAXLENGTH;
-
-							// Show name end for 1 second, then start scrolling back
-							if (st_namescroll == TICRATE)
-							{
-								st_namescroll = 0;
-								st_namescrollstate++;
-							}
-						}
-						break;
-
-						case 2:
-						{
-							// Scroll back
-							nameoffset = (namelength - MAXLENGTH - 1) - (st_namescroll/SCROLLSPEED) % (namelength - MAXLENGTH);
-
-							if (nameoffset == 0)
-							{
-								st_namescroll = 0;
-								st_namescrollstate++;
-							}
-						}
-						break;
-
-						case 3:
-						{
-							nameoffset = 0;
-
-							// Show name beginning for 1 second, then start scrolling forward again
-							if (st_namescroll == TICRATE)
-							{
-								st_namescroll = 0;
-								st_namescrollstate = 0;
-							}
-						}
-						break;
-					}
-				}
-
-				if (soundtestdefs[t]->title[0])
-					memcpy(buf, soundtestdefs[t]->title + nameoffset, MAXLENGTH);
+					scrollMusicName(songname, namelength, MAXLENGTH, buf);
 				else
-					memcpy(buf, soundtestdefs[t]->source + nameoffset, MAXLENGTH);
+					strncpy(buf, songname, MAXLENGTH);
 				buf[MAXLENGTH] = 0;
 
 				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE|V_MONOSPACE, buf);
@@ -8664,8 +8891,7 @@ static void M_HandleMusicTest(INT32 choice)
 			{
 				S_StartSound(NULL, sfx_menu1);
 			}
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 		case KEY_UPARROW:
 			if (!st_sel--)
@@ -8673,8 +8899,7 @@ static void M_HandleMusicTest(INT32 choice)
 			{
 				S_StartSound(NULL, sfx_menu1);
 			}
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 		case KEY_PGDN:
 			if (st_sel < numsoundtestdefs-1)
@@ -8684,8 +8909,7 @@ static void M_HandleMusicTest(INT32 choice)
 					st_sel = numsoundtestdefs-1;
 				S_StartSound(NULL, sfx_menu1);
 			}
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 		case KEY_PGUP:
 			if (st_sel)
@@ -8695,8 +8919,7 @@ static void M_HandleMusicTest(INT32 choice)
 					st_sel = 0;
 				S_StartSound(NULL, sfx_menu1);
 			}
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 		case KEY_BACKSPACE:
 			if (curplaying)
@@ -8704,14 +8927,12 @@ static void M_HandleMusicTest(INT32 choice)
 				S_StopSounds();
 				S_StopMusic();
 				curplaying = NULL;
-				st_time = 0;
 				S_StartSound(NULL, sfx_skid);
 			}
 			break;
 		case KEY_ESCAPE:
 			exitmenu = true;
-			st_namescroll = 0;
-			st_namescrollstate = 0;
+			st_musictime = 0;
 			break;
 
 		case KEY_RIGHTARROW:
@@ -8719,7 +8940,6 @@ static void M_HandleMusicTest(INT32 choice)
 		case KEY_ENTER:
 			S_StopSounds();
 			S_StopMusic();
-			st_time = 0;
 			curplaying = soundtestdefs[st_sel];		
 			S_ChangeMusicInternal(curplaying->name, true);
 			break;
@@ -10332,6 +10552,9 @@ static void M_StartServerMenu(INT32 choice)
 	levellistmode = LLM_CREATESERVER;
 	M_PrepareLevelSelect();
 	M_SetupNextMenu(&MP_ServerDef);
+#ifdef MASTERSERVER
+	Get_rules();
+#endif
 	M_PopupMasterServerRules();
 }
 
@@ -10674,6 +10897,8 @@ static UINT8 setupm_skinypos;
 static INT32 setupm_skinselect;
 static boolean setupm_skinlockedselect;
 static INT32 setupm_colormode;
+
+static UINT8 setupm_playernum; //brap
 
 #define SELECTEDSTATSCOUNT skinstatscount[setupm_skinxpos][setupm_skinypos]
 #define LASTSELECTEDSTAT skinstats[setupm_skinxpos][setupm_skinypos][skinstatscount[setupm_skinxpos][setupm_skinypos]]
@@ -11713,12 +11938,15 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				S_StartSound(NULL,sfx_menu1); // Tails
 				
 				if (setupm_colormode == 0)
+				{
 					setupm_fakecolor--;
+					setupm_fakecolor--;
+					G_SetPlayerGamepadIndicatorColor(setupm_playernum, setupm_fakecolor);
+				}
 				else
 				{
 					setupm_fakefollowercolor--;
 				}
-				
 			}
 			break;
 
@@ -11780,7 +12008,11 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
 				if (setupm_colormode == 0)
+				{
 					setupm_fakecolor++;
+					G_SetPlayerGamepadIndicatorColor(setupm_playernum, setupm_fakecolor);
+					
+				}
 				else
 				{
 					setupm_fakefollowercolor++;
@@ -11834,6 +12066,7 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 					{
 						S_StartSound(NULL,sfx_menu1); // Tails
 						setupm_fakecolor = col;
+						G_SetPlayerGamepadIndicatorColor(setupm_playernum, setupm_fakecolor);
 					}
 				}
 				else 
@@ -12020,6 +12253,8 @@ static void M_SetupMultiPlayer(INT32 choice)
 	setupm_skinlockedselect = false;
 	setupm_colormode = 0;
 
+	setupm_playernum = 0;
+
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
 	if (setupm_fakeskin == -1)
@@ -12074,6 +12309,8 @@ static void M_SetupMultiPlayer2(INT32 choice)
 	setupm_skinlockedselect = false;
 	setupm_colormode = 0;
 
+	setupm_playernum = 1;
+
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
 	if (setupm_fakeskin == -1)
@@ -12127,6 +12364,8 @@ static void M_SetupMultiPlayer3(INT32 choice)
 	setupm_skinlockedselect = false;
 	setupm_colormode = 0;
 
+	setupm_playernum = 2;
+
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
 	if (setupm_fakeskin == -1)
@@ -12179,6 +12418,8 @@ static void M_SetupMultiPlayer4(INT32 choice)
 	setupm_skinypos = 0;
 	setupm_skinlockedselect = false;
 	setupm_colormode = 0;
+
+	setupm_playernum = 3;
 
 	// For whatever reason this doesn't work right if you just use ->value
 	setupm_fakeskin = R_SkinAvailable(setupm_cvskin->string);
@@ -12752,7 +12993,7 @@ static void M_DrawControl(void)
 
 		if (currentMenu->menuitems[i].status == IT_CONTROL)
 		{
-			V_DrawString(x, y, ((i == itemOn) ? highlightflags : 0), currentMenu->menuitems[i].text);
+			V_DrawString(x, y, ((i == itemOn) ? highlightflags|V_ALLOWLOWERCASE : V_ALLOWLOWERCASE), currentMenu->menuitems[i].text);
 			keys[0] = setupcontrols[currentMenu->menuitems[i].alphaKey][0];
 			keys[1] = setupcontrols[currentMenu->menuitems[i].alphaKey][1];
 
@@ -12773,14 +13014,14 @@ static void M_DrawControl(void)
 					strcat (tmp, G_KeynumToString (keys[1]));
 
 			}
-			V_DrawRightAlignedString(BASEVIDWIDTH-currentMenu->x, y, highlightflags, tmp);
+			V_DrawRightAlignedString(BASEVIDWIDTH-currentMenu->x, y, highlightflags|V_ALLOWLOWERCASE, tmp);
 		}
 		/*else if (currentMenu->menuitems[i].status == IT_GRAYEDOUT2)
 			V_DrawString(x, y, V_TRANSLUCENT, currentMenu->menuitems[i].text);*/
 		else if ((currentMenu->menuitems[i].status == IT_HEADER) && (i != max-1))
-			V_DrawString(19, y+6, highlightflags, currentMenu->menuitems[i].text);
+			V_DrawString(19, y+6, highlightflags|V_ALLOWLOWERCASE, currentMenu->menuitems[i].text);
 		else if (currentMenu->menuitems[i].status & IT_STRING)
-			V_DrawString(x, y, ((i == itemOn) ? highlightflags : 0), currentMenu->menuitems[i].text);
+			V_DrawString(x, y, ((i == itemOn) ? highlightflags|V_ALLOWLOWERCASE : V_ALLOWLOWERCASE), currentMenu->menuitems[i].text);
 
 		y += SMALLLINEHEIGHT;
 	}

@@ -142,6 +142,8 @@ extern consvar_t cv_stacking;
 extern consvar_t cv_stackingdim;
 extern consvar_t cv_stackingdimval;
 extern consvar_t cv_stackingbrakemod;
+extern consvar_t cv_stackinglowspeedbuff;
+extern consvar_t cv_stackingoldcompat;
 //boosts
 extern consvar_t cv_sneakerstack;
 
@@ -471,6 +473,7 @@ extern consvar_t cv_kartvoterulechanges;
 extern consvar_t cv_kartgametypepreference;
 extern consvar_t cv_kartspeedometer;
 extern consvar_t cv_kartvoices;
+extern consvar_t cv_karthitemdialog;
 
 //Less encore votes and less battlevotes
 extern consvar_t cv_lessbattlevotes;
@@ -559,11 +562,15 @@ extern consvar_t cv_ps_thinkframe_page;
 extern consvar_t cv_ps_samplesize;
 extern consvar_t cv_ps_descriptor;
 
+extern consvar_t cv_director, cv_kartdebugdirector;
+
 extern consvar_t cv_showtrackaddon;
 
 extern consvar_t cv_showspecstuff;
 
 extern consvar_t cv_betainterscreen;
+
+extern consvar_t cv_laglesscam;
 
 typedef enum
 {
@@ -676,7 +683,6 @@ void D_SetupVote(void);
 void D_ModifyClientVote(SINT8 voted, UINT8 splitplayer);
 void D_PickVote(void);
 void ObjectPlace_OnChange(void);
-void P_SetPlayerSpectator(INT32 playernum);
 boolean IsPlayerAdmin(INT32 playernum);
 void SetAdminPlayer(INT32 playernum);
 void ClearAdminPlayers(void);

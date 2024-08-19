@@ -455,7 +455,9 @@ void ST_Start(void)
 		ST_Stop();
 
 	ST_InitData();
-	st_stopped = false;
+
+	if (!dedicated)
+		st_stopped = false;
 }
 
 //
@@ -659,6 +661,15 @@ static void ST_overlayDrawer(void)
 		// Countdown timer for Race Mode
 		// ...moved to k_kart.c so we can take advantage of the LAPS_Y value
 
+		if ((demo.playback || !P_IsLocalPlayer(stplyr)) && !splitscreen)
+		{
+			char directortext[20] = {0};
+
+			snprintf(directortext, 20, "Director: %s", cv_director.value ? "On" : "Off");
+
+			V_DrawString(1, BASEVIDHEIGHT-8-1, V_SNAPTOLEFT|V_SNAPTOBOTTOM|V_HUDTRANSHALF|V_ALLOWLOWERCASE, directortext);
+		}
+
 		if (cv_showviewpointtext.value)
 		{
 			if (!(multiplayer && demo.playback))
@@ -695,15 +706,6 @@ static void ST_overlayDrawer(void)
 				}
 			}
 		}
-
-		// This is where we draw all the fun cheese if you have the chasecam off!
-		/*if ((stplyr == &players[displayplayers[0]] && !camera[0].chase)
-			|| ((splitscreen && stplyr == &players[displayplayers[1]]) && !camera[1].chase)
-			|| ((splitscreen > 1 && stplyr == &players[displayplayers[2]]) && !camera[2].chase)
-			|| ((splitscreen > 2 && stplyr == &players[displayplayers[3]]) && !camera[3].chase))
-		{
-			ST_drawFirstPersonHUD();
-		}*/
 	}
 
 	if (!(netgame || multiplayer) || !hu_showscores)

@@ -72,10 +72,7 @@ INT32 R_PointOnSide(fixed_t x, fixed_t y, const node_t *node);
 INT32 R_PointOnSegSide(fixed_t x, fixed_t y, const seg_t *line);
 angle_t R_PointToAngle(fixed_t x, fixed_t y);
 angle_t R_PointToAngle64(INT64 x, INT64 y);
-angle_t R_PointToAngleEx(INT32 x2, INT32 y2, INT32 x1, INT32 y1);
 angle_t R_PointToAngle2(fixed_t px2, fixed_t py2, fixed_t px1, fixed_t py1);
-fixed_t R_PointToDist(fixed_t x, fixed_t y);
-fixed_t R_PointToDist2(fixed_t px2, fixed_t py2, fixed_t px1, fixed_t py1);
 angle_t R_PlayerSliptideAngle(player_t *player);
 
 fixed_t R_ScaleFromGlobalAngle(angle_t visangle);
@@ -83,6 +80,10 @@ boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y);
 subsector_t *R_PointInSubsector(fixed_t x, fixed_t y);
 boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y);
 subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y);
+
+#define R_PointToDist(x, y) R_PointToDist2(viewx, viewy, x, y)
+#define R_PointToDist2(px2, py2, px1, py1) FixedHypot((px1) - (px2), (py1) - (py2))
+
 
 boolean R_DoCulling(line_t *cullheight, line_t *viewcullheight, fixed_t vz, fixed_t bottomh, fixed_t toph);
 void R_GetRenderBlockMapDimensions(fixed_t drawdist, INT32 *xl, INT32 *xh, INT32 *yl, INT32 *yh);
@@ -129,6 +130,7 @@ void R_Init(void);
 
 void R_CheckViewMorph(void);
 void R_ApplyViewMorph(void);
+angle_t R_ViewRollAngle(const player_t *player);
 
 // just sets setsizeneeded true
 extern boolean setsizeneeded;
