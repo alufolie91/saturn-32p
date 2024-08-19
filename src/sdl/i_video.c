@@ -276,7 +276,9 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
 	{
+#ifdef USE_FBO_OGL
 		I_FixXwaylandNvidia();
+#endif
 		OglSdlSurface(vid.width, vid.height);
 	}
 #endif
