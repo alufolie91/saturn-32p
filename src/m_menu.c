@@ -1515,10 +1515,10 @@ static const char* OP_ExpTooltips[] =
 #ifdef HWRENDER
 	"Should the game do Screen Textures? Provides a good boost to frames\nat the cost of some visual effects not working when disabled.",
 #ifdef USE_FBO_OGL
-	"Allows the game to downsample from a higher resolution than your display in OpenGL renderer mode\nrequires a GPU with atleast OpenGL 3.0 support.",
+	"Allows the game to downsample from a higher resolution than your display\nin OpenGL renderer mode requires a GPU with atleast OpenGL 3.0 support.",
 #endif
-	"Change the depth of the Palette in Palette rendering mod\n 16 bits is like software looks ingame\nwhile 24 bits is how software looks in screenshots.",
-	"Fixes issues that resulted in Textures sticking from the ground sometimes.\n This may be CPU heavy and result in worse performance in some cases.",
+	"Change the depth of the Palette in Palette rendering mod\n16 bits is like software looks ingame\nwhile 24 bits is how software looks in screenshots.",
+	"Fixes issues that resulted in Textures sticking from the ground.\nThis may result in worse performance in some cases.",
 #endif
 };
 
@@ -1615,7 +1615,7 @@ static menuitem_t OP_SoundOptionsMenu[] =
 
 	{IT_STRING|IT_CVAR,        					NULL, "Play Music While Unfocused", 	&cv_playmusicifunfocused, 	135},
 	{IT_STRING|IT_CVAR,        					NULL, "Play SFX While Unfocused", 		&cv_playsoundifunfocused, 	145},
-	{IT_STRING|IT_SUBMENU, 						NULL, "Advanced Settings...", 			&OP_SoundAdvancedDef, 		165}
+	{IT_STRING|IT_SUBMENU, 						NULL, "Advanced Settings...", 			&OP_SoundAdvancedDef, 		155}
 #else
 	{IT_STRING|IT_CVAR,							NULL, "Reverse L/R Channels",			&stereoreverse,			 	60},
 	{IT_STRING|IT_CVAR,							NULL, "Surround Sound",					&surround,			 	 	70},
@@ -1630,7 +1630,7 @@ static menuitem_t OP_SoundOptionsMenu[] =
 
 	{IT_STRING|IT_CVAR,        					NULL, "Play Music While Unfocused", 	&cv_playmusicifunfocused, 	145},
 	{IT_STRING|IT_CVAR,        					NULL, "Play SFX While Unfocused", 		&cv_playsoundifunfocused, 	155},
-	{IT_STRING|IT_SUBMENU, 						NULL, "Advanced Settings...", 			&OP_SoundAdvancedDef, 		175}
+	{IT_STRING|IT_SUBMENU, 						NULL, "Advanced Settings...", 			&OP_SoundAdvancedDef, 		165}
 #endif
 };
 
@@ -2107,7 +2107,7 @@ static const char* OP_SaturnTooltips[] =
 	"Enable the use of the higher resolution want icons instead of rank\nfor some places.",
 	"Enable colourized hud.",
 	"Enable the colourized itembox when colourized hud is enabled.",
-	"The color to use instead of the player color when colourized hud is enabled.",
+	"The color to use instead of the player color when\ncolourized hud is enabled.",
 	"Show the big 'LAP' text on a lap change.",
 	"Show player names on the minimap.",
 	"Minimize the player icons on the minimap.",
@@ -2278,7 +2278,7 @@ static const char* OP_NeptuneTwoTooltips[] =
 	"Change boostflame color based on sneaker stack count.",
 	"Sneakers change sound when stacking.",
 	
-	"Allows you to see when others look back when spectating.\nThis may introduce input lag to lookback button when active.\nThis also prevents you from looking back when spectating someone else as it reads their inputs.",
+	"Allows you to see when others look back when spectating.\nThis may introduce input lag to lookback button when active.\nThis also prevents you from looking back when spectating\nsomeone else as it reads their inputs.",
 	
 	"Hide Player followers from your view.",
 	"Toggle Chain sound on sneaker extension.",
