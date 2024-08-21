@@ -27,6 +27,7 @@ url="https://github.com/AppImage/AppImageKit/releases/download/continuous/appima
 # A whitelist of libraries to include into SRB2's AppImage if SRB2 is dynamically linked.
 # please don't add a newline at the end of this or i will cry :(
 libraryWhitelist="
+libinstpatch
 libbacktrace
 libnsl
 libSDL2
