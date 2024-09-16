@@ -1232,6 +1232,7 @@ static void SV_SendSaveGame(INT32 node, boolean resending)
 	sendingsavegame[node] = true;
 	freezetimeout[node] = I_GetTime() + jointimeout + length / 1024; // 1 extra tic for each kilobyte
 }
+#endif
 
 #ifdef DUMPCONSISTENCY
 #define TMPSAVENAME "badmath.sav"
@@ -4641,7 +4642,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 			// Check player consistancy during the level
 			if (realstart <= gametic && realstart + TICQUEUE - 1 > gametic && gamestate == GS_LEVEL
 				&& consistancy[realstart%TICQUEUE] != SHORT(netbuffer->u.clientpak.consistancy)
-				&& !resendingsavegame[node] && savegameresendcooldown[node] <= I_GetTime())
+				&& !resendingsavegame[node] && savegameresendcooldown[node] <= I_GetTime() && !SV_ResendingSavegameToAnyone())
 			{
 				// we need to send this so the client can tell us if it can receive the savegame
 				netbuffer->packettype = PT_WILLRESENDGAMESTATE;
@@ -4945,6 +4946,9 @@ static void HandlePacketFromPlayer(SINT8 node)
 			}
 			if (client)
 				Got_Filetxpak();
+			break;
+		case PT_WILLRESENDGAMESTATE:
+			PT_WillResendGamestate();
 			break;
 #ifdef SATURNPAK
 		case PT_ISSATURN:

@@ -2028,8 +2028,7 @@ static menuitem_t OP_AdvServerOptionsMenu[] =
 	{IT_STRING | IT_CVAR | IT_CV_STRING,
 							 NULL, "Server Browser Address",		&cv_masterserver,	 	 10},
 #endif
-	{IT_STRING | IT_CVAR,    NULL, "Attempts to resynchronise",		&cv_resynchattempts,	 25},
-#ifdef SATURNSYNCH
+
 	{IT_STRING | IT_CVAR,    NULL, "Resend Gamestate Cooldown",		&cv_resynchcooldown,	 35},
 	{IT_STRING | IT_CVAR,    NULL, "Resend Gamestate Attempts",		&cv_gamestateattempts,	 40},
 
@@ -2044,29 +2043,13 @@ static menuitem_t OP_AdvServerOptionsMenu[] =
 	{IT_STRING | IT_CVAR,    NULL, "Log join addresses",			&cv_showjoinaddress,	 90},
 	{IT_STRING | IT_CVAR,    NULL, "Log resyncs",					&cv_blamecfail,			 95},
 	{IT_STRING | IT_CVAR,    NULL, "Log file transfers",			&cv_noticedownload,		100},
-#else
-	{IT_STRING | IT_CVAR,    NULL, "Delay limit (frames)",			&cv_maxping,			 35},
-	{IT_STRING | IT_CVAR,    NULL, "Delay timeout (s)",				&cv_pingtimeout,		 40},
-	{IT_STRING | IT_CVAR,    NULL, "Connection timeout (tics)",		&cv_nettimeout,			 45},
-	{IT_STRING | IT_CVAR,    NULL, "Join timeout (tics)",			&cv_jointimeout,		 50},
-
-	{IT_STRING | IT_CVAR,    NULL, "Max. file transfer send (KB)",	&cv_maxsend,			 60},
-	{IT_STRING | IT_CVAR,    NULL, "File transfer packet rate",		&cv_downloadspeed,		 65},
-
-	{IT_STRING | IT_CVAR,    NULL, "Log join addresses",			&cv_showjoinaddress,	 70},
-	{IT_STRING | IT_CVAR,    NULL, "Log resyncs",					&cv_blamecfail,			 75},
-	{IT_STRING | IT_CVAR,    NULL, "Log file transfers",			&cv_noticedownload,		 80},
-#endif
 };
 
 static const char* OP_AdvServerOptionsTooltips[] =
 {
 	"Server used for master server.",
-	"Attempts to resynchronise player to server.",
-#ifdef SATURNSYNCH
 	"Cooldown in seconds before the Server attempts\nto resend the gamestate to a Saturn Client\nbetween resending attempts.",
 	"Attempts to resend the Gamestate to player\nThis increments a Counter everytime a gamestate resend occurs\nThis Counter decrements at double the time of the Cooldown\nonce the Counter reaches the threshold, the client gets kicked.",
-#endif
 	"Maximum allowed delay.",
 	"Delay timeout in seconds.",
 	"Connection timeout in tics.",

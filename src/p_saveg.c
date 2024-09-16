@@ -66,8 +66,8 @@ static inline void P_ArchivePlayer(savebuffer_t *save)
 	if (pllives < 3) // Bump up to 3 lives if the player
 		pllives = 3; // has less than that.
 
-	WRITEUINT8(save_p, player->skincolor);
-	WRITEUINT16(save_p, player->skin);
+	WRITEUINT8(save->p, player->skincolor);
+	WRITEUINT16(save->p, player->skin);
 
 	WRITEUINT32(save->p, player->score);
 	WRITEINT32(save->p, pllives);
@@ -75,8 +75,8 @@ static inline void P_ArchivePlayer(savebuffer_t *save)
 
 	if (botskin)
 	{
-		WRITEUINT16(save_p, botskin);
-		WRITEUINT8(save_p, botcolor);
+		WRITEUINT16(save->p, botskin);
+		WRITEUINT8(save->p, botcolor);
 	}
 }
 
@@ -85,8 +85,8 @@ static inline void P_ArchivePlayer(savebuffer_t *save)
 //
 static inline void P_UnArchivePlayer(savebuffer_t *save)
 {
-	savedata.skincolor = READUINT8(save_p);
-	savedata.skin = READUINT16(save_p);
+	savedata.skincolor = READUINT8(save->p);
+	savedata.skin = READUINT16(save->p);
 
 	savedata.score = READINT32(save->p);
 	savedata.lives = READINT32(save->p);
@@ -94,7 +94,7 @@ static inline void P_UnArchivePlayer(savebuffer_t *save)
 
 	if (savedata.botcolor)
 	{
-		savedata.botskin = READUINT16(save_p);
+		savedata.botskin = READUINT16(save->p);
 		if (savedata.botskin-1 >= numskins)
 			savedata.botskin = 0;
 		savedata.botcolor = READUINT8(save->p);
@@ -106,7 +106,7 @@ static inline void P_UnArchivePlayer(savebuffer_t *save)
 //
 // P_NetArchivePlayers
 //
-static void P_NetArchivePlayers(savebuffer_t *save, boolean resending)
+static void P_NetArchivePlayers(savebuffer_t *save)
 {
 	INT32 i, j;
 	UINT16 flags;
@@ -116,7 +116,7 @@ static void P_NetArchivePlayers(savebuffer_t *save, boolean resending)
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-		WRITESINT8(save_p, (SINT8)adminplayers[i]);
+		WRITESINT8(save->p, (SINT8)adminplayers[i]);
 
 		if (!playeringame[i])
 			continue;
@@ -291,7 +291,7 @@ static void P_NetArchivePlayers(savebuffer_t *save, boolean resending)
 //
 // P_NetUnArchivePlayers
 //
-static void P_NetUnArchivePlayers(savebuffer_t *save, boolean resending)
+static void P_NetUnArchivePlayers(savebuffer_t *save)
 {
 	INT32 i, j;
 	UINT16 flags;
@@ -464,29 +464,29 @@ static void P_NetUnArchivePlayers(savebuffer_t *save, boolean resending)
 	}
 }
 
-static void P_NetArchiveWaypoints(void)
+static void P_NetArchiveWaypoints(savebuffer_t *save)
 {
 	INT32 i, j;
 
 	for (i = 0; i < NUMWAYPOINTSEQUENCES; i++)
 	{
-		WRITEUINT16(save_p, numwaypoints[i]);
+		WRITEUINT16(save->p, numwaypoints[i]);
 		for (j = 0; j < numwaypoints[i]; j++)
-			WRITEUINT32(save_p, waypoints[i][j] ? waypoints[i][j]->mobjnum : 0);
+			WRITEUINT32(save->p, waypoints[i][j] ? waypoints[i][j]->mobjnum : 0);
 	}
 }
 
-static void P_NetUnArchiveWaypoints(void)
+static void P_NetUnArchiveWaypoints(savebuffer_t *save)
 {
 	INT32 i, j;
 	UINT32 mobjnum;
 
 	for (i = 0; i < NUMWAYPOINTSEQUENCES; i++)
 	{
-		numwaypoints[i] = READUINT16(save_p);
+		numwaypoints[i] = READUINT16(save->p);
 		for (j = 0; j < numwaypoints[i]; j++)
 		{
-			mobjnum = READUINT32(save_p);
+			mobjnum = READUINT32(save->p);
 			waypoints[i][j] = (mobjnum == 0) ? NULL : P_FindNewPosition(mobjnum);
 		}
 	}
@@ -761,7 +761,7 @@ static void P_NetArchiveWorld(savebuffer_t *save)
 	R_ClearTextureNumCache(false);
 
 	vres_Free(virt);
-	save_p = put;
+	save->p = put;
 }
 
 //
@@ -1215,7 +1215,7 @@ static void SaveMobjThinker(savebuffer_t *save, const thinker_t *th, const UINT8
 		WRITEFIXED(save->p, mobj->momx);
 		WRITEFIXED(save->p, mobj->momy);
 		WRITEFIXED(save->p, mobj->momz);
-		WRITEFIXED(save_p, mobj->pmomz);
+		WRITEFIXED(save->p, mobj->pmomz);
 	}
 	if (diff & MD_RADIUS)
 		WRITEFIXED(save->p, mobj->radius);
@@ -1277,7 +1277,7 @@ static void SaveMobjThinker(savebuffer_t *save, const thinker_t *th, const UINT8
 	if (diff2 & MD2_CVMEM)
 		WRITEINT32(save->p, mobj->cvmem);
 	if (diff2 & MD2_SKIN)
-		WRITEUINT16(save_p, (UINT16)((skin_t *)mobj->skin - skins));
+		WRITEUINT16(save->p, (UINT16)((skin_t *)mobj->skin - skins));
 	if (diff2 & MD2_COLOR)
 		WRITEUINT8(save->p, mobj->color);
 	if (diff2 & MD2_EXTVAL1)
@@ -1628,7 +1628,7 @@ static void SavePolywaypointThinker(savebuffer_t *save, const thinker_t *th, UIN
 	WRITEFIXED(save->p, ht->diffx);
 	WRITEFIXED(save->p, ht->diffy);
 	WRITEFIXED(save->p, ht->diffz);
-	WRITEUINT32(save_p, SaveMobjnum(ht->target));
+	WRITEUINT32(save->p, SaveMobjnum(ht->target));
 }
 
 //
@@ -2030,7 +2030,7 @@ static void LoadMobjThinker(savebuffer_t *save, actionf_p1 thinker)
 		mobj->momx = READFIXED(save->p);
 		mobj->momy = READFIXED(save->p);
 		mobj->momz = READFIXED(save->p);
-		mobj->pmomz = READFIXED(save_p);
+		mobj->pmomz = READFIXED(save->p);
 	} // otherwise they're zero, and the memset took care of it
 
 	if (diff & MD_RADIUS)
@@ -2140,7 +2140,7 @@ static void LoadMobjThinker(savebuffer_t *save, actionf_p1 thinker)
 	if (diff2 & MD2_CVMEM)
 		mobj->cvmem = READINT32(save->p);
 	if (diff2 & MD2_SKIN)
-		mobj->skin = &skins[READUINT16(save_p)];
+		mobj->skin = &skins[READUINT16(save->p)];
 	if (diff2 & MD2_COLOR)
 		mobj->color = READUINT8(save->p);
 	if (diff2 & MD2_EXTVAL1)
@@ -2624,7 +2624,7 @@ static inline void LoadPolywaypointThinker(savebuffer_t *save, actionf_p1 thinke
 	ht->diffx = READFIXED(save->p);
 	ht->diffy = READFIXED(save->p);
 	ht->diffz = READFIXED(save->p);
-	ht->target = LoadMobj(READUINT32(save_p));
+	ht->target = LoadMobj(READUINT32(save->p));
 	P_AddThinker(&ht->thinker);
 }
 
@@ -3360,12 +3360,10 @@ static void P_NetArchiveMisc(savebuffer_t *save, boolean resending)
 		WRITEUINT8(save->p, 0x2e);
 }
 
-FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(boolean reloading)
 FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(savebuffer_t *save, boolean reloading)
 {
 	UINT32 pig;
 	INT32 i;
-	UINT8 *old_save_p;
 
 	if (READUINT32(save->p) != ARCHIVEBLOCK_MISC)
 		I_Error("Bad $$$.sav at archive block Misc");
@@ -3408,8 +3406,6 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(savebuffer_t *save, bool
 		CONS_Alert(CONS_ERROR, M_GetText("Can't load the level!\n"));
 		return false;
 	}
-
-	save_p = old_save_p;
 
 	// get the time
 	leveltime = READUINT32(save->p);
@@ -3498,8 +3494,8 @@ void P_SaveNetGame(savebuffer_t *save, boolean resending)
 	mobj_t *mobj;
 	INT32 i = 1; // don't start from 0, it'd be confused with a blank pointer otherwise
 
-	CV_SaveNetVars(&save_p, false);
-	P_NetArchiveMisc(resending);
+	CV_SaveNetVars(&save->p, false);
+	P_NetArchiveMisc(save, resending);
 
 	// Assign the mobjnumber for pointer tracking
 	if (gamestate == GS_LEVEL)
@@ -3518,14 +3514,14 @@ void P_SaveNetGame(savebuffer_t *save, boolean resending)
 		}
 	}
 
-	P_NetArchivePlayers(save, resending);
+	P_NetArchivePlayers(save);
 	if (gamestate == GS_LEVEL)
 	{
 		P_NetArchiveWorld(save);
 		P_ArchivePolyObjects(save);
 		P_NetArchiveThinkers(save);
 		P_NetArchiveSpecials(save);
-		P_NetArchiveWaypoints();
+		P_NetArchiveWaypoints(save);
 	}
 
 	LUA_Archive(save, true);
@@ -3557,23 +3553,21 @@ boolean P_LoadGame(savebuffer_t *save, INT16 mapoverride)
 	return true;
 }
 
-boolean P_LoadNetGame(boolean reloading)
 boolean P_LoadNetGame(savebuffer_t *save, boolean reloading)
 {
 	CV_LoadNetVars(&save->p);
 
-	if (!P_NetUnArchiveMisc(reloading))
+	if (!P_NetUnArchiveMisc(save, reloading))
 		return false;
 
-	P_NetUnArchivePlayers(save, reloading);
-
+	P_NetUnArchivePlayers(save);
 	if (gamestate == GS_LEVEL)
 	{
 		P_NetUnArchiveWorld(save);
 		P_UnArchivePolyObjects(save);
 		P_NetUnArchiveThinkers(save);
 		P_NetUnArchiveSpecials(save);
-		P_NetUnArchiveWaypoints();
+		P_NetUnArchiveWaypoints(save);
 		P_RelinkPointers();
 		P_FinishMobjs();
 	}

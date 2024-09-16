@@ -2882,7 +2882,7 @@ UINT16 skinstatscount[9][9] = {
 	{0, 1, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
-UINT8 skinsorted[MAXSKINS];
+UINT16 skinsorted[MAXSKINS];
 skin_t localskins[MAXLOCALSKINS];
 skin_t allskins[MAXSKINS+MAXLOCALSKINS];
 
