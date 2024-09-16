@@ -127,10 +127,9 @@ extern char  logfilename[1024];
 #else
 #define VERSION    1 // Game version
 #define SUBVERSION 68 // more precise version number
-#define VERSIONSTRING "Saturn - 32p v1.5"
-#define VERSIONSTRINGW L"Saturn - 32p v1.5"
+#define VERSIONSTRING "Saturn - 32p v1.6"
+#define VERSIONSTRINGW L"Saturn - 32p v1.6"
 
-#define VERSIONSTRING "Saturn v7"
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
 // AND appveyor.yml, for the build bots!
@@ -675,18 +674,6 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 
 #ifndef NONET
 //-- SATURN __
-/// Enable gamestate resynching between Saturn servers and clients
-/// Like SRB2 and RR does
-/// Still highly experimental
-#ifdef DOSATURNSYNCH
-#define SATURNSYNCH
-
-/// Detect if a client is on Saturn in the clientconfig.
-/// To seperately allow them to join or block joining from vanilla clients.
-#ifdef DOSATURNJOIN
-#define SATURNJOIN
-#endif
-#endif
 
 /// Server detection for if a connecting client is on Saturn.
 /// For stuff like extra synching, etc.

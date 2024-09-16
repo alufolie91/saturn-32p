@@ -833,13 +833,8 @@ const char *packettypename[NUMPACKETTYPE] =
 	"MOREFILESNEEDED",
 
 	"PING"
-#ifdef SATURNSYNCH
-	,
 
-	"WILLRESENDGAMESTATE",
-	"CANRECEIVEGAMESTATE",
-	"RECEIVEDGAMESTATE",
-
+#ifdef SATURNPAK
 	// we will reserve this for now even if unused, so order wont get mangled
 	"ISSATURN"
 #endif
