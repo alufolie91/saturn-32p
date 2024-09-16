@@ -208,15 +208,9 @@ endif
 endif
 
 ifndef NONET
-ifndef NOSATURNSYNCH
-DOSATURNSYNCH=1
-ifndef NOSATURNJOIN
-DOSATURNJOIN=1
-endif
 #ifndef NOSATURNPAK
 #DOSATURNPAK=1
 #endif
-endif
 endif
 
 ifdef MINGW

@@ -247,8 +247,6 @@ static SINT8 partadd_stage = -1;
 static boolean partadd_replacescurrentmap = false;
 static boolean partadd_important = false;
 
-SINT8 midgamejoin = 0;
-
 /** Logs an error about a map being corrupt, then terminate.
   * This allows reporting highly technical errors for usefulness, without
   * confusing a novice map designer who simply needs to run ZenNode.
@@ -2698,7 +2696,6 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 		fromnetsave = 1;
 		loadprecip = 0;
 		loademblems = 0;
-		midgamejoin = 1;
 	}
 
 	// internal game map
