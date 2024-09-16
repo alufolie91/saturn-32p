@@ -3539,7 +3539,7 @@ void P_SaveNetGame(savebuffer_t *save, boolean resending)
 		P_NetArchiveWaypoints(save);
 	}
 
-	LUA_Archive(save, true);
+	LUA_Archive(&save->p, true);
 	WRITEUINT8(save->p, 0x1d); // consistency marker
 }
 
@@ -3585,7 +3585,7 @@ boolean P_LoadNetGame(savebuffer_t *save, boolean reloading)
 		P_FinishMobjs();
 	}
 
-	LUA_UnArchive(save, true);
+	LUA_UnArchive(&save->p, true);
 
 	// This is stupid and hacky, but maybe it'll work!
 	P_SetRandSeed(P_GetInitSeed());
