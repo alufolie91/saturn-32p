@@ -406,10 +406,8 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 
 			if (rlight->extra_colormap && rlight->extra_colormap->fog)
 				;
-			else if (curline->v1->y == curline->v2->y)
-				lightnum--;
-			else if (curline->v1->x == curline->v2->x)
-				lightnum++;
+			else
+				lightnum += curline->lightOffset;
 
 			rlight->lightnum = lightnum;
 		}
@@ -429,10 +427,8 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 		if (colfunc == R_DrawFogColumn_8
 			|| (frontsector->extra_colormap && frontsector->extra_colormap->fog))
 			;
-		else if (curline->v1->y == curline->v2->y)
-			lightnum--;
-		else if (curline->v1->x == curline->v2->x)
-			lightnum++;
+		else
+			lightnum += curline->lightOffset;
 
 		if (lightnum < 0)
 			walllights = scalelight[0];
@@ -836,10 +832,8 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 
 			if (pfloor->flags & FF_FOG || rlight->flags & FF_FOG || (rlight->extra_colormap && rlight->extra_colormap->fog))
 				;
-			else if (curline->v1->y == curline->v2->y)
-				rlight->lightnum--;
-			else if (curline->v1->x == curline->v2->x)
-				rlight->lightnum++;
+			else
+				rlight->lightnum += curline->lightOffset;
 
 			p++;
 		}
@@ -859,11 +853,10 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 			lightnum = R_FakeFlat(frontsector, &tempsec, &templight, &templight, false)
 				->lightlevel >> LIGHTSEGSHIFT;
 
-		if (pfloor->flags & FF_FOG || (frontsector->extra_colormap && frontsector->extra_colormap->fog));
-			else if (curline->v1->y == curline->v2->y)
-		lightnum--;
-		else if (curline->v1->x == curline->v2->x)
-			lightnum++;
+		if (pfloor->flags & FF_FOG || (frontsector->extra_colormap && frontsector->extra_colormap->fog))
+			;
+		else
+			lightnum += curline->lightOffset;
 
 		if (lightnum < 0)
 			walllights = scalelight[0];
@@ -901,7 +894,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 	if (slopeskew)
 		dc_texturemid = left_top;
 	else
-	dc_texturemid = *pfloor->topheight - viewz;
+		dc_texturemid = *pfloor->topheight - viewz;
 
 	if (newline)
 	{
@@ -1416,10 +1409,8 @@ static void R_RenderSegLoop (void)
 
 				if (dc_lightlist[i].extra_colormap)
 					;
-				else if (curline->v1->y == curline->v2->y)
-					lightnum--;
-				else if (curline->v1->x == curline->v2->x)
-					lightnum++;
+				else
+					lightnum += curline->lightOffset;
 
 				if (lightnum < 0)
 					xwalllights = scalelight[0];
@@ -1554,8 +1545,7 @@ static void R_RenderSegLoop (void)
 
 		if (maskedtexture || numthicksides)
 		{
-			// save texturecol
-			//  for backdrawing of masked mid texture
+			// save texturecol for backdrawing of masked mid texture
 			maskedtexturecol[rw_x] = (INT16)texturecolumn;
 
 			if (maskedtextureheight != NULL) {
@@ -1696,7 +1686,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			lastopening = openings + pos;
 			
 			if (oldopenings == NULL)
-			return;
+				return;
 
 			// borrowed fix from *cough* zdoom *cough*
 			// [RH] We also need to adjust the openings pointers that
@@ -1876,14 +1866,14 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		texheight = textureheight[midtexture];
 		// a single sided line is terminal, so it must mark ends
 		markfloor = markceiling = true;
-		if (linedef->flags & ML_EFFECT2) {
+		if (linedef->flags & ML_EFFECT2)
+		{
 			if (linedef->flags & ML_DONTPEGBOTTOM)
 				rw_midtexturemid = frontsector->floorheight + texheight - viewz;
 			else
 				rw_midtexturemid = frontsector->ceilingheight - viewz;
 		}
-		else
-		if (linedef->flags & ML_DONTPEGBOTTOM)
+		else if (linedef->flags & ML_DONTPEGBOTTOM)
 		{
 			rw_midtexturemid = worldbottom + texheight;
 			rw_midtextureslide = floorfrontslide;
@@ -1971,36 +1961,20 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 		if (viewsector != frontsector && viewsector != backsector)
 		{
-			if (worldhigh <= worldbottom && worldhighslope <= worldbottomslope)
+			//SoM: 3/25/2000: This code fixes an automap bug that didn't check
+			// frontsector->ceiling and backsector->floor to see if a door was closed.
+			// Without the following code, sprites get displayed behind closed doors.
+			if (doorclosed || (worldhigh <= worldbottom && worldhighslope <= worldbottomslope))
 			{
 				ds_p->sprbottomclip = negonearray;
 				ds_p->bsilheight = INT32_MAX;
 				ds_p->silhouette |= SIL_BOTTOM;
 			}
-
-			if (worldlow >= worldtop && worldlowslope >= worldtopslope)
-			{
+			if (doorclosed || (worldlow >= worldtop && worldlowslope >= worldtopslope))
+			{                   // killough 1/17/98, 2/8/98
 				ds_p->sprtopclip = screenheightarray;
 				ds_p->tsilheight = INT32_MIN;
 				ds_p->silhouette |= SIL_TOP;
-			}
-
-			//SoM: 3/25/2000: This code fixes an automap bug that didn't check
-			// frontsector->ceiling and backsector->floor to see if a door was closed.
-			// Without the following code, sprites get displayed behind closed doors.
-			{
-				if (doorclosed || (worldhigh <= worldbottom && worldhighslope <= worldbottomslope))
-				{
-					ds_p->sprbottomclip = negonearray;
-					ds_p->bsilheight = INT32_MAX;
-					ds_p->silhouette |= SIL_BOTTOM;
-				}
-				if (doorclosed || (worldlow >= worldtop && worldlowslope >= worldtopslope))
-				{                   // killough 1/17/98, 2/8/98
-					ds_p->sprtopclip = screenheightarray;
-					ds_p->tsilheight = INT32_MIN;
-					ds_p->silhouette |= SIL_TOP;
-				}
 			}
 		}
 
@@ -2101,9 +2075,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			}
 		}
 		// check BOTTOM TEXTURE
-		if (worldlow > worldbottom
-				|| worldlowslope > worldbottomslope
-			)     //seulement si VISIBLE!!!
+		if (worldlow > worldbottom || worldlowslope > worldbottomslope) // Only if VISIBLE!!!
 		{
 			// bottom texture
 			bottomtexture = R_GetTextureNum(sidedef->bottomtexture);
@@ -2358,31 +2330,40 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 			maskedtextureheight = ds_p->maskedtextureheight; // note to red, this == &(ds_p->maskedtextureheight[0])
 
-			if (curline->polyseg) { // use REAL front and back floors please, so midtexture rendering isn't mucked up
+			if (curline->polyseg) // use REAL front and back floors please, so midtexture rendering isn't mucked up
+			{
 				rw_midtextureslide = rw_midtexturebackslide = 0;
 				if (!!(linedef->flags & ML_DONTPEGBOTTOM) ^ !!(linedef->flags & ML_EFFECT3))
 					rw_midtexturemid = rw_midtextureback = max(curline->frontsector->floorheight, curline->backsector->floorheight) - viewz;
 				else
 					rw_midtexturemid = rw_midtextureback = min(curline->frontsector->ceilingheight, curline->backsector->ceilingheight) - viewz;
-			} else
-			// Set midtexture starting height
-			if (linedef->flags & ML_EFFECT2) { // Ignore slopes when texturing
-				rw_midtextureslide = rw_midtexturebackslide = 0;
-				if (!!(linedef->flags & ML_DONTPEGBOTTOM) ^ !!(linedef->flags & ML_EFFECT3))
-					rw_midtexturemid = rw_midtextureback = max(frontsector->floorheight, backsector->floorheight) - viewz;
-				else
-					rw_midtexturemid = rw_midtextureback = min(frontsector->ceilingheight, backsector->ceilingheight) - viewz;
+			}
+			else
+			{
+				// Set midtexture starting height
+				if (linedef->flags & ML_EFFECT2) // Ignore slopes when texturing
+				{
+					rw_midtextureslide = rw_midtexturebackslide = 0;
+					if (!!(linedef->flags & ML_DONTPEGBOTTOM) ^ !!(linedef->flags & ML_EFFECT3))
+						rw_midtexturemid = rw_midtextureback = max(frontsector->floorheight, backsector->floorheight) - viewz;
+					else
+						rw_midtexturemid = rw_midtextureback = min(frontsector->ceilingheight, backsector->ceilingheight) - viewz;
 
-			} else if (!!(linedef->flags & ML_DONTPEGBOTTOM) ^ !!(linedef->flags & ML_EFFECT3)) {
-				rw_midtexturemid = worldbottom;
-				rw_midtextureslide = floorfrontslide;
-				rw_midtextureback = worldlow;
-				rw_midtexturebackslide = floorbackslide;
-			} else {
-				rw_midtexturemid = worldtop;
-				rw_midtextureslide = ceilingfrontslide;
-				rw_midtextureback = worldhigh;
-				rw_midtexturebackslide = ceilingbackslide;
+				}
+				else if (!!(linedef->flags & ML_DONTPEGBOTTOM) ^ !!(linedef->flags & ML_EFFECT3))
+				{
+					rw_midtexturemid = worldbottom;
+					rw_midtextureslide = floorfrontslide;
+					rw_midtextureback = worldlow;
+					rw_midtexturebackslide = floorbackslide;
+				}
+				else
+				{
+					rw_midtexturemid = worldtop;
+					rw_midtextureslide = ceilingfrontslide;
+					rw_midtextureback = worldhigh;
+					rw_midtexturebackslide = ceilingbackslide;
+				}
 			}
 			rw_midtexturemid += sidedef->rowoffset;
 			rw_midtextureback += sidedef->rowoffset;
@@ -2431,10 +2412,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		// OPTIMIZE: get rid of LIGHTSEGSHIFT globally
 		lightnum = (frontsector->lightlevel >> LIGHTSEGSHIFT);
 
-		if (curline->v1->y == curline->v2->y)
-			lightnum--;
-		else if (curline->v1->x == curline->v2->x)
-			lightnum++;
+		lightnum += curline->lightOffset;
 
 		if (lightnum < 0)
 			walllights = scalelight[0];
@@ -2473,22 +2451,27 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	worldtopslope >>= 4;
 	worldbottomslope >>= 4;
 
-	if (linedef->special == 41) { // HORIZON LINES
+	if (linedef->special == 41) // HORIZON LINES
+	{
 		topstep = bottomstep = 0;
 		topfrac = bottomfrac = (centeryfrac>>4);
 		topfrac++; // Prevent 1px HOM
-	} else {
+	}
+	else
+	{
 		topstep = -FixedMul (rw_scalestep, worldtop);
 		topfrac = (centeryfrac>>4) - FixedMul (worldtop, rw_scale);
 
 		bottomstep = -FixedMul (rw_scalestep,worldbottom);
 		bottomfrac = (centeryfrac>>4) - FixedMul (worldbottom, rw_scale);
 
-		if (frontsector->c_slope) {
+		if (frontsector->c_slope)
+		{
 			fixed_t topfracend = (centeryfrac>>4) - FixedMul (worldtopslope, ds_p->scale2);
 			topstep = (topfracend-topfrac)/(range);
 		}
-		if (frontsector->f_slope) {
+		if (frontsector->f_slope)
+		{
 			fixed_t bottomfracend = (centeryfrac>>4) - FixedMul (worldbottomslope, ds_p->scale2);
 			bottomstep = (bottomfracend-bottomfrac)/(range);
 		}
@@ -2695,7 +2678,6 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 					if (rover->norender == leveltime)
 						continue;
 
-
 					// Let the renderer know this sector is sloped.
 					if (*rover->b_slope || *rover->t_slope)
 						frontsector->hasslope = true;
@@ -2854,7 +2836,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	}
 	else
 #endif
-		R_RenderSegLoop();
+
+	R_RenderSegLoop();
 	colfunc = wallcolfunc;
 
 	if (portalline) // if curline is a portal, set portalrender for drawseg

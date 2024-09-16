@@ -55,7 +55,6 @@
 #endif
 
 #ifdef HWRENDER
-#include "hardware/hw_light.h"
 #include "hardware/hw_main.h"
 #endif
 
@@ -500,44 +499,12 @@ void P_GivePlayerLives(player_t *player, INT32 numlives)
 // Transform into Super Sonic!
 void P_DoSuperTransformation(player_t *player, boolean giverings)
 {
+	(void)player;
+	(void)giverings;
+
 	return; // SRB2kart - this is not a thing we need
-	player->powers[pw_super] = 1;
-	if (!(mapheaderinfo[gamemap-1]->levelflags & LF_NOSSMUSIC) && P_IsLocalPlayer(player))
-	{
-		S_StopMusic();
-		S_ChangeMusicInternal("supers", true);
-	}
-
-	S_StartSound(NULL, sfx_supert); //let all players hear it -mattw_cfi
-
-	// Transformation animation
-	//P_SetPlayerMobjState(player->mo, S_PLAY_SUPERTRANS1);
-
-	player->mo->momx = player->mo->momy = player->mo->momz = 0;
-
-	if (giverings)
-	{
-		player->mo->health = 51;
-		player->health = player->mo->health;
-	}
-
-	// Just in case.
-	if (!(mapheaderinfo[gamemap-1]->levelflags & LF_NOSSMUSIC))
-	{
-		player->powers[pw_extralife] = 0;
-		player->powers[pw_invulnerability] = 0;
-		player->powers[pw_sneakers] = 0;
-	}
-
-	if (gametype != GT_COOP)
-	{
-		HU_SetCEchoFlags(0);
-		HU_SetCEchoDuration(5);
-		HU_DoCEcho(va("%s\\is now super.\\\\\\\\", player_names[player-players]));
-	}
-
-	P_PlayerFlagBurst(player, false);
 }
+
 // Adds to the player's score
 void P_AddPlayerScore(player_t *player, UINT32 amount)
 {
@@ -591,11 +558,30 @@ void P_PlayLivesJingle(player_t *player)
 	}
 }
 
-void P_PlayRinglossSound(mobj_t *source)
+void P_PlayRinglossSound(mobj_t *source, mobj_t *damager)
 {
 	sfxenum_t key = P_RandomKey(2);
+
 	if (cv_kartvoices.value)
-		S_StartSound(source, (mariomode) ? sfx_mario8 : sfx_khurt1 + key);
+	{
+		if (cv_karthitemdialog.value && source != damager && damager && damager->player && P_IsLocalPlayer(damager->player))
+		{
+			sfxenum_t sfx = sfx_khurt1 + key;
+
+			INT32 skinnum = -1;
+
+			// I HATE LOCALSKINS! I HATE LOCALSKINS! :AAAAAAAAAA:
+			if (source->player)
+				skinnum = source->player->skinlocal ? (source->player->localskin - 1) : source->player->skin;
+
+			if (skinnum >= 0)
+				sfx = (source->player->skinlocal ? localskins : skins)[skinnum].soundsid[SKSKPAN1 + key];
+
+			S_StartSound(NULL, sfx);
+		}
+		else
+			S_StartSound(source, (mariomode) ? sfx_mario8 : sfx_khurt1 + key);
+	}
 	else
 		S_StartSound(source, sfx_slip);
 }
@@ -795,20 +781,16 @@ void P_RestoreMusic(player_t *player)
 		}
 
 		// Item - Grow
-		if (wantedmus == 2 && cv_growmusic.value)
+		if (wantedmus == 2 && cv_growmusic.value == 1)
 		{
 			S_ChangeMusicInternal("kgrow", true);
-			
-			if (cv_birdmusic.value)
-				S_SetRestoreMusicFadeInCvar(&cv_growmusicfade);
+			S_SetRestoreMusicFadeInCvar(&cv_growmusicfade);
 		}
 		// Item - Invincibility
-		else if (wantedmus == 1 && cv_supermusic.value)
+		else if (wantedmus == 1 && cv_supermusic.value == 1)
 		{
 			S_ChangeMusicInternal("kinvnc", true);
-			
-			if (cv_birdmusic.value)
-				S_SetRestoreMusicFadeInCvar(&cv_invincmusicfade);
+			S_SetRestoreMusicFadeInCvar(&cv_invincmusicfade);
 		}
 		else
 		{
@@ -825,13 +807,12 @@ void P_RestoreMusic(player_t *player)
 				else
 					position = mapmusposition;
 
-				S_ChangeMusicEx(mapmusname, mapmusflags, true, position, 0,
-						S_GetRestoreMusicFadeIn());
+				S_ChangeMusicEx(mapmusname, mapmusflags, true, position, 0, S_GetRestoreMusicFadeIn());
 				S_ClearRestoreMusicFadeInCvar();
 			}
 			else
 				S_ChangeMusicEx(mapmusname, mapmusflags, true, mapmusposition, 0, 0);
-			
+
 			mapmusresume = 0;
 		}
 	}
@@ -2965,12 +2946,19 @@ static void P_DeathThink(player_t *player)
 				else
 					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 			}
+
+			if (player->spectator)
+				player->laptime[LAP_CUR] = 0;
+			else
+				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 		}
 		else
 		{
 			player->realtime = 0;
 			if (player == &players[consoleplayer])
 				curlap = 0;
+
+			player->laptime[LAP_CUR] = 0;
 		}
 	}
 
@@ -3027,29 +3015,93 @@ static CV_PossibleValue_t CV_CamSpeed[] = {{0, "MIN"}, {1*FRACUNIT, "MAX"}, {0, 
 static CV_PossibleValue_t rotation_cons_t[] = {{1, "MIN"}, {45, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t CV_CamRotate[] = {{-720, "MIN"}, {720, "MAX"}, {0, NULL}};
 
-consvar_t cv_cam_dist = {"cam_dist", "160", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cam_height = {"cam_height", "50", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+static void CV_PlayerCam1_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	if (!playeringame[displayplayers[0]] || players[displayplayers[0]].spectator)
+		return;
+
+	// dont do stuff when cam speeen at map start
+	if (leveltime < starttime - TICRATE*4)
+		return;
+
+	if (camera[displayplayers[0]].chase)
+		P_ResetCamera(&players[displayplayers[0]], &camera[0]);
+}
+
+static void CV_PlayerCam2_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	if (!playeringame[displayplayers[1]] || players[displayplayers[1]].spectator)
+		return;
+
+	// dont do stuff when cam speeen at map start
+	if (leveltime < starttime - TICRATE*4)
+		return;
+
+	if (camera[displayplayers[1]].chase)
+		P_ResetCamera(&players[displayplayers[1]], &camera[1]);
+}
+
+static void CV_PlayerCam3_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	if (!playeringame[displayplayers[2]] || players[displayplayers[2]].spectator)
+		return;
+
+	// dont do stuff when cam speeen at map start
+	if (leveltime < starttime - TICRATE*4)
+		return;
+
+	if (camera[displayplayers[2]].chase)
+		P_ResetCamera(&players[displayplayers[2]], &camera[2]);
+}
+
+static void CV_PlayerCam4_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	if (!playeringame[displayplayers[3]] || players[displayplayers[3]].spectator)
+		return;
+
+	// dont do stuff when cam speeen at map start
+	if (leveltime < starttime - TICRATE*4)
+		return;
+
+	if (camera[displayplayers[3]].chase)
+		P_ResetCamera(&players[displayplayers[3]], &camera[3]);
+}
+
+consvar_t cv_cam_dist = {"cam_dist", "160", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam1_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam_height = {"cam_height", "50", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam1_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam_still = {"cam_still", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam_speed = {"cam_speed", "0.4", CV_FLOAT|CV_SAVE, CV_CamSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam_rotate = {"cam_rotate", "0", CV_CALL|CV_NOINIT, CV_CamRotate, CV_CamRotate_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam_rotspeed = {"cam_rotspeed", "10", CV_SAVE, rotation_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_cam2_dist = {"cam2_dist", "160", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cam2_height = {"cam2_height", "50", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam2_dist = {"cam2_dist", "160", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam2_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam2_height = {"cam2_height", "50", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam2_still = {"cam2_still", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam2_speed = {"cam2_speed", "0.4", CV_FLOAT|CV_SAVE, CV_CamSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam2_rotate = {"cam2_rotate", "0", CV_CALL|CV_NOINIT, CV_CamRotate, CV_CamRotate2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam2_rotspeed = {"cam2_rotspeed", "10", CV_SAVE, rotation_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_cam3_dist = {"cam3_dist", "160", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cam3_height = {"cam3_height", "50", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam3_dist = {"cam3_dist", "160", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam3_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam3_height = {"cam3_height", "50", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam3_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam3_still = {"cam3_still", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam3_speed = {"cam3_speed", "0.4", CV_FLOAT|CV_SAVE, CV_CamSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam3_rotate = {"cam3_rotate", "0", CV_CALL|CV_NOINIT, CV_CamRotate, CV_CamRotate3_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam3_rotspeed = {"cam3_rotspeed", "10", CV_SAVE, rotation_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_cam4_dist = {"cam4_dist", "160", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cam4_height = {"cam4_height", "50", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam4_dist = {"cam4_dist", "160", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam4_height = {"cam4_height", "50", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam4_still = {"cam4_still", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam4_speed = {"cam4_speed", "0.4", CV_FLOAT|CV_SAVE, CV_CamSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam4_rotate = {"cam4_rotate", "0", CV_CALL|CV_NOINIT, CV_CamRotate, CV_CamRotate4_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -3060,6 +3112,9 @@ consvar_t cv_quaketilt = {"quaketilt", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, 
 consvar_t cv_tiltsmoothing = {"tiltsmoothing", "32", CV_SAVE, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_actionmovie = {"actionmovie", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t lookbackmom_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Double"}, {0, NULL}};
+consvar_t cv_lookbackmom = {"cameralookbackmom", "Off", CV_SAVE, lookbackmom_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 fixed_t t_cam_dist = -42;
 fixed_t t_cam_height = -42;
@@ -3876,6 +3931,16 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	{
 		thiscam->momx = x - thiscam->x;
 		thiscam->momy = y - thiscam->y;
+
+		// when looking back, camera's momentum
+		// should inherit the momentum of the player
+		// if value is 2, add extra
+		if (cv_lookbackmom.value && lookback && lookbackdelay[num])
+		{
+			thiscam->momx += cv_lookbackmom.value*mo->momx;
+			thiscam->momy += cv_lookbackmom.value*mo->momy;
+		}
+
 		thiscam->momz = FixedMul(z - thiscam->z, camspeed/2);
 	}
 
@@ -3966,7 +4031,7 @@ boolean P_SpectatorJoinGame(player_t *player)
 	// Pressing fire assigns you to a team that needs players if allowed.
 	// Partial code reproduction from p_tick.c autobalance code.
 	else if (G_GametypeHasTeams())
-	{		
+	{
 		INT32 changeto = 0;
 		INT32 z, numplayersred = 0, numplayersblue = 0;
 
@@ -4019,7 +4084,7 @@ boolean P_SpectatorJoinGame(player_t *player)
 	}
 	// Joining in game from firing.
 	else
-	{		
+	{
 		if (player->mo)
 		{
 			P_RemoveMobj(player->mo);
@@ -4184,11 +4249,7 @@ Quaketilt (player_t *player)
 	INT32 delta = (INT32)( player->mo->angle - moma );
 	fixed_t speed;
 
-	boolean sliptiding =
-		(
-				player->kartstuff[k_aizdriftstrat] != 0 &&
-				player->kartstuff[k_drift]         == 0
-		);
+	boolean sliptiding = player->kartstuff[k_drift] ? 0 : player->kartstuff[k_aizdriftstrat];
 
 	if (delta == (INT32)ANGLE_180)/* FUCK YOU HAVE A HACK */
 	{
@@ -4216,6 +4277,7 @@ Quaketilt (player_t *player)
 		tilt = ANGLE_22h;
 		lowb = 10*FRACUNIT;
 	}
+	lowb = FixedMul(lowb, player->mo->scale);
 	moma = FixedMul(FixedDiv(delta, ANGLE_90), tilt);
 	speed = abs( player->mo->momx + player->mo->momy );
 	if (speed < lowb)
@@ -4231,6 +4293,19 @@ DoABarrelRoll (player_t *player)
 {
 	angle_t slope;
 	angle_t delta;
+
+	fixed_t smoothing;
+
+	if (player->exiting)
+	{
+		return;
+	}
+
+	if (player->kartstuff[k_respawn])
+	{
+		player->tilt = 0;
+		return;
+	}
 
 	if (player->mo->standingslope)
 	{
@@ -4256,26 +4331,16 @@ DoABarrelRoll (player_t *player)
 		slope -= Quaketilt(player);
 	}
 
-	delta = (INT32)( slope - player->tilt )/ cv_tiltsmoothing.value;
+	delta = slope - player->tilt;
+	smoothing = FixedDiv(AbsAngle(slope), ANGLE_45);
+
+	delta = FixedDiv(delta, cv_tiltsmoothing.value *
+	FixedDiv(FRACUNIT, FRACUNIT + smoothing));
 
 	if (delta)
 		player->tilt += delta;
 	else
-		player->tilt  = slope;
-
-	if (cv_tilting.value)
-	{
-		player->viewrollangle = player->tilt;
-
-		if (cv_actionmovie.value)
-		{
-			player->viewrollangle += quake.roll;
-		}
-	}
-	else
-	{
-		player->viewrollangle = 0;
-	}
+		player->tilt = slope;
 }
 
 //
@@ -4286,11 +4351,6 @@ void P_PlayerThink(player_t *player)
 {
 	ticcmd_t *cmd;
 	const size_t playeri = (size_t)(player - players);
-
-	player->lerp.aiming = player->aiming;
-	player->lerp.awayviewaiming = player->awayviewaiming;
-	player->lerp.frameangle = player->frameangle;
-	player->lerp.viewrollangle = player->viewrollangle;
 
 #ifdef PARANOIA
 	if (!player->mo)
@@ -4513,12 +4573,19 @@ void P_PlayerThink(player_t *player)
 				else
 					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 			}
+
+			if (player->spectator)
+				player->laptime[LAP_CUR] = 0;
+			else
+				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 		}
 		else
 		{
 			player->realtime = 0;
 			if (player == &players[consoleplayer])
 				curlap = 0;
+
+			player->laptime[LAP_CUR] = 0;
 		}
 	}
 
@@ -4857,7 +4924,7 @@ void P_PlayerAfterThink(player_t *player)
 
 #ifdef SECTORSPECIALSAFTERTHINK
 	if (player->onconveyor != 1 || !P_IsObjectOnGround(player->mo))
-	player->onconveyor = 0;
+		player->onconveyor = 0;
 	// check special sectors : damage & secrets
 
 	if (!player->spectator)

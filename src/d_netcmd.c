@@ -299,6 +299,9 @@ consvar_t cv_usemouse2 = {"use_mouse2", "Off", CV_SAVE|CV_CALL,usemouse_cons_t, 
 //WTF
 consvar_t cv_mouseturn = {"mouseturn", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+// Lagless camera! Yay!
+consvar_t cv_laglesscam = {"laglesscamera", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 #if defined(HAVE_SDL) || defined(_WINDOWS) //joystick 1 and 2
 consvar_t cv_usejoystick = {"use_joystick", "1", CV_SAVE|CV_CALL, usejoystick_cons_t,
 	I_InitJoystick, 0, NULL, NULL, 0, 0, NULL};
@@ -394,6 +397,7 @@ static CV_PossibleValue_t kartspeedometer_cons_t[] = {{0, "Off"}, {1, "Kilometer
 consvar_t cv_kartspeedometer = {"kartdisplayspeed", "Off", CV_SAVE, kartspeedometer_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL}; // use tics in display
 static CV_PossibleValue_t kartvoices_cons_t[] = {{0, "Never"}, {1, "Tasteful"}, {2, "Meme"}, {0, NULL}};
 consvar_t cv_kartvoices = {"kartvoices", "Tasteful", CV_SAVE, kartvoices_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_karthitemdialog = {"karthitemdialog", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_karteliminatelast = {"karteliminatelast", "Yes", CV_NETVAR|CV_CHEAT|CV_CALL|CV_NOSHOWHELP, CV_YesNo, KartEliminateLast_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
@@ -564,6 +568,10 @@ static CV_PossibleValue_t ps_descriptor_cons_t[] = {
 	{1, "Average"}, {2, "SD"}, {3, "Minimum"}, {4, "Maximum"}, {0, NULL}};
 consvar_t cv_ps_descriptor = {"ps_descriptor", "Average", 0, ps_descriptor_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_director = {"director", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugdirector = {"debugdirector", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_showdirectorhud = {"showdirectorhud", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 consvar_t cv_showtrackaddon = {"showtrackaddon", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t skinselectmenu_t[] = {{SKINMENUTYPE_SCROLL, "Scroll"}, {SKINMENUTYPE_2D, "2d"}, {SKINMENUTYPE_GRID, "Grid"}, {SKINMENUTYPE_EXTENDED, "Extended"}, {0, NULL}};
@@ -580,7 +588,8 @@ static CV_PossibleValue_t skinselectgridsort_t[] ={
 };
 consvar_t cv_skinselectgridsort ={ "skinselectgridsort", "Real name", CV_SAVE|CV_CALL|CV_NOINIT, skinselectgridsort_t, sortSkinGrid, 0, NULL, NULL, 0, 0, NULL };
 
-consvar_t cv_betainterscreen = {"betaintermissionscreen", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t betainterscreen_t[] = {{0, "Off"}, {1, "On"}, {2, "NoBG"}, {0, NULL}};
+consvar_t cv_betainterscreen = {"betaintermissionscreen", "Off", CV_SAVE, betainterscreen_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 INT16 gametype = GT_RACE; // SRB2kart
 boolean forceresetplayers = false;
@@ -785,7 +794,7 @@ void D_RegisterServerCommands(void)
 
 	// d_clisrv
 	CV_RegisterVar(&cv_maxplayers);
-	CV_RegisterVar(&cv_allowresynch);
+	CV_RegisterVar(&cv_gamestateattempts);
 	CV_RegisterVar(&cv_resynchcooldown);
 	CV_RegisterVar(&cv_maxsend);
 	CV_RegisterVar(&cv_noticedownload);
@@ -794,6 +803,9 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_httpsource);
 #ifndef NONET
 	CV_RegisterVar(&cv_allownewplayer);
+#ifdef SATURNJOIN
+	CV_RegisterVar(&cv_allownewsaturnplayer);
+#endif
 	CV_RegisterVar(&cv_joinrefusemessage);
 	CV_RegisterVar(&cv_chatlogsize);
 #ifdef VANILLAJOINNEXTROUND
@@ -831,9 +843,9 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_recordmultiplayerdemos);
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
+	CV_RegisterVar(&cv_demochangemap);
+
 	CV_RegisterVar(&cv_keyboardlayout);
-	
-	CV_RegisterVar(&cv_betainterscreen);
 }
 
 // =========================================================================
@@ -987,6 +999,10 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_showtrackaddon);
 	CV_RegisterVar(&cv_showviewpointtext);
 
+	CV_RegisterVar(&cv_director);
+	CV_RegisterVar(&cv_kartdebugdirector);
+	CV_RegisterVar(&cv_showdirectorhud);
+
 	CV_RegisterVar(&cv_luaimmersion);
 	CV_RegisterVar(&cv_fakelocalskin);
 
@@ -1000,6 +1016,7 @@ void D_RegisterClientCommands(void)
 	//CV_RegisterVar(&cv_alwaysfreelook2);
 	//CV_RegisterVar(&cv_chasefreelook);
 	//CV_RegisterVar(&cv_chasefreelook2);
+	CV_RegisterVar(&cv_replaysearchrate);
 	CV_RegisterVar(&cv_showfocuslost);
 	CV_RegisterVar(&cv_pauseifunfocused);
 
@@ -1073,6 +1090,21 @@ void D_RegisterClientCommands(void)
 #endif
 	CV_RegisterVar(&cv_controlperkey);
 	CV_RegisterVar(&cv_turnsmooth);
+
+	CV_RegisterVar(&cv_rumble[0]);
+	CV_RegisterVar(&cv_rumble[1]);
+	CV_RegisterVar(&cv_rumble[2]);
+	CV_RegisterVar(&cv_rumble[3]);
+
+	CV_RegisterVar(&cv_gamepadled[0]);
+	CV_RegisterVar(&cv_gamepadled[1]);
+	CV_RegisterVar(&cv_gamepadled[2]);
+	CV_RegisterVar(&cv_gamepadled[3]);
+
+	CV_RegisterVar(&cv_ledpowerup[0]);
+	CV_RegisterVar(&cv_ledpowerup[1]);
+	CV_RegisterVar(&cv_ledpowerup[2]);
+	CV_RegisterVar(&cv_ledpowerup[3]);
 
 	CV_RegisterVar(&cv_usemouse);
 	CV_RegisterVar(&cv_usemouse2);
@@ -1165,6 +1197,10 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_lastserver);
 
 	CV_RegisterVar(&cv_showmusicfilename);
+
+	CV_RegisterVar(&cv_betainterscreen);
+
+	CV_RegisterVar(&cv_laglesscam);
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
@@ -1662,8 +1698,9 @@ static void SendNameAndColor(void)
 	cv_skin.value = R_SkinAvailable(cv_skin.string);
 	if (cv_skin.value < 0)
 	{
-		CV_StealthSet(&cv_skin, DEFAULTSKIN);
-		cv_skin.value = 0;
+		INT32 skinnum = players[consoleplayer].skin;
+		CV_StealthSet(&cv_skin, skins[skinnum].name);
+		cv_skin.value = skinnum;
 	}
 
 	// Finally write out the complete packet and send it off.
@@ -1791,8 +1828,9 @@ static void SendNameAndColor2(void)
 	cv_skin2.value = R_SkinAvailable(cv_skin2.string);
 	if (cv_skin2.value < 0)
 	{
-		CV_StealthSet(&cv_skin2, DEFAULTSKIN);
-		cv_skin2.value = 0;
+		INT32 skinnum = players[displayplayers[1]].skin;
+		CV_StealthSet(&cv_skin2, skins[skinnum].name);
+		cv_skin2.value = skinnum;
 	}
 
 	// Finally write out the complete packet and send it off.
@@ -1911,8 +1949,9 @@ static void SendNameAndColor3(void)
 	cv_skin3.value = R_SkinAvailable(cv_skin3.string);
 	if (cv_skin3.value < 0)
 	{
-		CV_StealthSet(&cv_skin3, DEFAULTSKIN);
-		cv_skin3.value = 0;
+		INT32 skinnum = players[displayplayers[2]].skin;
+		CV_StealthSet(&cv_skin3, skins[skinnum].name);
+		cv_skin3.value = skinnum;
 	}
 
 	// Finally write out the complete packet and send it off.
@@ -2039,8 +2078,9 @@ static void SendNameAndColor4(void)
 	cv_skin4.value = R_SkinAvailable(cv_skin4.string);
 	if (cv_skin4.value < 0)
 	{
-		CV_StealthSet(&cv_skin4, DEFAULTSKIN);
-		cv_skin4.value = 0;
+		INT32 skinnum = players[displayplayers[3]].skin;
+		CV_StealthSet(&cv_skin4, skins[skinnum].name);
+		cv_skin4.value = skinnum;
 	}
 
 	// Finally write out the complete packet and send it off.
@@ -2952,6 +2992,10 @@ static void Command_Map_f(void)
 			return;
 		}
 	}
+
+	// spend atleast 35 seconds in one map
+	if (cv_demochangemap.value && demo.recording && demo.savemode != DSM_NOTSAVING && (timeinmap > 1463) && ((cv_demochangemap.value == 2 && newmapnum == gamemap) || newmapnum != gamemap))
+		G_SaveDemo();
 
 	fromlevelselect = false;
 	D_MapChange(newmapnum, newgametype, newencoremode, newresetplayers, 0, false, false);
@@ -5687,6 +5731,12 @@ void Command_ExitGame_f(void)
 {
 	INT32 i;
 
+	if (dedicated)
+	{
+		CONS_Printf("This command cannot be used on dedicated server\n");
+		return;
+	}
+
 	D_QuitNetGame();
 	CL_Reset();
 	CV_ClearChangedFlags();
@@ -5787,10 +5837,9 @@ static void Command_Togglemodified_f(void)
 	modifiedgame = !modifiedgame;
 }
 
-extern UINT8 *save_p;
 static void Command_Archivetest_f(void)
 {
-	UINT8 *buf;
+	savebuffer_t save;
 	UINT32 i, wrote;
 	thinker_t *th;
 	if (gamestate != GS_LEVEL)
@@ -5806,28 +5855,28 @@ static void Command_Archivetest_f(void)
 			((mobj_t *)th)->mobjnum = i++;
 
 	// allocate buffer
-	buf = save_p = ZZ_Alloc(1024);
+	save.buffer = save.p = ZZ_Alloc(1024);
 
 	// test archive
 	CONS_Printf("LUA_Archive...\n");
-	LUA_Archive();
-	WRITEUINT8(save_p, 0x7F);
-	wrote = (UINT32)(save_p-buf);
+	LUA_Archive(&save, true);
+	WRITEUINT8(save.p, 0x7F);
+	wrote = (UINT32)(save.p - save.buffer);
 
 	// clear Lua state, so we can really see what happens!
 	CONS_Printf("Clearing state!\n");
 	LUA_ClearExtVars();
 
 	// test unarchive
-	save_p = buf;
+	save.p = save.buffer;
 	CONS_Printf("LUA_UnArchive...\n");
-	LUA_UnArchive();
-	i = READUINT8(save_p);
-	if (i != 0x7F || wrote != (UINT32)(save_p-buf))
-		CONS_Printf("Savegame corrupted. (write %u, read %u)\n", wrote, (UINT32)(save_p-buf));
+	LUA_UnArchive(&save, true);
+	i = READUINT8(save.p);
+	if (i != 0x7F || wrote != (UINT32)(save.p - save.buffer))
+		CONS_Printf("Savegame corrupted. (write %u, read %u)\n", wrote, (UINT32)(save.p - save.buffer));
 
 	// free buffer
-	Z_Free(buf);
+	Z_Free(save.buffer);
 	CONS_Printf("Done. No crash.\n");
 }
 #endif
