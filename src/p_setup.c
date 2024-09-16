@@ -1138,14 +1138,14 @@ void P_WriteThings(lumpnum_t lumpnum)
 	size_t i, length;
 	mapthing_t *mt;
 	UINT8 *data;
-	savebuffer_t save;
+	UINT8 *savebuffer, *savebuf_p;
 	INT16 temp;
 
 	data = W_CacheLumpNum(lumpnum, PU_LEVEL);
 
-	save.p = save.buffer = (UINT8 *)malloc(nummapthings * sizeof (mapthing_t));
+	savebuf_p = savebuffer = (UINT8 *)malloc(nummapthings * sizeof (mapthing_t));
 
-	if (!save.p)
+	if (!savebuf_p)
 	{
 		CONS_Alert(CONS_ERROR, M_GetText("No more free memory for thing writing!\n"));
 		return;
@@ -1154,23 +1154,23 @@ void P_WriteThings(lumpnum_t lumpnum)
 	mt = mapthings;
 	for (i = 0; i < nummapthings; i++, mt++)
 	{
-		WRITEINT16(save.p, mt->x);
-		WRITEINT16(save.p, mt->y);
+		WRITEINT16(savebuf_p, mt->x);
+		WRITEINT16(savebuf_p, mt->y);
 
-		WRITEINT16(save.p, mt->angle);
+		WRITEINT16(savebuf_p, mt->angle);
 
 		temp = (INT16)(mt->type + ((INT16)mt->extrainfo << 12));
-		WRITEINT16(save.p, temp);
-		WRITEUINT16(save.p, mt->options);
+		WRITEINT16(savebuf_p, temp);
+		WRITEUINT16(savebuf_p, mt->options);
 	}
 
 	Z_Free(data);
 
-	length = save.p - save.buffer;
+	length = savebuf_p - savebuffer;
 
-	FIL_WriteFile(va("newthings%d.lmp", gamemap), save.buffer, length);
-	free(save.buffer);
-	save.p = NULL;
+	FIL_WriteFile(va("newthings%d.lmp", gamemap), savebuffer, length);
+	free(savebuffer);
+	savebuf_p = NULL;
 
 	CONS_Printf(M_GetText("newthings%d.lmp saved.\n"), gamemap);
 }
