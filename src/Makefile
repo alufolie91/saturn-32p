@@ -393,15 +393,9 @@ endif
 endif
 
 ifndef NONET
-ifndef NOSATURNSYNCH
-OPTS+=-DDOSATURNSYNCH
-ifndef NOSATURNJOIN
-OPTS+=-DDOSATURNJOIN
-endif
 #ifndef NOSATURNPAK
 #OPTS+=-DDOSATURNPAK
 #endif
-endif
 endif
 
 ifdef HAVE_MINIUPNPC

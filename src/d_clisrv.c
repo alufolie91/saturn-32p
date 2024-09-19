@@ -1232,7 +1232,6 @@ static void SV_SendSaveGame(INT32 node, boolean resending)
 	sendingsavegame[node] = true;
 	freezetimeout[node] = I_GetTime() + jointimeout + length / 1024; // 1 extra tic for each kilobyte
 }
-#endif
 
 #ifdef DUMPCONSISTENCY
 #define TMPSAVENAME "badmath.sav"
@@ -1344,11 +1343,8 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 
 	// Tell the server we have received and reloaded the gamestate
 	// so they know they can resume the game
-	if (reloading)
-	{
-		netbuffer->packettype = PT_RECEIVEDGAMESTATE;
-		HSendPacket(servernode, true, 0, 0);
-	}
+	netbuffer->packettype = PT_RECEIVEDGAMESTATE;
+	HSendPacket(servernode, true, 0, 0);
 }
 
 static void CL_ReloadReceivedSavegame(void)
@@ -1382,6 +1378,7 @@ static void CL_ReloadReceivedSavegame(void)
 
 	CONS_Printf(M_GetText("Game state reloaded\n"));
 }
+#endif
 
 #ifndef NONET
 static void SendAskInfo(INT32 node)

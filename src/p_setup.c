@@ -111,6 +111,8 @@ UINT8 levelfadecol;
 
 virtres_t *curmapvirt;
 
+SINT8 midgamejoin = 0;
+
 // BLOCKMAP
 // Created from axis aligned bounding box
 // of the map, a rectangular array of
@@ -2498,6 +2500,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 	INT32 i, loadprecip = 1, ranspecialwipe = 0;
 	INT32 loademblems = 1;
 	INT32 fromnetsave = 0;
+	midgamejoin = 0;
 	sector_t *ss;
 	boolean chase;
 
@@ -2696,6 +2699,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 		fromnetsave = 1;
 		loadprecip = 0;
 		loademblems = 0;
+		midgamejoin = 1;
 	}
 
 	// internal game map
