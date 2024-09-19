@@ -3284,8 +3284,7 @@ static void P_NetArchiveMisc(savebuffer_t *save, boolean resending)
 	else
 		WRITEINT16(save->p, gamestate);
 
-	if (resending)
-		WRITEINT16(save->p, gametype);
+	WRITEINT16(save->p, gametype);
 
 	for (i = 0; i < MAXPLAYERS; i++)
 		pig |= (playeringame[i] != 0)<<i;
@@ -3394,8 +3393,7 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(savebuffer_t *save, bool
 
 	G_SetGamestate(READINT16(save->p));
 
-	if (reloading)
-		gametype = READINT16(save->p);
+	gametype = READINT16(save->p);
 
 	pig = READUINT32(save->p);
 	for (i = 0; i < MAXPLAYERS; i++)
