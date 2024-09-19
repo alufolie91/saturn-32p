@@ -2899,18 +2899,6 @@ static void HU_DrawRankings(void)
 			V_DrawCenteredString(256, 16, hilicol, va("%d", cv_pointlimit.value));
 		}
 	}
-	/*else if (gametype == GT_COOP)
-	{
-		INT32 totalscore = 0;
-		for (i = 0; i < MAXPLAYERS; i++)
-		{
-			if (playeringame[i])
-				totalscore += players[i].score;
-		}
-
-		V_DrawCenteredString(256, 8, 0, "TOTAL SCORE");
-		V_DrawCenteredString(256, 16, 0, va("%u", totalscore));
-	}*/
 	else
 	{
 		if (circuitmap)
@@ -2983,13 +2971,7 @@ static void HU_DrawRankings(void)
 #endif*/
 	}
 
-	/*if (G_GametypeHasTeams())
-		HU_DrawTeamTabRankings(tab, whiteplayer); //separate function for Spazzo's silly request -- gotta fix this up later
-	else if (scorelines > 10)*/
-	//tab ranking adjustment courtesy of fickle's 1.1 battleroyale
 	HU_DrawTabRankings(((scorelines > 8) ? 6 : 40), (scorelines > 8) ? 29 : 33, tab, scorelines, whiteplayer, hilicol);
-	/*else
-		HU_DrawDualTabRankings(32, 32, tab, scorelines, whiteplayer);*/
 
 	// draw spectators in a ticker across the bottom
 	if (netgame && G_GametypeHasSpectators())
