@@ -2939,25 +2939,14 @@ static void P_DeathThink(player_t *player)
 		if (leveltime >= starttime)
 		{
 			player->realtime = leveltime - starttime;
-			if (player == &players[consoleplayer])
-			{
-				if (player->spectator || !circuitmap)
-					curlap = 0;
-				else
-					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
-			}
-
-			if (player->spectator)
+			if (player->spectator || !circuitmap)
 				player->laptime[LAP_CUR] = 0;
-			else
+			else if (player->laptime[LAP_CUR] != UINT32_MAX)
 				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 		}
 		else
 		{
 			player->realtime = 0;
-			if (player == &players[consoleplayer])
-				curlap = 0;
-
 			player->laptime[LAP_CUR] = 0;
 		}
 	}
@@ -4566,15 +4555,7 @@ void P_PlayerThink(player_t *player)
 		if (leveltime >= starttime)
 		{
 			player->realtime = leveltime - starttime;
-			if (player == &players[consoleplayer])
-			{
-				if (player->spectator || !circuitmap)
-					curlap = 0;
-				else
-					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
-			}
-
-			if (player->spectator)
+			if (player->spectator || !circuitmap)
 				player->laptime[LAP_CUR] = 0;
 			else
 				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
@@ -4582,9 +4563,6 @@ void P_PlayerThink(player_t *player)
 		else
 		{
 			player->realtime = 0;
-			if (player == &players[consoleplayer])
-				curlap = 0;
-
 			player->laptime[LAP_CUR] = 0;
 		}
 	}

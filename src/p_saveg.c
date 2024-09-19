@@ -125,7 +125,7 @@ static void P_NetArchivePlayers(savebuffer_t *save)
 
 		// no longer send ticcmds
 
-			WRITESTRINGN(save->p, player_names[i], MAXPLAYERNAME);
+		WRITESTRINGN(save->p, player_names[i], MAXPLAYERNAME);
 
 		WRITEANGLE(save->p, players[i].aiming);
 		WRITEANGLE(save->p, players[i].awayviewaiming);
@@ -151,8 +151,8 @@ static void P_NetArchivePlayers(savebuffer_t *save)
 		WRITEUINT16(save->p, players[i].flashpal);
 		WRITEUINT16(save->p, players[i].flashcount);
 
-			WRITEUINT8(save->p, players[i].skincolor);
-			WRITEINT32(save->p, players[i].skin);
+		WRITEUINT8(save->p, players[i].skincolor);
+		WRITEINT32(save->p, players[i].skin);
 
 		WRITEUINT32(save->p, players[i].score);
 		WRITEFIXED(save->p, players[i].dashspeed);
@@ -187,6 +187,10 @@ static void P_NetArchivePlayers(savebuffer_t *save)
 		WRITEINT16(save->p, players[i].numboxes);
 		WRITEINT16(save->p, players[i].totalring);
 		WRITEUINT32(save->p, players[i].realtime);
+		for (j = 0; j < LAP__MAX; j++)
+		{
+			WRITEUINT32(save->p, players[i].laptime[j]);
+		}
 		WRITEUINT8(save->p, players[i].laps);
 
 		////////////////////
@@ -301,7 +305,8 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-			adminplayers[i] = (INT32)READSINT8(save->p);
+		adminplayers[i] = (INT32)READSINT8(save->p);
+
 		// Do NOT memset player struct to 0
 		// other areas may initialize data elsewhere
 		//memset(&players[i], 0, sizeof (player_t));
@@ -310,7 +315,7 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 
 		// NOTE: sending tics should (hopefully) no longer be necessary
 
-			READSTRINGN(save->p, player_names[i], MAXPLAYERNAME);
+		READSTRINGN(save->p, player_names[i], MAXPLAYERNAME);
 
 		players[i].aiming = READANGLE(save->p);
 		players[i].awayviewaiming = READANGLE(save->p);
@@ -336,8 +341,8 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 		players[i].flashpal = READUINT16(save->p);
 		players[i].flashcount = READUINT16(save->p);
 
-			players[i].skincolor = READUINT8(save->p);
-			players[i].skin = READINT32(save->p);
+		players[i].skincolor = READUINT8(save->p);
+		players[i].skin = READINT32(save->p);
 
 		players[i].score = READUINT32(save->p);
 		players[i].dashspeed = READFIXED(save->p); // dashing speed
@@ -372,6 +377,10 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 		players[i].numboxes = READINT16(save->p); // Number of item boxes obtained for Race Mode
 		players[i].totalring = READINT16(save->p); // Total number of rings obtained for Race Mode
 		players[i].realtime = READUINT32(save->p); // integer replacement for leveltime
+		for (j = 0; j < LAP__MAX; j++)
+		{
+			players[i].laptime[j] = READUINT32(save->p);
+		}
 		players[i].laps = READUINT8(save->p); // Number of laps (optional)
 
 		////////////////////

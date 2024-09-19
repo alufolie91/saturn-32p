@@ -10997,7 +10997,8 @@ void K_drawKartHUD(void)
 		if (cv_showlaptimes.value
 			&& stplyr->kartstuff[k_lapanimation]
 			&& !stplyr->exiting
-			&& stplyr->laptime[LAP_LAST] != 0)
+			&& stplyr->laptime[LAP_LAST] != 0
+			&& stplyr->laptime[LAP_LAST] != UINT32_MAX)
 		{
 			if ((stplyr->kartstuff[k_lapanimation] / 5) & 1)
 			{
