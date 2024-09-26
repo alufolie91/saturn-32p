@@ -9,6 +9,7 @@
 /// \file  y_inter.c
 /// \brief Tally screens, or "Intermissions" as they were formally called in Doom
 
+#include "d_netcmd.h"
 #include "doomdef.h"
 #include "doomstat.h"
 #include "d_main.h"
@@ -100,10 +101,6 @@ static y_data data;
 static patch_t *bgpatch = NULL;     // INTERSCR
 static patch_t *widebgpatch = NULL; // INTERSCW
 static patch_t *bgtile = NULL;      // SPECTILE/SRB2BACK
-//static patch_t *interpic = NULL;    // custom picture defined in map header
-//static boolean usetile;
-boolean usebuffer = false;
-//static boolean useinterpic;
 static INT32 timer;
 
 static INT32 intertic;
@@ -160,11 +157,11 @@ typedef struct
 	boolean loaded;
 } y_voteclient;
 
-static y_votelvlinfo levelinfo[12];
+static y_votelvlinfo levelinfo[13];
 static y_voteclient voteclient;
 static INT32 votetic;
 static INT32 voteendtic = -1;
-static INT32 votemax = 3;
+static SINT8 votemax = 3;
 static INT32 voterowmem = 0;
 static boolean rowchange = false;
 static patch_t *cursor = NULL;
@@ -392,41 +389,24 @@ void Y_IntermissionDrawer(void)
 	if (intertype == int_none || rendermode == render_none)
 		return;
 
-	if (!usebuffer)
-		V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31);
-
-	if (cv_betainterscreen.value 
+	if (cv_betainterscreen.value == 1
 #ifdef HWRENDER	
 	|| (rendermode == render_opengl && cv_grscreentextures.value != 2) // use the neato kart bg for intermission on disabled screen textures
 #endif
 	)
 		V_DrawPatchFill(bgtile); // use the neato kart bg for intermission on disabled screen textures
-	//else if (useinterpic)
-		//V_DrawScaledPatch(0, 0, 0, interpic);
-	//else if (!usetile)
 	else
 	{
-		if (rendermode == render_soft && usebuffer)
+		if (rendermode == render_soft)
 			VID_BlitLinearScreen(screens[1], screens[0], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
 #ifdef HWRENDER
-		else if(rendermode != render_soft && usebuffer)
-		{
+		else if(rendermode == render_opengl)
 			HWR_DrawIntermissionBG();
-		}
 #endif
-		else
-		{
-			if (widebgpatch && rendermode == render_soft && vid.width / vid.dupx == 400)
-				V_DrawScaledPatch(0, 0, V_SNAPTOLEFT, widebgpatch);
-			else if (bgpatch)
-				V_DrawScaledPatch(0, 0, 0, bgpatch);
-		}
 	}
-	//else if (bgtile)
-		//V_DrawPatchFill(bgtile);
 
-	if (usebuffer) // Fade everything out
-		V_DrawFadeScreen(0xFF00, 22);
+	// Fade everything out
+	V_DrawFadeScreen(0xFF00, 22);
 
 	if (!splitscreen)
 		whiteplayer = demo.playback ? displayplayers[0] : consoleplayer;
@@ -440,6 +420,7 @@ void Y_IntermissionDrawer(void)
 
 	if (sorttic != -1 && intertic >= sorttic && !demo.playback)
 	{
+		// yes this may actually overflow
 		INT64 count = (intertic - sorttic);
 
 		if (count < 8)
@@ -448,52 +429,11 @@ void Y_IntermissionDrawer(void)
 			x += (((((16 - count)<<FRACBITS) - R_GetHudUncap()) * vid.width)>>FRACBITS) / (8 * vid.dupx);
 	}
 
-	// SRB2kart 290117 - compeltely replaced this block.
-	/*if (intertype == int_timeattack)
-	{
-		// draw time
-		ST_DrawPatchFromHud(HUD_TIME, sbotime);
-		if (cv_timetic.value)
-			ST_DrawNumFromHud(HUD_SECONDS, data.coop.tics);
-		else
-		{
-			INT32 seconds, minutes, tictrn;
-
-			seconds = G_TicsToSeconds(data.coop.tics);
-			minutes = G_TicsToMinutes(data.coop.tics, true);
-			tictrn  = G_TicsToCentiseconds(data.coop.tics);
-
-			ST_DrawNumFromHud(HUD_MINUTES, minutes); // Minutes
-			ST_DrawPatchFromHud(HUD_TIMECOLON, sbocolon); // Colon
-			ST_DrawPadNumFromHud(HUD_SECONDS, seconds, 2); // Seconds
-
-			// SRB2kart - pulled from old coop block, just in case we need it
-			// we should show centiseconds on the intermission screen too, if the conditions are right.
-			if (modeattacking || cv_timetic.value == 2)
-			{
-				ST_DrawPatchFromHud(HUD_TIMETICCOLON, sboperiod); // Period
-				ST_DrawPadNumFromHud(HUD_TICS, tictrn, 2); // Tics
-			}
-
-			ST_DrawPatchFromHud(HUD_TIMETICCOLON, sboperiod); // Period
-			ST_DrawPadNumFromHud(HUD_TICS, tictrn, 2); // Tics
-		}
-
-		// draw the "got through act" lines and act number
-		V_DrawLevelTitle(data.coop.passedx1, 49, 0, data.coop.passed1);
-		V_DrawLevelTitle(data.coop.passedx2, 49+V_LevelNameHeight(data.coop.passed2)+2, 0, data.coop.passed2);
-
-		if (strlen(mapheaderinfo[prevmap]->actnum) > 0)
-			V_DrawScaledPatch(244, 57, 0, data.coop.ttlnum);
-
-		//if (gottimebonus && endtic != -1)
-		//	V_DrawCenteredString(BASEVIDWIDTH/2, 172, V_YELLOWMAP, "TIME BONUS UNLOCKED!");
-	}
-	else*/ if (intertype == int_race || intertype == int_match)
+	if (intertype == int_race || intertype == int_match)
 	{
 #define NUMFORNEWCOLUMN 8
 		INT32 y = 41, gutter = ((data.match.numplayers > NUMFORNEWCOLUMN) ? 0 : (BASEVIDWIDTH/2));
-		INT32 dupadjust = (vid.width/vid.dupx), duptweak = (dupadjust - BASEVIDWIDTH)/2;
+		INT32 dupadjust = cv_betainterscreen.value ? 314 : (vid.width/vid.dupx), duptweak = cv_betainterscreen.value ? -3 : (dupadjust - BASEVIDWIDTH)/2;
 		const char *timeheader;
 
 		if (data.match.rankingsmode)
@@ -618,10 +558,10 @@ void Y_IntermissionDrawer(void)
 
 				STRBUFCPY(strtime, data.match.name[i]);
 
-				if (data.match.numplayers > NUMFORNEWCOLUMN)
-					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
-				else if (data.match.numplayers > NUMFORNEWCOLUMN*2)
+				if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 					V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+				else if (data.match.numplayers > NUMFORNEWCOLUMN)
+					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 				else
 					V_DrawString(x+36, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
 
@@ -724,6 +664,7 @@ void Y_IntermissionDrawer(void)
 	}
 
 	if ((demo.recording || demo.savemode == DSM_SAVED) && !demo.playback)
+	{
 		switch (demo.savemode)
 		{
 		case DSM_NOTSAVING:
@@ -741,10 +682,7 @@ void Y_IntermissionDrawer(void)
 		default: // Don't render any text here
 			break;
 		}
-
-	// Make it obvious that scrambling is happening next round.
-	if (cv_scrambleonchange.value && cv_teamscramble.value && (intertic/TICRATE % 2 == 0))
-		V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, hilicol, M_GetText("Teams will be scrambled next round!"));
+	}
 
 	if (renderisnewtic)
 	{
@@ -868,13 +806,13 @@ static void Y_UpdateRecordReplays(void)
 	if ((mainrecords[gamemap-1]->time == 0) || (players[consoleplayer].realtime < mainrecords[gamemap-1]->time))
 		mainrecords[gamemap-1]->time = players[consoleplayer].realtime;
 
-	if ((mainrecords[gamemap-1]->lap == 0) || (bestlap < mainrecords[gamemap-1]->lap))
-		mainrecords[gamemap-1]->lap = bestlap;
+	if ((mainrecords[gamemap-1]->lap == 0) || (players[consoleplayer].laptime[LAP_BEST] < mainrecords[gamemap-1]->lap))
+		mainrecords[gamemap-1]->lap = players[consoleplayer].laptime[LAP_BEST];
 
 	// Save demo!
 	bestdemo[255] = '\0';
 	lastdemo[255] = '\0';
-	G_SetDemoTime(players[consoleplayer].realtime, bestlap);
+	G_SetDemoTime(players[consoleplayer].realtime, players[consoleplayer].laptime[LAP_BEST]);
 	G_CheckDemoStatus();
 
 	I_mkdir(va("%s"PATHSEP"replay", srb2home), 0755);
@@ -971,13 +909,9 @@ void Y_StartIntermission(void)
 
 		if (gametype == GT_MATCH)
 			intertype = int_match;
-		else //if (gametype == GT_RACE)
+		else
 			intertype = int_race;
 	}
-
-	// We couldn't display the intermission even if we wanted to.
-	// But we still need to give the players their score bonuses, dummy.
-	//if (dedicated) return;
 
 	// This should always exist, but just in case...
 	if(!mapheaderinfo[prevmap])
@@ -1015,12 +949,7 @@ void Y_StartIntermission(void)
 			break;
 	}
 
-	//if (intertype == int_race || intertype == int_match)
-	{
-		bgtile = W_CachePatchName("SRB2BACK", PU_STATIC);
-		//usetile = useinterpic = false;
-		usebuffer = true;
-	}
+	bgtile = W_CachePatchName("SRB2BACK", PU_STATIC);
 
 	LUA_HUD_DestroyDrawList(luahuddrawlist_intermission);
 	luahuddrawlist_intermission = LUA_HUD_CreateDrawList();
@@ -1038,7 +967,6 @@ void Y_EndIntermission(void)
 	endtic = -1;
 	sorttic = -1;
 	intertype = int_none;
-	usebuffer = false;
 }
 
 //
@@ -1229,7 +1157,7 @@ void Y_VoteDrawer(void)
 		INT32 hypotadd = ((hypotmod > 1) ? (hypotmod/4) : hypotmod); // how much do we add the bounding box by?
 
 		// integer scaling makes me want to DIE
-		if ((hypotmod == 3))
+		if (hypotmod == 3)
 			hypotadd += (1);
 
 		scaledpicdiff *= 3;
@@ -1299,7 +1227,6 @@ void Y_VoteDrawer(void)
 				handy += 3*(3-splitscreen) + (13*j);
 
 				V_DrawMappedPatch(BASEVIDWIDTH-(1600/hypotdiv)-scaledpicdiff, handy, V_SNAPTORIGHT, thiscurs, colormap);
-
 
 				if (votetic % 10 < 4)
 					V_DrawFill(BASEVIDWIDTH-(1200/hypotdiv)-sizeadd-scaledpicdiff, y-sizeadd, (fillscale + (sizeadd*2) + hypotadd), ((500/hypotdiv)+(sizeadd*2)) + hypotadd, 120|V_SNAPTORIGHT);

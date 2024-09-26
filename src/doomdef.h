@@ -127,8 +127,8 @@ extern char  logfilename[1024];
 #else
 #define VERSION    1 // Game version
 #define SUBVERSION 68 // more precise version number
-#define VERSIONSTRING "Saturn - 32p v1.5"
-#define VERSIONSTRINGW L"Saturn - 32p v1.5"
+#define VERSIONSTRING "Saturn - 32p v1.6"
+#define VERSIONSTRINGW L"Saturn - 32p v1.6"
 
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
@@ -633,6 +633,10 @@ INT32 I_GetKey(void);
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 #endif
 
+#ifndef CLAMP
+#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
+#endif
+
 #ifndef M_PIl
 #define M_PIl 3.1415926535897932384626433832795029L
 #endif
@@ -667,6 +671,17 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 // Disabled code and code under testing
 // None of these that are disabled in the normal build are guaranteed to work perfectly
 // Compile them at your own risk!
+
+#ifndef NONET
+//-- SATURN __
+
+/// Server detection for if a connecting client is on Saturn.
+/// For stuff like extra synching, etc.
+//#ifdef DOSATURNPAK
+//#define SATURNPAK
+//#endif
+//-- <(￣︶￣)> __
+#endif
 
 /// Undefine to use the new method of Gamma correction see colour cube in v_video.c
 #define BACKWARDSCOMPATCORRECTION

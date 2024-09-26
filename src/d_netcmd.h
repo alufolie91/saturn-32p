@@ -128,6 +128,7 @@ extern consvar_t cv_kartvoterulechanges;
 extern consvar_t cv_kartgametypepreference;
 extern consvar_t cv_kartspeedometer;
 extern consvar_t cv_kartvoices;
+extern consvar_t cv_karthitemdialog;
 
 extern consvar_t cv_karteliminatelast;
 
@@ -166,6 +167,7 @@ extern consvar_t cv_minihead;
 extern consvar_t cv_showlapemblem; 
 
 extern consvar_t cv_showviewpointtext;
+extern consvar_t cv_showdownloadprompt;
 extern consvar_t cv_luaimmersion;
 extern consvar_t cv_fakelocalskin;
 extern consvar_t cv_showlocalskinmenus;
@@ -202,11 +204,15 @@ extern consvar_t cv_ps_thinkframe_page;
 extern consvar_t cv_ps_samplesize;
 extern consvar_t cv_ps_descriptor;
 
+extern consvar_t cv_director, cv_kartdebugdirector, cv_showdirectorhud;
+
 extern consvar_t cv_showtrackaddon;
 
 extern consvar_t cv_showspecstuff;
 
 extern consvar_t cv_betainterscreen;
+
+extern consvar_t cv_laglesscam;
 
 typedef enum
 {
@@ -319,7 +325,6 @@ void D_SetupVote(void);
 void D_ModifyClientVote(SINT8 voted, UINT8 splitplayer);
 void D_PickVote(void);
 void ObjectPlace_OnChange(void);
-void P_SetPlayerSpectator(INT32 playernum);
 boolean IsPlayerAdmin(INT32 playernum);
 void SetAdminPlayer(INT32 playernum);
 void ClearAdminPlayers(void);

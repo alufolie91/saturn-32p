@@ -17,6 +17,7 @@
 #include "doomdef.h"
 #include "doomstat.h"
 #include "d_event.h"
+#include "p_saveg.h"
 
 extern char gamedatafilename[64];
 extern char timeattackfolder[64];
@@ -32,14 +33,14 @@ extern INT32 player_name_changes[MAXPLAYERS];
 extern player_t players[MAXPLAYERS];
 extern boolean playeringame[MAXPLAYERS];
 
-extern UINT8 *demo_p;
+extern savebuffer_t demobuf;
 
 // ======================================
 // DEMO playback/recording related stuff.
 // ======================================
 
 // demoplaying back and demo recording
-extern consvar_t cv_recordmultiplayerdemos, cv_netdemosyncquality, cv_maxdemosize;
+extern consvar_t cv_recordmultiplayerdemos, cv_netdemosyncquality, cv_maxdemosize, cv_demochangemap;
 
 // Publicly-accessible demo vars
 struct demovars_s {
@@ -219,6 +220,8 @@ extern angle_t localangle[MAXSPLITSCREENPLAYERS];
 extern INT32 localaiming[MAXSPLITSCREENPLAYERS]; // should be an angle_t but signed
 extern boolean camspin[MAXSPLITSCREENPLAYERS]; // SRB2Kart
 
+extern tic_t directortoggletimer;
+
 //
 // GAME
 //
@@ -266,6 +269,7 @@ void G_DeferedInitNew(boolean pencoremode, const char *mapname, INT32 pickedchar
 void G_DoLoadLevel(boolean resetplayer);
 
 void G_LoadDemoInfo(menudemo_t *pdemo);
+void G_LoadDemoTitle(menudemo_t *pdemo); // For use in replay search feature
 void G_DeferedPlayDemo(const char *demo);
 
 // Can be called by the startup code or M_Responder, calls P_SetupLevel.
@@ -301,8 +305,6 @@ extern UINT8 demo_writerng;
 #define DXD_NAME 0x04 // name changed
 #define DXD_COLOR 0x08 // color changed
 #define DXD_PLAYSTATE 0x10 // state changed between playing, spectating, or not in-game
-
-#define DXD_ADDPLAYER (DXD_PLAYSTATE|DXD_COLOR|DXD_NAME|DXD_SKIN)
 
 #define DXD_PST_PLAYING 0x01
 #define DXD_PST_SPECTATING 0x02
@@ -398,7 +400,6 @@ void G_ResetView(UINT8 viewnum, INT32 playernum, boolean onlyactive);
 void G_AdjustView(UINT8 viewnum, INT32 offset, boolean onlyactive);
 
 void G_AddPlayer(INT32 playernum);
-void G_SpectatePlayerOnJoin(INT32 playernum);
 
 void G_SetExitGameFlag(void);
 void G_ClearExitGameFlag(void);
