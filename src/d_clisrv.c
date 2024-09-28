@@ -50,7 +50,6 @@
 #include "s_sound.h" // sfx_syfail
 #include "m_perfstats.h"
 #include "d_main.h"
-#include "r_fps.h"
 
 #ifdef CLIENT_LOADINGSCREEN
 // cl loading screen
@@ -133,7 +132,6 @@ static ticcmd_t localcmds4;
 static boolean cl_packetmissed;
 // here it is for the secondary local player (splitscreen)
 static UINT8 mynode; // my address pointofview server
-
 static boolean cl_redownloadinggamestate = false;
 
 #ifdef SATURNPAK
@@ -1335,10 +1333,8 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 
 	// Tell the server we have received and reloaded the gamestate
 	// so they know they can resume the game
-	{
-		netbuffer->packettype = PT_RECEIVEDGAMESTATE;
-		HSendPacket(servernode, true, 0, 0);
-	}
+	netbuffer->packettype = PT_RECEIVEDGAMESTATE;
+	HSendPacket(servernode, true, 0, 0);
 }
 
 static void CL_ReloadReceivedSavegame(void)
@@ -1372,6 +1368,7 @@ static void CL_ReloadReceivedSavegame(void)
 
 	CONS_Printf(M_GetText("Game state reloaded\n"));
 }
+#endif
 
 #ifndef NONET
 static void SendAskInfo(INT32 node)
@@ -3558,15 +3555,6 @@ static void ResetNode(INT32 node)
 	supposedtics[node] = gametic;
 
 	sendingsavegame[node] = false;
-
-	bannednode[node].banid = SIZE_MAX;
-	bannednode[node].timeleft = NO_BAN_TIME;
-
-	// SATURN
-#ifdef SATURNPAK
-	is_client_saturn[node] = false;
-#endif
-
 	resendingsavegame[node] = false;
 	savegameresendcooldown[node] = 0;
 	gamestate_resend_counter[node] = 0;
@@ -4259,7 +4247,6 @@ static void PT_CanReceiveGamestate(SINT8 node)
 	SV_SendSaveGame(node, true); // Resend a complete game state
 	resendingsavegame[node] = true;
 }
-#endif
 
 /** Handles a packet received from a node that isn't in game
   *
@@ -5938,7 +5925,6 @@ void NetUpdate(void)
 
 		CL_SendClientCmd(); // Send tic cmd
 		hu_redownloadinggamestate = cl_redownloadinggamestate;
-#endif
 	}
 	else
 	{
@@ -5947,20 +5933,11 @@ void NetUpdate(void)
 			INT32 counts;
 
 			hu_redownloadinggamestate = false;
-#endif
-			// Don't erase tics not acknowledged
-			counts = realtics;
 
 			firstticstosend = gametic;
 			for (i = 0; i < MAXNETNODES; i++)
-			{
-				if (!nodeingame[i])
-					continue;
-				if (nettics[i] < firstticstosend)
+				if (nodeingame[i] && nettics[i] < firstticstosend)
 					firstticstosend = nettics[i];
-				if (maketic + counts >= nettics[i] + (TICQUEUE - TICRATE))
-					Net_ConnectionTimeout(i);
-			}
 
 			// Don't erase tics not acknowledged
 			counts = realtics;
