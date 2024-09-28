@@ -24,11 +24,14 @@
 #include <stdarg.h>
 #include <math.h>
 #include "../../r_local.h" // For rendertimefrac, used for the leveltime shader uniform
+#include "../../f_finale.h"
 #include "r_opengl.h"
 #include "r_vbo.h"
 #include "../hw_shaders.h"
 #include "../hw_main.h"
 #include "../hw_clip.h"
+
+#include "../../i_video.h"
 
 // Eeeeh not sure is this right way, but it works < sry :c < sry again it had to go :c
 
@@ -124,6 +127,7 @@ GLuint FramebufferObject, FramebufferTexture, RenderbufferObject;
 GLboolean FrameBufferEnabled = GL_FALSE, RenderToFramebuffer = GL_FALSE;
 
 boolean supportFBO = false;
+boolean fbo_shader = false;
 #endif
 
 // Sryder:	NextTexAvail is broken for these because palette changes or changes to the texture filter or antialiasing
@@ -661,6 +665,9 @@ typedef enum
 	gluniform_lighting,
 	gluniform_fade_start,
 	gluniform_fade_end,
+	gluniform_light_dir,
+	gluniform_light_contrast,
+	gluniform_light_backlight,
 	
 	// palette rendering
 	gluniform_palette_tex, // 1d texture containing a palette
@@ -671,6 +678,9 @@ typedef enum
 	gluniform_leveltime,
 
 	gluniform_scr_resolution,
+
+	// supersampling crap
+	gluniform_inv_supersamplefactor,
 	
 	gluniform_max,
 } gluniform_t;
@@ -698,6 +708,11 @@ static gl_shaderstate_t gl_shaderstate;
 
 // Shader info
 static float shader_leveltime = 0;
+static float shader_light_x = 0.0f;
+static float shader_light_y = 0.0f;
+static float shader_light_z = 0.0f;
+static INT32 shader_light_contrast = 0;
+static INT32 shader_light_backlight = 0;
 
 // Lactozilla: Shader functions
 static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i);
@@ -853,6 +868,21 @@ EXPORT void HWRAPI(SetShaderInfo) (hwdshaderinfo_t info, INT32 value)
 	{
 		case HWD_SHADERINFO_LEVELTIME:
 			shader_leveltime = (((float)(value-1)) + FIXED_TO_FLOAT(rendertimefrac)) / TICRATE;
+			break;
+		case HWD_SHADERINFO_LIGHT_X:
+			shader_light_x = FixedToFloat(value);
+			break;
+		case HWD_SHADERINFO_LIGHT_Y:
+			shader_light_y = FixedToFloat(value);
+			break;
+		case HWD_SHADERINFO_LIGHT_Z:
+			shader_light_z = FixedToFloat(value);
+			break;
+		case HWD_SHADERINFO_LIGHT_CONTRAST:
+			shader_light_contrast = value;
+			break;
+		case HWD_SHADERINFO_LIGHT_BACKLIGHT:
+			shader_light_backlight = value;
 			break;
 		default:
 			break;
@@ -1156,6 +1186,8 @@ void GLFramebuffer_Disable(void)
 {
 	if (!supportFBO)
 		return;
+
+	fbo_shader = false;
 
 	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
 	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
@@ -1563,7 +1595,7 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 	const GLubyte *pImgData = (const GLubyte *)pTexInfo->data;
 	const GLvoid *ptex = NULL;
 	RGBA_t *tex = NULL;
-	
+
 	// Generate a new texture name.
 	if (!num)
 	{
@@ -1842,11 +1874,32 @@ static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAF
 		UNIFORM_4(shader->uniforms[gluniform_tint_color], tint->red, tint->green, tint->blue, tint->alpha, pglUniform4f);
 		UNIFORM_4(shader->uniforms[gluniform_fade_color], fade->red, fade->green, fade->blue, fade->alpha, pglUniform4f);
 
+		boolean directional = false;
 		if (Surface != NULL)
 		{
 			UNIFORM_1(shader->uniforms[gluniform_lighting], (GLfloat)Surface->LightInfo.light_level, pglUniform1f);
 			UNIFORM_1(shader->uniforms[gluniform_fade_start], (GLfloat)Surface->LightInfo.fade_start, pglUniform1f);
 			UNIFORM_1(shader->uniforms[gluniform_fade_end], (GLfloat)Surface->LightInfo.fade_end, pglUniform1f);
+			directional = Surface->LightInfo.directional;
+		}
+		else
+		{
+			UNIFORM_1(shader->uniforms[gluniform_lighting], 255, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_fade_start], 0, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_fade_end], 31, pglUniform1f);
+		}
+
+		if (directional)
+		{
+			UNIFORM_3(shader->uniforms[gluniform_light_dir], shader_light_x, shader_light_y, shader_light_z, pglUniform3f);
+			UNIFORM_1(shader->uniforms[gluniform_light_contrast], shader_light_contrast, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_light_backlight], shader_light_backlight, pglUniform1f);
+		}
+		else
+		{
+			UNIFORM_3(shader->uniforms[gluniform_light_dir], 0, 0, 0, pglUniform3f);
+			UNIFORM_1(shader->uniforms[gluniform_light_contrast], 0, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_light_backlight], 0, pglUniform1f);
 		}
 
 		UNIFORM_1(shader->uniforms[gluniform_leveltime], shader_leveltime, pglUniform1f);
@@ -1973,6 +2026,9 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	shader->uniforms[gluniform_lighting] = GETUNI("lighting");
 	shader->uniforms[gluniform_fade_start] = GETUNI("fade_start");
 	shader->uniforms[gluniform_fade_end] = GETUNI("fade_end");
+	shader->uniforms[gluniform_light_dir] = GETUNI("light_dir");
+	shader->uniforms[gluniform_light_contrast] = GETUNI("light_contrast");
+	shader->uniforms[gluniform_light_backlight] = GETUNI("light_backlight");
 
 	// palette rendering
 	shader->uniforms[gluniform_palette_tex] = GETUNI("palette_tex");
@@ -1980,6 +2036,9 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	shader->uniforms[gluniform_lighttable_tex] = GETUNI("lighttable_tex");
 
 	shader->uniforms[gluniform_scr_resolution] = GETUNI("scr_resolution");
+
+	// supersampling crap
+	shader->uniforms[gluniform_inv_supersamplefactor] = GETUNI("inv_supersamplefactor");
 
 	// misc.
 	shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
@@ -1990,6 +2049,10 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	if (uniform != -1) \
 		function (uniform, a);
 
+#define UNIFORM_2(uniform, a, b, function) \
+	if (uniform != -1) \
+		function (uniform, a, b);
+
 	pglUseProgram(shader->program);
 
 	// texture unit numbers for the samplers used for palette rendering
@@ -1997,9 +2060,13 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	UNIFORM_1(shader->uniforms[gluniform_palette_lookup_tex], 1, pglUniform1i);
 	UNIFORM_1(shader->uniforms[gluniform_lighttable_tex], 2, pglUniform1i);
 
+	// supersampling crap
+	UNIFORM_2(shader->uniforms[gluniform_inv_supersamplefactor], InvSupersampleFactorX, InvSupersampleFactorY, pglUniform2f);
+
 	// restore gl shader state
 	pglUseProgram(gl_shaderstate.program);
 #undef UNIFORM_1
+#undef UNIFORM_2
 
 	return true;
 }
@@ -3474,9 +3541,13 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int tex, INT32 width, INT32 height)
 	SetBlend(PF_NoDepthTest);
 
 	pglBindTexture(GL_TEXTURE_2D, screenTextures[tex]);
-	
-	if (HWR_ShouldUsePaletteRendering())
+
+	// godawful but you can only ever run ONE shader per renderpass and since i dont want to draw an extra screen texture when you downsample from higher resolution (essentially killing performance)
+	// so i combined the palette postprocess with this crap
+	if (HWR_ShouldUsePaletteRendering() && (!(HWR_UseShader() && fbo_shader && !WipeInAction)))
 		pglUseProgram(gl_shaders[SHADER_PALETTE_POSTPROCESS].program); // palette postprocess shader
+	else if (HWR_UseShader() && fbo_shader && !WipeInAction) // this looks awful with wipes
+		pglUseProgram(gl_shaders[SHADER_DOWNSAMPLE].program);
 
 	pglColor4ubv(white);
 
@@ -3484,8 +3555,8 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int tex, INT32 width, INT32 height)
 	pglVertexPointer(3, GL_FLOAT, 0, off);
 
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	
-	if (HWR_ShouldUsePaletteRendering())
+
+	if (HWR_ShouldUsePaletteRendering() || (HWR_UseShader() && fbo_shader && !WipeInAction))
 		pglUseProgram(0);
 
 	tex_downloaded = screenTextures[tex];

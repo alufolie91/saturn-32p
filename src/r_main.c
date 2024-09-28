@@ -306,7 +306,7 @@ static void Precipstuff_OnChange(void)
 //
 // killough 5/2/98: reformatted
 //
-PUREFUNC INT32 R_PointOnSide(fixed_t x, fixed_t y, const node_t *restrict node)
+FUNCINLINE ATTRINLINE PUREFUNC INT32 R_PointOnSide(fixed_t x, fixed_t y, const node_t *restrict node)
 {
 	if (!node->dx)
 		return x <= node->x ? node->dy > 0 : node->dy < 0;
@@ -325,7 +325,7 @@ PUREFUNC INT32 R_PointOnSide(fixed_t x, fixed_t y, const node_t *restrict node)
 }
 
 // killough 5/2/98: reformatted
-PUREFUNC INT32 R_PointOnSegSide(fixed_t x, fixed_t y, const seg_t *line)
+FUNCINLINE ATTRINLINE PUREFUNC INT32 R_PointOnSegSide(fixed_t x, fixed_t y, const seg_t *line)
 {
 	fixed_t lx = line->v1->x;
 	fixed_t ly = line->v1->y;
@@ -1115,7 +1115,7 @@ boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y)
 //
 // R_PointInSubsector
 //
-subsector_t *R_PointInSubsector(fixed_t x, fixed_t y)
+FUNCINLINE ATTRINLINE subsector_t *R_PointInSubsector(fixed_t x, fixed_t y)
 {
 	size_t nodenum = numnodes-1;
 
@@ -1128,7 +1128,7 @@ subsector_t *R_PointInSubsector(fixed_t x, fixed_t y)
 //
 // R_IsPointInSubsector, same as above but returns 0 if not in subsector
 //
-subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y)
+FUNCINLINE ATTRINLINE subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y)
 {
 	node_t *node;
 	INT32 side, i;

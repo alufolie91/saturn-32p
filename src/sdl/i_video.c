@@ -222,6 +222,10 @@ static void I_FixXwaylandNvidia(void);
 boolean xwaylandcrap = false;
 #endif
 boolean downsample = false;
+
+float InvSupersampleFactorX = 0.0;
+float InvSupersampleFactorY = 0.0;
+
 void RefreshOGLSDLSurface(void)
 {
 	if (rendermode == render_opengl)
@@ -777,6 +781,9 @@ void I_DownSample(void)
 	if ((vid.width > curmode.w) || (vid.height > curmode.h)) //check if current resolution is higher than current display resolution
 	{
 		downsample = true;
+
+		InvSupersampleFactorX = (float)(curmode.w) / vid.width;
+		InvSupersampleFactorY = (float)(curmode.h) / vid.height;
 		RefreshOGLSDLSurface();
 	}
 	else
@@ -806,7 +813,7 @@ static void I_FixXwaylandNvidia(void) //dumbass crap, fix ur shit nvidia
 
 static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 {
-#define FOCUSUNION (mousefocus | (kbfocus << 1))
+#define FOCUSUNION (mousefocus | (kbfocus << 1) | (windowmoved << 2))
 	static SDL_bool firsttimeonmouse = SDL_TRUE;
 	static SDL_bool mousefocus = SDL_TRUE;
 	static SDL_bool kbfocus = SDL_TRUE;
@@ -2029,7 +2036,7 @@ static SDL_bool Impl_CreateContext(void)
 #ifdef _WIN32
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
 #else
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
 #endif
 
 		if (!renderer)
@@ -2501,15 +2508,24 @@ UINT32 I_GetRefreshRate(void)
 
 static void Impl_SetVsync(void)
 {
-#if SDL_VERSION_ATLEAST(2,0,18)
-	if (renderer)
-		SDL_RenderSetVSync(renderer, cv_vidwait.value);
+	if (renderer && rendermode == render_soft)
+	{
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+		SDL_RenderSetVSync(renderer, cv_vidwait.value ? 1 : 0);
 #endif
+	}
 #ifdef HWRENDER
 	if (!renderer && rendermode == render_opengl && sdlglcontext != NULL && SDL_GL_GetCurrentContext() == sdlglcontext)
 	{
-		SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
+		if (cv_vidwait.value)
+		{
+			if (SDL_GL_SetSwapInterval(-1) != 0) // try async vsync
+				SDL_GL_SetSwapInterval(1); // normal vsync
+		}
+		else
+			SDL_GL_SetSwapInterval(0);
 	}
 #endif
 }
+
 #endif

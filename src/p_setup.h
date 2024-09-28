@@ -89,14 +89,10 @@ SINT8 P_PartialAddGetStage(void);
 boolean P_RunSOC(const char *socfilename);
 void P_WriteThings(lumpnum_t lump);
 void P_UpdateSegLightOffset(seg_t *li);
+boolean P_ApplyLightOffset(UINT8 baselightnum, const sector_t *sector);
+boolean P_ApplyLightOffsetFine(UINT8 baselightlevel, const sector_t *sector);
+boolean P_SectorUsesDirectionalLighting(const sector_t *sector);
 size_t P_PrecacheLevelFlats(void);
 void P_AllocMapHeader(INT16 i);
-
-// Needed for NiGHTS
-void P_DeleteGrades(INT16 i);
-void P_AddGradesForMare(INT16 i, UINT8 mare, char *gtext);
-UINT8 P_GetGrade(UINT32 pscore, INT16 map, UINT8 mare);
-UINT8 P_HasGrades(INT16 map, UINT8 mare);
-UINT32 P_GetScoreForGrade(INT16 map, UINT8 mare, UINT8 grade);
 
 #endif

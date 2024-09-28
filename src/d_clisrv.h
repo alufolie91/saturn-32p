@@ -104,6 +104,10 @@ typedef enum
 	PT_ISSATURN, 			// Saturn specific identifier packet
 #endif
 
+	// we will reserve this for now even if unused, so order wont get mangled
+	PT_ISSATURN, 			// Saturn specific identifier packet
+#endif
+
 	NUMPACKETTYPE
 } packettype_t;
 
@@ -220,6 +224,9 @@ typedef struct
 	UINT8 subversion; // Contains build version
 	UINT8 localplayers;	// number of splitscreen players
 	UINT8 mode;
+#ifdef SATURNJOIN
+	UINT8 issaturn;
+#endif
 } ATTRPACK clientconfig_pak;
 
 #define SV_SPEEDMASK 0x03		// used to send kartspeed
@@ -486,6 +493,7 @@ tic_t GetLag(INT32 node);
 UINT8 GetFreeXCmdSize(void);
 
 extern UINT8 hu_redownloadinggamestate;
+#endif
 extern UINT8 hu_stopped; // kart, true when the game is stopped for players due to a disconnecting or connecting player
 
 typedef struct rewind_s {

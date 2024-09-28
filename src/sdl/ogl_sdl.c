@@ -68,9 +68,9 @@ PFNglGetIntegerv pglGetIntegerv;
 PFNglGetString pglGetString;
 #endif
 
-#if defined (__unix__)
 #ifdef USE_FBO_OGL
-static boolean isnvidiagpu = false;
+#if defined (__unix__)
+boolean isnvidiagpu = false;
 #endif
 #endif
 
@@ -182,8 +182,16 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 	}
 	first_init = true;
 
-	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
-
+	if (cv_vidwait.value)
+	{
+		if (SDL_GL_SetSwapInterval(-1) != 0) // try async vsync
+			SDL_GL_SetSwapInterval(1); // normal vsync
+	}
+	else
+		SDL_GL_SetSwapInterval(0);
+	
+	//SDL_GL_SetSwapInterval(cv_vidwait.value ? -1 : 0);
+	
 	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
 	if (screen_width != w || screen_height != h)
 	{
@@ -212,6 +220,11 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 		GLFramebuffer_Enable();
 	else
 		GLFramebuffer_Disable();
+
+	if (RenderToFramebuffer && HWR_UseShader())
+	{
+		HWR_CompileShaders();
+	}
 #endif
 
 	HWR_Startup();
@@ -232,12 +245,20 @@ void OglSdlFinishUpdate(boolean waitvbl)
 	int sdlw, sdlh;
 	if (oldwaitvbl != waitvbl)
 	{
-		SDL_GL_SetSwapInterval(waitvbl ? 1 : 0);
+		if (waitvbl)
+		{
+			if (SDL_GL_SetSwapInterval(-1) != 0) // try async vsync
+				SDL_GL_SetSwapInterval(1); // normal vsync
+		}
+		else
+			SDL_GL_SetSwapInterval(0);
+
+		//SDL_GL_SetSwapInterval(waitvbl ? -1 : 0);
 	}
 
 	oldwaitvbl = waitvbl;
 
-	SDL_GetWindowSize(window, &sdlw, &sdlh);
+	SDL_GL_GetDrawableSize(window, &sdlw, &sdlh);
 	HWR_MakeScreenFinalTexture();
 
 #ifdef USE_FBO_OGL
@@ -248,14 +269,20 @@ void OglSdlFinishUpdate(boolean waitvbl)
 	);
 
 	if (RenderToFramebuffer)
+	{
 		GLFramebuffer_Unbind();
+		fbo_shader = true; // only need to run this here to not cause brightness + performance issues, its a bool since im a lazy ass
+	}
 #endif
-	
+
 	HWR_DrawScreenFinalTexture(sdlw, sdlh);
 
 #ifdef USE_FBO_OGL
 	if (RenderToFramebuffer)
+	{
 		GLFramebuffer_Enable();
+		fbo_shader = false;
+	}
 #endif
 
 	SDL_GL_SwapWindow(window);
@@ -264,6 +291,7 @@ void OglSdlFinishUpdate(boolean waitvbl)
 
 	// Sryder:	We need to draw the final screen texture again into the other buffer in the original position so that
 	//			effects that want to take the old screen can do so after this
+
 	HWR_DrawScreenFinalTexture(realwidth, realheight);
 }
 

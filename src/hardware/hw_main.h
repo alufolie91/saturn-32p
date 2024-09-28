@@ -97,7 +97,7 @@ void HWR_TogglePaletteRendering(void);
 // into files like hw_bsp.c, hw_sprites.c...
 
 // hw_main.c: Lighting and fog
-void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *colormap);
+void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *colormap, const boolean directional);
 UINT8 HWR_FogBlockAlpha(INT32 light, extracolormap_t *colormap); // Let's see if this can work
 
 FBITFIELD HWR_TranstableToAlpha(INT32 transtablenum, FSurfaceInfo *pSurf);
@@ -176,7 +176,6 @@ extern consvar_t cv_grflashpal;
 extern consvar_t cv_lightdither;
 extern consvar_t cv_grscreentextures;
 extern consvar_t cv_grportals;
-extern consvar_t cv_nostencil;
 extern consvar_t cv_secbright;
 
 extern CV_PossibleValue_t granisotropicmode_cons_t[];

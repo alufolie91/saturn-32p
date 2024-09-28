@@ -46,6 +46,28 @@
 #include "hardware/hw_main.h"
 #endif
 
+// Not sure if thats best place for that
+static mobjtype_t stardust = 0;
+static mobjtype_t watertrailunderlay = 0, watertrail = 0;
+static statenum_t watertrailunderlay_minstate = 0, watertrailunderlay_maxstate = 0;
+static statenum_t watertrail_minstate = 0, watertrail_maxstate = 0;
+
+void K_LoadExtraVFX(void)
+{
+#define LOADVFX(var, name) if (!var) var = LUA_GetConstant(name);
+
+	LOADVFX(stardust, "MT_STARDUST");
+
+	LOADVFX(watertrail, "MT_WATERTRAIL");
+	LOADVFX(watertrailunderlay, "MT_WATERTRAILUNDERLAY");
+	LOADVFX(watertrail_minstate, "S_WATERTRAIL1");
+	LOADVFX(watertrail_maxstate, "S_WATERTRAILLAST");
+	LOADVFX(watertrailunderlay_minstate, "S_WATERTRAILUNDERLAY1");
+	LOADVFX(watertrailunderlay_maxstate, "S_WATERTRAILUNDERLAYLAST");
+
+#undef LOAD
+}
+
 // Hud offset cvars
 #define IMPL_HUD_OFFSET_X(name)\
 consvar_t cv_##name##_xoffset = {"hud_" #name "_xoffset", "0", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -635,16 +657,20 @@ UINT8 colortranslations[MAXTRANSLATIONS][16] = {
 	{226, 228, 229, 230, 232, 233, 235, 237, 239, 240, 242, 244, 246,  31,  31,  31}, // SKINCOLOR_BLUEBERRY
 	{120, 112,  82,  83,  84, 124, 248, 228, 228, 204, 205, 206, 207,  29,  30,  31}, // SKINCOLOR_NOVA
 	{120, 208, 209, 210, 211, 226, 202, 249, 194, 195, 196, 197, 198, 199, 255,  30}, // SKINCOLOR_PASTEL
-	{120, 224, 201, 226, 202, 249, 250, 196, 197, 198, 199, 140, 141, 142, 143,  31}, // SKINCOLOR_MOONSLAM
+	//{120, 224, 201, 226, 202, 249, 250, 196, 197, 198, 199, 140, 141, 142, 143,  31}, // SKINCOLOR_MOONSLAM
+	{224, 225, 226, 227, 228, 229, 204, 196, 197, 197, 198, 198, 199, 255, 142,  31}, // SKINCOLOR_GEMSTONE
 	{120,  64,  81, 122, 192, 249, 203, 221, 221, 219, 219, 223, 223, 191, 191,  31}, // SKINCOLOR_ULTRAVIOLET
-	{121, 145, 192, 249, 250, 251, 204, 204, 205, 205, 206, 206, 207,  29,  30,  31}, // SKINCOLOR_DUSK
+	//{121, 145, 192, 249, 250, 251, 204, 204, 205, 205, 206, 206, 207,  29,  30,  31}, // SKINCOLOR_DUSK
+	{ 65, 122, 192, 193, 194, 195, 196, 197, 198, 238, 239, 241, 242, 243, 245,  31}, // SKINCOLOR_GRAPE
 	{120,  96,  64, 121,  67, 144, 123, 192, 193, 194, 195, 196, 197, 198, 199,  30}, // SKINCOLOR_BUBBLEGUM
 	{121, 145, 192, 192, 193, 194, 195, 196, 196, 197, 197, 198, 198, 199,  30,  31}, // SKINCOLOR_PURPLE
-	{120, 122, 124, 125, 126, 150, 196, 197, 198, 198, 199, 199, 240, 242, 244, 246}, // SKINCOLOR_FUCHSIA
+	//{120, 122, 124, 125, 126, 150, 196, 197, 198, 198, 199, 199, 240, 242, 244, 246}, // SKINCOLOR_FUCHSIA
+	{121, 122, 123, 192, 248, 249, 203, 229, 230, 233, 235, 236, 238, 239, 241, 243}, // SKINCOLOR_AMETHYST
 	{120, 120, 176, 176, 177,   6,   8,  10, 249, 250, 196, 197, 198, 199, 143,  31}, // SKINCOLOR_TOXIC
 	{ 96,  97,  98, 112, 113,  73, 146, 248, 249, 251, 205, 205, 206, 207,  29,  31}, // SKINCOLOR_MAUVE
 	{121, 145, 192, 248, 249, 250, 251, 252, 252, 253, 253, 254, 254, 255,  30,  31}, // SKINCOLOR_LAVENDER
-	{201, 248, 249, 250, 251, 252, 253, 254, 255, 255,  29,  29,  30,  30,  31,  31}, // SKINCOLOR_BYZANTIUM
+	//{201, 248, 249, 250, 251, 252, 253, 254, 255, 255,  29,  29,  30,  30,  31,  31}, // SKINCOLOR_BYZANTIUM
+	{ 64,  81,  70, 145, 192, 248, 228, 229, 230, 231, 233, 234, 236, 238, 240, 242}, // SKINCOLOR_CYBER
 	{144, 145, 146, 147, 148, 149, 150, 251, 251, 252, 252, 253, 254, 255,  29,  30}, // SKINCOLOR_POMEGRANATE
 	{120, 120, 120, 121, 121, 122, 122, 123, 192, 248, 249, 250, 251, 252, 253, 254}, // SKINCOLOR_LILAC
 	{120, 120,   0,   1,   3,   5,   7,  10,  12,  14,  16,  19,  22,  24,  26,  29}, // SKINCOLOR_BONE
@@ -3869,7 +3895,7 @@ void K_DriftDustHandling(mobj_t *spawner)
 	if (anglediff > ANGLE_180)
 		anglediff = InvAngle(anglediff);
 
-	if (anglediff > ANG10*4) // Trying to turn further than 40 degrees
+	/*if (anglediff > ANG10*4) // Trying to turn further than 40 degrees
 	{
 		fixed_t spawnx = P_RandomRange(-spawnrange, spawnrange)<<FRACBITS;
 		fixed_t spawny = P_RandomRange(-spawnrange, spawnrange)<<FRACBITS;
@@ -3886,6 +3912,59 @@ void K_DriftDustHandling(mobj_t *spawner)
 			S_StartSound(spawner, sfx_screec);
 
 		K_MatchGenericExtraFlags(dust, spawner);
+	}*/
+	
+	if (anglediff > ANG10*4) // Trying to turn further than 40 degrees
+	{
+		fixed_t spawnx = P_RandomRange(-spawnrange, spawnrange)<<FRACBITS;
+		fixed_t spawny = P_RandomRange(-spawnrange, spawnrange)<<FRACBITS;
+		INT32 speedrange = 2;
+		mobj_t *dust;
+
+		boolean havestardust = true;
+
+		if (!stardust)
+		{
+			stardust = MT_DRIFTDUST;
+			havestardust = false;
+		}
+
+		dust = P_SpawnMobj(spawner->x + spawnx, spawner->y + spawny, spawner->z, (spawner->player ? stardust : MT_DRIFTDUST)); // only sparkle for players otherwise throw normal dust
+		dust->momx = FixedMul(spawner->momx + (P_RandomRange(-speedrange, speedrange)<<FRACBITS), 3*(spawner->scale)/4);
+		dust->momy = FixedMul(spawner->momy + (P_RandomRange(-speedrange, speedrange)<<FRACBITS), 3*(spawner->scale)/4);
+		dust->momz = P_MobjFlip(spawner) * (P_RandomRange(1, 4) * (spawner->scale));
+		P_SetScale(dust, spawner->scale/2);
+		dust->destscale = spawner->scale * 3;
+		dust->scalespeed = spawner->scale/12;
+
+		if (leveltime % 6 == 0)
+			S_StartSound(spawner, sfx_screec);
+
+		K_MatchGenericExtraFlags(dust, spawner);
+
+		if (havestardust && dust->type == stardust)
+		{
+			if (!P_MobjWasRemoved(spawner) && spawner->player && spawner->player->mo)
+			{
+				if (spawner->player->kartstuff[k_driftcharge] >= K_GetKartDriftSparkValue(spawner->player)*4)
+					dust->color = (UINT8)(1 + (leveltime % (MAXSKINCOLORS-1)));
+				else if (spawner->player->kartstuff[k_driftcharge] >= K_GetKartDriftSparkValue(spawner->player)*2)
+				{
+						if (spawner->player->kartstuff[k_driftcharge] <= (K_GetKartDriftSparkValue(spawner->player)*2)+(24*3))
+							dust->color = SKINCOLOR_RASPBERRY; // transition
+						else
+							dust->color = SKINCOLOR_KETCHUP;
+				}
+				else if (spawner->player->kartstuff[k_driftcharge] >= K_GetKartDriftSparkValue(spawner->player))
+					dust->color = SKINCOLOR_SAPPHIRE;
+				else
+					dust->color = SKINCOLOR_SILVER;
+			}
+			else
+				dust->color = SKINCOLOR_SILVER; // fallback
+		}
+		else
+			dust->color = 0; // dont recolour MT_DRIFTDUST
 	}
 }
 
@@ -5120,10 +5199,6 @@ player_t *K_FindJawzTarget(mobj_t *actor, player_t *source)
 		if (player == source)
 			continue;
 
-		// Don't home in on teammates.
-		if (G_GametypeHasTeams() && source->ctfteam == player->ctfteam)
-			continue;
-
 		// Invisible, don't bother
 		if (player->kartstuff[k_hyudorotimer])
 			continue;
@@ -5390,6 +5465,48 @@ void K_KartPlayerHUDUpdate(player_t *player)
 		player->kartstuff[k_cardanimation] = 0;
 }
 
+static void K_SpawnNormalSpeedLines(player_t *player)
+{
+	boolean goodSpeed = (player->speed >= (3*K_GetKartSpeed(player, false))/4);
+
+	mobj_t *fast = P_SpawnMobj(player->mo->x + (P_RandomRange(-36,36) * player->mo->scale),
+							   player->mo->y + (P_RandomRange(-36,36) * player->mo->scale),
+							   player->mo->z + (player->mo->height/2) + (P_RandomRange(-20,20) * player->mo->scale),
+							   MT_FASTLINE);
+
+	fast->angle = R_PointToAngle2(0, 0, player->mo->momx, player->mo->momy);
+	fast->momx = 3*player->mo->momx/4;
+	fast->momy = 3*player->mo->momy/4;
+	fast->momz = 3*player->mo->momz/4;
+	P_SetTarget(&fast->target, player->mo); // easier lua access
+
+	if (goodSpeed)
+	{
+		fast->destscale = fast->destscale * 2;
+		P_SetScale(fast, 3*fast->scale/2);
+	}
+
+	K_MatchGenericExtraFlags(fast, player->mo);
+
+	// cant have nice shit cause of synched rng
+	/*if (player->kartstuff[k_eggmanexplode])
+	{
+		// Make it red when you have the eggman speed boost
+		fast->color = SKINCOLOR_RED;
+		fast->colorized = true;
+	}
+	else */if (player->kartstuff[k_invincibilitytimer])
+	{
+		fast->color = player->mo->color;
+		fast->colorized = true;
+	}
+	else if (goodSpeed)
+	{
+		fast->color = (leveltime & 1) ? player->mo->color : SKINCOLOR_NONE;
+		fast->colorized = true;
+	}
+}
+
 /**	\brief	Decreases various kart timers and powers per frame. Called in P_PlayerThink in p_user.c
 
 	\param	player	player object passed from P_PlayerThink
@@ -5409,18 +5526,9 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 	K_GetKartBoostPower(player);
 
 	// Speed lines
-	if ((player->kartstuff[k_sneakertimer] || player->kartstuff[k_driftboost] || player->kartstuff[k_startboost]) && player->speed > 0)
+	if ((player->kartstuff[k_sneakertimer] || player->kartstuff[k_driftboost] || player->kartstuff[k_startboost] /*|| player->kartstuff[k_eggmanexplode]*/) && player->speed > 0) // gotta love the speedlines calling synched rng :chaosleep:
 	{
-		mobj_t *fast = P_SpawnMobj(player->mo->x + (P_RandomRange(-36,36) * player->mo->scale),
-			player->mo->y + (P_RandomRange(-36,36) * player->mo->scale),
-			player->mo->z + (player->mo->height/2) + (P_RandomRange(-20,20) * player->mo->scale),
-			MT_FASTLINE);
-		fast->angle = R_PointToAngle2(0, 0, player->mo->momx, player->mo->momy);
-		fast->momx = 3*player->mo->momx/4;
-		fast->momy = 3*player->mo->momy/4;
-		fast->momz = 3*player->mo->momz/4;
-		P_SetTarget(&fast->target, player->mo); // easier lua access
-		K_MatchGenericExtraFlags(fast, player->mo);
+		K_SpawnNormalSpeedLines(player);
 	}
 
 	if (player->playerstate == PST_DEAD || player->kartstuff[k_respawn] > 1) // Ensure these are set correctly here
@@ -6177,6 +6285,172 @@ void K_KartUpdatePosition(player_t *player)
 
 	player->kartstuff[k_position] = position;
 }
+
+static mobj_t *K_SpawnOrMoveMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type, mobj_t *source, int id) {
+	mobj_t *mobj = source->watertrail[id];
+
+	if (!mobj || P_MobjWasRemoved(mobj))
+	{
+		mobj = P_SpawnMobj(x, y, z, type);
+
+		P_SetTarget(&source->watertrail[id], mobj);
+	}
+	else
+	{
+		if ((mobj->state - states) == S_INVISIBLE)
+            P_SetOrigin(mobj, x, y, z);
+        else
+            P_MoveOrigin(mobj, x, y, z);
+	}
+
+	return mobj;
+}
+
+void K_SpawnWaterRunParticles(mobj_t *mobj)
+{
+	if (!(watertrailunderlay_minstate && watertrailunderlay_maxstate && watertrail && watertrail_minstate && watertrail_maxstate) || // Check if we're missing something
+		(watertrail_minstate > watertrail_maxstate && watertrailunderlay_minstate > watertrailunderlay_maxstate)) // Check if some of these were freeslot'd in wrong order
+		return;
+
+	fixed_t runSpeed = 14 * mobj->scale;
+	fixed_t curSpeed = INT32_MAX;
+	fixed_t topSpeed = INT32_MAX;
+	fixed_t trailScale = FRACUNIT;
+
+	if (mobj->momz != 0)
+	{
+		// Only while touching ground.
+		return;
+	}
+
+	if (mobj->watertop == INT32_MAX || mobj->waterbottom == INT32_MIN)
+	{
+		// Invalid water plane.
+		return;
+	}
+
+	if (mobj->player != NULL)
+	{
+		if (mobj->player->spectator)
+		{
+			// Not as spectator.
+			return;
+		}
+
+		topSpeed = K_GetKartSpeed(mobj->player, false);
+		runSpeed = FixedMul(runSpeed, mobj->movefactor);
+	}
+	else
+	{
+		//topSpeed = FixedMul(mobj->scale, K_GetKartSpeedFromStat(5));
+		return;
+	}
+
+	curSpeed = P_AproxDistance(mobj->momx, mobj->momy);
+
+	if (curSpeed <= runSpeed)
+	{
+		// Not fast enough.
+		return;
+	}
+
+	// Near the water plane.
+	if ((!(mobj->eflags & MFE_VERTICALFLIP) && mobj->z + mobj->height >= mobj->watertop && mobj->z <= mobj->watertop)
+		|| (mobj->eflags & MFE_VERTICALFLIP && mobj->z + mobj->height >= mobj->waterbottom && mobj->z <= mobj->waterbottom))
+	{
+		if (topSpeed > runSpeed)
+		{
+			trailScale = FixedMul(FixedDiv(curSpeed - runSpeed, topSpeed - runSpeed), mapobjectscale);
+		}
+		else
+		{
+			trailScale = mapobjectscale; // Scaling is based off difference between runspeed and top speed
+		}
+
+		trailScale = FixedMul(trailScale, 3*FRACUNIT/4);
+
+		if (trailScale > 0)
+		{
+			//const angle_t forwardangle = K_MomentumAngle(mobj);
+			const angle_t forwardangle = R_PointToAngle2(0, 0, mobj->momx, mobj->momy);
+			const fixed_t playerVisualRadius = mobj->radius + (8 * mobj->scale);
+
+			// Those should be equal ideally but thats not guaranteed now
+			const size_t numOverlayFrames = watertrail_maxstate - watertrail_minstate;
+			const size_t numUnderlayFrames = watertrailunderlay_maxstate - watertrailunderlay_minstate;
+
+			const statenum_t curOverlayFrame = watertrail_minstate + (leveltime % numOverlayFrames);
+			const statenum_t curUnderlayFrame = watertrailunderlay_minstate + (leveltime % numUnderlayFrames);
+			fixed_t x1, x2, y1, y2;
+			mobj_t *water;
+
+			x1 = mobj->x + mobj->momx + P_ReturnThrustX(mobj, forwardangle + ANGLE_90, playerVisualRadius);
+			y1 = mobj->y + mobj->momy + P_ReturnThrustY(mobj, forwardangle + ANGLE_90, playerVisualRadius);
+			x1 = x1 + P_ReturnThrustX(mobj, forwardangle, playerVisualRadius) / 24;
+			y1 = y1 + P_ReturnThrustY(mobj, forwardangle, playerVisualRadius) / 24;
+
+			x2 = mobj->x + mobj->momx + P_ReturnThrustX(mobj, forwardangle - ANGLE_90, playerVisualRadius);
+			y2 = mobj->y + mobj->momy + P_ReturnThrustY(mobj, forwardangle - ANGLE_90, playerVisualRadius);
+			x2 = x2 + P_ReturnThrustX(mobj, forwardangle, playerVisualRadius) / 24;
+			y2 = y2 + P_ReturnThrustY(mobj, forwardangle, playerVisualRadius) / 24;
+
+			// Left
+			// underlay
+			water = K_SpawnOrMoveMobj(x1, y1,
+				((mobj->eflags & MFE_VERTICALFLIP) ? mobj->waterbottom - FixedMul(mobjinfo[watertrailunderlay].height, mobj->scale) : mobj->watertop), watertrailunderlay,
+				mobj, 0);
+			water->angle = forwardangle - ANGLE_180 - ANGLE_22h;
+			water->destscale = trailScale;
+			water->momx = mobj->momx;
+			water->momy = mobj->momy;
+			water->momz = mobj->momz;
+			P_SetScale(water, trailScale);
+			P_SetMobjState(water, curUnderlayFrame);
+			P_SetTarget(&water, mobj);
+
+			// overlay
+			water = K_SpawnOrMoveMobj(x1, y1,
+				((mobj->eflags & MFE_VERTICALFLIP) ? mobj->waterbottom - FixedMul(mobjinfo[watertrail].height, mobj->scale) : mobj->watertop), watertrail,
+				mobj, 1);
+			water->angle = forwardangle - ANGLE_180 - ANGLE_22h;
+			water->destscale = trailScale;
+			water->momx = mobj->momx;
+			water->momy = mobj->momy;
+			water->momz = mobj->momz;
+			P_SetScale(water, trailScale);
+			P_SetMobjState(water, curOverlayFrame);
+			P_SetTarget(&water, mobj);
+
+			// Right
+			// Underlay
+			water = K_SpawnOrMoveMobj(x2, y2,
+				((mobj->eflags & MFE_VERTICALFLIP) ? mobj->waterbottom - FixedMul(mobjinfo[watertrailunderlay].height, mobj->scale) : mobj->watertop), watertrailunderlay,
+				mobj, 2);
+			water->angle = forwardangle - ANGLE_180 + ANGLE_22h;
+			water->destscale = trailScale;
+			water->momx = mobj->momx;
+			water->momy = mobj->momy;
+			water->momz = mobj->momz;
+			P_SetScale(water, trailScale);
+			P_SetMobjState(water, curUnderlayFrame);
+			P_SetTarget(&water, mobj);
+
+			// Overlay
+			water = K_SpawnOrMoveMobj(x2, y2,
+				((mobj->eflags & MFE_VERTICALFLIP) ? mobj->waterbottom - FixedMul(mobjinfo[watertrail].height, mobj->scale) : mobj->watertop), watertrail,
+				mobj, 3);
+			water->angle = forwardangle - ANGLE_180 + ANGLE_22h;
+			water->destscale = trailScale;
+			water->momx = mobj->momx;
+			water->momy = mobj->momy;
+			water->momz = mobj->momz;
+			P_SetScale(water, trailScale);
+			P_SetMobjState(water, curOverlayFrame);
+			P_SetTarget(&water, mobj);
+		}
+	}
+}
+
 
 //
 // K_StripItems
@@ -9293,7 +9567,7 @@ static void K_drawKartSpeedometer(void)
 		{
 			UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
 			V_DrawStretchyFixedPatch((SPDM_X-1)<<FRACBITS, (SPDM_Y + 5)<<FRACBITS, FRACUNIT*0.765, FRACUNIT*0.55, (V_HUDTRANS|splitflags), (skp_smallstickerclr3), colormap);
-	}
+		}
 		else
 			V_DrawStretchyFixedPatch((SPDM_X-1)<<FRACBITS, (SPDM_Y + 5)<<FRACBITS, FRACUNIT*0.765, FRACUNIT*0.55, (V_HUDTRANS|splitflags), (skp_smallsticker3), NULL);
 
@@ -9823,9 +10097,10 @@ skipcrap:
 		case 1:
 		case 2:
 		case 3:
+		case 5:
 			if (driftgaugegfx)
 			{
-				if (cv_driftgaugestyle.value == 1 || cv_driftgaugestyle.value == 3)
+				if (cv_driftgaugestyle.value == 1 || cv_driftgaugestyle.value == 3 || (cv_driftgaugestyle.value == 5 && xtra_speedo3))
 				{
 					barx = basex - dup*23;
 					BAR_WIDTH = dup*47;
@@ -9843,12 +10118,25 @@ skipcrap:
 				INT32 level = min(driftcharge / driftval, 2);
 				UINT8 *cmap;
 
-				if (!K_UseColorHud())
-					V_DrawMappedPatch(cv_driftgaugestyle.value == 2 ? basex + dup*11 : basex, basey, V_NOSCALESTART|V_OFFSET|drifttrans, cv_driftgaugestyle.value == 2 ? driftgaugesmall : driftgauge, NULL);
-				else //Colourized hud
+				if (cv_driftgaugestyle.value == 5 && xtra_speedo3) // why bother if we dont?
 				{
-					UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
-					V_DrawMappedPatch(cv_driftgaugestyle.value == 2 ? basex + dup*11 : basex, basey, V_NOSCALESTART|V_OFFSET|drifttrans, cv_driftgaugestyle.value == 2 ? driftgaugesmallcolor : driftgaugecolor, colormap);
+					if (K_UseColorHud() && xtra_speedo_clr3) //Colourized hud
+					{
+						UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
+						V_DrawStretchyFixedPatch((basex-300)<<FRACBITS, (basey-20)<<FRACBITS, FRACUNIT*0.765, FRACUNIT*0.55, V_NOSCALESTART|V_OFFSET|drifttrans, skp_smallstickerclr3, colormap);
+					}
+					else
+						V_DrawStretchyFixedPatch((basex-300)<<FRACBITS, (basey-20)<<FRACBITS, FRACUNIT*0.765, FRACUNIT*0.55, V_NOSCALESTART|V_OFFSET|drifttrans, skp_smallsticker3, NULL);
+				}
+				else
+				{
+					if (!K_UseColorHud())
+						V_DrawMappedPatch(cv_driftgaugestyle.value == 2 ? basex + dup*11 : basex, basey, V_NOSCALESTART|V_OFFSET|drifttrans, cv_driftgaugestyle.value == 2 ? driftgaugesmall : driftgauge, NULL);
+					else //Colourized hud
+					{
+						UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, K_GetHudColor(), GTC_CACHE);
+						V_DrawMappedPatch(cv_driftgaugestyle.value == 2 ? basex + dup*11 : basex, basey, V_NOSCALESTART|V_OFFSET|drifttrans, cv_driftgaugestyle.value == 2 ? driftgaugesmallcolor : driftgaugecolor, colormap);
+					}
 				}
 
 				if (driftcharge >= driftval*4) // rainbow sparks

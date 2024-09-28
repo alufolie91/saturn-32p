@@ -31,6 +31,31 @@
 		"gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n" \
 	"}\0"
 
+// reinterpretation of sprite lighting for models
+// it's a combination of how it works for normal sprites & papersprites
+#define GLSL_MODEL_LIGHTING_VERTEX_SHADER \
+	"uniform float lighting;\n" \
+	"uniform vec3 light_dir;\n" \
+	"uniform float light_contrast;\n" \
+	"uniform float light_backlight;\n" \
+	"void main()\n" \
+	"{\n" \
+		"gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;\n" \
+		"float light = lighting;\n" \
+		"if (length(light_dir) > 0.000001) {\n" \
+			"mat4 m4 = gl_ProjectionMatrix * gl_ModelViewMatrix;\n" \
+			"mat3 m3 = mat3( m4[0].xyz, m4[1].xyz, m4[2].xyz );\n" \
+			"float extralight = -dot(normalize(gl_Normal * m3), normalize(light_dir));\n" \
+			"extralight *= light_contrast - light_backlight;\n" \
+			"extralight *= lighting / 255.0;\n" \
+			"light += extralight * 2.5;\n" \
+		"}\n" \
+		"light = clamp(light / 255.0, 0.0, 1.0);\n" \
+		"gl_FrontColor = vec4(light, light, light, 1.0);\n" \
+		"gl_TexCoord[0].xy = gl_MultiTexCoord0.xy;\n" \
+		"gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n" \
+	"}\0"
+
 // ==================
 //  Fragment shaders
 // ==================
@@ -44,6 +69,36 @@
 	"uniform vec4 poly_color;\n" \
 	"void main(void) {\n" \
 		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st) * poly_color;\n" \
+	"}\0"
+
+#define GLSL_DOWNSAMPLE_FRAGMENT_SHADER \
+	"#version 130\n" \
+	"uniform sampler2D tex;\n" \
+	"uniform vec2 inv_supersamplefactor;\n" \
+	"#ifdef SRB2_PALETTE_RENDERING\n" \
+	"uniform sampler3D palette_lookup_tex;\n" \
+	"uniform sampler1D palette_tex;\n" \
+	"#endif\n" \
+	"void main(void) {\n" \
+		"vec2 uv = gl_TexCoord[0].st;\n" \
+		"vec2 texel_size = 1.0 / textureSize(tex, 0);\n" \
+		"vec2 offset1 = vec2(texel_size.x * inv_supersamplefactor.x, texel_size.y * inv_supersamplefactor.y);\n" \
+		"vec2 offset2 = vec2(-texel_size.x * inv_supersamplefactor.x, texel_size.y * inv_supersamplefactor.y);\n" \
+		"vec2 offset3 = vec2(texel_size.x * inv_supersamplefactor.x, -texel_size.y * inv_supersamplefactor.y);\n" \
+		"vec2 offset4 = vec2(-texel_size.x * inv_supersamplefactor.x, -texel_size.y * inv_supersamplefactor.y);\n" \
+		"vec4 color1 = texture2D(tex, uv + offset1);\n" \
+		"vec4 color2 = texture2D(tex, uv + offset2);\n" \
+		"vec4 color3 = texture2D(tex, uv + offset3);\n" \
+		"vec4 color4 = texture2D(tex, uv + offset4);\n" \
+		"vec4 blurred_color = (color1 + color2 + color3 + color4) * 0.25;\n" \
+		"#ifdef SRB2_PALETTE_RENDERING\n" \
+		"float tex_pal_idx = texture3D(palette_lookup_tex, vec3((blurred_color.rgb * 63.0 + 0.5) / 64.0))[0] * 255.0;\n" \
+		"float palette_coord = (tex_pal_idx + 0.5) / 256.0;\n" \
+		"vec4 final_color = texture1D(palette_tex, palette_coord);\n" \
+		"#else\n" \
+		"vec4 final_color = blurred_color;\n" \
+		"#endif\n" \
+		"gl_FragColor = final_color;\n" \
 	"}\0"
 
 //
@@ -99,6 +154,7 @@
 		GLSL_DOOM_COLORMAP_NODITHER \
 		"#endif\n" \
 	"}\n"
+
 // lighting cap adjustment:
 // first num (155.0), increase to make it start to go dark sooner
 // second num (0.26), increase to make it go dark faster
@@ -225,15 +281,15 @@
 #define GLSL_WATER_TEXEL \
 	"float water_z = (gl_FragCoord.z / gl_FragCoord.w) / 2.0;\n" \
 	"float a = -pi * (water_z * freq) + (leveltime * speed);\n" \
-	"float sdistort = sin(a) * amp;\n" \
-	"float cdistort = cos(a) * amp;\n" \
+	"float sdistort = sin(a) * amp * 1.5;\n" \
+	"float cdistort = cos(a) * amp * 2.2;\n" \
 	"vec4 texel = texture2D(tex, vec2(gl_TexCoord[0].s - sdistort, gl_TexCoord[0].t - cdistort));\n"
 
 #define GLSL_WATER_FRAGMENT_SHADER \
 	GLSL_FLOOR_FUDGES \
-	"const float freq = 0.025;\n" \
+	"const float freq = 0.03;\n" \
 	"const float amp = 0.025;\n" \
-	"const float speed = 2.0;\n" \
+	"const float speed = 1.6;\n" \
 	"const float pi = 3.14159;\n" \
 	"#ifdef SRB2_PALETTE_RENDERING\n" \
 	"uniform sampler2D tex;\n" \

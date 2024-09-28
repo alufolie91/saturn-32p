@@ -626,7 +626,21 @@ static boolean R_CheckBBox(const fixed_t *bspcoord)
 	cliprange_t *start;
 
 	// Find the corners of the box that define the edges from current viewpoint.
-	if ((boxpos = (viewx <= bspcoord[BOXLEFT] ? 0 : viewx < bspcoord[BOXRIGHT] ? 1 : 2) + (viewy >= bspcoord[BOXTOP] ? 0 : viewy > bspcoord[BOXBOTTOM] ? 4 : 8)) == 5)
+	if (viewx <= bspcoord[BOXLEFT])
+		boxpos = 0;
+	else if (viewx < bspcoord[BOXRIGHT])
+		boxpos = 1;
+	else
+		boxpos = 2;
+
+	if (viewy >= bspcoord[BOXTOP])
+		boxpos |= 0;
+	else if (viewy > bspcoord[BOXBOTTOM])
+		boxpos |= 1<<2;
+	else
+		boxpos |= 2<<2;
+
+	if (boxpos == 5)
 		return true;
 
 	check = checkcoord[boxpos];
@@ -655,7 +669,8 @@ static boolean R_CheckBBox(const fixed_t *bspcoord)
 	sx2 = viewangletox[angle2];
 
 	// Does not cross a pixel.
-	if (sx1 >= sx2) return false;
+	if (sx1 >= sx2)
+		return false;
 
 	start = solidsegs;
 	while (start->last < sx2)
@@ -931,7 +946,7 @@ static void R_Subsector(size_t num)
 			frontsector->floor_xoffs, frontsector->floor_yoffs, frontsector->floorpic_angle, floorcolormap, NULL
 			, NULL
 			, frontsector->f_slope
-			, R_NoEncore(frontsector, false));
+			, R_NoEncore(frontsector, false), false, frontsector);
 	}
 	else
 		floorplane = NULL;
@@ -947,7 +962,7 @@ static void R_Subsector(size_t num)
 			ceilingcolormap, NULL
 			, NULL
 			, frontsector->c_slope
-			, R_NoEncore(frontsector, true));
+			, R_NoEncore(frontsector, true), true, frontsector);
 	}
 	else
 		ceilingplane = NULL;
@@ -997,7 +1012,7 @@ static void R_Subsector(size_t num)
 					*rover->bottomyoffs, *rover->bottomangle, frontsector->lightlist[light].extra_colormap, rover
 					, NULL
 					, *rover->b_slope
-					, R_NoEncore(rover->master->frontsector, true));
+					, R_NoEncore(rover->master->frontsector, true), true, frontsector);
 
 				ffloor[numffloors].slope = *rover->b_slope;
 
@@ -1033,7 +1048,7 @@ static void R_Subsector(size_t num)
 					frontsector->lightlist[light].extra_colormap, rover
 					, NULL
 					, *rover->t_slope
-					, R_NoEncore(rover->master->frontsector, false));
+					, R_NoEncore(rover->master->frontsector, false), false, frontsector);
 
 				ffloor[numffloors].slope = *rover->t_slope;
 
@@ -1078,7 +1093,7 @@ static void R_Subsector(size_t num)
 					polysec->floorpic_angle-po->angle,
 					(light == -1 ? frontsector->extra_colormap : frontsector->lightlist[light].extra_colormap), NULL, po
 					,NULL // will ffloors be slopable eventually?
-					, R_NoEncore(polysec, false));
+					, R_NoEncore(polysec, false), false, frontsector);
 
 				ffloor[numffloors].height = polysec->floorheight;
 				ffloor[numffloors].polyobj = po;
@@ -1102,7 +1117,7 @@ static void R_Subsector(size_t num)
 					(light == -1 ? frontsector->lightlevel : *frontsector->lightlist[light].lightlevel), polysec->ceiling_xoffs, polysec->ceiling_yoffs, polysec->ceilingpic_angle-po->angle,
 					(light == -1 ? frontsector->extra_colormap : frontsector->lightlist[light].extra_colormap), NULL, po
 					,NULL // will ffloors be slopable eventually?
-					, R_NoEncore(polysec, true));
+					, R_NoEncore(polysec, true), false, frontsector);
 
 				ffloor[numffloors].polyobj = po;
 				ffloor[numffloors].height = polysec->ceilingheight;

@@ -293,6 +293,7 @@ typedef struct mobj_s
 	fixed_t spritexoffset, spriteyoffset;
 	fixed_t old_spritexscale, old_spriteyscale;
 	fixed_t old_spritexoffset, old_spriteyoffset;
+	INT16 lightlevel; // Add to sector lightlevel, -255 - 255
 
 	fixed_t realxscale, realyscale; // funn-E streeetch
 
@@ -406,6 +407,7 @@ typedef struct mobj_s
 	boolean init_salty;
 
 	// WARNING: New fields must be added separately to savegame and Lua.
+	struct mobj_s *watertrail[4];
 } mobj_t;
 
 //
@@ -446,6 +448,7 @@ typedef struct precipmobj_s
 	fixed_t spritexoffset, spriteyoffset;
 	fixed_t old_spritexscale, old_spriteyscale;
 	fixed_t old_spritexoffset, old_spriteyoffset;
+	INT16 lightlevel; // Add to sector lightlevel, -255 - 255
 
 	fixed_t realxscale, realyscale; // funn-E streeetch
 

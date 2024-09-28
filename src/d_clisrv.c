@@ -50,6 +50,7 @@
 #include "s_sound.h" // sfx_syfail
 #include "m_perfstats.h"
 #include "d_main.h"
+#include "r_fps.h"
 
 #ifdef CLIENT_LOADINGSCREEN
 // cl loading screen
@@ -93,8 +94,10 @@ UINT8 playernode[MAXPLAYERS];
 // The actual timeout will be longer depending on the savegame length
 tic_t jointimeout = (3*TICRATE);
 static boolean sendingsavegame[MAXNETNODES]; // Are we sending the savegame?
+#ifdef SATURNSYNCH
 static boolean resendingsavegame[MAXNETNODES]; // Are we resending the savegame?
 static tic_t savegameresendcooldown[MAXNETNODES]; // How long before we can resend again?
+#endif
 static tic_t freezetimeout[MAXNETNODES]; // Until when can this node freeze the server before getting a timeout?
 
 UINT16 pingmeasurecount = 1;
@@ -132,10 +135,17 @@ static ticcmd_t localcmds4;
 static boolean cl_packetmissed;
 // here it is for the secondary local player (splitscreen)
 static UINT8 mynode; // my address pointofview server
+
+#ifdef SATURNSYNCH
 static boolean cl_redownloadinggamestate = false;
+#endif
 
 #ifdef SATURNPAK
 boolean is_client_saturn[MAXNETNODES];
+#endif
+
+#ifdef SATURNJOIN
+#define ISSATURN 69
 #endif
 
 static UINT8 localtextcmd[MAXTEXTCMD];
@@ -846,6 +856,9 @@ static boolean CL_SendJoin(void)
 	netbuffer->u.clientcfg.subversion = SUBVERSION;
 	strncpy(netbuffer->u.clientcfg.application, SRB2APPLICATION,
 			sizeof netbuffer->u.clientcfg.application);
+#ifdef SATURNJOIN
+	netbuffer->u.clientcfg.issaturn = ISSATURN;
+#endif
 
 	return HSendPacket(servernode, false, 0, sizeof (clientconfig_pak));
 }
@@ -1059,20 +1072,10 @@ static void SV_SendPlayerInfo(INT32 node)
 		//No, don't do that, you fuckface.
 		memset(netbuffer->u.playerinfo[i].address, 0, 4);
 
-		if (G_GametypeHasTeams())
-		{
-			if (!players[i].ctfteam)
-				netbuffer->u.playerinfo[i].team = 255;
-			else
-				netbuffer->u.playerinfo[i].team = (UINT8)players[i].ctfteam;
-		}
+		if (players[i].spectator)
+			netbuffer->u.playerinfo[i].team = 255;
 		else
-		{
-			if (players[i].spectator)
-				netbuffer->u.playerinfo[i].team = 255;
-			else
-				netbuffer->u.playerinfo[i].team = 0;
-		}
+			netbuffer->u.playerinfo[i].team = 0;
 
 		netbuffer->u.playerinfo[i].score = LONG(players[i].score);
 		netbuffer->u.playerinfo[i].timeinserver = SHORT((UINT16)(players[i].jointime / TICRATE));
@@ -1341,12 +1344,18 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 	consistancy[gametic%TICQUEUE] = Consistancy();
 	CON_ToggleOff();
 
+#ifdef SATURNSYNCH
 	// Tell the server we have received and reloaded the gamestate
 	// so they know they can resume the game
-	netbuffer->packettype = PT_RECEIVEDGAMESTATE;
-	HSendPacket(servernode, true, 0, 0);
+	if (reloading)
+	{
+		netbuffer->packettype = PT_RECEIVEDGAMESTATE;
+		HSendPacket(servernode, true, 0, 0);
+	}
+#endif
 }
 
+#ifdef SATURNSYNCH
 static void CL_ReloadReceivedSavegame(void)
 {
 	INT32 i;
@@ -1378,6 +1387,7 @@ static void CL_ReloadReceivedSavegame(void)
 
 	CONS_Printf(M_GetText("Game state reloaded\n"));
 }
+#endif
 #endif
 
 #ifndef NONET
@@ -2616,9 +2626,6 @@ void CL_RemovePlayer(INT32 playernum, INT32 reason)
 	if (K_IsPlayerWanted(&players[playernum]))
 		K_CalculateBattleWanted();
 
-	if (gametype == GT_CTF)
-		P_PlayerFlagBurst(&players[playernum], false); // Don't take the flag with you!
-
 	// If in a special stage, redistribute the player's rings across
 	// the remaining players.
 	if (G_IsSpecialStage(gamemap))
@@ -3412,6 +3419,7 @@ static void Command_list_http_logins (void)
 }
 #endif/*HAVE_CURL*/
 
+#ifdef SATURNSYNCH
 static void Command_ResendGamestate(void)
 {
 	SINT8 playernum;
@@ -3439,6 +3447,7 @@ static void Command_ResendGamestate(void)
 		return;
 	}
 }
+#endif
 
 static CV_PossibleValue_t netticbuffer_cons_t[] = {{0, "MIN"}, {3, "MAX"}, {0, NULL}};
 consvar_t cv_netticbuffer = {"netticbuffer", "1", CV_SAVE, netticbuffer_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -3448,6 +3457,10 @@ static void Joinable_OnChange(void);
 consvar_t cv_joinrefusemessage = {"joinrefusemessage", "The server is not accepting joins for the moment.", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_allownewplayer = {"allowjoin", "On", CV_SAVE|CV_CALL, CV_OnOff, Joinable_OnChange, 0, NULL, NULL, 0, 0, NULL};
+
+#ifdef SATURNJOIN
+consvar_t cv_allownewsaturnplayer = {"allowsaturnjoin", "On", CV_HIDEN, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+#endif
 
 #ifdef VANILLAJOINNEXTROUND
 consvar_t cv_joinnextround = {"joinnextround", "Off", CV_SAVE|CV_NETVAR, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; /// \todo not done
@@ -3492,6 +3505,11 @@ static void Joinable_OnChange(void)
 	if (!server)
 		return;
 
+#ifdef SATURNJOIN
+	// disabling joins should also disable saturn joins unless its called with CV_StealthSet and vice versa to make life a bit easier
+	CV_SetValue(&cv_allownewsaturnplayer, cv_allownewplayer.value);
+#endif
+
 	maxplayer = (UINT8)(min((dedicated ? MAXPLAYERS-1 : MAXPLAYERS), cv_maxplayers.value));
 
 	WRITEUINT8(p, maxplayer);
@@ -3517,7 +3535,9 @@ void D_ClientServerInit(void)
 	COM_AddCommand("reloadbans", Command_ReloadBan);
 	COM_AddCommand("connect", Command_connect);
 	COM_AddCommand("nodes", Command_Nodes);
+#ifdef SATURNSYNCH
 	COM_AddCommand("resendgamestate", Command_ResendGamestate);
+#endif
 	COM_AddCommand("listplayers", Command_Listplayers);
 	COM_AddCommand("packetstat", Command_Packetstat);
 #ifdef HAVE_CURL
@@ -3568,6 +3588,16 @@ static void ResetNode(INT32 node)
 	supposedtics[node] = gametic;
 
 	sendingsavegame[node] = false;
+
+	bannednode[node].banid = SIZE_MAX;
+	bannednode[node].timeleft = NO_BAN_TIME;
+
+	// SATURN
+#ifdef SATURNPAK
+	is_client_saturn[node] = false;
+#endif
+
+#ifdef SATURNSYNCH
 	resendingsavegame[node] = false;
 	savegameresendcooldown[node] = 0;
 	gamestate_resend_counter[node] = 0;
@@ -3606,7 +3636,9 @@ void SV_ResetServer(void)
 
 	mynode = 0;
 	cl_packetmissed = false;
+#ifdef SATURNSYNCH
 	cl_redownloadinggamestate = false;
+#endif
 
 	if (dedicated)
 	{
@@ -4092,7 +4124,11 @@ static void HandleConnect(SINT8 node)
 	{
 		SV_SendRefuse(node, va(M_GetText("Different SRB2Kart versions cannot\nplay a netgame!\n(server version %d.%d)"), VERSION, SUBVERSION));
 	}
+#ifdef SATURNJOIN
+	else if ((!cv_allownewplayer.value && node && netbuffer->u.clientcfg.issaturn != ISSATURN) || (!cv_allownewsaturnplayer.value && node && netbuffer->u.clientcfg.issaturn == ISSATURN))
+#else
 	else if (!cv_allownewplayer.value && node)
+#endif
 	{
 		SV_SendRefuse(node, M_GetText(cv_joinrefusemessage.string));
 	}
@@ -4260,6 +4296,7 @@ static void PT_CanReceiveGamestate(SINT8 node)
 	SV_SendSaveGame(node, true); // Resend a complete game state
 	resendingsavegame[node] = true;
 }
+#endif
 
 /** Handles a packet received from a node that isn't in game
   *
@@ -4649,6 +4686,10 @@ static void HandlePacketFromPlayer(SINT8 node)
 					break;
 			}
 
+			if ((gamestate_resend_counter[node] != 0) && (I_GetTime() % ((max(cv_resynchcooldown.value, 1) * TICRATE) *2) == 0))
+				gamestate_resend_counter[node]--;
+
+#ifdef SATURNSYNCH
 			if ((gamestate_resend_counter[node] != 0) && (I_GetTime() % ((max(cv_resynchcooldown.value, 1) * TICRATE) *2) == 0))
 				gamestate_resend_counter[node]--;
 
@@ -5938,6 +5979,7 @@ void NetUpdate(void)
 
 		CL_SendClientCmd(); // Send tic cmd
 		hu_redownloadinggamestate = cl_redownloadinggamestate;
+#endif
 	}
 	else
 	{
@@ -5946,11 +5988,20 @@ void NetUpdate(void)
 			INT32 counts;
 
 			hu_redownloadinggamestate = false;
+#endif
+			// Don't erase tics not acknowledged
+			counts = realtics;
 
 			firstticstosend = gametic;
 			for (i = 0; i < MAXNETNODES; i++)
-				if (nodeingame[i] && nettics[i] < firstticstosend)
+			{
+				if (!nodeingame[i])
+					continue;
+				if (nettics[i] < firstticstosend)
 					firstticstosend = nettics[i];
+				if (maketic + counts >= nettics[i] + (TICQUEUE - TICRATE))
+					Net_ConnectionTimeout(i);
+			}
 
 			// Don't erase tics not acknowledged
 			counts = realtics;

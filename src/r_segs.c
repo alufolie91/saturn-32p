@@ -22,6 +22,7 @@
 #include "d_netcmd.h"
 #include "m_misc.h"
 #include "p_local.h" // Camera...
+#include "p_setup.h"
 #include "p_slopes.h"
 #include "console.h" // con_clipviewtop
 
@@ -406,7 +407,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 
 			if (rlight->extra_colormap && rlight->extra_colormap->fog)
 				;
-			else
+			else if (P_ApplyLightOffset(lightnum, frontsector))
 				lightnum += curline->lightOffset;
 
 			rlight->lightnum = lightnum;
@@ -427,7 +428,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 		if (colfunc == R_DrawFogColumn_8
 			|| (frontsector->extra_colormap && frontsector->extra_colormap->fog))
 			;
-		else
+		else if (P_ApplyLightOffset(lightnum, frontsector))
 			lightnum += curline->lightOffset;
 
 		if (lightnum < 0)
@@ -832,7 +833,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 
 			if (pfloor->flags & FF_FOG || rlight->flags & FF_FOG || (rlight->extra_colormap && rlight->extra_colormap->fog))
 				;
-			else
+			else if (P_ApplyLightOffset(lightnum, frontsector))
 				rlight->lightnum += curline->lightOffset;
 
 			p++;
@@ -855,7 +856,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 
 		if (pfloor->flags & FF_FOG || (frontsector->extra_colormap && frontsector->extra_colormap->fog))
 			;
-		else
+		else if (P_ApplyLightOffset(lightnum, frontsector))
 			lightnum += curline->lightOffset;
 
 		if (lightnum < 0)
@@ -1231,7 +1232,6 @@ static void R_RenderSegLoop (void)
 			}
 		}
 
-
 		yh = bottomfrac>>HEIGHTBITS;
 
 		bottom = floorclip[rw_x]-1;
@@ -1242,13 +1242,14 @@ static void R_RenderSegLoop (void)
 		if (markfloor)
 		{
 			top = yh < ceilingclip[rw_x] ? ceilingclip[rw_x] : yh;
+
 			if (++top <= bottom && floorplane)
 			{
 				floorplane->top[rw_x] = (INT16)top;
 				floorplane->bottom[rw_x] = (INT16)bottom;
 			}
 		}
-		
+
 		rw_floormarked = false;
 		rw_ceilingmarked = false;
 
@@ -1409,7 +1410,7 @@ static void R_RenderSegLoop (void)
 
 				if (dc_lightlist[i].extra_colormap)
 					;
-				else
+				else if (P_ApplyLightOffset(lightnum, frontsector))
 					lightnum += curline->lightOffset;
 
 				if (lightnum < 0)
@@ -1586,6 +1587,8 @@ static void R_RenderSegLoop (void)
 		topfrac += topstep;
 		bottomfrac += bottomstep;
 	}
+	
+	//colfunc = wallcolfunc;
 }
 
 // Uses precalculated seg->length
@@ -1978,6 +1981,13 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			}
 		}
 
+		if (frontsector->floorpic == skyflatnum
+			&& backsector->floorpic == skyflatnum)
+		{
+			// see double ceiling skies comment
+			// this is the same but for upside down thok barriers where the floor is sky and the ceiling is normal
+			markfloor = false;
+		}
 		if (worldlow != worldbottom
 			|| worldlowslope != worldbottomslope
 			|| backsector->f_slope != frontsector->f_slope
@@ -2113,7 +2123,6 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			// Used for height comparisons and etc across FOFs and slopes
 			fixed_t high1, highslope1, low1, lowslope1, high2, highslope2, low2, lowslope2;
 
-			//markceiling = markfloor = true;
 			maskedtexture = true;
 
 			ds_p->thicksidecol = maskedtexturecol = lastopening - rw_x;
@@ -2412,7 +2421,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		// OPTIMIZE: get rid of LIGHTSEGSHIFT globally
 		lightnum = (frontsector->lightlevel >> LIGHTSEGSHIFT);
 
-		lightnum += curline->lightOffset;
+		if (P_ApplyLightOffset(lightnum, frontsector))
+			lightnum += curline->lightOffset;
 
 		if (lightnum < 0)
 			walllights = scalelight[0];

@@ -182,6 +182,7 @@ enum
 	SHADER_SKY,
 	SHADER_PALETTE_POSTPROCESS,
 	SHADER_UI_COLORMAP_FADE,
+	SHADER_DOWNSAMPLE,
 
 	NUMSHADERTARGETS
 };
@@ -272,6 +273,7 @@ struct FLightInfo
 	FUINT			light_level;
 	FUINT			fade_start;
 	FUINT			fade_end;
+	boolean			directional;
 };
 typedef struct FLightInfo FLightInfo;
 
@@ -313,6 +315,11 @@ typedef enum hwdsetspecialstate hwdspecialstate_t;
 enum hwdshaderinfo
 {
 	HWD_SHADERINFO_LEVELTIME = 1,
+	HWD_SHADERINFO_LIGHT_X,
+	HWD_SHADERINFO_LIGHT_Y,
+	HWD_SHADERINFO_LIGHT_Z,
+	HWD_SHADERINFO_LIGHT_CONTRAST,
+	HWD_SHADERINFO_LIGHT_BACKLIGHT,
 };
 
 typedef enum hwdshaderinfo hwdshaderinfo_t;

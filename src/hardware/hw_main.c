@@ -14,6 +14,7 @@
 #include <math.h>
 
 #include "../doomstat.h"
+#include "../doomdef.h"
 
 #include "../qs22j.h"
 
@@ -105,8 +106,6 @@ consvar_t cv_grbatching = {"gr_batching", "On", 0, CV_OnOff, NULL, 0, NULL, NULL
 #ifdef USE_FBO_OGL
 consvar_t cv_grframebuffer = {"gr_framebuffer", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, CV_grframebuffer_OnChange, 0, NULL, NULL, 0, 0, NULL};
 #endif
-
-consvar_t cv_splitwallfix = {"splitwallfix", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t grrenderdistance_cons_t[] = {
 	{0, "Max"}, {1, "1024"}, {2, "2048"}, {3, "4096"}, {4, "6144"}, {5, "8192"},
@@ -511,7 +510,48 @@ boolean HWR_PalRenderFlashpal(void)
 	return (HWR_ShouldUsePaletteRendering() && cv_grflashpal.value);
 }
 
-void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *colormap)
+void HWR_ObjectLightLevelPost(gr_vissprite_t *spr, const sector_t *sector, INT32 *lightlevel, boolean model)
+{
+	const boolean papersprite = (spr->mobj->frame & FF_PAPERSPRITE);
+
+	*lightlevel += R_ThingLightLevel(spr->mobj);
+
+	if (maplighting.directional == true && P_SectorUsesDirectionalLighting(sector))
+	{
+		if (model == false) // this is implemented by shader
+		{
+			fixed_t extralight = R_GetSpriteDirectionalLighting(
+				papersprite
+				? R_PointToAngle(spr->mobj->x, spr->mobj->y) + (spr->flip ? -ANGLE_90 : ANGLE_90)
+				: R_PointToAngle(spr->mobj->x, spr->mobj->y) // fixme
+			);
+
+			// Less change in contrast in dark sectors
+			extralight = FixedMul(extralight, min(max(0, *lightlevel), 255) * FRACUNIT / 255);
+
+			if (papersprite)
+			{
+				// Papersprite contrast should match walls
+				*lightlevel += FixedFloor(extralight + (FRACUNIT / 2)) / FRACUNIT;
+			}
+			else
+			{
+				// simple OGL approximation
+				fixed_t tr = R_PointToDist(spr->mobj->x, spr->mobj->y);
+				fixed_t xscale = FixedDiv((vid.width / 2) << FRACBITS, tr);
+
+				// Less change in contrast at further distances, to counteract DOOM diminished light
+				fixed_t n = FixedDiv(FixedMul(xscale, LIGHTRESOLUTIONFIX), ((MAXLIGHTSCALE-1) << LIGHTSCALESHIFT));
+				extralight = FixedMul(extralight, min(n, FRACUNIT));
+
+				// Contrast is stronger for normal sprites, stronger than wall lighting is at the same distance
+				*lightlevel += FixedFloor((extralight * 2) + (FRACUNIT / 2)) / FRACUNIT;
+			}
+		}
+	}
+}
+
+void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *colormap, const boolean directional)
 {
 	RGBA_t poly_color, tint_color, fade_color;
 
@@ -571,6 +611,7 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
 	Surface->LightInfo.light_level = light_level;
 	Surface->LightInfo.fade_start = (colormap != NULL) ? colormap->fadestart : 0;
 	Surface->LightInfo.fade_end = (colormap != NULL) ? colormap->fadeend : 31;
+	Surface->LightInfo.directional = (maplighting.directional == true && directional == true);
 	Surface->LightTableId = HWR_ShouldUsePaletteRendering() ? HWR_GetLightTableID(colormap) : 0;
 }
 
@@ -603,43 +644,31 @@ static FUINT HWR_CalcWallLight(FUINT lightnum, seg_t *seg)
 {
 	INT16 finallight = lightnum;
 
-	if (seg != NULL && cv_grfakecontrast.value != 0)
+	if (seg != NULL && P_ApplyLightOffsetFine(lightnum, seg->frontsector) && cv_grfakecontrast.value != 0)
 	{
-		fixed_t extralight = 0;
-
 		if (cv_grfakecontrast.value == 2) // Smooth setting
-			extralight += seg->hwLightOffset;
+			finallight += seg->hwLightOffset;
 		else
-			extralight += seg->lightOffset * 8;
+			finallight += seg->lightOffset * 8;
 
-		if (extralight != 0)
-		{
-			finallight += extralight;
-			finallight = CLAMP(finallight, 0 , 255);
-		}
+		finallight = CLAMP(finallight, 0 , 255);
 	}
 
 	return (FUINT)finallight;
 }
 
-static FUINT HWR_CalcSlopeLight(FUINT lightnum, pslope_t *slope)
+static FUINT HWR_CalcSlopeLight(FUINT lightnum, pslope_t *slope, const sector_t *sector, const boolean fof)
 {
 	INT16 finallight = lightnum;
 
-	if (slope != NULL && cv_grfakecontrast.value != 0 && cv_grslopecontrast.value != 0)
+	if (slope != NULL && P_ApplyLightOffsetFine(lightnum, sector) && cv_grfakecontrast.value != 0 && cv_grslopecontrast.value != 0)
 	{
-		fixed_t extralight = 0;
-
 		if (cv_grfakecontrast.value == 2) // Smooth setting
-			extralight += slope->hwLightOffset;
+			finallight += (fof ? -slope->hwLightOffset : slope->hwLightOffset);
 		else
-			extralight += slope->lightOffset * 8;
+			finallight += (fof ? -slope->lightOffset * 8 : slope->lightOffset * 8);
 
-		if (extralight != 0)
-		{
-			finallight += extralight;
-			finallight = CLAMP(finallight, 0 , 255);
-		}
+		finallight = CLAMP(finallight, 0 , 255);
 	}
 
 	return (FUINT)finallight;
@@ -824,9 +853,9 @@ void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, boolean isc
 		SETUP3DVERT(v3d, pv->x, pv->y);
 
 	if (slope)
-		lightlevel = HWR_CalcSlopeLight(lightlevel, slope);
+		lightlevel = HWR_CalcSlopeLight(lightlevel, slope, gr_frontsector, (FOFsector != NULL));
 
-	HWR_Lighting(&Surf, lightlevel, planecolormap);
+	HWR_Lighting(&Surf, lightlevel, planecolormap, P_SectorUsesDirectionalLighting(gr_frontsector));
 
 	if (PolyFlags & (PF_Translucent|PF_Fog))
 	{
@@ -1038,7 +1067,7 @@ void HWR_ProjectWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend
 {
 	INT32 shader = SHADER_NONE;
 	
-	HWR_Lighting(pSurf, lightlevel, wallcolormap);
+	HWR_Lighting(pSurf, lightlevel, wallcolormap, P_SectorUsesDirectionalLighting(gr_frontsector));
 
 	if (HWR_UseShader())
 	{
@@ -1093,7 +1122,7 @@ static void HWR_SplitWall(sector_t *sector, FOutVector *wallVerts, INT32 texnum,
 	// Lactozilla: If both heights of a side lay on the same position, then this wall is a triangle.
 	// To avoid division by zero, which would result in a NaN, we check if the vertical difference
 	// between the two vertices is not zero.
-	if (fpclassify(top - bot) == FP_ZERO && cv_splitwallfix.value)
+	if (fpclassify(top - bot) == FP_ZERO)
 		pegmul = 0.0;
 	else
 		pegmul = (pegb - pegt) / (top - bot);
@@ -1103,7 +1132,7 @@ static void HWR_SplitWall(sector_t *sector, FOutVector *wallVerts, INT32 texnum,
 	endpegt = wallVerts[2].t;
 	endpegb = wallVerts[1].t;
 
-	if (fpclassify(endtop - endbot) == FP_ZERO && cv_splitwallfix.value)
+	if (fpclassify(endtop - endbot) == FP_ZERO)
 		endpegmul = 0.0;
 	else
 		endpegmul = (endpegb - endpegt) / (endtop - endbot);
@@ -1176,13 +1205,10 @@ static void HWR_SplitWall(sector_t *sector, FOutVector *wallVerts, INT32 texnum,
 			endbheight = endrealbot;
 		}
 		
-		if (cv_splitwallfix.value)
-		{
-			if (endbheight > endtop)
-				endbot = endtop;
-		}
+		if (endbheight > endtop)
+			endbot = endtop;
 
-		if ((endbheight >= endtop && bheight >= top && !cv_splitwallfix.value) || (bheight >= top && cv_splitwallfix.value))
+		if (bheight >= top)
 			continue;
 
 		// Found a break
@@ -1192,15 +1218,7 @@ static void HWR_SplitWall(sector_t *sector, FOutVector *wallVerts, INT32 texnum,
 		if (bot < realbot)
 			bot = realbot;
 
-		if (cv_splitwallfix.value)
-			endbot = min(max(endbheight, endrealbot), endtop);
-		else
-		{
-			endbot = endbheight;
-
-			if (endbot < endrealbot)
-				endbot = endrealbot;
-		}
+		endbot = min(max(endbheight, endrealbot), endtop);
 
 		Surf->PolyColor.s.alpha = alpha;
 
@@ -1299,7 +1317,8 @@ static void HWR_DrawSkyWallList(void)
 	HWD.pfnUnSetShader();
 	for (i = 0; i < skyWallVertexArraySize; i++)
 	{
-		HWD.pfnDrawPolygon(&surf, skyWallVertexArray + i * 4, 4, PF_Occlude|PF_Invisible|PF_NoTexture);
+		//HWD.pfnDrawPolygon(&surf, skyWallVertexArray + i * 4, 4, PF_Occlude|PF_Invisible|PF_NoTexture);
+		HWR_ProcessPolygon(&surf, skyWallVertexArray + i * 4, 4, PF_Occlude|PF_Invisible|PF_NoTexture, SHADER_NONE, false);
 	}
 }
 
@@ -2828,7 +2847,7 @@ void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, fixed_t
 		v3d->z = FIXED_TO_FLOAT(polysector->vertices[i]->y);
 	}
 
-	HWR_Lighting(&Surf, lightlevel, planecolormap);
+	HWR_Lighting(&Surf, lightlevel, planecolormap, P_SectorUsesDirectionalLighting((FOFsector != NULL) ? FOFsector : gr_frontsector));
 
 	if (blendmode & PF_Translucent)
 	{
@@ -3408,7 +3427,7 @@ static gr_vissprite_t *HWR_NewVisSprite(void)
 }
 
 // Finds a floor through which light does not pass.
-static fixed_t HWR_OpaqueFloorAtPos(fixed_t x, fixed_t y, fixed_t z, fixed_t height)
+/*static fixed_t HWR_OpaqueFloorAtPos(fixed_t x, fixed_t y, fixed_t z, fixed_t height)
 {
 	const sector_t *sec = R_PointInSubsector(x, y)->sector;
 	fixed_t floorz = sec->floorheight;
@@ -3451,7 +3470,7 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch)
 	pslope_t *floorslope;
 	fixed_t slopez;
 	float offset = 0;
-	
+
 	INT32 shader = SHADER_NONE;
 
 	// technically this_scale gets multiplied and added to sprite y/x scale, but this thing needs it for some crap so ill just throw it in here again
@@ -3460,7 +3479,7 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch)
 		this_scale = FIXED_TO_FLOAT(spr->mobj->scale);
 	if (hires)
 		this_scale = this_scale * FIXED_TO_FLOAT(((skin_t *)( (spr->mobj->localskin) ? spr->mobj->localskin : spr->mobj->skin ))->highresscale);
-	
+
 	R_GetShadowZ(spr->mobj, &floorslope);
 
 	mobjfloor = HWR_OpaqueFloorAtPos(
@@ -3556,7 +3575,7 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch)
 		swallVerts[0].z = spr->z1 + offset * gr_viewsin;
 		swallVerts[1].z = spr->z2 + offset * gr_viewsin;
 	}
-	
+
 	if (floorslope)
 	{
 		for (int i = 0; i < 4; i++)
@@ -3618,7 +3637,7 @@ static void HWR_DrawSpriteShadow(gr_vissprite_t *spr, GLPatch_t *gpatch)
 
 		HWR_ProcessPolygon(&sSurf, swallVerts, 4, blendmode|PF_Translucent|PF_Modulated, shader, false);
 	}
-}
+}*/
 
 // This is expecting a pointer to an array containing 4 wallVerts for a sprite
 static void HWR_RotateSpritePolyToAim(gr_vissprite_t *spr, FOutVector *wallVerts, const boolean precip)
@@ -3695,7 +3714,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	GLPatch_t *gpatch;
 	FSurfaceInfo Surf;
 	extracolormap_t *colormap;
-	FUINT lightlevel;
+	INT32 lightlevel;
 	FBITFIELD blend = 0;
 	UINT8 alpha;
 
@@ -3721,7 +3740,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	HWR_GetMappedPatch(gpatch, spr->colormap);
 
 	// Draw shadow BEFORE sprite
-	if (cv_shadow.value // Shadows enabled
+	/*if (cv_shadow.value // Shadows enabled
 		&& (spr->mobj->flags & (MF_SCENERY|MF_SPAWNCEILING|MF_NOGRAVITY)) != (MF_SCENERY|MF_SPAWNCEILING|MF_NOGRAVITY) // Ceiling scenery have no shadow.
 		&& !(spr->mobj->flags2 & MF2_DEBRIS) // Debris have no corona or shadow.
 		&& (spr->mobj->z >= spr->mobj->floorz)) // Without this, your shadow shows on the floor, even after you die and fall through the ground.
@@ -3730,7 +3749,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 		// SHADOW SPRITE! //
 		////////////////////
 		HWR_DrawSpriteShadow(spr, gpatch);
-	}
+	}*/
 
 	baseWallVerts[0].x = baseWallVerts[3].x = spr->x1;
 	baseWallVerts[2].x = baseWallVerts[1].x = spr->x2;
@@ -3835,6 +3854,8 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	if (spr->mobj->frame & FF_FULLBRIGHT)
 		lightlevel = 255;
 
+	HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false);
+
 	for (i = 1; i < sector->numlights; i++)
 	{
 		fixed_t h = P_GetLightZAt(&sector->lightlist[i], spr->mobj->x, spr->mobj->y);
@@ -3843,6 +3864,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 
 		if (!(spr->mobj->frame & FF_FULLBRIGHT))
 			lightlevel = min(*list[i-1].lightlevel, 255);
+		HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false);
 		colormap = list[i-1].extra_colormap;
 		break;
 	}
@@ -3857,6 +3879,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 		{
 			if (!(spr->mobj->frame & FF_FULLBRIGHT))
 				lightlevel = min(*list[i].lightlevel, 255);
+			HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false);
 			colormap = list[i].extra_colormap;
 		}
 
@@ -3919,7 +3942,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 			wallVerts[1].z = baseWallVerts[2].z + (baseWallVerts[2].z - baseWallVerts[1].z) * heightmult;
 		}
 
-		HWR_Lighting(&Surf, lightlevel, colormap);
+		HWR_Lighting(&Surf, lightlevel, colormap, P_SectorUsesDirectionalLighting(sector) && !(spr->mobj->frame & FF_FULLBRIGHT));
 
 		Surf.PolyColor.s.alpha = alpha;
 
@@ -3946,7 +3969,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	wallVerts[0].y = bot;
 	wallVerts[1].y = endbot;
 
-	HWR_Lighting(&Surf, lightlevel, colormap);
+	HWR_Lighting(&Surf, lightlevel, colormap, P_SectorUsesDirectionalLighting(sector));
 
 	Surf.PolyColor.s.alpha = alpha;
 
@@ -4030,7 +4053,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 	HWR_GetMappedPatch(gpatch, spr->colormap);
 
 	// Draw shadow BEFORE sprite
-	if (cv_shadow.value // Shadows enabled
+	/*if (cv_shadow.value // Shadows enabled
 		&& (spr->mobj->flags & (MF_SCENERY|MF_SPAWNCEILING|MF_NOGRAVITY)) != (MF_SCENERY|MF_SPAWNCEILING|MF_NOGRAVITY) // Ceiling scenery have no shadow.
 		&& !(spr->mobj->flags2 & MF2_DEBRIS) // Debris have no corona or shadow.
 		&& (spr->mobj->z >= spr->mobj->floorz)) // Without this, your shadow shows on the floor, even after you die and fall through the ground.
@@ -4039,7 +4062,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 		// SHADOW SPRITE! //
 		////////////////////
 		HWR_DrawSpriteShadow(spr, gpatch);
-	}
+	}*/
 
 	// Let dispoffset work first since this adjust each vertex
 	// ...nah
@@ -4062,13 +4085,15 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 
 	// colormap test
 	sector_t *sector = spr->mobj->subsector->sector;
-	UINT8 lightlevel = 255;
+	INT32 lightlevel = 255;
 	extracolormap_t *colormap = sector->extra_colormap;
 
 	if (!(spr->mobj->frame & FF_FULLBRIGHT))
 		lightlevel = min(sector->lightlevel, 255);
 
-	HWR_Lighting(&Surf, lightlevel, colormap);
+	HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false);
+
+	HWR_Lighting(&Surf, lightlevel, colormap, P_SectorUsesDirectionalLighting(sector) && !(spr->mobj->frame & FF_FULLBRIGHT));
 
 	if (!cv_translucency.value) // translucency disabled
 	{
@@ -4176,7 +4201,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 			colormap = sector->extra_colormap;
 	}
 
-	HWR_Lighting(&Surf, lightlevel, colormap);
+	HWR_Lighting(&Surf, lightlevel, colormap, P_SectorUsesDirectionalLighting(sector));
 
 	if (spr->mobj->frame & FF_TRANSMASK)
 		blend = HWR_TranstableToAlpha((spr->mobj->frame & FF_TRANSMASK)>>FF_TRANSSHIFT, &Surf);
@@ -5619,7 +5644,16 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 		HWD.pfnClearBuffer(true, false, false, &ClearColor);
 
 	if (cv_grshaders.value)
+	{
 		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LEVELTIME, (INT32)leveltime); // The water surface shader needs the leveltime.
+		const angle_t light_angle = maplighting.angle - viewangle + ANGLE_90; // I fucking hate OGL's coordinate system
+		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LIGHT_X, FINECOSINE(light_angle >> ANGLETOFINESHIFT));
+		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LIGHT_Y, 0);
+		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LIGHT_Z,  -FINESINE(light_angle >> ANGLETOFINESHIFT));
+
+		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LIGHT_CONTRAST, maplighting.contrast);
+		HWD.pfnSetShaderInfo(HWD_SHADERINFO_LIGHT_BACKLIGHT, maplighting.backlight);
+	}
 
 	if (viewnumber > 3)
 		return;
@@ -5710,8 +5744,6 @@ void HWR_AddCommands(void)
 
 	CV_RegisterVar(&cv_grbatching);
 
-	CV_RegisterVar(&cv_splitwallfix);
-
 	CV_RegisterVar(&cv_grrenderdistance);
 
 	CV_RegisterVar(&cv_grfakecontrast);
@@ -5801,7 +5833,7 @@ void HWR_RenderWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend,
 	INT32 shader = SHADER_NONE;
 
 	// Lighting is done here instead so that fog isn't drawn incorrectly on transparent walls after sorting
-	HWR_Lighting(pSurf, lightlevel, wallcolormap);
+	HWR_Lighting(pSurf, lightlevel, wallcolormap, P_SectorUsesDirectionalLighting(gr_frontsector));
 
 	pSurf->PolyColor.s.alpha = alpha; // put the alpha back after lighting
 

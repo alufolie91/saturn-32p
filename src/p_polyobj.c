@@ -1804,6 +1804,7 @@ void T_PolyObjWaypoint(polywaypoint_t *th)
 	mobj_t *waypoint = NULL;
 	fixed_t adjustx, adjusty, adjustz;
 	fixed_t momx, momy, momz, dist;
+	thinker_t *wp;
 	INT32 start;
 	polyobj_t *po = Polyobj_GetForNum(th->polyObjNum);
 	polyobj_t *oldpo = po;
