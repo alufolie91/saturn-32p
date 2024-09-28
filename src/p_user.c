@@ -1041,7 +1041,7 @@ fixed_t P_GetPlayerSpinHeight(player_t *player)
 // Returns true if player is
 // on the local machine.
 //
-boolean P_IsLocalPlayer(player_t *player)
+boolean P_IsLocalPlayer(const player_t *player)
 {
 	UINT8 i;
 
@@ -1065,7 +1065,7 @@ boolean P_IsLocalPlayer(player_t *player)
 // Returns true if player is
 // currently being watched.
 //
-boolean P_IsDisplayPlayer(player_t *player)
+boolean P_IsDisplayPlayer(const player_t *player)
 {
 	UINT8 i;
 
@@ -1179,6 +1179,7 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 	ghost = P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_GHOST);
 
 	P_SetScale(ghost, mobj->scale);
+	ghost->scalespeed = mobj->scalespeed;
 	ghost->destscale = mobj->scale;
 
 	if (mobj->eflags & MFE_VERTICALFLIP)
@@ -1230,6 +1231,7 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 	ghost->old_roll = mobj->old_roll2;
 	ghost->old_sloperoll = mobj->old_sloperoll2;
 	ghost->old_slopepitch = mobj->old_slopepitch2;
+	ghost->old_scale = mobj->old_scale2;
 
 	return ghost;
 }
