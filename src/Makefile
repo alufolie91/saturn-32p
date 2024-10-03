@@ -208,12 +208,6 @@ USE_FBO_OGL=1
 endif
 endif
 
-ifndef NONET
-#ifndef NOSATURNPAK
-#DOSATURNPAK=1
-#endif
-endif
-
 ifdef MINGW
 include win32/Makefile.cfg
 endif #ifdef MINGW
@@ -391,12 +385,6 @@ ifndef NOHW
 ifdef USE_FBO_OGL
 OPTS+=-DUSE_FBO_OGL
 endif
-endif
-
-ifndef NONET
-#ifndef NOSATURNPAK
-#OPTS+=-DDOSATURNPAK
-#endif
 endif
 
 ifdef HAVE_MINIUPNPC

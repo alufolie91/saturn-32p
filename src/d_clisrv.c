@@ -134,10 +134,6 @@ static boolean cl_packetmissed;
 static UINT8 mynode; // my address pointofview server
 static boolean cl_redownloadinggamestate = false;
 
-#ifdef SATURNPAK
-boolean is_client_saturn[MAXNETNODES];
-#endif
-
 static UINT8 localtextcmd[MAXTEXTCMD];
 static UINT8 localtextcmd2[MAXTEXTCMD]; // splitscreen
 static UINT8 localtextcmd3[MAXTEXTCMD]; // splitscreen == 2
@@ -2612,9 +2608,6 @@ void CL_RemovePlayer(INT32 playernum, INT32 reason)
 		if (playerpernode[node] <= 0)
 		{
 			nodeingame[node] = false;
-#ifdef SATURNPAK
-			is_client_saturn[node] = false;
-#endif
 			Net_CloseConnection(node);
 			ResetNode(node);
 		}
@@ -2720,11 +2713,9 @@ void CL_Reset(void)
 	if (servernode > 0 && servernode < MAXNETNODES)
 	{
 		nodeingame[(UINT8)servernode] = false;
-#ifdef SATURNPAK
-		is_client_saturn[(UINT8)servernode] = false;
-#endif
 		Net_CloseConnection(servernode);
 	}
+
 	D_CloseConnection(); // netgame = false
 	multiplayer = false;
 	servernode = 0;
@@ -3471,7 +3462,7 @@ static CV_PossibleValue_t gamestateattempts_cons_t[] = {{0, "MIN"}, {30, "MAX"},
 consvar_t cv_gamestateattempts = {"gamestateresendattempts", "10", CV_SAVE, gamestateattempts_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t resynchcooldown_cons_t[] = {{0, "MIN"}, {20, "MAX"}, {0, NULL}};
-consvar_t cv_resynchcooldown = {"gamestatecooldown", "5", CV_SAVE, resynchcooldown_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL	};
+consvar_t cv_resynchcooldown = {"gamestatecooldown", "5", CV_SAVE, resynchcooldown_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_blamecfail = {"blamecfail", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL	};
 
@@ -3905,14 +3896,6 @@ static boolean SV_AddWaitingPlayers(void)
 
 	return newplayer;
 }
-
-#ifdef SATURNPAK
-static inline void SendSaturnInfo(INT32 node)
-{
-	netbuffer->packettype = PT_ISSATURN;
-	HSendPacket(node, true, 0, 0);
-}
-#endif
 
 void CL_AddSplitscreenPlayer(void)
 {
@@ -4451,9 +4434,6 @@ static void HandlePacketFromAwayNode(SINT8 node)
 #endif
 			DEBFILE(va("Server accept join gametic=%u mynode=%d\n", gametic, mynode));
 
-#ifdef SATURNPAK
-			SendSaturnInfo(node);
-#endif
 #ifdef JOININGAME
 			/// \note Wait. What if a Lua script uses some global custom variables synched with the NetVars hook?
 			///       Shouldn't them be downloaded even at intermission time?
@@ -4656,15 +4636,17 @@ static void HandlePacketFromPlayer(SINT8 node)
 					break;
 			}
 
+			// this decreases by one point at twice the cooldown time (ex cooldown of 2 seconds means, this counter decreases by one every 4 seconds), pretty much there to prevent a resynch loop
 			if ((gamestate_resend_counter[node] != 0) && (I_GetTime() % ((max(cv_resynchcooldown.value, 1) * TICRATE) *2) == 0))
 				gamestate_resend_counter[node]--;
 
 			// Check player consistancy during the level
 			if (realstart <= gametic && realstart + TICQUEUE - 1 > gametic && gamestate == GS_LEVEL
 				&& consistancy[realstart%TICQUEUE] != SHORT(netbuffer->u.clientpak.consistancy)
-				&& !resendingsavegame[node] && savegameresendcooldown[node] <= I_GetTime() && !SV_ResendingSavegameToAnyone())
+				&& !resendingsavegame[node] && savegameresendcooldown[node] <= I_GetTime()
+				&& !SV_ResendingSavegameToAnyone())
 			{
-				// we need to send this so the client can tell us if it can receive the savegame
+				// Tell the client we are about to resend them the gamestate
 				netbuffer->packettype = PT_WILLRESENDGAMESTATE;
 				HSendPacket(node, true, 0, 0);
 
@@ -4839,9 +4821,6 @@ static void HandlePacketFromPlayer(SINT8 node)
 			}
 			Net_CloseConnection(node);
 			nodeingame[node] = false;
-#ifdef SATURNPAK
-			is_client_saturn[node] = false;
-#endif
 			break;
 // -------------------------------------------- CLIENT RECEIVE ----------
 		case PT_CANRECEIVEGAMESTATE:
@@ -4972,12 +4951,6 @@ static void HandlePacketFromPlayer(SINT8 node)
 		case PT_WILLRESENDGAMESTATE:
 			PT_WillResendGamestate();
 			break;
-#ifdef SATURNPAK
-		case PT_ISSATURN:
-			//CONS_Printf("hi im on saturn%d\n", node);
-			is_client_saturn[node] = true;
-			break;
-#endif
 		default:
 			DEBFILE(va("UNKNOWN PACKET TYPE RECEIVED %d from host %d\n",
 				netbuffer->packettype, node));
