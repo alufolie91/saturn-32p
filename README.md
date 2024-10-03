@@ -19,7 +19,7 @@ A fork of a fork. This hardcodes many features that I personally enjoy using or 
 - CEP Item Odd system(based on conga calc)
 - Customizable itemtable
 - Fixed NetID conflicts
-- 16-angle support for sprites 
+- 16-angle support for sprites
 - 65534 skins limit (everything skin num releated was made UINT16)
 - Title Screen Thinker and HUD Hook
 - Colored sneakertrails
