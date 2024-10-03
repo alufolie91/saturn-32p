@@ -463,8 +463,8 @@ void P_TouchSpecialThing(mobj_t *special, mobj_t *toucher, boolean heightcheck)
 			}
 			else if (special->target->player->kartstuff[k_comebackmode] == 1 && P_CanPickupItem(player, 1))
 			{
-				mobj_t *poof = P_SpawnMobj(special->x, special->y, special->z, MT_EXPLODE);
-				S_StartSound(poof, special->info->seesound);
+				mobj_t *poof2 = P_SpawnMobj(special->x, special->y, special->z, MT_EXPLODE);
+				S_StartSound(poof2, special->info->seesound);
 
 				// Karma fireworks
 				for (i = 0; i < 5; i++)
@@ -490,10 +490,10 @@ void P_TouchSpecialThing(mobj_t *special, mobj_t *toucher, boolean heightcheck)
 			}
 			else if (special->target->player->kartstuff[k_comebackmode] == 2 && P_CanPickupItem(player, 2))
 			{
-				mobj_t *poof = P_SpawnMobj(special->x, special->y, special->z, MT_EXPLODE);
+				mobj_t *poof3 = P_SpawnMobj(special->x, special->y, special->z, MT_EXPLODE);
 				UINT8 ptadd = 1; // No WANTED bonus for tricking
 
-				S_StartSound(poof, special->info->seesound);
+				S_StartSound(poof3, special->info->seesound);
 
 				if (player->kartstuff[k_bumper] == 1) // If you have only one bumper left, and see if it's a 1v1
 				{
@@ -1647,7 +1647,7 @@ void P_KillMobj(mobj_t *target, mobj_t *inflictor, mobj_t *source)
 
 	// SRB2kart
 	// I wish I knew a better way to do this
-	if (!P_MobjWasRemoved(target->target) && target->target->player && !P_MobjWasRemoved(target->target->player->mo))
+	if (target->target && target->target->player && target->target->player->mo)
 	{
 		if (target->target->player->kartstuff[k_eggmanheld] && target->type == MT_EGGMANITEM_SHIELD)
 			target->target->player->kartstuff[k_eggmanheld] = 0;
@@ -1738,7 +1738,7 @@ void P_KillMobj(mobj_t *target, mobj_t *inflictor, mobj_t *source)
 		}
 		target->player->playerstate = PST_DEAD;
 
-		if (cv_fading.value && cv_birdmusic.value && P_IsLocalPlayer(target->player))
+		if (cv_birdmusic.value && cv_fading.value && P_IsLocalPlayer(target->player))
 		{
 			if (netgame || multiplayer)
 				ms = cv_respawntime.value * 1000;
@@ -1749,7 +1749,7 @@ void P_KillMobj(mobj_t *target, mobj_t *inflictor, mobj_t *source)
 			If the time spent with the music paused is less than half
 			a second, continue playing the song (just mute it).
 			*/
-			if (( ms - cv_respawnfademusicout.value ) < 500)
+			if ((ms - cv_respawnfademusicout.value) < 500)
 				S_FadeMusic(0, cv_respawnfademusicout.value);
 			else
 				S_FadeOutStopMusic(cv_respawnfademusicout.value);

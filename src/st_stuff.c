@@ -28,6 +28,9 @@
 #include "m_menu.h"
 #include "m_cheat.h"
 #include "p_setup.h" // NiGHTS grading
+
+#include "i_time.h"
+
 #include "k_kart.h" // SRB2kart
 
 //random index
@@ -151,6 +154,8 @@ static patch_t *envelope;
 // current player for overlay drawing
 player_t *stplyr;
 UINT8 stplyrnum;
+
+boolean directortextactive = false;
 
 // SRB2kart
 hudinfo_t hudinfo[NUMHUDITEMS] =
@@ -658,16 +663,29 @@ static void ST_overlayDrawer(void)
 
 	if (!hu_showscores) // hide the following if TAB is held
 	{
-		// Countdown timer for Race Mode
-		// ...moved to k_kart.c so we can take advantage of the LAPS_Y value
-
-		if ((demo.playback || !P_IsLocalPlayer(stplyr)) && !splitscreen)
+		if (cv_showdirectorhud.value && ((demo.playback && !demo.freecam && (!demo.title || !modeattacking)) || !P_IsLocalPlayer(stplyr)) && !splitscreen)
 		{
 			char directortext[20] = {0};
 
 			snprintf(directortext, 20, "Director: %s", cv_director.value ? "On" : "Off");
 
-			V_DrawString(1, BASEVIDHEIGHT-8-1, V_SNAPTOLEFT|V_SNAPTOBOTTOM|V_HUDTRANSHALF|V_ALLOWLOWERCASE, directortext);
+			directortextactive = true;
+
+			if ((!demo.playback && directortoggletimer < 13*TICRATE) || (demo.playback && directortoggletimer < 4*TICRATE))
+			{
+				if (renderisnewtic)
+					directortoggletimer++;
+
+				if (directortoggletimer < 4*TICRATE)
+					V_DrawString(1, BASEVIDHEIGHT-8-1, V_SNAPTOLEFT|V_SNAPTOBOTTOM|V_HUDTRANSHALF|V_ALLOWLOWERCASE, directortext);
+				else if (cv_translucenthud.value != 0)
+					V_DrawString(1, BASEVIDHEIGHT-8-1, V_SNAPTOLEFT|V_SNAPTOBOTTOM|V_80TRANS|V_ALLOWLOWERCASE, directortext); // idk if V_80TRANS is good?
+			}
+		}
+		else
+		{
+			directortoggletimer = 0;
+			directortextactive = false;
 		}
 
 		if (cv_showviewpointtext.value)
@@ -685,7 +703,7 @@ static void ST_overlayDrawer(void)
 					V_DrawCenteredString((BASEVIDWIDTH/2), BASEVIDHEIGHT-32, V_SNAPTOBOTTOM|V_HUDTRANS|V_ALLOWLOWERCASE, player_names[stplyr-players]);
 				}
 			}
-			else if (!demo.title)
+			else if (!demo.title && !demo.freecam)
 			{
 				if (!splitscreen)
 				{
@@ -708,7 +726,7 @@ static void ST_overlayDrawer(void)
 		}
 	}
 
-	if (!(netgame || multiplayer) || !hu_showscores)
+	if ((!(netgame || multiplayer) || !hu_showscores) && !forceshowhud)
 	{
 		if (renderisnewtic)
 		{
@@ -717,7 +735,7 @@ static void ST_overlayDrawer(void)
 	}
 
 	// draw level title Tails
-	if (*mapheaderinfo[gamemap-1]->lvlttl != '\0' && !(hu_showscores && (netgame || multiplayer) && !mapreset) && LUA_HudEnabled(hud_stagetitle))
+	if (*mapheaderinfo[gamemap-1]->lvlttl != '\0' && !(hu_showscores && (netgame || multiplayer) && !mapreset) && LUA_HudEnabled(hud_stagetitle) && !forceshowhud)
 		ST_drawLevelTitle();
 
 	if (!hu_showscores && netgame && !mapreset)

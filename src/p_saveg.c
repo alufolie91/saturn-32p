@@ -136,6 +136,10 @@ static void P_NetArchivePlayers(savebuffer_t *save)
 		WRITEINT32(save->p, players[i].currentweapon);
 		WRITEINT32(save->p, players[i].ringweapons);
 
+		WRITESINT8(save->p, players[i].pity);
+		WRITEINT32(save->p, players[i].currentweapon);
+		WRITEINT32(save->p, players[i].ringweapons);
+
 		for (j = 0; j < NUMPOWERS; j++)
 			WRITEUINT16(save->p, players[i].powers[j]);
 		for (j = 0; j < NUMKARTSTUFF; j++)
@@ -189,6 +193,10 @@ static void P_NetArchivePlayers(savebuffer_t *save)
 		WRITEINT16(save->p, players[i].numboxes);
 		WRITEINT16(save->p, players[i].totalring);
 		WRITEUINT32(save->p, players[i].realtime);
+		for (j = 0; j < LAP__MAX; j++)
+		{
+			WRITEUINT32(save->p, players[i].laptime[j]);
+		}
 		WRITEUINT8(save->p, players[i].laps);
 
 		////////////////////
@@ -332,6 +340,10 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 		players[i].currentweapon = READINT32(save->p);
 		players[i].ringweapons = READINT32(save->p);
 
+		players[i].pity = READSINT8(save->p);
+		players[i].currentweapon = READINT32(save->p);
+		players[i].ringweapons = READINT32(save->p);
+
 		for (j = 0; j < NUMPOWERS; j++)
 			players[i].powers[j] = READUINT16(save->p);
 		for (j = 0; j < NUMKARTSTUFF; j++)
@@ -371,6 +383,25 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 		players[i].homing = READUINT8(save->p); // Are you homing?
 		players[i].skidtime = READUINT32(save->p); // Skid timer
 
+		players[i].score = READUINT32(save->p);
+		players[i].dashspeed = READFIXED(save->p); // dashing speed
+		players[i].dashtime = READINT32(save->p); // dashing speed
+		players[i].lives = READSINT8(save->p);
+		players[i].continues = READSINT8(save->p); // continues that player has acquired
+		players[i].xtralife = READSINT8(save->p); // Ring Extra Life counter
+		players[i].gotcontinue = READUINT8(save->p); // got continue from stage
+		players[i].speed = READFIXED(save->p); // Player's speed (distance formula of MOMX and MOMY values)
+		players[i].jumping = READUINT8(save->p); // Jump counter
+		players[i].secondjump = READUINT8(save->p);
+		players[i].fly1 = READUINT8(save->p); // Tails flying
+		players[i].scoreadd = READUINT8(save->p); // Used for multiple enemy attack bonus
+		players[i].glidetime = READUINT32(save->p); // Glide counter for thrust
+		players[i].climbing = READUINT8(save->p); // Climbing on the wall
+		players[i].deadtimer = READINT32(save->p); // End game if game over lasts too long
+		players[i].exiting = READUINT32(save->p); // Exitlevel timer
+		players[i].homing = READUINT8(save->p); // Are you homing?
+		players[i].skidtime = READUINT32(save->p); // Skid timer
+
 		////////////////////////////
 		// Conveyor Belt Movement //
 		////////////////////////////
@@ -385,6 +416,10 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 		players[i].numboxes = READINT16(save->p); // Number of item boxes obtained for Race Mode
 		players[i].totalring = READINT16(save->p); // Total number of rings obtained for Race Mode
 		players[i].realtime = READUINT32(save->p); // integer replacement for leveltime
+		for (j = 0; j < LAP__MAX; j++)
+		{
+			players[i].laptime[j] = READUINT32(save->p);
+		}
 		players[i].laps = READUINT8(save->p); // Number of laps (optional)
 
 		////////////////////
@@ -1069,6 +1104,7 @@ static inline UINT32 SavePlayer(const player_t *player)
 	return 0xFFFFFFFF;
 }
 
+
 //
 // SaveMobjThinker
 //
@@ -1743,19 +1779,6 @@ static void SavePolydisplaceThinker(savebuffer_t *save, const thinker_t *th, con
 	WRITEFIXED(save->p, ht->oldHeights);
 }
 
-/*
-//
-// SaveWhatThinker
-//
-// Saves a what_t thinker
-//
-static inline void SaveWhatThinker(savebuffer_t *save, const thinker_t *th, const UINT8 type)
-{
-	const what_t *ht = (const void *)th;
-	WRITEUINT8(save->p, type);
-}
-*/
-
 //
 // P_NetArchiveThinkers
 //
@@ -1958,7 +1981,7 @@ static void P_NetArchiveThinkers(savebuffer_t *save)
 			continue;
 		}
 #ifdef PARANOIA
-		else if (th->function.acv != P_RemoveThinkerDelayed) // wait garbage collection
+		else if (th->function.acp1 != P_RemoveThinkerDelayed) // wait garbage collection
 			I_Error("unknown thinker type %p", th->function.acp1);
 #endif
 	}
@@ -1983,6 +2006,7 @@ mobj_t *P_FindNewPosition(UINT32 oldposition)
 			continue;
 
 		mobj = (mobj_t *)th;
+
 		if (mobj->mobjnum == oldposition)
 			return mobj;
 	}
@@ -2777,19 +2801,6 @@ static inline void LoadPolydisplaceThinker(savebuffer_t *save, actionf_p1 thinke
 	P_AddThinker(&ht->thinker);
 }
 
-/*
-//
-// LoadWhatThinker
-//
-// load a what_t thinker
-//
-static inline void LoadWhatThinker(savebuffer_t *save, actionf_p1 thinker)
-{
-	what_t *ht = Z_Malloc(sizeof (*ht), PU_LEVSPEC, NULL);
-	ht->thinker.function.acp1 = thinker;
-}
-*/
-
 //
 // P_NetUnArchiveThinkers
 //
@@ -2948,6 +2959,7 @@ static void P_NetUnArchiveThinkers(savebuffer_t *save)
 			case tc_disappear:
 				LoadDisappearThinker(save, (actionf_p1)T_Disappear);
 				break;
+
 			case tc_polyrotate:
 				LoadPolyrotatetThinker(save, (actionf_p1)T_PolyObjRotate);
 				break;
@@ -3003,12 +3015,13 @@ static void P_NetUnArchiveThinkers(savebuffer_t *save)
 		for (currentthinker = thinkercap.next; currentthinker != &thinkercap;
 			currentthinker = currentthinker->next)
 		{
-			if (currentthinker->function.acp1 == (actionf_p1)T_ExecutorDelay)
-			{
-				delay = (void *)currentthinker;
-				if ((mobjnum = (UINT32)(size_t)delay->caller))
-					delay->caller = P_FindNewPosition(mobjnum);
-			}
+			if (currentthinker->function.acp1 != (actionf_p1)T_ExecutorDelay)
+				continue;
+
+			delay = (void *)currentthinker;
+
+			if ((mobjnum = (UINT32)(size_t)delay->caller))
+				delay->caller = P_FindNewPosition(mobjnum);
 		}
 		for (currentthinker = thinkercap.next; currentthinker != &thinkercap;
 			 currentthinker = currentthinker->next)
@@ -3127,87 +3140,42 @@ static inline void P_FinishMobjs(void)
 	for (currentthinker = thinkercap.next; currentthinker != &thinkercap;
 		currentthinker = currentthinker->next)
 	{
-		if (currentthinker->function.acp1 == (actionf_p1)P_MobjThinker)
-		{
-			mobj = (mobj_t *)currentthinker;
-			mobj->info = &mobjinfo[mobj->type];
-		}
+		if (currentthinker->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue;
+
+		mobj = (mobj_t *)currentthinker;
+		mobj->info = &mobjinfo[mobj->type];
 	}
+}
+
+static inline mobj_t *RelinkMobj(mobj_t **ptr)
+{
+	UINT32 temp = (UINT32)(size_t)*ptr;
+	*ptr = NULL;
+	return P_SetTarget(ptr, P_FindNewPosition(temp));
 }
 
 static void P_RelinkPointers(void)
 {
 	thinker_t *currentthinker;
 	mobj_t *mobj;
-	UINT32 temp;
 
 	// use info field (value = oldposition) to relink mobjs
 	for (currentthinker = thinkercap.next; currentthinker != &thinkercap;
 		currentthinker = currentthinker->next)
 	{
-		if (currentthinker->function.acp1 == (actionf_p1)P_MobjThinker)
+		if (currentthinker->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue;
+
+		mobj = (mobj_t *)currentthinker;
+
+		if (mobj->type == MT_HOOP || mobj->type == MT_HOOPCOLLIDE || mobj->type == MT_HOOPCENTER)
+			continue;
+
+		if (mobj->tracer)
 		{
-			mobj = (mobj_t *)currentthinker;
-
-			if (mobj->type == MT_HOOP || mobj->type == MT_HOOPCOLLIDE || mobj->type == MT_HOOPCENTER)
-				continue;
-
-			if (mobj->tracer)
-			{
-				temp = (UINT32)(size_t)mobj->tracer;
-				mobj->tracer = NULL;
-				if (!P_SetTarget(&mobj->tracer, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "tracer not found on %d\n", mobj->type);
-			}
-			if (mobj->target)
-			{
-				temp = (UINT32)(size_t)mobj->target;
-				mobj->target = NULL;
-				if (!P_SetTarget(&mobj->target, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "target not found on %d\n", mobj->type);
-			}
-			if (mobj->hnext)
-			{
-				temp = (UINT32)(size_t)mobj->hnext;
-				mobj->hnext = NULL;
-				if (!P_SetTarget(&mobj->hnext, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "hnext not found on %d\n", mobj->type);
-			}
-			if (mobj->hprev)
-			{
-				temp = (UINT32)(size_t)mobj->hprev;
-				mobj->hprev = NULL;
-				if (!P_SetTarget(&mobj->hprev, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "hprev not found on %d\n", mobj->type);
-			}
-			if (mobj->player && mobj->player->capsule)
-			{
-				temp = (UINT32)(size_t)mobj->player->capsule;
-				mobj->player->capsule = NULL;
-				if (!P_SetTarget(&mobj->player->capsule, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "capsule not found on %d\n", mobj->type);
-			}
-			if (mobj->player && mobj->player->axis1)
-			{
-				temp = (UINT32)(size_t)mobj->player->axis1;
-				mobj->player->axis1 = NULL;
-				if (!P_SetTarget(&mobj->player->axis1, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "axis1 not found on %d\n", mobj->type);
-			}
-			if (mobj->player && mobj->player->axis2)
-			{
-				temp = (UINT32)(size_t)mobj->player->axis2;
-				mobj->player->axis2 = NULL;
-				if (!P_SetTarget(&mobj->player->axis2, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "axis2 not found on %d\n", mobj->type);
-			}
-			if (mobj->player && mobj->player->awayviewmobj)
-			{
-				temp = (UINT32)(size_t)mobj->player->awayviewmobj;
-				mobj->player->awayviewmobj = NULL;
-				if (!P_SetTarget(&mobj->player->awayviewmobj, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "awayviewmobj not found on %d\n", mobj->type);
-			}
+			if (!RelinkMobj(&mobj->tracer))
+				CONS_Debug(DBG_GAMELOGIC, "tracer not found on %d\n", mobj->type);
 			if (mobj->player && mobj->player->follower)
 			{
 				temp = (UINT32)(size_t)mobj->player->follower;
@@ -3215,6 +3183,41 @@ static void P_RelinkPointers(void)
 				if (!P_SetTarget(&mobj->player->follower, P_FindNewPosition(temp)))
 					CONS_Debug(DBG_GAMELOGIC, "follower not found on %d\n", mobj->type);
 			}
+		}
+		if (mobj->target)
+		{
+			if (!RelinkMobj(&mobj->target))
+				CONS_Debug(DBG_GAMELOGIC, "target not found on %d\n", mobj->type);
+		}
+		if (mobj->hnext)
+		{
+			if (!RelinkMobj(&mobj->hnext))
+				CONS_Debug(DBG_GAMELOGIC, "hnext not found on %d\n", mobj->type);
+		}
+		if (mobj->hprev)
+		{
+			if (!RelinkMobj(&mobj->hprev))
+				CONS_Debug(DBG_GAMELOGIC, "hprev not found on %d\n", mobj->type);
+		}
+		if (mobj->player && mobj->player->capsule)
+		{
+			if (!RelinkMobj(&mobj->player->capsule))
+				CONS_Debug(DBG_GAMELOGIC, "capsule not found on %d\n", mobj->type);
+		}
+		if (mobj->player && mobj->player->axis1)
+		{
+			if (!RelinkMobj(&mobj->player->axis1))
+				CONS_Debug(DBG_GAMELOGIC, "axis1 not found on %d\n", mobj->type);
+		}
+		if (mobj->player && mobj->player->axis2)
+		{
+			if (!RelinkMobj(&mobj->player->axis2))
+				CONS_Debug(DBG_GAMELOGIC, "axis2 not found on %d\n", mobj->type);
+		}
+		if (mobj->player && mobj->player->awayviewmobj)
+		{
+			if (!RelinkMobj(&mobj->player->awayviewmobj))
+				CONS_Debug(DBG_GAMELOGIC, "awayviewmobj not found on %d\n", mobj->type);
 		}
 	}
 }
@@ -3372,7 +3375,9 @@ static void P_NetArchiveMisc(savebuffer_t *save, boolean resending)
 
 	if (resending)
 		WRITEUINT32(save->p, gametic);
+
 	WRITEINT16(save->p, gamemap);
+
 	if (gamestate != GS_LEVEL)
 		WRITEINT16(save->p, GS_WAITINGPLAYERS); // nice hack to put people back into waitingplayers
 	else
@@ -3603,13 +3608,15 @@ void P_SaveNetGame(savebuffer_t *save, boolean resending)
 	{
 		for (th = thinkercap.next; th != &thinkercap; th = th->next)
 		{
-			if (th->function.acp1 == (actionf_p1)P_MobjThinker)
-			{
-				mobj = (mobj_t *)th;
-				if (mobj->type == MT_HOOP || mobj->type == MT_HOOPCOLLIDE || mobj->type == MT_HOOPCENTER)
-					continue;
-				mobj->mobjnum = i++;
-			}
+			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+				continue;
+
+			mobj = (mobj_t *)th;
+
+			if (mobj->type == MT_HOOP || mobj->type == MT_HOOPCOLLIDE || mobj->type == MT_HOOPCENTER)
+				continue;
+
+			mobj->mobjnum = i++;
 		}
 	}
 
@@ -3641,6 +3648,7 @@ boolean P_LoadGame(savebuffer_t *save, INT16 mapoverride)
 	// Savegame end marker
 	if (READUINT8(save->p) != 0x1d)
 		return false;
+	}
 
 	// Only do this after confirming savegame is ok
 	G_DeferedInitNew(false, G_BuildMapName(gamemap), savedata.skin, 0, true);

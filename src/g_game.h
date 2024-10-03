@@ -40,7 +40,7 @@ extern savebuffer_t demobuf;
 // ======================================
 
 // demoplaying back and demo recording
-extern consvar_t cv_recordmultiplayerdemos, cv_netdemosyncquality, cv_maxdemosize;
+extern consvar_t cv_recordmultiplayerdemos, cv_netdemosyncquality, cv_maxdemosize, cv_demochangemap;
 
 // Publicly-accessible demo vars
 struct demovars_s {
@@ -219,6 +219,8 @@ INT32 JoyAxis(axis_input_e axissel, UINT8 p);
 extern angle_t localangle[MAXSPLITSCREENPLAYERS];
 extern INT32 localaiming[MAXSPLITSCREENPLAYERS]; // should be an angle_t but signed
 extern boolean camspin[MAXSPLITSCREENPLAYERS]; // SRB2Kart
+
+extern tic_t directortoggletimer;
 
 //
 // GAME

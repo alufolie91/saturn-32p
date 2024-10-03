@@ -21,6 +21,8 @@
 #include "mserv.h"
 #include "r_things.h" // for SKINNAMESIZE
 
+extern boolean forceshowhud;
+
 //
 // MENUS
 //
@@ -290,8 +292,8 @@ void PDistort_menu_Onchange(void);
 // Bird menu updating
 void Bird_menu_Onchange(void);
 
-// Saturn menu updating
-void Saturn_menu_Onchange(void);
+// Saturn Hud menu updating
+void SaturnHud_menu_Onchange(void);
 
 void M_ReplayHut(INT32 choice);
 void M_SetPlaybackMenuPointer(void);
@@ -399,6 +401,17 @@ void M_SlotCvarIntoModMenu(consvar_t* cvar, const char* category, const char* na
 	0,\
 	NULL,\
 	{NULL}\
+}
+
+#define DoToolTips(menu, tooltip)\
+if (currentMenu == &menu)\
+{\
+	if (!(tooltip[itemOn] == NULL))\
+	{\
+		M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, tooltip[itemOn], coolalphatimer);\
+		if (coolalphatimer > 0 && interpTimerHackAllow)\
+			coolalphatimer--;\
+	}\
 }
 
 #endif //__X_MENU__

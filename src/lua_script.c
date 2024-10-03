@@ -673,7 +673,16 @@ static UINT8 ArchiveValue(UINT8 **p, int TABLESINDEX, int myindex)
 			lua_pop(gL, 1);
 		}
 		if (!found)
+		{
 			t++;
+
+			if (t == 0)
+			{
+				CONS_Alert(CONS_ERROR, "Too many tables to archive!\n");
+				WRITEUINT8(*p, ARCH_NULL);
+				return 0;
+			}
+		}
 
 		WRITEUINT8(*p, ARCH_TABLE);
 		WRITEUINT16(*p, t);
@@ -908,9 +917,7 @@ static void ArchiveTables(UINT8 **p)
 		{
 			// Write key
 			e = ArchiveValue(p, TABLESINDEX, -2); // key should be either a number or a string, ArchiveValue can handle this.
-			if (e == 1)
-				n++; // the table contained a new table we'll have to archive. :(
-			else if (e == 2) // invalid key type (function, thread, lightuserdata, or anything we don't recognise)
+			if (e == 2) // invalid key type (function, thread, lightuserdata, or anything we don't recognise)
 			{
 				lua_pushvalue(gL, -2);
 				CONS_Alert(CONS_ERROR, "Index '%s' (%s) of table %d could not be archived!\n", lua_tostring(gL, -1), luaL_typename(gL, -1), i);
@@ -920,7 +927,7 @@ static void ArchiveTables(UINT8 **p)
 			e = ArchiveValue(p, TABLESINDEX, -1);
 			if (e == 1)
 				n++; // the table contained a new table we'll have to archive. :(
-			else if (e == 2) // invalid value type
+			else if (e == 2) // invalid key type (function, thread, lightuserdata, or anything we don't recognise)
 			{
 				lua_pushvalue(gL, -2);
 				CONS_Alert(CONS_ERROR, "Type of value for table %d entry '%s' (%s) could not be archived!\n", i, lua_tostring(gL, -1), luaL_typename(gL, -1));
@@ -986,18 +993,8 @@ static UINT8 UnArchiveValue(UINT8 **p, int TABLESINDEX)
 		LUA_PushUserdata(gL, &states[READUINT16(*p)], META_STATE);
 		break;
 	case ARCH_MOBJ:
-		if (*p == demobuf.p)
-		{
-			demobuf.p += sizeof(UINT32);	// Skip this data, we can't read a mobj here, it'd point to garbage and crash the game.
-			CONS_Alert(CONS_WARNING,"Couldn't read mobj_t\n");
-
-			return 3;	// Don't set the field
-		}
-		else
-		{
-			LUA_PushUserdata(gL, P_FindNewPosition(READUINT32(*p)), META_MOBJ);
-			break;
-		}
+		LUA_PushUserdata(gL, P_FindNewPosition(READUINT32(*p)), META_MOBJ);
+		break;
 	case ARCH_PLAYER:
 		LUA_PushUserdata(gL, &players[READUINT8(*p)], META_PLAYER);
 		break;
@@ -1037,7 +1034,113 @@ static UINT8 UnArchiveValue(UINT8 **p, int TABLESINDEX)
 	return 0;
 }
 
-static void UnArchiveExtVars(UINT8 **p, void *pointer)
+
+// Unarchives from demo_p:
+// Return values:
+// 0: Normal
+// 1: Read table key
+// 2: Read table value
+// 3: Don't use setfield
+
+static UINT8 UnArchiveValueDemo(UINT8 **p, int TABLESINDEX, char field[1024])
+{
+	UINT8 type = READUINT8(*p);
+	switch (type)
+	{
+	case ARCH_NULL:
+		lua_pushnil(gL);
+		break;
+	case ARCH_BOOLEAN:
+		lua_pushboolean(gL, READUINT8(*p));
+		break;
+	case ARCH_SIGNED:
+		lua_pushinteger(gL, READFIXED(*p));
+		break;
+	case ARCH_STRING:
+	{
+		UINT16 len = READUINT16(*p); // length of string, including embedded zeros
+		char *value;
+		UINT16 i = 0;
+		// See my comments in the ArchiveValue function;
+		// it's much the same for reading strings as writing them!
+		// (i.e. we can't use READSTRING either)
+		// -- Monster Iestyn 05/08/18
+		value = malloc(len); // make temp buffer of size len
+		// now read the actual string
+		while (i < len)
+			value[i++] = READCHAR(*p); // read chars individually, including the embedded zeros
+		lua_pushlstring(gL, value, len); // push the string (note: this function supports embedded zeros)
+		free(value); // free the buffer
+		break;
+	}
+	case ARCH_TABLE:
+	{
+		UINT16 tid = READUINT16(*p);
+		lua_rawgeti(gL, TABLESINDEX, tid);
+		if (lua_isnil(gL, -1))
+		{
+			lua_pop(gL, 1);
+			lua_newtable(gL);
+			lua_pushvalue(gL, -1);
+			lua_rawseti(gL, TABLESINDEX, tid);
+			return 2;
+		}
+		break;
+	}
+	case ARCH_MOBJINFO:
+		LUA_PushUserdata(gL, &mobjinfo[READUINT16(*p)], META_MOBJINFO);
+		break;
+	case ARCH_STATE:
+		LUA_PushUserdata(gL, &states[READUINT16(*p)], META_STATE);
+		break;
+	case ARCH_MOBJ:
+		*p += sizeof(UINT32);	// Skip this data, we can't read a mobj here, it'd point to garbage and crash the game.
+		if (field)
+			CONS_Alert(CONS_WARNING,"Cannot read mobj_t stored in player variable \'%s\'. Desyncs may occur.\n", field);
+		else
+			CONS_Alert(CONS_WARNING,"Couldn't read mobj_t\n");
+		return 3;	// Don't set the field
+
+	case ARCH_PLAYER:
+		LUA_PushUserdata(gL, &players[READUINT8(*p)], META_PLAYER);
+		break;
+	case ARCH_MAPTHING:
+		LUA_PushUserdata(gL, &mapthings[READUINT16(*p)], META_MAPTHING);
+		break;
+	case ARCH_VERTEX:
+		LUA_PushUserdata(gL, &vertexes[READUINT16(*p)], META_VERTEX);
+		break;
+	case ARCH_LINE:
+		LUA_PushUserdata(gL, &lines[READUINT16(*p)], META_LINE);
+		break;
+	case ARCH_SIDE:
+		LUA_PushUserdata(gL, &sides[READUINT16(*p)], META_SIDE);
+		break;
+	case ARCH_SUBSECTOR:
+		LUA_PushUserdata(gL, &subsectors[READUINT16(*p)], META_SUBSECTOR);
+		break;
+	case ARCH_SECTOR:
+		LUA_PushUserdata(gL, &sectors[READUINT16(*p)], META_SECTOR);
+		break;
+	case ARCH_SLOPE:
+		LUA_PushUserdata(gL, P_SlopeById(READUINT16(*p)), META_SLOPE);
+		break;
+	case ARCH_MAPHEADER:
+		LUA_PushUserdata(gL, mapheaderinfo[READUINT16(*p)], META_MAPHEADER);
+		break;
+	case ARCH_TEND:
+		return 1;
+	default:
+		CONS_Alert(CONS_ERROR, "Unknown value type unarchived, save is corrupted!\n");
+		G_SetExitGameFlag();
+		S_StartSound(NULL, sfx_syfail); // he he he
+		M_StartMessage(M_GetText("Corrupted save received\nPress ESC\n"), NULL, MM_NOTHING);
+		return 1;
+	}
+	return 0;
+}
+
+static void UnArchiveExtVars(UINT8 **p, void *pointer, boolean network)
 {
 	int TABLESINDEX;
 	UINT16 field_count = READUINT16(*p);
@@ -1056,24 +1159,22 @@ static void UnArchiveExtVars(UINT8 **p, void *pointer)
 	TABLESINDEX = lua_gettop(gL);
 	lua_createtable(gL, 0, field_count); // pointer's ext vars subtable
 
-	for (i = 0; i < field_count; i++)
+	if (network)
 	{
-		READSTRING(*p, field);
-
-		if (*p == demobuf.p)
+		for (i = 0; i < field_count; i++)
 		{
-			if (UnArchiveValue(p, TABLESINDEX) != 3)	// This will return 3 if we shouldn't set this field.
-				lua_setfield(gL, -2, field);
-		}
-		else
-		{
-			if (UnArchiveValue(p, TABLESINDEX) == 1)
-			{
-				CONS_Alert(CONS_ERROR, "Unexpected end marker when reading ExtVars (field '%s')\n", field);
-				break;
-			}
-
+			READSTRING(*p, field);
+			UnArchiveValue(p, TABLESINDEX);
 			lua_setfield(gL, -2, field);
+		}
+	}
+	else
+	{
+		for (i = 0; i < field_count; i++)
+		{
+			READSTRING(*p, field);
+			if (UnArchiveValueDemo(p, TABLESINDEX, field) != 3)	// This will return 3 if we shouldn't set this field.
+				lua_setfield(gL, -2, field);
 		}
 	}
 
@@ -1095,7 +1196,7 @@ static int NetUnArchive(lua_State *L)
 	return n;
 }
 
-static void UnArchiveTables(UINT8 **p)
+static void UnArchiveTables(UINT8 **p, boolean network)
 {
 	int TABLESINDEX;
 	UINT16 i, n;
@@ -1106,75 +1207,63 @@ static void UnArchiveTables(UINT8 **p)
 	TABLESINDEX = lua_gettop(gL);
 
 	n = (UINT16)lua_objlen(gL, TABLESINDEX);
-	for (i = 1; i <= n; i++)
+
+	if (network)
 	{
-		lua_rawgeti(gL, TABLESINDEX, i);
-
-		if (!lua_istable(gL, -1))
+		for (i = 1; i <= n; i++)
 		{
-			CONS_Alert(CONS_ERROR, "Value in tables list #%d is not a table! (corrupted save?)\n", i);
-			continue;
+			lua_rawgeti(gL, TABLESINDEX, i);
+			while (true)
+			{
+				if (UnArchiveValue(p, TABLESINDEX) == 1) // read key
+					break;
+				if (UnArchiveValue(p, TABLESINDEX) == 2) // read value
+					n++;
+				if (lua_isnil(gL, -2)) // if key is nil (if a function etc was accidentally saved)
+				{
+					CONS_Alert(CONS_ERROR, "A nil key in table %d was found! (Invalid key type or corrupted save?)\n", i);
+					lua_pop(gL, 2); // pop key and value instead of setting them in the table, to prevent Lua panic errors
+				}
+				else
+					lua_rawset(gL, -3);
+			}
+			lua_pop(gL, 1);
 		}
-
-		while (true)
+	}
+	else
+	{
+		for (i = 1; i <= n; i++)
 		{
-			UINT8 e = UnArchiveValue(p, TABLESINDEX); // read key
-
-			if (*p == demobuf.p)
+			lua_rawgeti(gL, TABLESINDEX, i);
+			while (true)
 			{
-				if (e == 3)
-					lua_pushnil(gL);
-				else if (e == 1) // End of table
-					break;
-				else if (e == 2) // Key contains a new table
-					n++;
-			}
-			else
-			{
-				if (e == 1) // End of table
-					break;
-				else if (e == 2) // Key contains a new table
-					n++;
-			}
+				UINT8 ret;
 
-			UINT8 ret = UnArchiveValue(p, TABLESINDEX);
-
-			if (*p == demobuf.p)
-			{
+				ret = UnArchiveValueDemo(p, TABLESINDEX, NULL);
 				if (ret == 3)
 					lua_pushnil(gL);
-				else if (ret == 1)
-				{
-					CONS_Alert(CONS_ERROR, "Unexpected end of save reached (Corrupted save?)\n");
-					lua_pop(gL, 1); // Pop key
+				else if (ret == 1) // read key
 					break;
-				}
-				else if (ret == 2) // Key contains a new table
+
+				ret = UnArchiveValueDemo(p, TABLESINDEX, NULL);
+
+				if (ret == 3)
+					lua_pushnil(gL);
+				else if (ret == 2) // read value
 					n++;
-			}
-			else
-			{
-				if (ret == 1)
+
+				if (lua_isnil(gL, -2)) // if key is nil (if a function etc was accidentally saved)
 				{
-					CONS_Alert(CONS_ERROR, "Unexpected end of save reached (Corrupted save?)\n");
-					lua_pop(gL, 1); // Pop key
-					break;
+					CONS_Alert(CONS_ERROR, "A nil key in table %d was found! (Invalid key type or corrupted save?)\n", i);
+					lua_pop(gL, 2); // pop key and value instead of setting them in the table, to prevent Lua panic errors
 				}
-				else if (ret == 2) // Key contains a new table
-					n++;
+				else
+					lua_rawset(gL, -3);
 			}
-
-
-			if (lua_isnil(gL, -2)) // if key is nil (if a function etc was accidentally saved)
-			{
-				CONS_Alert(CONS_ERROR, "A nil key in table %d was found! (Invalid key type or corrupted save?)\n", i);
-				lua_pop(gL, 2); // pop key and value instead of setting them in the table, to prevent Lua panic errors
-			}
-			else
-				lua_rawset(gL, -3);
+			lua_pop(gL, 1);
 		}
-		lua_pop(gL, 1);
 	}
+
 }
 
 void LUA_Step(void)
@@ -1206,12 +1295,14 @@ void LUA_Archive(savebuffer_t *save, boolean network)
 		if (gamestate == GS_LEVEL)
 		{
 			for (th = thinkercap.next; th != &thinkercap; th = th->next)
-				if (th->function.acp1 == (actionf_p1)P_MobjThinker)
-				{
-					// archive function will determine when to skip mobjs,
-					// and write mobjnum in otherwise.
-					ArchiveExtVars(&save->p, th, "mobj");
-				}
+			{
+				if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+					continue;
+
+				// archive function will determine when to skip mobjs,
+				// and write mobjnum in otherwise.
+				ArchiveExtVars(&save->p, th, "mobj");
+			}
 		}
 		WRITEUINT32(save->p, UINT32_MAX); // end of mobjs marker, replaces mobjnum.
 
@@ -1237,7 +1328,8 @@ void LUA_UnArchive(savebuffer_t *save, boolean network)
 	{
 		if (!playeringame[i] && i > 0)	// same here, this is to synch dediservs properly.
 			continue;
-		UnArchiveExtVars(&save->p, &players[i]);
+
+		UnArchiveExtVars(&save->p, &players[i], network);
 	}
 
 	if (network == true)
@@ -1245,15 +1337,19 @@ void LUA_UnArchive(savebuffer_t *save, boolean network)
 		do {
 			mobjnum = READUINT32(save->p); // read a mobjnum
 			for (th = thinkercap.next; th != &thinkercap; th = th->next)
-				if (th->function.acp1 == (actionf_p1)P_MobjThinker
-				&& ((mobj_t *)th)->mobjnum == mobjnum) // find matching mobj
-					UnArchiveExtVars(&save->p, th); // apply variables
+			{
+				if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+					continue;
+
+				if (((mobj_t *)th)->mobjnum == mobjnum) // find matching mobj
+					UnArchiveExtVars(&save->p, th, network); // apply variables
+			}
 		} while(mobjnum != UINT32_MAX); // repeat until end of mobjs marker.
 
 		LUAh_NetArchiveHook(NetUnArchive, save); // call the NetArchive hook in unarchive mode
 	}
 
-	UnArchiveTables(&save->p);
+	UnArchiveTables(&save->p, network);
 
 	if (gL)
 		lua_pop(gL, 1); // pop tables

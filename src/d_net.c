@@ -833,6 +833,11 @@ const char *packettypename[NUMPACKETTYPE] =
 	"MOREFILESNEEDED",
 
 	"PING"
+
+#ifdef SATURNPAK
+	// we will reserve this for now even if unused, so order wont get mangled
+	"ISSATURN"
+#endif
 };
 
 const char *Net_GetPacketName(UINT8 packettype)
@@ -1437,13 +1442,13 @@ void Command_Ping_f(void)
 		}
 	}
 
-	     if (f_width < 10)  f_width = 1;
+	if 		(f_width < 10)  f_width = 1;
 	else if (f_width < 100) f_width = 2;
-	else                    f_width = 3;
+	else					f_width = 3;
 
-	     if (ms_width < 10)  ms_width = 1;
+	if 		(ms_width < 10)  ms_width = 1;
 	else if (ms_width < 100) ms_width = 2;
-	else                     ms_width = 3;
+	else					 ms_width = 3;
 
 	qsort(pingv, pingc, sizeof (struct pingcell), &pingcellcmp);
 

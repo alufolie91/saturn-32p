@@ -463,7 +463,7 @@ static boolean D_Display(void)
 					viewssnum = i;
 
 #ifdef HWRENDER
-					if (rendermode != render_soft)
+					if (rendermode == render_opengl)
 						HWR_RenderPlayerView(i, &players[displayplayers[i]]);
 					else
 #endif
@@ -518,8 +518,10 @@ static boolean D_Display(void)
 
 				for (i = 0; i <= splitscreen; i++)
 				{
-					if (postimgtype[i])
-						V_DoPostProcessor(i, postimgtype[i], postimgparam[i]);
+					if (!postimgtype[i])
+						continue;
+
+					V_DoPostProcessor(i, postimgtype[i], postimgparam[i]);
 				}
 			}
 
@@ -533,7 +535,6 @@ static boolean D_Display(void)
 			if (rendermode == render_soft)
 			{
 				VID_BlitLinearScreen(screens[0], screens[1], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
-				usebuffer = true;
 			}
 			lastdraw = false;
 		}
@@ -707,7 +708,7 @@ void D_SRB2Loop(void)
 			double budget = round((1.0 / R_GetFramerateCap()) * I_GetPrecisePrecision());
 			capbudget = (precise_t) budget;
 		}
-		
+
 		boolean ranwipe = false;
 
 		I_UpdateTime(cv_timescale.value);
@@ -779,6 +780,37 @@ void D_SRB2Loop(void)
 
 				doDisplay = true;
 			}
+
+#define DPADSCROLLINPUT(INPUT)\
+		{\
+		myev.data1 = INPUT;\
+		M_Responder(&myev);\
+		}
+			// this is absolutely awful and i hate it lmao
+			if (menuactive && (DPADUPSCROLL || DPADDOWNSCROLL || DPADLEFTSCROLL || DPADRIGHTSCROLL))
+			{
+				event_t myev;
+				myev.type = ev_keydown;
+
+				menuInputDelayTimer++;
+
+				if (menuInputDelayTimer >= 19) // TICRATE * ( (k+2) (1 - [wz + h + j - q]^2 - [(gk + 2g + k + 1)(h + j) + h - z]^2 - [16(k + 1)^3(k + 2)(n + 1)^2 + 1 - f^2]^2 calculated by my butt
+				{
+					if (DPADUPSCROLL)
+						DPADSCROLLINPUT(KEY_UPARROW)
+					else if (DPADDOWNSCROLL)
+						DPADSCROLLINPUT(KEY_DOWNARROW)
+					else if (DPADLEFTSCROLL)
+						DPADSCROLLINPUT(KEY_LEFTARROW)
+					else if (DPADRIGHTSCROLL)
+						DPADSCROLLINPUT(KEY_RIGHTARROW)
+				}
+			}
+			else
+				menuInputDelayTimer = 0;
+#undef DPADSCROLLINPUT
+
+			D_DeviceLEDTick();
 		}
 
 		if (interp)
@@ -827,47 +859,6 @@ void D_SRB2Loop(void)
 		}
 #endif
 
-		// this is absolutely awful and i hate it lmao
-		if (menuactive && (DPADUPSCROLL || DPADDOWNSCROLL || DPADLEFTSCROLL || DPADRIGHTSCROLL))
-		{
-			event_t myev;
-			myev.type = ev_keydown;
-
-			if (renderisnewtic)
-			{
-				menuInputDelayTimer++;
-
-				if (menuInputDelayTimer >= 19) // TICRATE * ( (k+2) (1 - [wz + h + j - q]^2 - [(gk + 2g + k + 1)(h + j) + h - z]^2 - [16(k + 1)^3(k + 2)(n + 1)^2 + 1 - f^2]^2 calculated by my butt
-				{
-					if (DPADUPSCROLL)
-					{
-						myev.data1 = KEY_UPARROW;
-						M_Responder(&myev);
-					}
-					else if (DPADDOWNSCROLL)
-					{
-						myev.data1 = KEY_DOWNARROW;
-						M_Responder(&myev);
-					}
-					else if (DPADLEFTSCROLL)
-					{
-						myev.data1 = KEY_LEFTARROW;
-						M_Responder(&myev);
-					}
-					else if (DPADRIGHTSCROLL)
-					{
-						myev.data1 = KEY_RIGHTARROW;
-						M_Responder(&myev);
-					}
-				}
-			}
-		}
-		else
-			menuInputDelayTimer = 0;
-
-		if (!dedicated && renderisnewtic) // idk does this need dedi check??
-			D_DeviceLEDTick();
-
 		// Fully completed frame made.
 		finishprecise = I_GetPreciseTime();
 
@@ -875,7 +866,7 @@ void D_SRB2Loop(void)
 		// post-sleep time is literally being intentionally wasted
 		deltasecs = (double)((INT64)(finishprecise - enterprecise)) / I_GetPrecisePrecision();
 		deltatics = deltasecs * NEWTICRATE;
-		
+
 		// If time spent this game loop exceeds a single tic,
 		// it's probably because of rendering.
 		//
@@ -1018,7 +1009,7 @@ static INT32 D_DetectFileType(const char* filename)
 			return 5;
 		else if (!stricmp(&filename[strlen(filename) - 4], ".soc"))
 			return 6;
-		
+
 		else if (!stricmp(&filename[strlen(filename) - 4], ".cfg"))
 			return 7;
 		else if (!stricmp(&filename[strlen(filename) - 4], ".txt"))
@@ -1042,12 +1033,12 @@ static void D_AutoloadFile(const char *file, char **filearray)
 	if (!newfile)
 		I_Error("No more free memory to AutoloadFile %s",file);
 
-	if (!fileType) 
+	if (!fileType)
 	{
 		CONS_Printf("D_AutoloadFile: File %s is unknown or invalid\n", file);
 		return;
 	}
-		
+
 	strcpy(newfile, file);
 
 	if (fileType <= 6)
@@ -1293,13 +1284,12 @@ static void IdentifyVersion(void)
 		D_AddFile(va(pandf,srb2waddir,"extra.kart"), startupwadfiles);
 		found_extra_kart = true;
 	}
-	
+
 	// completely optional 2: Back with a vengence
 	if (FIL_ReadFileOK(va(pandf,srb2waddir,"extra2.kart"))) {
 		D_AddFile(va(pandf,srb2waddir,"extra2.kart"), startupwadfiles);
 		found_extra2_kart = true;
 	}
-	
 
 	// completely optional 3: Its about time
 	if (FIL_ReadFileOK(va(pandf,srb2waddir,"kv.kart"))) {
@@ -1591,7 +1581,7 @@ void D_SRB2Main(void)
 	if (found_extra_kart || found_extra2_kart || found_extra3_kart || found_kv_kart) // found the funny, add it in!
 	{
 		// HAYA: These are seperated for a reason lmao
-		if (found_extra_kart) 
+		if (found_extra_kart)
 			mainwads++;
 		if (found_extra2_kart)
 			mainwads++;
@@ -1621,7 +1611,7 @@ void D_SRB2Main(void)
 			achi_speedo_clr = true;
 
 		// check for bigger lap count
-		if (W_CheckMultipleLumps("K_STLAPB", "K_STLA2B", NULL)) 
+		if (W_CheckMultipleLumps("K_STLAPB", "K_STLA2B", NULL))
 			big_lap = true;
 
 		// now check for colour hud stuff
@@ -1630,7 +1620,7 @@ void D_SRB2Main(void)
 			clr_hud = true;
 
 		// check for bigger lap count but color** its color bitch
-		if (W_CheckMultipleLumps("K_SCLAPB", "K_SCLA2B", NULL)) 
+		if (W_CheckMultipleLumps("K_SCLAPB", "K_SCLA2B", NULL))
 			big_lap_color = true;
 
 		// kartzspeedo
@@ -1645,9 +1635,16 @@ void D_SRB2Main(void)
 
 		// stat display for extended player setup
 		if (W_CheckMultipleLumps("K_STATNB", "K_STATN1", "K_STATN2", "K_STATN3", "K_STATN4", \
-			"K_STATN5", "K_STATN6", NULL)) 
+			"K_STATN5", "K_STATN6", NULL))
 			statdp = true;
-		
+
+		// Nametag stuffs
+		if (W_CheckMultipleLumps("NTLINE", "NTLINEV", "NTSP", "NTWH", NULL))
+			nametaggfx = true;
+
+		if (W_CheckMultipleLumps("K_DGAU","K_DCAU","K_DGSU","K_DCSU", NULL))
+			driftgaugegfx = true;
+
 		if (found_extra3_kart)
 		{
 			// 80x11 speedometer crap
@@ -1660,10 +1657,14 @@ void D_SRB2Main(void)
 			if (W_LumpExists("SC_SM3TC"))
 				xtra_speedo_clr3 = true;
 		}
-	}	
+	}
 
 #undef PUSHSPEEDO
 	memcpy(speedo_cons_t, speedo_cons_temp, sizeof(speedo_cons_t));
+
+	// Do it before P_InitMapData because PNG patch
+	// conversion sometimes needs the palette
+	V_ReloadPalette();
 
 	//
 	// search for maps

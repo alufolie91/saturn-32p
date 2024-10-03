@@ -73,6 +73,9 @@ static void HWR_DrawColumnInCache(const column_t *patchcol, UINT8 *block, GLMipm
 
 	(void)patchheight; // This parameter is unused
 
+	if (!mipmap || mipmap == NULL)
+		return;
+
 	if (originPatch) // originPatch can be NULL here, unlike in the software version
 		originy = originPatch->originy;
 
@@ -379,7 +382,7 @@ static void HWR_GenerateTexture(INT32 texnum, GLMapTexture_t *grtex, boolean noe
 		                     blockwidth, blockheight,
 		                     texture, patch,
 		                     realpatch);
-		Z_Unlock(realpatch);
+		Z_ChangeTag(realpatch, PU_HWRCACHE_UNLOCKED);
 	}
 
 	//Hurdler: not efficient at all but I don't remember exactly how HWR_DrawPatchInCache works :(

@@ -98,6 +98,12 @@ typedef enum
 	PT_MOREFILESNEEDED, // Server, to client: "you need these (+ more on top of those)"
 
 	PT_PING,          // Packet sent to tell clients the other client's latency to server.
+
+#ifdef SATURNPAK
+	// we will reserve this for now even if unused, so order wont get mangled
+	PT_ISSATURN, 			// Saturn specific identifier packet
+#endif
+
 	NUMPACKETTYPE
 } packettype_t;
 
@@ -416,14 +422,14 @@ extern consvar_t
 #ifdef VANILLAJOINNEXTROUND
 	cv_joinnextround,
 #endif
-	cv_netticbuffer, cv_allownewplayer, cv_joinrefusemessage, cv_maxplayers, cv_allowresynch, cv_resynchcooldown, cv_blamecfail, cv_maxsend, cv_noticedownload, cv_downloadspeed;
+	cv_netticbuffer, cv_allownewplayer, cv_joinrefusemessage, cv_maxplayers, cv_gamestateattempts, cv_resynchcooldown, cv_blamecfail, cv_maxsend, cv_noticedownload, cv_downloadspeed;
 
 extern consvar_t cv_connectawaittime;
 
 extern consvar_t cv_discordinvites;
 
 // Used in d_net, the only dependence
-tic_t ExpandTics(INT32 low, tic_t basetic);
+//tic_t ExpandTics(INT32 low, tic_t basetic);
 void D_ClientServerInit(void);
 
 // Initialise the other field

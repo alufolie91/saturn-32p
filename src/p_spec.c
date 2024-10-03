@@ -1773,16 +1773,18 @@ void P_SwitchWeather(INT32 weathernum)
 	if (purge)
 	{
 		thinker_t *think;
+		thinker_t *next;
 		precipmobj_t *precipmobj;
 
-		for (think = thinkercap.next; think != &thinkercap; think = think->next)
+		for (think = thinkercap.next; think != &thinkercap; think = next)
 		{
+			next = think->next;
+
 			if (think->function.acp1 != (actionf_p1)P_NullPrecipThinker)
 				continue; // not a precipmobj thinker
 
 			precipmobj = (precipmobj_t *)think;
-
-			P_RemovePrecipMobj(precipmobj);
+			P_FreePrecipMobj(precipmobj);
 		}
 	}
 	else if (swap && !((swap == PRECIP_BLANK && curWeather == PRECIP_STORM_NORAIN) || (swap == PRECIP_STORM_NORAIN && curWeather == PRECIP_BLANK))) // Rather than respawn all that crap, reuse it!
@@ -1795,27 +1797,29 @@ void P_SwitchWeather(INT32 weathernum)
 		{
 			if (think->function.acp1 != (actionf_p1)P_NullPrecipThinker)
 				continue; // not a precipmobj thinker
+
 			precipmobj = (precipmobj_t *)think;
 
 			if (swap == PRECIP_RAIN) // Snow To Rain
 			{
+				precipmobj->type = MT_RAIN; // proper set the type
+				precipmobj->info = &mobjinfo[MT_RAIN];
 				precipmobj->flags = mobjinfo[MT_RAIN].flags;
 				st = &states[mobjinfo[MT_RAIN].spawnstate];
 				precipmobj->state = st;
 				precipmobj->tics = st->tics;
 				precipmobj->sprite = st->sprite;
 				precipmobj->frame = st->frame;
-				precipmobj->momz = mobjinfo[MT_RAIN].speed;
+				precipmobj->momz = cv_mobjscaleprecip.value ? FixedMul(mobjinfo[MT_RAIN].speed, mapobjectscale) : mobjinfo[MT_RAIN].speed;
 
-				precipmobj->precipflags &= ~PCF_INVISIBLE;
-
-				precipmobj->precipflags |= PCF_RAIN;
-				//think->function.acp1 = (actionf_p1)P_RainThinker;
+				precipmobj->precipflags &= ~(PCF_INVISIBLE|PCF_SPLASH); // P_PrecipThinker will add this again if it needs to
 			}
 			else if (swap == PRECIP_SNOW) // Rain To Snow
 			{
 				INT32 z;
 
+				precipmobj->type = MT_SNOWFLAKE; // proper set the type
+				precipmobj->info = &mobjinfo[MT_SNOWFLAKE];
 				precipmobj->flags = mobjinfo[MT_SNOWFLAKE].flags;
 				z = M_RandomByte();
 
@@ -1831,16 +1835,12 @@ void P_SwitchWeather(INT32 weathernum)
 				precipmobj->tics = st->tics;
 				precipmobj->sprite = st->sprite;
 				precipmobj->frame = st->frame;
-				precipmobj->momz = mobjinfo[MT_SNOWFLAKE].speed;
+				precipmobj->momz = cv_mobjscaleprecip.value ? FixedMul(mobjinfo[MT_SNOWFLAKE].speed, mapobjectscale) : mobjinfo[MT_SNOWFLAKE].speed;
 
-				precipmobj->precipflags &= ~(PCF_INVISIBLE|PCF_RAIN);
-
-				//think->function.acp1 = (actionf_p1)P_SnowThinker;
+				precipmobj->precipflags &= ~(PCF_INVISIBLE|PCF_SPLASH); // P_PrecipThinker will add this again if it needs to
 			}
 			else if (swap == PRECIP_BLANK || swap == PRECIP_STORM_NORAIN) // Remove precip, but keep it around for reuse.
 			{
-				//think->function.acp1 = (actionf_p1)P_NullPrecipThinker;
-
 				precipmobj->precipflags |= PCF_INVISIBLE;
 			}
 		}
@@ -2175,7 +2175,9 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 						mapmusflags |= MUSIC_FORCERESET;
 
 					mapmusposition = position;
-					mapmusresume = 0;
+
+					if (cv_birdmusic.value)
+						mapmusresume = 0;
 
 					S_ChangeMusicEx(mapmusname, mapmusflags, !(line->flags & ML_EFFECT4), position,
 						!(line->flags & ML_EFFECT2) ? prefadems : 0,
@@ -2479,7 +2481,6 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 		case 422: // Cut away to another view
 			{
 				mobj_t *altview;
-				INT32 i;
 
 				if (!mo || !mo->player) // only players have views
 					return;
@@ -2493,14 +2494,6 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 
 				P_SetTarget(&mo->player->awayviewmobj, altview);
 				mo->player->awayviewtics = P_AproxDistance(line->dx, line->dy)>>FRACBITS;
-
-				for (i = 0; i <= splitscreen; i++)
-				{
-					if (displayplayers[i] == (mo->player - players))
-					{
-						R_ResetViewInterpolation(i + 1);
-					}
-				}
 
 				if (line->flags & ML_NOCLIMB) // lets you specify a vertical angle
 				{
@@ -3037,7 +3030,7 @@ boolean P_IsFlagAtBase(mobjtype_t flag)
 {
 	thinker_t *think;
 	mobj_t *mo;
-	INT32 specialnum = 0;
+	INT32 specialnum = (flag == MT_REDFLAG) ? 3 : 4;
 
 	for (think = thinkercap.next; think != &thinkercap; think = think->next)
 	{
@@ -3048,11 +3041,6 @@ boolean P_IsFlagAtBase(mobjtype_t flag)
 
 		if (mo->type != flag)
 			continue;
-
-		if (mo->type == MT_REDFLAG)
-			specialnum = 3;
-		else if (mo->type == MT_BLUEFLAG)
-			specialnum = 4;
 
 		if (GETSECSPECIAL(mo->subsector->sector->special, 4) == specialnum)
 			return true;
@@ -3482,8 +3470,11 @@ void P_ProcessSpecialSector(player_t *player, sector_t *sector, sector_t *rovers
 					continue;
 
 				mo2 = (mobj_t *)th;
-				if (mo2->type == MT_EGGTRAP)
-					P_KillMobj(mo2, NULL, player->mo);
+
+				if (mo2->type != MT_EGGTRAP)
+					continue;
+
+				P_KillMobj(mo2, NULL, player->mo);
 			}
 
 			// clear the special so you can't push the button twice.
@@ -3874,6 +3865,8 @@ DoneSection2:
 				sequence = abs(lines[lineindex].dy)>>FRACBITS;
 				waypoint = P_GetLastWaypoint(sequence);
 
+				waypoint = P_GetLastWaypoint(sequence);
+
 				if (!waypoint)
 				{
 					CONS_Debug(DBG_GAMELOGIC, "ERROR: LAST WAYPOINT IN SEQUENCE %d NOT FOUND.\n", sequence);
@@ -3944,17 +3937,13 @@ DoneSection2:
 						CON_LogMessage(va(M_GetText("%s has finished the race.\n"), player_names[player-players]));
 
 					// SRB2Kart: save best lap for record attack
-					if (player == &players[consoleplayer])
+					if (player->laptime[LAP_CUR] < player->laptime[LAP_BEST] || player->laptime[LAP_BEST] == 0)
 					{
-						if (curlap < bestlap || bestlap == 0)
-							bestlap = curlap;
-						curlap = 0;
+						player->laptime[LAP_BEST] = player->laptime[LAP_CUR];
 					}
 
-					// ONLY FOR HUD
 					player->laptime[LAP_LAST] = player->laptime[LAP_CUR];
 					player->laptime[LAP_CUR] = 0;
-					//
 
 					player->starposttime = player->realtime;
 					player->starpostnum = 0;
@@ -4571,10 +4560,6 @@ void P_UpdateSpecials(void)
 
 	// POINT LIMIT
 	P_CheckPointLimit();
-
-	// Dynamic slopeness
-	if (!midgamejoin) // run here when not joined midgame to prevent any potential issues that may arise
-		P_RunDynamicSlopes();
 
 	// ANIMATE TEXTURES
 	for (anim = anims; anim < lastanim; anim++)
@@ -5239,7 +5224,7 @@ static void P_RunLevelLoadExecutors(void)
   *       as they'll just be erased by UnArchiveThinkers.
   * \sa P_SpawnPrecipitation, P_SpawnFriction, P_SpawnPushers, P_SpawnScrollers
   */
-void P_SpawnSpecials(INT32 fromnetsave)
+void P_SpawnSpecials(INT32 fromnetsave, boolean reloadinggamestate)
 {
 	sector_t *sector;
 	size_t i;
@@ -5313,6 +5298,8 @@ void P_SpawnSpecials(INT32 fromnetsave)
 		curWeather = PRECIP_STORM_NORAIN;
 	else if (mapheaderinfo[gamemap-1]->weather == 6) // storm w/o lightning
 		curWeather = PRECIP_STORM_NOSTRIKES;
+	else if (mapheaderinfo[gamemap-1]->weather == 4) // blank
+		curWeather = PRECIP_BLANK;
 	else
 		curWeather = PRECIP_NONE;
 
@@ -6266,7 +6253,8 @@ void P_SpawnSpecials(INT32 fromnetsave)
 		}
 	}
 
-	P_RunLevelLoadExecutors();
+	if (!reloadinggamestate)
+		P_RunLevelLoadExecutors();
 }
 
 /** Adds 3Dfloors as appropriate based on a common control linedef.

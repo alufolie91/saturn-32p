@@ -504,44 +504,12 @@ void P_GivePlayerLives(player_t *player, INT32 numlives)
 // Transform into Super Sonic!
 void P_DoSuperTransformation(player_t *player, boolean giverings)
 {
+	(void)player;
+	(void)giverings;
+
 	return; // SRB2kart - this is not a thing we need
-	player->powers[pw_super] = 1;
-	if (!(mapheaderinfo[gamemap-1]->levelflags & LF_NOSSMUSIC) && P_IsLocalPlayer(player))
-	{
-		S_StopMusic();
-		S_ChangeMusicInternal("supers", true);
-	}
-
-	S_StartSound(NULL, sfx_supert); //let all players hear it -mattw_cfi
-
-	// Transformation animation
-	//P_SetPlayerMobjState(player->mo, S_PLAY_SUPERTRANS1);
-
-	player->mo->momx = player->mo->momy = player->mo->momz = 0;
-
-	if (giverings)
-	{
-		player->mo->health = 51;
-		player->health = player->mo->health;
-	}
-
-	// Just in case.
-	if (!(mapheaderinfo[gamemap-1]->levelflags & LF_NOSSMUSIC))
-	{
-		player->powers[pw_extralife] = 0;
-		player->powers[pw_invulnerability] = 0;
-		player->powers[pw_sneakers] = 0;
-	}
-
-	if (gametype != GT_COOP)
-	{
-		HU_SetCEchoFlags(0);
-		HU_SetCEchoDuration(5);
-		HU_DoCEcho(va("%s\\is now super.\\\\\\\\", player_names[player-players]));
-	}
-
-	P_PlayerFlagBurst(player, false);
 }
+
 // Adds to the player's score
 void P_AddPlayerScore(player_t *player, UINT32 amount)
 {
@@ -598,6 +566,7 @@ void P_PlayLivesJingle(player_t *player)
 void P_PlayRinglossSound(mobj_t *source, mobj_t *damager)
 {
 	sfxenum_t key = P_RandomKey(2);
+
 	if (cv_kartvoices.value)
 	{
 		if (cv_karthitemdialog.value && source != damager && damager && damager->player && P_IsLocalPlayer(damager->player))
@@ -820,17 +789,13 @@ void P_RestoreMusic(player_t *player)
 		if (wantedmus == 2 && cv_growmusic.value == 1)
 		{
 			S_ChangeMusicInternal("kgrow", true);
-			
-			if (cv_birdmusic.value)
-				S_SetRestoreMusicFadeInCvar(&cv_growmusicfade);
+			S_SetRestoreMusicFadeInCvar(&cv_growmusicfade);
 		}
 		// Item - Invincibility
 		else if (wantedmus == 1 && cv_supermusic.value == 1)
 		{
 			S_ChangeMusicInternal("kinvnc", true);
-			
-			if (cv_birdmusic.value)
-				S_SetRestoreMusicFadeInCvar(&cv_invincmusicfade);
+			S_SetRestoreMusicFadeInCvar(&cv_invincmusicfade);
 		}
 		else
 		{
@@ -847,13 +812,12 @@ void P_RestoreMusic(player_t *player)
 				else
 					position = mapmusposition;
 
-				S_ChangeMusicEx(mapmusname, mapmusflags, true, position, 0,
-						S_GetRestoreMusicFadeIn());
+				S_ChangeMusicEx(mapmusname, mapmusflags, true, position, 0, S_GetRestoreMusicFadeIn());
 				S_ClearRestoreMusicFadeInCvar();
 			}
 			else
 				S_ChangeMusicEx(mapmusname, mapmusflags, true, mapmusposition, 0, 0);
-			
+
 			mapmusresume = 0;
 		}
 	}
@@ -1082,7 +1046,7 @@ fixed_t P_GetPlayerSpinHeight(player_t *player)
 // Returns true if player is
 // on the local machine.
 //
-boolean P_IsLocalPlayer(player_t *player)
+boolean P_IsLocalPlayer(const player_t *player)
 {
 	UINT8 i;
 
@@ -1106,7 +1070,7 @@ boolean P_IsLocalPlayer(player_t *player)
 // Returns true if player is
 // currently being watched.
 //
-boolean P_IsDisplayPlayer(player_t *player)
+boolean P_IsDisplayPlayer(const player_t *player)
 {
 	UINT8 i;
 
@@ -1220,6 +1184,7 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 	ghost = P_SpawnMobj(mobj->x, mobj->y, mobj->z, MT_GHOST);
 
 	P_SetScale(ghost, mobj->scale);
+	ghost->scalespeed = mobj->scalespeed;
 	ghost->destscale = mobj->scale;
 
 	if (mobj->eflags & MFE_VERTICALFLIP)
@@ -1271,6 +1236,7 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 	ghost->old_roll = mobj->old_roll2;
 	ghost->old_sloperoll = mobj->old_sloperoll2;
 	ghost->old_slopepitch = mobj->old_slopepitch2;
+	ghost->old_scale = mobj->old_scale2;
 
 	return ghost;
 }
@@ -3082,25 +3048,14 @@ static void P_DeathThink(player_t *player)
 		if (leveltime >= starttime)
 		{
 			player->realtime = leveltime - starttime;
-			if (player == &players[consoleplayer])
-			{
-				if (player->spectator || !circuitmap)
-					curlap = 0;
-				else
-					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
-			}
-
-			if (player->spectator)
+			if (player->spectator || !circuitmap)
 				player->laptime[LAP_CUR] = 0;
-			else
+			else if (player->laptime[LAP_CUR] != UINT32_MAX)
 				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
 		}
 		else
 		{
 			player->realtime = 0;
-			if (player == &players[consoleplayer])
-				curlap = 0;
-
 			player->laptime[LAP_CUR] = 0;
 		}
 	}
@@ -3158,29 +3113,93 @@ static CV_PossibleValue_t CV_CamSpeed[] = {{0, "MIN"}, {1*FRACUNIT, "MAX"}, {0, 
 static CV_PossibleValue_t rotation_cons_t[] = {{1, "MIN"}, {45, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t CV_CamRotate[] = {{-720, "MIN"}, {720, "MAX"}, {0, NULL}};
 
-consvar_t cv_cam_dist = {"cam_dist", "160", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cam_height = {"cam_height", "50", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+static void CV_PlayerCam1_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	if (!playeringame[displayplayers[0]] || players[displayplayers[0]].spectator)
+		return;
+
+	// dont do stuff when cam speeen at map start
+	if (leveltime < starttime - TICRATE*4)
+		return;
+
+	if (camera[displayplayers[0]].chase)
+		P_ResetCamera(&players[displayplayers[0]], &camera[0]);
+}
+
+static void CV_PlayerCam2_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	if (!playeringame[displayplayers[1]] || players[displayplayers[1]].spectator)
+		return;
+
+	// dont do stuff when cam speeen at map start
+	if (leveltime < starttime - TICRATE*4)
+		return;
+
+	if (camera[displayplayers[1]].chase)
+		P_ResetCamera(&players[displayplayers[1]], &camera[1]);
+}
+
+static void CV_PlayerCam3_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	if (!playeringame[displayplayers[2]] || players[displayplayers[2]].spectator)
+		return;
+
+	// dont do stuff when cam speeen at map start
+	if (leveltime < starttime - TICRATE*4)
+		return;
+
+	if (camera[displayplayers[2]].chase)
+		P_ResetCamera(&players[displayplayers[2]], &camera[2]);
+}
+
+static void CV_PlayerCam4_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	if (!playeringame[displayplayers[3]] || players[displayplayers[3]].spectator)
+		return;
+
+	// dont do stuff when cam speeen at map start
+	if (leveltime < starttime - TICRATE*4)
+		return;
+
+	if (camera[displayplayers[3]].chase)
+		P_ResetCamera(&players[displayplayers[3]], &camera[3]);
+}
+
+consvar_t cv_cam_dist = {"cam_dist", "160", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam1_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam_height = {"cam_height", "50", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam1_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam_still = {"cam_still", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam_speed = {"cam_speed", "0.4", CV_FLOAT|CV_SAVE, CV_CamSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam_rotate = {"cam_rotate", "0", CV_CALL|CV_NOINIT, CV_CamRotate, CV_CamRotate_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam_rotspeed = {"cam_rotspeed", "10", CV_SAVE, rotation_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_cam2_dist = {"cam2_dist", "160", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cam2_height = {"cam2_height", "50", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam2_dist = {"cam2_dist", "160", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam2_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam2_height = {"cam2_height", "50", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam2_still = {"cam2_still", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam2_speed = {"cam2_speed", "0.4", CV_FLOAT|CV_SAVE, CV_CamSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam2_rotate = {"cam2_rotate", "0", CV_CALL|CV_NOINIT, CV_CamRotate, CV_CamRotate2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam2_rotspeed = {"cam2_rotspeed", "10", CV_SAVE, rotation_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_cam3_dist = {"cam3_dist", "160", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cam3_height = {"cam3_height", "50", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam3_dist = {"cam3_dist", "160", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam3_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam3_height = {"cam3_height", "50", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam3_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam3_still = {"cam3_still", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam3_speed = {"cam3_speed", "0.4", CV_FLOAT|CV_SAVE, CV_CamSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam3_rotate = {"cam3_rotate", "0", CV_CALL|CV_NOINIT, CV_CamRotate, CV_CamRotate3_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam3_rotspeed = {"cam3_rotspeed", "10", CV_SAVE, rotation_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_cam4_dist = {"cam4_dist", "160", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cam4_height = {"cam4_height", "50", CV_FLOAT|CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam4_dist = {"cam4_dist", "160", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_cam4_height = {"cam4_height", "50", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, NULL, CV_PlayerCam4_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam4_still = {"cam4_still", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam4_speed = {"cam4_speed", "0.4", CV_FLOAT|CV_SAVE, CV_CamSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_cam4_rotate = {"cam4_rotate", "0", CV_CALL|CV_NOINIT, CV_CamRotate, CV_CamRotate4_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -3191,6 +3210,9 @@ consvar_t cv_quaketilt = {"quaketilt", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, 
 consvar_t cv_tiltsmoothing = {"tiltsmoothing", "32", CV_SAVE, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_actionmovie = {"actionmovie", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t lookbackmom_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Double"}, {0, NULL}};
+consvar_t cv_lookbackmom = {"cameralookbackmom", "Off", CV_SAVE, lookbackmom_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 fixed_t t_cam_dist = -42;
 fixed_t t_cam_height = -42;
@@ -4007,6 +4029,16 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	{
 		thiscam->momx = x - thiscam->x;
 		thiscam->momy = y - thiscam->y;
+
+		// when looking back, camera's momentum
+		// should inherit the momentum of the player
+		// if value is 2, add extra
+		if (cv_lookbackmom.value && lookback && lookbackdelay[num])
+		{
+			thiscam->momx += cv_lookbackmom.value*mo->momx;
+			thiscam->momy += cv_lookbackmom.value*mo->momy;
+		}
+
 		thiscam->momz = FixedMul(z - thiscam->z, camspeed/2);
 	}
 
@@ -4065,6 +4097,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	if (lookbackdown)
 	{
 		P_MoveChaseCamera(player, thiscam, false);
+		R_ResetViewInterpolation(num + 1);
 		R_ResetViewInterpolation(num + 1);
 	}
 
@@ -4125,7 +4158,7 @@ boolean P_SpectatorJoinGame(player_t *player)
 		if (player->mo)
 		{
 			P_RemoveMobj(player->mo);
-			player->mo = NULL;
+			P_SetTarget(&player->mo, NULL);
 		}
 		player->spectator = false;
 		player->pflags &= ~PF_WANTSTOJOIN;
@@ -5017,15 +5050,7 @@ void P_PlayerThink(player_t *player)
 		if (leveltime >= starttime)
 		{
 			player->realtime = leveltime - starttime;
-			if (player == &players[consoleplayer])
-			{
-				if (player->spectator || !circuitmap)
-					curlap = 0;
-				else
-					curlap++; // This is too complicated to sync to realtime, just sorta hope for the best :V
-			}
-
-			if (player->spectator)
+			if (player->spectator || !circuitmap)
 				player->laptime[LAP_CUR] = 0;
 			else
 				player->laptime[LAP_CUR]++; // This is too complicated to sync to realtime, just sorta hope for the best :V
@@ -5033,9 +5058,6 @@ void P_PlayerThink(player_t *player)
 		else
 		{
 			player->realtime = 0;
-			if (player == &players[consoleplayer])
-				curlap = 0;
-
 			player->laptime[LAP_CUR] = 0;
 		}
 	}
@@ -5375,7 +5397,7 @@ void P_PlayerAfterThink(player_t *player)
 
 #ifdef SECTORSPECIALSAFTERTHINK
 	if (player->onconveyor != 1 || !P_IsObjectOnGround(player->mo))
-	player->onconveyor = 0;
+		player->onconveyor = 0;
 	// check special sectors : damage & secrets
 
 	if (!player->spectator)

@@ -337,11 +337,13 @@ typedef enum
 	SKINCOLOR_SANDY,
 	SKINCOLOR_BANANA,
 	SKINCOLOR_SUNFLOWER,
+	SKINCOLOR_OLIVINE,
 	SKINCOLOR_PERIDOT,
 	SKINCOLOR_APPLE,
 	SKINCOLOR_SEAFOAM,
 	SKINCOLOR_FOREST,
 	SKINCOLOR_TOPAZ,
+	SKINCOLOR_FROST,
 	SKINCOLOR_WAVE,
 	SKINCOLOR_ICY,
 	SKINCOLOR_PEACOCK,
@@ -376,6 +378,7 @@ typedef enum
 	SKINCOLOR_DUNE,
 	SKINCOLOR_BRASS,
 	SKINCOLOR_CITRINE,
+	SKINCOLOR_LEMON,
 	SKINCOLOR_CASKET,
 	SKINCOLOR_KHAKI,
 	SKINCOLOR_LIGHT,
@@ -673,6 +676,17 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 // Disabled code and code under testing
 // None of these that are disabled in the normal build are guaranteed to work perfectly
 // Compile them at your own risk!
+
+#ifndef NONET
+//-- SATURN __
+
+/// Server detection for if a connecting client is on Saturn.
+/// For stuff like extra synching, etc.
+//#ifdef DOSATURNPAK
+//#define SATURNPAK
+//#endif
+//-- <(￣︶￣)> __
+#endif
 
 /// Undefine to use the new method of Gamma correction see colour cube in v_video.c
 #define BACKWARDSCOMPATCORRECTION
