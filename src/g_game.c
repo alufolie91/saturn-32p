@@ -1618,8 +1618,6 @@ void G_DoLoadLevel(boolean resetplayer)
 	
 	memset(localaiming, 0, sizeof(localaiming));
 
-	memset(localaiming, 0, sizeof(localaiming));
-
 	for (i = 0; i <= splitscreen; i++)
 	{
 		if (camera[i].chase)

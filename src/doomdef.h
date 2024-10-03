@@ -677,17 +677,6 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 // None of these that are disabled in the normal build are guaranteed to work perfectly
 // Compile them at your own risk!
 
-#ifndef NONET
-//-- SATURN __
-
-/// Server detection for if a connecting client is on Saturn.
-/// For stuff like extra synching, etc.
-//#ifdef DOSATURNPAK
-//#define SATURNPAK
-//#endif
-//-- <(￣︶￣)> __
-#endif
-
 /// Undefine to use the new method of Gamma correction see colour cube in v_video.c
 #define BACKWARDSCOMPATCORRECTION
 

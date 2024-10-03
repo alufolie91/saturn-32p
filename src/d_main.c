@@ -1638,13 +1638,6 @@ void D_SRB2Main(void)
 			"K_STATN5", "K_STATN6", NULL))
 			statdp = true;
 
-		// Nametag stuffs
-		if (W_CheckMultipleLumps("NTLINE", "NTLINEV", "NTSP", "NTWH", NULL))
-			nametaggfx = true;
-
-		if (W_CheckMultipleLumps("K_DGAU","K_DCAU","K_DGSU","K_DCSU", NULL))
-			driftgaugegfx = true;
-
 		if (found_extra3_kart)
 		{
 			// 80x11 speedometer crap
