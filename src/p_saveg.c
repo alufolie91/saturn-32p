@@ -136,10 +136,6 @@ static void P_NetArchivePlayers(savebuffer_t *save)
 		WRITEINT32(save->p, players[i].currentweapon);
 		WRITEINT32(save->p, players[i].ringweapons);
 
-		WRITESINT8(save->p, players[i].pity);
-		WRITEINT32(save->p, players[i].currentweapon);
-		WRITEINT32(save->p, players[i].ringweapons);
-
 		for (j = 0; j < NUMPOWERS; j++)
 			WRITEUINT16(save->p, players[i].powers[j]);
 		for (j = 0; j < NUMKARTSTUFF; j++)
@@ -340,10 +336,6 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 		players[i].currentweapon = READINT32(save->p);
 		players[i].ringweapons = READINT32(save->p);
 
-		players[i].pity = READSINT8(save->p);
-		players[i].currentweapon = READINT32(save->p);
-		players[i].ringweapons = READINT32(save->p);
-
 		for (j = 0; j < NUMPOWERS; j++)
 			players[i].powers[j] = READUINT16(save->p);
 		for (j = 0; j < NUMKARTSTUFF; j++)
@@ -364,25 +356,6 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 
 		players[i].skincolor = READUINT8(save->p);
 		players[i].skin = READINT32(save->p);
-		players[i].score = READUINT32(save->p);
-		players[i].dashspeed = READFIXED(save->p); // dashing speed
-		players[i].dashtime = READINT32(save->p); // dashing speed
-		players[i].lives = READSINT8(save->p);
-		players[i].continues = READSINT8(save->p); // continues that player has acquired
-		players[i].xtralife = READSINT8(save->p); // Ring Extra Life counter
-		players[i].gotcontinue = READUINT8(save->p); // got continue from stage
-		players[i].speed = READFIXED(save->p); // Player's speed (distance formula of MOMX and MOMY values)
-		players[i].jumping = READUINT8(save->p); // Jump counter
-		players[i].secondjump = READUINT8(save->p);
-		players[i].fly1 = READUINT8(save->p); // Tails flying
-		players[i].scoreadd = READUINT8(save->p); // Used for multiple enemy attack bonus
-		players[i].glidetime = READUINT32(save->p); // Glide counter for thrust
-		players[i].climbing = READUINT8(save->p); // Climbing on the wall
-		players[i].deadtimer = READINT32(save->p); // End game if game over lasts too long
-		players[i].exiting = READUINT32(save->p); // Exitlevel timer
-		players[i].homing = READUINT8(save->p); // Are you homing?
-		players[i].skidtime = READUINT32(save->p); // Skid timer
-
 		players[i].score = READUINT32(save->p);
 		players[i].dashspeed = READFIXED(save->p); // dashing speed
 		players[i].dashtime = READINT32(save->p); // dashing speed
@@ -3176,13 +3149,6 @@ static void P_RelinkPointers(void)
 		{
 			if (!RelinkMobj(&mobj->tracer))
 				CONS_Debug(DBG_GAMELOGIC, "tracer not found on %d\n", mobj->type);
-			if (mobj->player && mobj->player->follower)
-			{
-				temp = (UINT32)(size_t)mobj->player->follower;
-				mobj->player->follower = NULL;
-				if (!P_SetTarget(&mobj->player->follower, P_FindNewPosition(temp)))
-					CONS_Debug(DBG_GAMELOGIC, "follower not found on %d\n", mobj->type);
-			}
 		}
 		if (mobj->target)
 		{
@@ -3218,6 +3184,11 @@ static void P_RelinkPointers(void)
 		{
 			if (!RelinkMobj(&mobj->player->awayviewmobj))
 				CONS_Debug(DBG_GAMELOGIC, "awayviewmobj not found on %d\n", mobj->type);
+		}
+		if (mobj->player && mobj->player->follower)
+		{
+			if (!RelinkMobj(&mobj->player->follower))
+				CONS_Debug(DBG_GAMELOGIC, "follower not found on %d\n", mobj->type);
 		}
 	}
 }
@@ -3648,7 +3619,6 @@ boolean P_LoadGame(savebuffer_t *save, INT16 mapoverride)
 	// Savegame end marker
 	if (READUINT8(save->p) != 0x1d)
 		return false;
-	}
 
 	// Only do this after confirming savegame is ok
 	G_DeferedInitNew(false, G_BuildMapName(gamemap), savedata.skin, 0, true);
