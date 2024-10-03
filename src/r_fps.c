@@ -310,7 +310,7 @@ void R_InterpolateMobjState(mobj_t *mobj, fixed_t frac, interpmobjstate_t *out)
 	out->x = R_LerpFixed(mobj->old_x, mobj->x, frac);
 	out->y = R_LerpFixed(mobj->old_y, mobj->y, frac);
 	out->z = R_LerpFixed(mobj->old_z, mobj->z, frac);
-	out->floorz = (!cv_spriteroll.value || !cv_sloperoll.value) ? out->floorz = R_LerpFixed(mobj->old_floorz, mobj->floorz, frac) : mobj->floorz;
+	out->floorz = (cv_spriteroll.value && cv_sloperoll.value) ? mobj->floorz : R_LerpFixed(mobj->old_floorz, mobj->floorz, frac);
 
 	out->spritexscale = mobj->resetinterp ? mobj->spritexscale : R_LerpFixed(mobj->old_spritexscale, mobj->spritexscale, frac);
 	out->spriteyscale = mobj->resetinterp ? mobj->spriteyscale : R_LerpFixed(mobj->old_spriteyscale, mobj->spriteyscale, frac);

@@ -2171,7 +2171,6 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->colormap = colormaps;
 	vis->precip = true;
 	vis->vflip = false;
-	vis->isScaled = false;
 }
 
 // R_AddSprites

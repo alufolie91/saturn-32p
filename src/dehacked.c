@@ -585,7 +585,6 @@ static void readfollower(MYFILE *f)
 
 			if (fastcmp(word, "NAME"))
 			{
-				DEH_WriteUndoline(word, va("%s", followers[numfollowers].name), UNDO_NONE);
 				strlcpy(followers[numfollowers].name, word2, SKINNAMESIZE+1);
 				nameset = true;
 			}
@@ -628,7 +627,6 @@ static void readfollower(MYFILE *f)
 			}
 			else if (fastcmp(word, "SCALE"))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].scale), UNDO_NONE);
 				followers[numfollowers].scale = get_number(word2);
 			}
 			else if (fastcmp(word, "BUBBLESCALE"))
@@ -641,42 +639,34 @@ static void readfollower(MYFILE *f)
 			}
 			else if (fastcmp(word, "ATANGLE"))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].atangle), UNDO_NONE);
 				followers[numfollowers].atangle = (angle_t)(get_number(word2) * ANG1);
 			}
 			else if (fastcmp(word, "HORZLAG"))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].horzlag), UNDO_NONE);
 				followers[numfollowers].horzlag = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "VERTLAG"))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].vertlag), UNDO_NONE);
 				followers[numfollowers].vertlag = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "ANGLELAG"))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].anglelag), UNDO_NONE);
 				followers[numfollowers].anglelag = (fixed_t)get_number(word2);;
 			}
 			else if (fastcmp(word, "BOBSPEED"))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].bobspeed), UNDO_NONE);
 				followers[numfollowers].bobspeed = (tic_t)get_number(word2);
 			}
 			else if (fastcmp(word, "BOBAMP"))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].bobamp), UNDO_NONE);
 				followers[numfollowers].bobamp = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "ZOFFSET") || (fastcmp(word, "ZOFFS")))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].zoffs), UNDO_NONE);
 				followers[numfollowers].zoffs = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "DISTANCE") || (fastcmp(word, "DIST")))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].dist), UNDO_NONE);
 				followers[numfollowers].dist = (fixed_t)get_number(word2);
 			}
 			else if (fastcmp(word, "HEIGHT"))
@@ -687,7 +677,6 @@ static void readfollower(MYFILE *f)
 			{
 				if (word2)
 					strupr(word2);
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].idlestate), UNDO_NONE);
 				followers[numfollowers].idlestate = get_number(word2);
 				fallbackstate = followers[numfollowers].idlestate;
 			}
@@ -695,40 +684,34 @@ static void readfollower(MYFILE *f)
 			{
 				if (word2)
 					strupr(word2);
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].followstate), UNDO_NONE);
 				followers[numfollowers].followstate = get_number(word2);
 			}
 			else if (fastcmp(word, "HURTSTATE"))
 			{
 				if (word2)
 					strupr(word2);
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].hurtstate), UNDO_NONE);
 				followers[numfollowers].hurtstate = get_number(word2);
 			}
 			else if (fastcmp(word, "LOSESTATE"))
 			{
 				if (word2)
 					strupr(word2);
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].losestate), UNDO_NONE);
 				followers[numfollowers].losestate = get_number(word2);
 			}
 			else if (fastcmp(word, "WINSTATE"))
 			{
 				if (word2)
 					strupr(word2);
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].winstate), UNDO_NONE);
 				followers[numfollowers].winstate = get_number(word2);
 			}
 			else if (fastcmp(word, "HITSTATE") || (fastcmp(word, "HITCONFIRMSTATE")))
 			{
 				if (word2)
 					strupr(word2);
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].hitconfirmstate), UNDO_NONE);
 				followers[numfollowers].hitconfirmstate = get_number(word2);
 			}
 			else if (fastcmp(word, "HITTIME") || (fastcmp(word, "HITCONFIRMTIME")))
 			{
-				DEH_WriteUndoline(word, va("%d", followers[numfollowers].hitconfirmtime), UNDO_NONE);
 				followers[numfollowers].hitconfirmtime = (INT32)atoi(word2);
 			}
 			else
@@ -3158,7 +3141,6 @@ static void DEH_LoadDehackedFile(MYFILE *f, UINT16 wad)
 			else if (fastcmp(word, "FOLLOWER"))
 			{
 				readfollower(f);	// at the same time this will be our only way to ADD followers for now. Yikes.
-				DEH_WriteUndoline(word, "", UNDO_HEADER);
 				// This is not a major mod either.
 				continue;	// continue so that we don't error.
 			}
