@@ -1747,9 +1747,7 @@ void D_SRB2Main(void)
 	S_RegisterSoundStuff();
 
 	I_RegisterSysCommands();
-	
-	// FIND THEM
-	D_FindAddonsToAutoload();
+
 
 	// add any files specified on the command line with -file wadfile
 	// to the wad list
