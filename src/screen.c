@@ -49,6 +49,7 @@ void (*basespanfunc)(void); // default span func for color mode
 void (*transtransfunc)(void); // translucent translated column drawer
 void (*twosmultipatchfunc)(void); // for cols with transparent pixels
 void (*twosmultipatchtransfunc)(void); // for cols with transparent pixels AND translucency
+void (*dropshadowcolfunc)(void);
 
 // ------------------
 // global video state
@@ -124,6 +125,7 @@ void SCR_SetMode(void)
 		walldrawerfunc = R_DrawWallColumn_8;
 		twosmultipatchfunc = R_Draw2sMultiPatchColumn_8;
 		twosmultipatchtransfunc = R_Draw2sMultiPatchTranslucentColumn_8;
+		dropshadowcolfunc = R_DrawDropShadowColumn_8;
 	}
 /*	else if (vid.bpp > 1)
 	{
@@ -331,7 +333,7 @@ void SCR_SetDefaultMode(void)
 	// remember the default screen size
 	CV_SetValue(&cv_scr_width, vid.width);
 	CV_SetValue(&cv_scr_height, vid.height);
-	CV_SetValue(&cv_scr_depth, vid.bpp*8);
+	//CV_SetValue(&cv_scr_depth, vid.bpp*8);
 }
 
 // Change fullscreen on/off according to cv_fullscreen

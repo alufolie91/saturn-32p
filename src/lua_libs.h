@@ -25,6 +25,7 @@ extern lua_State *gL;
 #define META_MAPTHING "MAPTHING_T*"
 
 #define META_PLAYER "PLAYER_T*"
+#define META_FOLLOWER "FOLLOWER_T*"
 #define META_TICCMD "TICCMD_T*"
 #define META_SKIN "SKIN_T*"
 #define META_POWERS "PLAYER_T*POWERS"
@@ -64,6 +65,7 @@ int LUA_ConsoleLib(lua_State *L);
 int LUA_InfoLib(lua_State *L);
 int LUA_MobjLib(lua_State *L);
 int LUA_PlayerLib(lua_State *L);
+int LUA_FollowerLib(lua_State *L);
 int LUA_SkinLib(lua_State *L);
 int LUA_ThinkerLib(lua_State *L);
 int LUA_MapLib(lua_State *L);

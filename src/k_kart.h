@@ -8,6 +8,7 @@
 
 #include "doomdef.h"
 #include "d_player.h" // Need for player_t
+#include "r_defs.h" // Need for pslope_t
 
 #define KART_FULLTURN 800
 
@@ -31,12 +32,18 @@ extern consvar_t cv_highresportrait;
 extern consvar_t cv_stat_xoffset;
 extern consvar_t cv_stat_yoffset;
 extern consvar_t cv_showstats;
-extern consvar_t cv_multisneakericon;
+extern consvar_t cv_multiitemicon;
 extern consvar_t cv_stackingeffect;
 extern consvar_t cv_stackingeffectscaling;
 extern consvar_t cv_coloredsneakertrail;
 extern consvar_t cv_alwaysshowitemstacks;
+extern consvar_t cv_showlaptimes;
 extern consvar_t cv_battlespeedo;
+extern consvar_t cv_sneakerstacksound;
+extern consvar_t cv_synchedlookback;
+extern consvar_t cv_hidefollowers;
+extern consvar_t cv_newwatersplash;
+extern consvar_t cv_chainsound;
 
 #define NUMSPEEDOSTUFF 6
 extern CV_PossibleValue_t speedo_cons_t[NUMSPEEDOSTUFF];
@@ -46,9 +53,11 @@ boolean K_IsPlayerWanted(player_t *player);
 void K_KartBouncing(mobj_t *mobj1, mobj_t *mobj2, boolean bounce, boolean solid);
 void K_FlipFromObject(mobj_t *mo, mobj_t *master);
 void K_MatchGenericExtraFlags(mobj_t *mo, mobj_t *master);
+void K_GenericExtraFlagsNoZAdjust(mobj_t *mo, mobj_t *master);
 void K_RespawnChecker(player_t *player);
 void K_KartMoveAnimation(player_t *player);
 void K_KartPlayerHUDUpdate(player_t *player);
+mobj_t K_SpawnSpeedLines(mobj_t *mo, boolean relativemom, boolean colorized, UINT8 color, boolean spb);
 void K_KartPlayerThink(player_t *player, ticcmd_t *cmd);
 void K_KartPlayerAfterThink(player_t *player);
 void K_DoInstashield(player_t *player);
@@ -59,7 +68,7 @@ void K_ExplodePlayer(player_t *player, mobj_t *source, mobj_t *inflictor);
 void K_StealBumper(player_t *player, player_t *victim, boolean force);
 void K_SpawnKartExplosion(fixed_t x, fixed_t y, fixed_t z, fixed_t radius, INT32 number, mobjtype_t type, angle_t rotangle, boolean spawncenter, boolean ghostit, mobj_t *source);
 void K_SpawnMineExplosion(mobj_t *source, UINT8 color);
-void K_RollMobjBySlopes(mobj_t *mo, boolean usedistance);
+void K_RollMobjBySlopes(mobj_t *mo, boolean usedistance, pslope_t *slope);
 void K_SpawnBoostTrail(player_t *player);
 void K_SpawnSparkleTrail(mobj_t *mo);
 void K_SpawnWipeoutTrail(mobj_t *mo, boolean translucent);
@@ -72,6 +81,7 @@ void K_KillBananaChain(mobj_t *banana, mobj_t *inflictor, mobj_t *source);
 void K_UpdateHnextList(player_t *player, boolean clean);
 void K_DropHnextList(player_t *player);
 void K_RepairOrbitChain(mobj_t *orbit);
+void K_CalculateFollowerSlope(mobj_t *mobj, fixed_t x, fixed_t y, fixed_t z, fixed_t radius, fixed_t height, boolean flip, boolean player);
 player_t *K_FindJawzTarget(mobj_t *actor, player_t *source);
 boolean K_CheckPlayersRespawnColliding(INT32 playernum, fixed_t x, fixed_t y);
 INT16 K_GetKartTurnValue(player_t *player, INT16 turnvalue);
@@ -97,7 +107,7 @@ void K_UpdateSpectateGrief(void);
 void K_PlayAttackTaunt(mobj_t *source);
 void K_PlayBoostTaunt(mobj_t *source);
 void K_PlayOvertakeSound(mobj_t *source);
-void K_PlayHitEmSound(mobj_t *source);
+void K_PlayHitEmSound(mobj_t *source, mobj_t *victim);
 void K_PlayPowerGloatSound(mobj_t *source);
 
 const char *K_GetItemPatch(UINT8 item, boolean tiny);

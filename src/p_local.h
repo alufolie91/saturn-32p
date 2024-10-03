@@ -215,7 +215,7 @@ boolean P_PlayerMoving(INT32 pnum);
 void P_Telekinesis(player_t *player, fixed_t thrust, fixed_t range);
 
 void P_PlayLivesJingle(player_t *player);
-void P_PlayRinglossSound(mobj_t *source);
+void P_PlayRinglossSound(mobj_t *source, mobj_t *damager);
 void P_PlayDeathSound(mobj_t *source);
 void P_PlayVictorySound(mobj_t *source);
 
@@ -237,9 +237,10 @@ extern consvar_t cv_gravity/*, cv_viewheight*/;
 
 void P_RespawnSpecials(void);
 
+void P_DefaultMobjShadowScale(mobj_t *thing);
 mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type);
 
-mobj_t *P_SpawnShadowMobj(mobj_t * caster);
+//mobj_t *P_SpawnShadowMobj(mobj_t * caster);
 
 void P_RecalcPrecipInSector(sector_t *sector);
 void P_PrecipitationEffects(void);
@@ -251,7 +252,7 @@ boolean P_SetPlayerMobjState(mobj_t *mobj, statenum_t state);
 boolean P_SetMobjState(mobj_t *mobj, statenum_t state);
 //void P_RunShields(void);
 void P_RunOverlays(void);
-void P_RunShadows(void);
+//void P_RunShadows(void);
 void P_MobjThinker(mobj_t *mobj);
 boolean P_RailThinker(mobj_t *mobj);
 void P_PushableThinker(mobj_t *mobj);
@@ -302,6 +303,10 @@ void P_FlashPal(player_t *pl, UINT16 type, UINT16 duration);
 #define PAL_MIXUP    2
 #define PAL_RECYCLE  3
 #define PAL_NUKE     4
+
+fixed_t P_GetMobjZMovement(mobj_t *mo);
+
+mobj_t *P_SpawnMobjFromMobj(mobj_t *mobj, fixed_t xofs, fixed_t yofs, fixed_t zofs, mobjtype_t type);
 
 //
 // P_ENEMY
@@ -387,6 +392,7 @@ extern INT32 bmapheight; // in mapblocks
 extern fixed_t bmaporgx;
 extern fixed_t bmaporgy; // origin of block map
 extern mobj_t **blocklinks; // for thing chains
+extern precipmobj_t **precipblocklinks; // special blockmap for precip rendering
 
 //
 // P_INTER

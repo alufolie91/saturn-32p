@@ -899,6 +899,9 @@ typedef enum
 	sfx_syfail,
 	sfx_itfree,
 	sfx_dbgsal,
+	
+	// Neptune sounds!
+	sfx_bstchn, // Plays when you chain a sneaker with a mini turbo
 
 	// Next up: UNIQUE ENGINE SOUNDS! Hoooooo boy...
 	// Engine class A - Low Speed, Low Weight

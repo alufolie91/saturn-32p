@@ -88,7 +88,7 @@ extern side_t *sides;
 // POV data.
 //
 extern fixed_t viewx, viewy, viewz;
-extern angle_t viewangle, aimingangle;
+extern angle_t viewangle, aimingangle, viewroll;
 extern UINT8 viewssnum; // splitscreen view number
 extern boolean viewsky, skyVisible;
 extern boolean skyVisiblePerPlayer[MAXSPLITSCREENPLAYERS]; // saved values of skyVisible of each splitscreen player
@@ -108,7 +108,7 @@ extern angle_t clipangle;
 extern angle_t doubleclipangle;
 
 extern INT32 viewangletox[FINEANGLES/2];
-extern angle_t *xtoviewangle;
+extern angle_t xtoviewangle[MAXVIDWIDTH+1];
 
 extern fixed_t rw_distance;
 extern angle_t rw_normalangle;

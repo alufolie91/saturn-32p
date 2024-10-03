@@ -120,7 +120,6 @@ void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, boolean isc
 void HWR_AddTransparentFloor(lumpnum_t lumpnum, extrasubsector_t *xsub, boolean isceiling, fixed_t fixedheight, INT32 lightlevel, INT32 alpha, sector_t *FOFSector, FBITFIELD blend, boolean fogplane, extracolormap_t *planecolormap);
 
 void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, fixed_t fixedheight, FBITFIELD blendmode, UINT8 lightlevel, lumpnum_t lumpnum, sector_t *FOFsector, UINT8 alpha, extracolormap_t *planecolormap);
-void HWR_AddPolyObjectPlanes(void);
 void HWR_AddTransparentPolyobjectFloor(lumpnum_t lumpnum, polyobj_t *polysector, boolean isceiling, fixed_t fixedheight, INT32 lightlevel, INT32 alpha, sector_t *FOFSector, FBITFIELD blend, extracolormap_t *planecolormap);
 
 // hw_main.c: Segs
@@ -152,10 +151,10 @@ void HWR_SetShaderState(void);
 
 // Console variables
 extern consvar_t cv_grshaders;
-extern consvar_t cv_grfofcut;
-extern consvar_t cv_fofzfightfix;
+#ifdef USE_FBO_OGL
+extern consvar_t cv_grframebuffer;
+#endif
 extern consvar_t cv_splitwallfix;
-extern consvar_t cv_slopepegfix;
 extern consvar_t cv_grshearing;
 extern consvar_t cv_grfov;
 extern consvar_t cv_grmdls;
@@ -176,6 +175,7 @@ extern consvar_t cv_grrenderdistance;
 extern consvar_t cv_grpaletterendering;
 extern consvar_t cv_grpalettedepth;
 extern consvar_t cv_grflashpal;
+extern consvar_t cv_lightdither;
 extern consvar_t cv_grscreentextures;
 extern consvar_t cv_grportals;
 extern consvar_t cv_nostencil;

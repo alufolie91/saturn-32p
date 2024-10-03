@@ -80,6 +80,7 @@
 #ifdef HWRENDER
 #include "../hardware/hw_main.h"
 #include "../hardware/hw_drv.h"
+#include "../hardware/r_opengl/r_opengl.h" //for supportFBO
 // For dynamic referencing of HW rendering functions
 #include "hwsym_sdl.h"
 #include "ogl_sdl.h"
@@ -215,6 +216,16 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen);
 //static void Impl_SetWindowName(const char *title);
 static void Impl_SetWindowIcon(void);
 
+#ifdef USE_FBO_OGL
+static void I_FixXwaylandNvidia(void);
+boolean downsample = false;
+void RefreshOGLSDLSurface(void)
+{
+	if (rendermode == render_opengl)
+		OglSdlSurface(vid.width, vid.height);
+}
+#endif
+
 static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 {
 	static SDL_bool wasfullscreen = SDL_FALSE;
@@ -265,6 +276,9 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
 	{
+#ifdef USE_FBO_OGL
+		I_FixXwaylandNvidia();
+#endif
 		OglSdlSurface(vid.width, vid.height);
 	}
 #endif
@@ -736,11 +750,59 @@ static INT32 SDLJoyAxis(const Sint16 axis, evtype_t which)
 	return raxis;
 }
 
+#ifdef USE_FBO_OGL
+void I_DownSample(void)
+{
+	if (!cv_grframebuffer.value || (rendermode != render_opengl) || (!supportFBO)) //no sense to do this crap if we cant benefit from it
+	{
+		downsample = false;
+		return;
+	}
+
+	int currentDisplayIndex = SDL_GetWindowDisplayIndex(window);
+	SDL_DisplayMode curmode;
+
+	if (SDL_GetCurrentDisplayMode(currentDisplayIndex, &curmode) == 0)
+	{
+		if ((vid.width > curmode.w) || (vid.height > curmode.h)) //check if current resolution is higher than current display resolution
+		{
+			downsample = true;
+			RefreshOGLSDLSurface();
+		}
+		else
+			downsample = false; // its not so no need to do crap
+	}
+	else
+			downsample = false; // couldnt get display info so turn the thing off
+}
+
+static void I_FixXwaylandNvidia(void) //dumbass crap, fix ur shit nvidia
+{
+	if (!cv_grframebuffer.value || (rendermode != render_opengl) || (!supportFBO)) //no sense to do this crap if we cant benefit from it
+	{
+		downsample = false;
+		return;
+	}
+
+	// enable fbo resize shit, update the ogl surface and turn crap back off lol
+	downsample = true;
+	RefreshOGLSDLSurface();
+	downsample = false;
+	RefreshOGLSDLSurface();
+}
+#endif
+
 static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 {
+#define FOCUSUNION (mousefocus | (kbfocus << 1))
 	static SDL_bool firsttimeonmouse = SDL_TRUE;
 	static SDL_bool mousefocus = SDL_TRUE;
 	static SDL_bool kbfocus = SDL_TRUE;
+#ifdef USE_FBO_OGL
+	static SDL_bool windowmoved = SDL_FALSE;
+#endif
+
+	const unsigned int oldfocus = FOCUSUNION;
 
 	switch (evt.event)
 	{
@@ -760,6 +822,23 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 			break;
 		case SDL_WINDOWEVENT_MAXIMIZED:
 			break;
+#ifdef USE_FBO_OGL
+		case SDL_WINDOWEVENT_MOVED:
+			windowmoved = SDL_TRUE;
+            break;
+#endif
+	}
+
+#ifdef USE_FBO_OGL
+	if (windowmoved && rendermode == render_opengl)
+	{
+		I_DownSample();
+	}
+#endif
+
+	if (FOCUSUNION == oldfocus) // No state change
+	{
+		return;
 	}
 
 	if (mousefocus && kbfocus)
@@ -798,7 +877,7 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 			SDLdoUngrabMouse();
 		}
 	}
-
+#undef FOCUSUNION
 }
 
 static void Impl_HandleKeyboardEvent(SDL_KeyboardEvent evt, Uint32 type)
@@ -1889,6 +1968,11 @@ INT32 VID_SetMode(INT32 modeNum)
 	}
 	//Impl_SetWindowName("SRB2Kart "VERSIONSTRING);
 
+#ifdef USE_FBO_OGL
+	if (rendermode == render_opengl)
+		I_DownSample();
+#endif
+
 	SDLSetMode(vid.width, vid.height, USE_FULLSCREEN);
 	Impl_VideoSetupBuffer();
 
@@ -1979,12 +2063,11 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 		else if (cv_vidwait.value)
 			flags |= SDL_RENDERER_PRESENTVSYNC;
 
-		// 3 August 2022
-		// Possibly a Windows 11 issue; the default
-		// "direct3d" driver (D3D9) causes Drmingw exchndl
-		// to not write RPT files. Every other driver
-		// seems fine.
+#ifdef _WIN32
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
+#else
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+#endif
 
 		renderer = SDL_CreateRenderer(window, -1, flags);
 		if (renderer == NULL)

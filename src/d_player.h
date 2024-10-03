@@ -340,16 +340,21 @@ typedef enum
 	k_trickspeedboost,
 	k_trickaccelboost,
 	
-	//Offroad nerf
+	// Offroad nerf
 	k_realsneakertimer,
 	
-	//Health nametag
+	// Health nametag
 	k_hphealth,
 	
-	//Panel Shit
+	// Panel Shit
 	k_paneltimer,
 	k_realpaneltimer,
 	k_panelstack,
+	
+	// Used for chaining thats done by combining a sneaker and a drift
+	k_chainsound,
+	
+	k_driftlock,
 
 	NUMKARTSTUFF
 } kartstufftype_t;
@@ -372,6 +377,14 @@ typedef enum
 	RW_EXPLODE = 16,
 	RW_RAIL    = 32
 } ringweapons_t;
+
+// enum for saved lap times
+typedef enum
+{
+	LAP_CUR,
+	LAP_LAST,
+	LAP__MAX
+} laptime_e;
 
 // ========================================================================
 //                          PLAYER STRUCTURE
@@ -456,6 +469,11 @@ typedef struct player_s
 	// SRB2kart
 	UINT8 kartspeed; // Kart speed stat between 1 and 9
 	UINT8 kartweight; // Kart weight stat between 1 and 9
+
+	INT32 followerskin;		// Kart: This player's follower "skin"
+	boolean followerready;	// Kart: Used to know when we can have a follower or not. (This is set on the first NameAndColor follower update)
+	UINT8 followercolor;	// Kart: Used to store the follower colour the player wishes to use
+	mobj_t *follower;		// Kart: This is the follower object we have. (If any)
 	//
 
 	UINT32 charflags; // Extra abilities/settings for skins (combinable stuff)
@@ -495,6 +513,7 @@ typedef struct player_s
 	INT16 numboxes; // Number of item boxes obtained for Race Mode
 	INT16 totalring; // Total number of rings obtained for Race Mode
 	tic_t realtime; // integer replacement for leveltime
+	tic_t laptime[LAP__MAX];
 	UINT8 laps; // Number of laps (optional)
 
 	////////////////////
@@ -567,15 +586,13 @@ typedef struct player_s
 	tic_t grieftime;
 	UINT8 griefstrikes;
 
+	tic_t hitemtimer;
+	UINT8 hitemvictim;
+
 	UINT8 splitscreenindex;
 #ifdef HWRENDER
 	fixed_t fovadd; // adjust FOV for hw rendering
 #endif
-
-	struct {
-		angle_t aiming, awayviewaiming, frameangle;
-		angle_t viewrollangle;
-	} lerp;
 } player_t;
 
 #endif

@@ -16,6 +16,7 @@
 
 #include "console.h"
 #include "command.h"
+#include "doomstat.h"
 #include "i_time.h"
 #include "i_system.h"
 #include "g_game.h"
@@ -107,6 +108,14 @@ static void Skin_OnChange(void);
 static void Skin2_OnChange(void);
 static void Skin3_OnChange(void);
 static void Skin4_OnChange(void);
+static void Follower_OnChange(void);
+static void Follower2_OnChange(void);
+static void Follower3_OnChange(void);
+static void Follower4_OnChange(void);
+static void Followercolor_OnChange(void);
+static void Followercolor2_OnChange(void);
+static void Followercolor3_OnChange(void);
+static void Followercolor4_OnChange(void);
 static void Color_OnChange(void);
 static void Color2_OnChange(void);
 static void Color3_OnChange(void);
@@ -190,6 +199,8 @@ static void Command_Cheats_f(void);
 
 static void Command_ListSkins(void);
 static void Command_SkinSearch(void);
+
+static void Command_FollowerSearch(void);
 
 
 #ifdef _DEBUG
@@ -286,6 +297,18 @@ consvar_t cv_skin = {"skin", DEFAULTSKIN, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin_
 consvar_t cv_skin2 = {"skin2", DEFAULTSKIN2, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_skin3 = {"skin3", DEFAULTSKIN3, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin3_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_skin4 = {"skin4", DEFAULTSKIN4, CV_SAVE|CV_CALL|CV_NOINIT, NULL, Skin4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+// player's followers. Also saved.
+consvar_t cv_follower = {"follower", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower2 = {"follower2", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower2_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower3 = {"follower3", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower3_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_follower4 = {"follower4", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Follower4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+
+// player's follower color. Also saved...
+consvar_t cv_followercolor = {"followercolor", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_followercolor2 = {"followercolor2", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor2_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_followercolor3 = {"followercolor3", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor3_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_followercolor4 = {"followercolor4", "Match", CV_SAVE|CV_CALL|CV_NOINIT, Followercolor_cons_t, Followercolor4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+
 // haha I've beaten you now, ONLINE
 consvar_t cv_localskin = {"internal___localskin", "none", CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -302,6 +325,9 @@ consvar_t cv_mouseturn = {"mouseturn", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, 
 consvar_t cv_spectatestrafe = {"spectatestrafe", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 
+
+// Lagless camera! Yay!
+consvar_t cv_laglesscam = {"laglesscamera", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 #if defined(HAVE_SDL) || defined(_WINDOWS) //joystick 1 and 2
 consvar_t cv_usejoystick = {"use_joystick", "1", CV_SAVE|CV_CALL, usejoystick_cons_t,
@@ -376,7 +402,7 @@ consvar_t cv_tripleorbinaut = 		{"tripleorbinaut", 		"On", CV_NETVAR|CV_CHEAT, C
 consvar_t cv_quadorbinaut = 		{"quadorbinaut", 		"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_dualjawz = 			{"dualjawz", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//sneakerextender
+// Sneaker Extender
 static CV_PossibleValue_t extensiontype_cons_t[] = {{1, "bs"}, {2, "zbl"}, {0, NULL}};
 consvar_t cv_sneakerextend = {"sneakerextend", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sneakerextendtype = {"sneakerextendtype", "zbl", CV_NETVAR|CV_CHEAT, extensiontype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -385,73 +411,63 @@ consvar_t cv_sneakerextendtype = {"sneakerextendtype", "zbl", CV_NETVAR|CV_CHEAT
 static CV_PossibleValue_t chainoffroadtype_cons_t[] = {{0, "Off"}, {1, "Both"}, {2, "Sneaker Only"}, {3, "Panel Only"}, {0, NULL}};
 consvar_t cv_chainoffroad = {"chainoffroad", "Both", CV_NETVAR|CV_CHEAT, chainoffroadtype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//additiveminiturbos
-consvar_t cv_additivemt  = 				{"additivemt", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+// Additiveminiturbos
+consvar_t cv_additivemt  = 	{"additivemt", 	"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//mini-turbo adjustment cvars
+// Mini-turbo adjustment cvars
 static CV_PossibleValue_t sparktics_cons_t[] = {{1, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
 consvar_t cv_bluesparktics = {"bluesparktics", "20", CV_NETVAR|CV_CHEAT, sparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_redsparktics = {"redsparktics", "50", CV_NETVAR|CV_CHEAT, sparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_rainbowsparktics = {"rainbowsparktics", "125", CV_NETVAR|CV_CHEAT, sparktics_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//stacking
+// Stacking
 consvar_t cv_stacking = {"stacking", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_stackingdim = {"stackingdim", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingdim = {"stacking_dim", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingdimval = {"stacking_dimval", "1.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackingoldcompat = {"stacking_oldcompat", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t stackingdimval_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
-consvar_t cv_stackingdimval = {"stackingdimval", "1.20", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingdimval_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-static CV_PossibleValue_t sneakerstack_cons_t[] = {{1, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
-consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, sneakerstack_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
+consvar_t cv_sneakerstack = {"stacking_sneakerstack", "5", CV_NETVAR|CV_CHEAT, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_panel = {"stacking_paneltimer", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_panelsharestack = {"stacking_panelsharestack", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_panelstack = {"stacking_panelstack", "2", CV_NETVAR|CV_CHEAT, sneakerstack_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_panelstack = {"stacking_panelstack", "2", CV_NETVAR|CV_CHEAT, CV_Natural, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_stackingbrakemod = {"stackingbrakemod", "1.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_stackinglowspeedbuff = {"stacking_lowspeedbuff", "On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+// Speed of boosts
+consvar_t cv_sneakerspeedeasy = {"stacking_sneakerspeedeasy", "0.8317", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerspeednormal = {"stacking_sneakerspeednormal", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerspeedhard = {"stacking_sneakerspeedhard", "0.2756", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakerspeedexpert = {"stacking_sneakerspeedexpert", "0.2243", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_sneakeraccel = {"stacking_sneakeraccel", "8.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static CV_PossibleValue_t stackingbrakemod_cons_t[] = {{FRACUNIT+FRACUNIT/4, "MIN"}, {FRACUNIT*2+FRACUNIT/3, "MAX"}, {0, NULL}};
-consvar_t cv_stackingbrakemod = {"stackingbrakemod", "0.05", CV_NETVAR|CV_FLOAT|CV_CHEAT, stackingbrakemod_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_invincibilityspeed = {"stacking_invincibilitypeed", "0.375", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_invincibilityaccel = {"stacking_invincibilityaccel", "3.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//Speed of boosts
-static CV_PossibleValue_t speed_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
-static CV_PossibleValue_t mult_cons_t[] = {{INT32_MIN, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
+consvar_t cv_growspeed = {"stacking_growspeed", "0.3", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_growaccel = {"stacking_growaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_growmult = {"stacking_growmult", "-0.3", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Signed, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_sneakerspeedeasy = {"stacking_sneakerspeedeasy", "0.8317", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sneakerspeednormal = {"stacking_sneakerspeednormal", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sneakerspeedhard = {"stacking_sneakerspeedhard", "0.2756", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sneakerspeedexpert = {"stacking_sneakerspeedexpert", "0.2243", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sneakeraccel = {"stacking_sneakeraccel", "8.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftspeed = {"stacking_drfitspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_driftaccel = {"stacking_drfitaccel", "4.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_invincibilityspeed = {"stacking_invincibilitypeed", "0.375", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_invincibilityaccel = {"stacking_invincibilityaccel", "3.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_startspeed = {"stacking_startspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_startaccel = {"stacking_startaccel", "6.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_growspeed = {"stacking_growspeed", "0.30", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_growaccel = {"stacking_growaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_growmult = {"stacking_growmult", "0.4", CV_NETVAR|CV_FLOAT|CV_CHEAT, mult_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_hyuudorospeed = {"stacking_hyuudorospeed", "0.1", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_hyuudoroaccel = {"stacking_hyuudoroaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_driftspeed = {"stacking_drfitspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_driftaccel = {"stacking_drfitaccel", "4.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_speedcap = {"stacking_speedcap", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_speedcapval = {"stacking_speedcapval", "128", CV_NETVAR|CV_FLOAT|CV_CHEAT, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_startspeed = {"stacking_startspeed", "0.25", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_startaccel = {"stacking_startaccel", "6.0", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_hyuudorospeed = {"stacking_hyuudorospeed", "0.1", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_hyuudoroaccel = {"stacking_hyuudoroaccel", "0.5", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_speedcap = 	{"stacking_speedcap", 			"Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_speedcapval = {"stacking_speedcapval", "128", CV_NETVAR|CV_FLOAT|CV_CHEAT, speed_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-
-//Fuckal Odds`
+// Fuckal Odds`
 static CV_PossibleValue_t itemoddstype_cons_t[] = {{1, "Uranus"}, {2, "CEP"}, {0, NULL}};
 consvar_t cv_itemodds = {"itemoddsystem", "CEP", CV_NETVAR|CV_CHEAT, itemoddstype_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t itemtable_cons_t[] = {{0, "MIN"}, {100, "MAX"}, {0, NULL}};
-//Item table customization 220 (Yes really)
-
-consvar_t cv_customodds = 				{"customodds", 			"On", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+// Item table customization 220 (Yes really)
+consvar_t cv_customodds = {"customodds", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t distvar_cons_t[] = {{0, "MIN"}, {INT32_MAX, "MAX"}, {0, NULL}};
 consvar_t cv_cepdistvar = {"CEPDISTVAR", "1280", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -459,10 +475,6 @@ consvar_t cv_cepdisthalf = {"CEPDISTHALF", "640", CV_NETVAR|CV_CHEAT, distvar_co
 consvar_t cv_cepspbdistvar = {"CEPSPBDISTVAR", "1280", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_uranusdistvar = {"URANUSDISTVAR", "896", CV_NETVAR|CV_CHEAT, distvar_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-
-
-
 
 //Sneaker
 consvar_t cv_SITBL1 = {"SITBL0", "20", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -550,10 +562,10 @@ consvar_t cv_JAWITBL10 = {"JAWITBL9", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t,
 
 //MINE
 consvar_t cv_MINITBL1 = {"MINITBL0", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_MINITBL2 = {"MINITBL1", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL2 = {"MINITBL1", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_MINITBL3 = {"MINITBL2", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_MINITBL4 = {"MINITBL3", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_MINITBL5 = {"MINITBL4", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL4 = {"MINITBL3", "2", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_MINITBL5 = {"MINITBL4", "1", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_MINITBL6 = {"MINITBL5", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_MINITBL7 = {"MINITBL6", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_MINITBL8 = {"MINITBL7", "0", CV_NETVAR|CV_CHEAT, itemtable_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -754,6 +766,7 @@ static CV_PossibleValue_t kartspeedometer_cons_t[] = {{0, "Off"}, {1, "Kilometer
 consvar_t cv_kartspeedometer = {"kartdisplayspeed", "Off", CV_SAVE, kartspeedometer_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL}; // use tics in display
 static CV_PossibleValue_t kartvoices_cons_t[] = {{0, "Never"}, {1, "Tasteful"}, {2, "Meme"}, {0, NULL}};
 consvar_t cv_kartvoices = {"kartvoices", "Tasteful", CV_SAVE, kartvoices_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_karthitemdialog = {"karthitemdialog", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_karteliminatelast = {"karteliminatelast", "Yes", CV_NETVAR|CV_CHEAT|CV_CALL|CV_NOSHOWHELP, CV_YesNo, KartEliminateLast_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
@@ -933,6 +946,9 @@ static CV_PossibleValue_t ps_descriptor_cons_t[] = {
 	{1, "Average"}, {2, "SD"}, {3, "Minimum"}, {4, "Maximum"}, {0, NULL}};
 consvar_t cv_ps_descriptor = {"ps_descriptor", "Average", 0, ps_descriptor_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_director = {"director", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugdirector = {"debugdirector", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 consvar_t cv_showtrackaddon = {"showtrackaddon", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t skinselectmenu_t[] = {{SKINMENUTYPE_SCROLL, "Scroll"}, {SKINMENUTYPE_2D, "2d"}, {SKINMENUTYPE_GRID, "Grid"}, {SKINMENUTYPE_EXTENDED, "Extended"}, {0, NULL}};
@@ -949,13 +965,17 @@ static CV_PossibleValue_t skinselectgridsort_t[] ={
 };
 consvar_t cv_skinselectgridsort ={ "skinselectgridsort", "Real name", CV_SAVE|CV_CALL|CV_NOINIT, skinselectgridsort_t, sortSkinGrid, 0, NULL, NULL, 0, 0, NULL };
 
+consvar_t cv_betainterscreen = {"betaintermissionscreen", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 INT16 gametype = GT_RACE; // SRB2kart
 boolean forceresetplayers = false;
 boolean deferencoremode = false;
 UINT8 splitscreen = 0;
-UINT16 votemax = 1;
 boolean circuitmap = true; // SRB2kart
 INT32 adminplayers[MAXPLAYERS];
+
+#define VOTEROWS ((cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0))
+#define VOTEROWSADDSONE ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0))
 
 /// \warning Keep this up-to-date if you add/remove/rename net text commands
 const char *netxcmdnames[MAXNETXCMD - 1] =
@@ -1018,6 +1038,7 @@ void D_RegisterServerCommands(void)
 		Forceskin_cons_t[i].value = 0;
 		Forceskin_cons_t[i].strvalue = NULL;
 	}
+	
 	RegisterNetXCmd(XD_NAMEANDCOLOR, Got_NameAndColor);
 	RegisterNetXCmd(XD_WEAPONPREF, Got_WeaponPref);
 	RegisterNetXCmd(XD_MAP, Got_Mapcmd);
@@ -1150,7 +1171,8 @@ void D_RegisterServerCommands(void)
 
 	// d_clisrv
 	CV_RegisterVar(&cv_maxplayers);
-	CV_RegisterVar(&cv_resynchattempts);
+	CV_RegisterVar(&cv_allowresynch);
+	CV_RegisterVar(&cv_resynchcooldown);
 	CV_RegisterVar(&cv_maxsend);
 	CV_RegisterVar(&cv_noticedownload);
 	CV_RegisterVar(&cv_downloadspeed);
@@ -1287,19 +1309,27 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_playername);
 	CV_RegisterVar(&cv_playercolor);
 	CV_RegisterVar(&cv_skin); // r_things.c (skin NAME)
+	CV_RegisterVar(&cv_follower);
+	CV_RegisterVar(&cv_followercolor);
 	CV_RegisterVar(&cv_localskin);
 	// secondary player (splitscreen)
 	CV_RegisterVar(&cv_playername2);
 	CV_RegisterVar(&cv_playercolor2);
 	CV_RegisterVar(&cv_skin2);
+	CV_RegisterVar(&cv_follower2);
+	CV_RegisterVar(&cv_followercolor2);
 	// third player
 	CV_RegisterVar(&cv_playername3);
 	CV_RegisterVar(&cv_playercolor3);
 	CV_RegisterVar(&cv_skin3);
+	CV_RegisterVar(&cv_follower3);
+	CV_RegisterVar(&cv_followercolor3);
 	// fourth player
 	CV_RegisterVar(&cv_playername4);
 	CV_RegisterVar(&cv_playercolor4);
 	CV_RegisterVar(&cv_skin4);
+	CV_RegisterVar(&cv_follower4);
+	CV_RegisterVar(&cv_followercolor4);
 	// preferred number of players
 	CV_RegisterVar(&cv_splitplayers);
 
@@ -1357,6 +1387,9 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_showtrackaddon);
 	CV_RegisterVar(&cv_showviewpointtext);
 
+	CV_RegisterVar(&cv_director);
+	CV_RegisterVar(&cv_kartdebugdirector);
+
 	CV_RegisterVar(&cv_luaimmersion);
 	CV_RegisterVar(&cv_fakelocalskin);
 
@@ -1370,6 +1403,7 @@ void D_RegisterClientCommands(void)
 	//CV_RegisterVar(&cv_alwaysfreelook2);
 	//CV_RegisterVar(&cv_chasefreelook);
 	//CV_RegisterVar(&cv_chasefreelook2);
+	CV_RegisterVar(&cv_replaysearchrate);
 	CV_RegisterVar(&cv_showfocuslost);
 	CV_RegisterVar(&cv_pauseifunfocused);
 
@@ -1443,6 +1477,21 @@ void D_RegisterClientCommands(void)
 #endif
 	CV_RegisterVar(&cv_controlperkey);
 	CV_RegisterVar(&cv_turnsmooth);
+
+	CV_RegisterVar(&cv_rumble[0]);
+	CV_RegisterVar(&cv_rumble[1]);
+	CV_RegisterVar(&cv_rumble[2]);
+	CV_RegisterVar(&cv_rumble[3]);
+
+	CV_RegisterVar(&cv_gamepadled[0]);
+	CV_RegisterVar(&cv_gamepadled[1]);
+	CV_RegisterVar(&cv_gamepadled[2]);
+	CV_RegisterVar(&cv_gamepadled[3]);
+
+	CV_RegisterVar(&cv_ledpowerup[0]);
+	CV_RegisterVar(&cv_ledpowerup[1]);
+	CV_RegisterVar(&cv_ledpowerup[2]);
+	CV_RegisterVar(&cv_ledpowerup[3]);
 
 	CV_RegisterVar(&cv_usemouse);
 	CV_RegisterVar(&cv_usemouse2);
@@ -1541,6 +1590,10 @@ void D_RegisterClientCommands(void)
 
 	CV_RegisterVar(&cv_showmusicfilename);
 
+	CV_RegisterVar(&cv_betainterscreen);
+
+	CV_RegisterVar(&cv_laglesscam);
+
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
 	COM_AddCommand("writethings", Command_Writethings_f);
@@ -1588,6 +1641,8 @@ void D_RegisterClientCommands(void)
 
 	COM_AddCommand("listskins", Command_ListSkins);
 	COM_AddCommand("skinsearch", Command_SkinSearch);
+	
+	COM_AddCommand("followersearch", Command_FollowerSearch);
 }
 
 /**
@@ -1954,14 +2009,28 @@ static void SendNameAndColor(void)
 		else
 			CV_StealthSet(&cv_playercolor, cv_playercolor.defaultvalue);
 	}
+	
+	// ditto for follower colour:
+	if (!cv_followercolor.value)
+		CV_StealthSet(&cv_followercolor, "Match"); // set it to "Match". I don't care about your stupidity!
+		
+	// We'll handle it later if we're not playing.
+	if (!Playing())
+		return;
+	
+	cv_follower.value = R_FollowerAvailable(cv_follower.string);
+	if (cv_follower.value < 0)
+	{
+		CV_StealthSet(&cv_follower, "None");
+		cv_follower.value = -1;
+	}
 
 	if (!strcmp(cv_playername.string, player_names[consoleplayer])
 		&& cv_playercolor.value == players[consoleplayer].skincolor
-		&& !strcmp(cv_skin.string, skins[players[consoleplayer].skin].name))
-		return;
-
-	// We'll handle it later if we're not playing.
-	if (!Playing())
+		&& !strcmp(cv_skin.string, skins[players[consoleplayer].skin].name)
+		&& !strcmp(cv_follower.string,
+			(players[consoleplayer].followerskin < 0 ? "None" : followers[players[consoleplayer].followerskin].name))
+		&& cv_followercolor.value == players[consoleplayer].followercolor)
 		return;
 
 	// If you're not in a netgame, merely update the skin, color, and name.
@@ -1973,9 +2042,14 @@ static void SendNameAndColor(void)
 		strcpy(player_names[consoleplayer], cv_playername.zstring);
 
 		players[consoleplayer].skincolor = cv_playercolor.value;
+		
+		players[consoleplayer].followercolor = cv_followercolor.value;
 
 		if (players[consoleplayer].mo)
 			players[consoleplayer].mo->color = players[consoleplayer].skincolor;
+		
+		if (cv_follower.value >= -1 && cv_follower.value != players[consoleplayer].followerskin)
+			SetFollower(consoleplayer, cv_follower.value);
 
 		if (metalrecording)
 		{ // Metal Sonic is Sonic, obviously.
@@ -2045,6 +2119,8 @@ static void SendNameAndColor(void)
 	WRITESTRINGN(p, cv_playername.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor.value);
 	WRITEUINT16(p, (UINT16)cv_skin.value);
+	WRITEINT32(p, (INT32)cv_follower.value);
+	WRITEUINT8(p, (UINT8)cv_followercolor.value);
 	SendNetXCmd(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2088,9 +2164,20 @@ static void SendNameAndColor2(void)
 			CV_StealthSet(&cv_playercolor2, cv_playercolor2.defaultvalue);
 	}
 
+	// ditto for follower colour:
+	if (!cv_followercolor2.value)
+		CV_StealthSet(&cv_followercolor2, "Match"); // set it to "Match". I don't care about your stupidity!
+	
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
+	
+	cv_follower2.value = R_FollowerAvailable(cv_follower2.string);
+	if (cv_follower2.value < 0)
+	{
+		CV_StealthSet(&cv_follower2, "None");
+		cv_follower2.value = -1;
+	}
 
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (botingame)
@@ -2110,8 +2197,12 @@ static void SendNameAndColor2(void)
 
 		// don't use displayplayers[1]: the second player must be 1
 		players[secondplaya].skincolor = cv_playercolor2.value;
+		players[secondplaya].followercolor = cv_followercolor2.value;
 		if (players[secondplaya].mo)
 			players[secondplaya].mo->color = players[secondplaya].skincolor;
+		
+		if (cv_follower.value >= -1 && cv_follower2.value != players[secondplaya].followerskin)
+			SetFollower(secondplaya, cv_follower2.value);
 
 		if ((foundskin = R_SkinAvailable(cv_skin2.string)) != -1)
 		{
@@ -2174,6 +2265,8 @@ static void SendNameAndColor2(void)
 	WRITESTRINGN(p, cv_playername2.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor2.value);
 	WRITEUINT16(p, (UINT16)cv_skin2.value);
+	WRITEINT32(p, (INT32)cv_follower2.value);
+	WRITEUINT8(p, (UINT8)cv_followercolor2.value);
 	SendNetXCmd2(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2215,11 +2308,22 @@ static void SendNameAndColor3(void)
 		else
 			CV_StealthSet(&cv_playercolor3, cv_playercolor3.defaultvalue);
 	}
+	
+	// ditto for follower colour:
+	if (!cv_followercolor3.value)
+		CV_StealthSet(&cv_followercolor3, "Match"); // set it to "Match". I don't care about your stupidity!
 
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
-
+	
+	cv_follower3.value = R_FollowerAvailable(cv_follower3.string);
+	if (cv_follower3.value < 0)
+	{
+		CV_StealthSet(&cv_follower3, "None");
+		cv_follower3.value = -1;
+	}
+	
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (!netgame)
 	{
@@ -2230,8 +2334,13 @@ static void SendNameAndColor3(void)
 
 		// don't use displayplayers[2]: the third player must be 2
 		players[thirdplaya].skincolor = cv_playercolor3.value;
+		players[thirdplaya].followercolor = cv_followercolor3.value;
 		if (players[thirdplaya].mo)
 			players[thirdplaya].mo->color = players[thirdplaya].skincolor;
+		
+		
+		if (cv_follower3.value >= -1 && cv_follower3.value != players[thirdplaya].followerskin)
+			SetFollower(thirdplaya, cv_follower3.value);
 
 		if ((foundskin = R_SkinAvailable(cv_skin3.string)) != -1)
 		{
@@ -2294,6 +2403,8 @@ static void SendNameAndColor3(void)
 	WRITESTRINGN(p, cv_playername3.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor3.value);
 	WRITEUINT16(p, (UINT16)cv_skin3.value);
+	WRITEINT32(p, (INT32)cv_follower3.value);
+	WRITEUINT8(p, (UINT8)cv_followercolor3.value);
 	SendNetXCmd3(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2336,10 +2447,21 @@ static void SendNameAndColor4(void)
 			CV_StealthSet(&cv_playercolor4, cv_playercolor4.defaultvalue);
 	}
 
+	// ditto for follower colour:
+	if (!cv_followercolor4.value)
+		CV_StealthSet(&cv_followercolor4, "Match"); // set it to "Match". I don't care about your stupidity!
+	
 	// We'll handle it later if we're not playing.
 	if (!Playing())
 		return;
 
+	cv_follower4.value = R_FollowerAvailable(cv_follower4.string);
+	if (cv_follower4.value < 0)
+	{
+		CV_StealthSet(&cv_follower4, "None");
+		cv_follower4.value = -1;
+	}
+	
 	// If you're not in a netgame, merely update the skin, color, and name.
 	if (botingame)
 	{
@@ -2358,8 +2480,12 @@ static void SendNameAndColor4(void)
 
 		// don't use displayplayers[3]: the second player must be 4
 		players[fourthplaya].skincolor = cv_playercolor4.value;
+		players[fourthplaya].followercolor = cv_followercolor4.value;
 		if (players[fourthplaya].mo)
 			players[fourthplaya].mo->color = players[fourthplaya].skincolor;
+		
+		if (cv_follower.value >= -1 && cv_follower.value != players[consoleplayer].followerskin)
+			SetFollower(consoleplayer, cv_follower.value);
 
 		if ((foundskin = R_SkinAvailable(cv_skin4.string)) != -1)
 		{
@@ -2422,6 +2548,8 @@ static void SendNameAndColor4(void)
 	WRITESTRINGN(p, cv_playername4.zstring, MAXPLAYERNAME);
 	WRITEUINT8(p, (UINT8)cv_playercolor4.value);
 	WRITEUINT16(p, (UINT16)cv_skin4.value);
+	WRITEINT32(p, (INT32)cv_follower4.value);
+	WRITEUINT8(p, (UINT8)cv_followercolor4.value);
 	SendNetXCmd4(XD_NAMEANDCOLOR, buf, p - buf);
 }
 
@@ -2429,8 +2557,9 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 {
 	player_t *p = &players[playernum];
 	char name[MAXPLAYERNAME+1];
-	UINT8 color; 
+	UINT8 color, followercolor; 
 	UINT16 skin;
+	INT32 follower;
 	
 
 #ifdef PARANOIA
@@ -2455,6 +2584,8 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 	READSTRINGN(*cp, name, MAXPLAYERNAME);
 	color = READUINT8(*cp);
 	skin = READUINT16(*cp);
+	follower = READINT32(*cp);
+	followercolor = READUINT8(*cp);
 
 	// set name
 	if (player_name_changes[playernum] < MAXNAMECHANGES)
@@ -2517,6 +2648,13 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 	}
 	else
 		SetPlayerSkinByNum(playernum, skin);
+	
+	
+	// set follower colour:
+	// Don't bother doing garbage and kicking if we receive None, this is both silly and a waste of time, this will be handled properly in P_HandleFollower.
+	p->followercolor = followercolor;
+
+	SetFollower(playernum, follower);
 
 #ifdef HAVE_DISCORDRPC
 	if (playernum == consoleplayer)
@@ -3018,7 +3156,7 @@ void D_SetupVote(void)
 	INT32 i;
 	UINT8 gt = (cv_kartgametypepreference.value == -1) ? gametype : cv_kartgametypepreference.value;
 	//UINT8 secondgt = G_SometimesGetDifferentGametype(gt);
-	UINT8 secondgt;
+	UINT8 secondgt = 0;
 	INT16 votebuffer[4] = {-1,-1,-1,0};
 
 	if (G_RaceGametype() && cv_kartencore.value)
@@ -3062,30 +3200,24 @@ void D_SetupVote(void)
 		WRITEUINT8(p, gt);
 	WRITEUINT8(p, secondgt);
 	secondgt &= ~0x80;
-	
-	votemax = cv_votemaxrows.value;
 
-	for (i = 0; i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ); i++)
+	for (i = 0; i < VOTEROWSADDSONE; i++)
 	{
 		UINT16 m;
-		//UINT16 forcehell = (((cv_votemaxrows.value*3))-2);
-		UINT16 voterows = cv_votemaxrows.value*3;
 		UINT16 hellpick = 0;
 
-		voterows = ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) );
+		hellpick = ((i == ((VOTEROWS) + 1) ) ? 2 : 0);
 
-		hellpick = ((i == ((voterows) + 1) ) ? 2 : 0);
-
-		if (i == ((cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ))
+		if (i == VOTEROWS)
 			hellpick = 1;
 
 		if (i == 2) // sometimes a different gametype
 			m = G_RandMap(G_TOLFlag(secondgt), prevmap, false, 0, true, votebuffer);
-		else if (i >= ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) )) // unknown-random and force-unknown MAP HELL
-			m = G_RandMap(G_TOLFlag(gt), prevmap, false, hellpick, (i < ((cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? 1 : 0) )), votebuffer); // let's TRY to make this simpler
+		else if (i >= VOTEROWS) // unknown-random and force-unknown MAP HELL
+			m = G_RandMap(G_TOLFlag(gt), prevmap, false, hellpick, (i < VOTEROWSADDSONE), votebuffer); // let's TRY to make this simpler
 		else
 			m = G_RandMap(G_TOLFlag(gt), prevmap, false, 0, true, votebuffer);
-		if (i < ( (cv_votemaxrows.value*3) + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0) ))
+		if (i < VOTEROWS)
 			votebuffer[min(i, 2)] = m; // min() is a dumb workaround for gcc 4.4 array-bounds error
 		WRITEUINT16(p, m);
 	}
@@ -3132,12 +3264,6 @@ void D_PickVote(void)
 	if (numvotes > 0)
 	{
 		WRITESINT8(p, temppicks[key]);
-		
-		//if (templevels[key] == ( (votemax*3) + ((votemax > 1) ? (votemax - 1) : 0) ) && numvotes > 1)
-			//WRITESINT8(p, ( (votemax*3) + 1 + ((votemax > 1) ? (votemax - 1) : 0) ));
-		
-		//else
-
 		WRITESINT8(p, templevels[key]);
 	}
 	else
@@ -4114,11 +4240,11 @@ static void Command_ServerTeamChange_f(void)
 	if (COM_Argc() < 3)
 	{
 		if (G_TagGametype())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "it, notit, playing, or spectator");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "it, notit, playing, or spectator");
 		else if (G_GametypeHasTeams())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "red, blue or spectator");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "red, blue or spectator");
 		else if (G_GametypeHasSpectators())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "spectator or playing");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "spectator or playing");
 		else
 			CONS_Alert(CONS_NOTICE, M_GetText("This command cannot be used in this gametype.\n"));
 		return;
@@ -4166,19 +4292,19 @@ static void Command_ServerTeamChange_f(void)
 	if (error)
 	{
 		if (G_TagGametype())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "it, notit, playing, or spectator");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "it, notit, playing, or spectator");
 		else if (G_GametypeHasTeams())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "red, blue or spectator");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "red, blue or spectator");
 		else if (G_GametypeHasSpectators())
-			CONS_Printf(M_GetText("serverchangeteam <playernum> <team>: switch player to a new team (%s)\n"), "spectator or playing");
+			CONS_Printf(M_GetText("serverchangeteam <playername/playernum> <team>: switch player to a new team (%s)\n"), "spectator or playing");
 		return;
 	}
 
-	NetPacket.packet.playernum = atoi(COM_Argv(1));
+	NetPacket.packet.playernum = nametonum(COM_Argv(1));
 
-	if (!playeringame[NetPacket.packet.playernum])
+	if (NetPacket.packet.playernum == -1 || !playeringame[NetPacket.packet.playernum])
 	{
-		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %d!\n"), NetPacket.packet.playernum);
+		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
 		return;
 	}
 
@@ -4224,22 +4350,6 @@ static void Command_ServerTeamChange_f(void)
 
 	usvalue = SHORT(NetPacket.value.l|NetPacket.value.b);
 	SendNetXCmd(XD_TEAMCHANGE, &usvalue, sizeof(usvalue));
-}
-
-void P_SetPlayerSpectator(INT32 playernum)
-{
-	//Make sure you're in the right gametype.
-	if (!G_GametypeHasTeams() && !G_GametypeHasSpectators())
-		return;
-
-	// Don't duplicate efforts.
-	if (players[playernum].spectator)
-		return;
-
-	players[playernum].spectator = true;
-	players[playernum].pflags &= ~PF_WANTSTOJOIN;
-
-	players[playernum].playerstate = PST_REBORN;
 }
 
 //todo: This and the other teamchange functions are getting too long and messy. Needs cleaning.
@@ -4371,34 +4481,81 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 
 	//Safety first!
 	// (not respawning spectators here...)
-	wasspectator = (players[playernum].spectator == true);
-
-	if (!wasspectator)
+	if (!players[playernum].spectator)
 	{
-		if (gamestate == GS_LEVEL && players[playernum].mo)
+		if (players[playernum].mo)
 		{
-			P_DamageMobj(players[playernum].mo, NULL, NULL, 42000);
+			//if (!players[playernum].spectator)
+				P_DamageMobj(players[playernum].mo, NULL, NULL, 10000);
+			/*else
+			{
+				if (players[playernum].mo)
+				{
+					P_RemoveMobj(players[playernum].mo);
+					players[playernum].mo = NULL;
+				}
+				players[playernum].playerstate = PST_REBORN;
+			}*/
 		}
-
-		//...but because the above could return early under some contexts, we try again here
-		P_SetPlayerSpectator(playernum);
+		else
+			players[playernum].playerstate = PST_REBORN;
 	}
+	else
+		wasspectator = true;
 
-	//players[playernum].pflags &= ~PF_WANTSTOJOIN;
+	players[playernum].pflags &= ~PF_WANTSTOJOIN;
 
 	//Now that we've done our error checking and killed the player
 	//if necessary, put the player on the correct team/status.
-
-	if (NetPacket.packet.newteam != 0)
+	if (G_TagGametype())
 	{
-		// This serves us in both teamchange contexts.
-		players[playernum].pflags |= PF_WANTSTOJOIN;
+		if (!NetPacket.packet.newteam)
+		{
+			players[playernum].spectator = true;
+			players[playernum].pflags &= ~PF_TAGIT;
+			players[playernum].pflags &= ~PF_TAGGED;
+		}
+		else if (NetPacket.packet.newteam != 3) // .newteam == 1 or 2.
+		{
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+			players[playernum].pflags &= ~PF_TAGGED;//Just in case.
+
+			if (NetPacket.packet.newteam == 1) //Make the player IT.
+				players[playernum].pflags |= PF_TAGIT;
+			else
+				players[playernum].pflags &= ~PF_TAGIT;
+		}
+		else // Just join the game.
+		{
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+
+			//If joining after hidetime in normal tag, default to being IT.
+			if (gametype == GT_TAG && (leveltime > (hidetime * TICRATE)))
+			{
+				NetPacket.packet.newteam = 1; //minor hack, causes the "is it" message to be printed later.
+				players[playernum].pflags |= PF_TAGIT; //make the player IT.
+			}
+		}
 	}
-
-	if (G_GametypeHasTeams())
+	else if (G_GametypeHasTeams())
 	{
-		// This one is, of course, specific.
-		players[playernum].ctfteam = NetPacket.packet.newteam;
+		if (!NetPacket.packet.newteam)
+		{
+			players[playernum].ctfteam = 0;
+			players[playernum].spectator = true;
+		}
+		else
+		{
+			players[playernum].ctfteam = NetPacket.packet.newteam;
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
+		}
+	}
+	else if (G_GametypeHasSpectators())
+	{
+		if (!NetPacket.packet.newteam)
+			players[playernum].spectator = true;
+		else
+			players[playernum].pflags |= PF_WANTSTOJOIN; //players[playernum].spectator = false;
 	}
 
 	if (NetPacket.packet.autobalance)
@@ -4451,7 +4608,7 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 		}
 	}
 
-	if (gamestate != GS_LEVEL || wasspectator == true)
+	if (gamestate != GS_LEVEL)
 		return;
 
 	demo_extradata[playernum] |= DXD_PLAYSTATE;
@@ -4678,13 +4835,16 @@ static void Command_Verify_f(void)
 
 	if (COM_Argc() != 2)
 	{
-		CONS_Printf(M_GetText("promote <node>: give admin privileges to a node\n"));
+		CONS_Printf(M_GetText("promote <playername/playernum>: give admin privileges to a player\n"));
 		return;
 	}
 
-	strlcpy(buf, COM_Argv(1), sizeof (buf));
-
-	playernum = atoi(buf);
+	playernum = nametonum(COM_Argv(1));
+	if (playernum == -1)
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
+		return;
+	}
 
 	temp = buf;
 
@@ -4734,13 +4894,16 @@ static void Command_RemoveAdmin_f(void)
 
 	if (COM_Argc() != 2)
 	{
-		CONS_Printf(M_GetText("demote <node>: remove admin privileges from a node\n"));
+		CONS_Printf(M_GetText("demote <playernum>: remove admin privileges from a player\n"));
 		return;
 	}
 
-	strlcpy(buf, COM_Argv(1), sizeof(buf));
-
-	playernum = atoi(buf);
+	playernum = nametonum(COM_Argv(1));
+	if (playernum == -1)
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
+		return;
+	}
 
 	temp = buf;
 
@@ -5974,7 +6137,7 @@ static void Got_ExitLevelcmd(UINT8 **cp, INT32 playernum)
 static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 {
 	INT32 i;
-	UINT8 gt, secondgt, votemaxsetup;
+	UINT8 gt, secondgt;
 
 	if (playernum != serverplayer && !IsPlayerAdmin(playernum))
 	{
@@ -5993,7 +6156,6 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	// Get gametype data.
 	gt = (UINT8)READUINT8(*cp);
 	secondgt = (UINT8)READUINT8(*cp);
-	votemaxsetup = (cv_votemaxrows.value*3) + 1 + ((cv_votemaxrows.value > 1) ? (cv_votemaxrows.value - 1) : 0);
 
 	// Strip illegal Encore flag.
 	if (gt == (GT_MATCH|0x80))
@@ -6002,7 +6164,7 @@ static void Got_SetupVotecmd(UINT8 **cp, INT32 playernum)
 	}
 
 	// Apply most data.
-	for (i = 0; i < votemaxsetup; i++)
+	for (i = 0; i < VOTEROWSADDSONE; i++)
 	{
 		votelevels[i][0] = (UINT16)READUINT16(*cp);
 		votelevels[i][1] = gt;
@@ -6175,10 +6337,9 @@ static void Command_Togglemodified_f(void)
 	modifiedgame = !modifiedgame;
 }
 
-extern UINT8 *save_p;
 static void Command_Archivetest_f(void)
 {
-	UINT8 *buf;
+	savebuffer_t save;
 	UINT32 i, wrote;
 	thinker_t *th;
 	if (gamestate != GS_LEVEL)
@@ -6194,28 +6355,28 @@ static void Command_Archivetest_f(void)
 			((mobj_t *)th)->mobjnum = i++;
 
 	// allocate buffer
-	buf = save_p = ZZ_Alloc(1024);
+	save.buffer = save.p = ZZ_Alloc(1024);
 
 	// test archive
 	CONS_Printf("LUA_Archive...\n");
-	LUA_Archive();
-	WRITEUINT8(save_p, 0x7F);
-	wrote = (UINT32)(save_p-buf);
+	LUA_Archive(&save, true);
+	WRITEUINT8(save.p, 0x7F);
+	wrote = (UINT32)(save.p - save.buffer);
 
 	// clear Lua state, so we can really see what happens!
 	CONS_Printf("Clearing state!\n");
 	LUA_ClearExtVars();
 
 	// test unarchive
-	save_p = buf;
+	save.p = save.buffer;
 	CONS_Printf("LUA_UnArchive...\n");
-	LUA_UnArchive();
-	i = READUINT8(save_p);
-	if (i != 0x7F || wrote != (UINT32)(save_p-buf))
-		CONS_Printf("Savegame corrupted. (write %u, read %u)\n", wrote, (UINT32)(save_p-buf));
+	LUA_UnArchive(&save, true);
+	i = READUINT8(save.p);
+	if (i != 0x7F || wrote != (UINT32)(save.p - save.buffer))
+		CONS_Printf("Savegame corrupted. (write %u, read %u)\n", wrote, (UINT32)(save.p - save.buffer));
 
 	// free buffer
-	Z_Free(buf);
+	Z_Free(save.buffer);
 	CONS_Printf("Done. No crash.\n");
 }
 #endif
@@ -6284,6 +6445,151 @@ static void Name4_OnChange(void)
 	}
 	else
 		SendNameAndColor4();
+}
+
+// sends the follower change for players
+static void Follower_OnChange(void)
+{
+
+	if (!Playing())
+		return; // don't send anything there.
+		
+	if (P_PlayerMoving(consoleplayer))
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		
+		if (players[consoleplayer].followerskin == -1)
+			CV_StealthSet(&cv_follower, "None");
+		else
+			CV_StealthSet(&cv_follower, followers[players[consoleplayer].followerskin].name);
+		return;
+	}
+
+	SendNameAndColor();
+}
+
+// sends the follower change for players
+static void Follower2_OnChange(void)
+{
+	if (!Playing() || !splitscreen)
+		return; // don't send anything there.
+		
+	if (P_PlayerMoving(displayplayers[1]))
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		if (players[displayplayers[1]].followerskin == -1)
+			CV_StealthSet(&cv_follower2, "None");
+		else
+			CV_StealthSet(&cv_follower2, followers[players[displayplayers[1]].followerskin].name);
+		return;
+	}
+
+	SendNameAndColor2();
+}
+
+// sends the follower change for players
+static void Follower3_OnChange(void)
+{
+
+	if (!Playing() || splitscreen < 2)
+		return; // don't send anything there.
+		
+	if (P_PlayerMoving(displayplayers[2]))
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		if (players[displayplayers[2]].followerskin == -1)
+			CV_StealthSet(&cv_follower3, "None");
+		else
+			CV_StealthSet(&cv_follower3, followers[players[displayplayers[2]].followerskin].name);
+		return;
+	}
+
+	SendNameAndColor3();
+}
+
+// sends the follower change for players
+static void Follower4_OnChange(void)
+{
+
+	if (!Playing() || splitscreen < 3)
+		return; // don't send anything there.
+		
+	if (P_PlayerMoving(displayplayers[3]))
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("You can't change your follower at the moment.\n"));
+		if (players[displayplayers[3]].followerskin == -1)
+			CV_StealthSet(&cv_follower4, "None");
+		else
+			CV_StealthSet(&cv_follower4, followers[players[displayplayers[3]].followerskin].name);
+		return;
+	}
+
+	SendNameAndColor4();
+}
+
+// About the same as Color_OnChange but for followers.
+static void Followercolor_OnChange(void)
+{
+	if (!Playing())
+		return; // do whatever you want if you aren't in the game or don't have a follower.
+
+	if (!P_PlayerMoving(consoleplayer))
+	{
+		// Color change menu scrolling fix is no longer necessary
+		SendNameAndColor();
+	}
+	else
+	{
+		CV_StealthSetValue(&cv_followercolor, players[consoleplayer].followercolor);
+	}
+}
+
+static void Followercolor2_OnChange(void)
+{
+	if (!Playing() || !splitscreen)
+		return; // do whatever you want if you aren't in the game or don't have a follower.
+
+	if (!P_PlayerMoving(displayplayers[1]))
+	{
+		// Color change menu scrolling fix is no longer necessary
+		SendNameAndColor2();
+	}
+	else
+	{
+		CV_StealthSetValue(&cv_followercolor, players[displayplayers[1]].followercolor);
+	}
+}
+
+static void Followercolor3_OnChange(void)
+{
+	if (!Playing() || splitscreen < 2)
+		return; // do whatever you want if you aren't in the game or don't have a follower.
+
+	if (!P_PlayerMoving(displayplayers[2]))
+	{
+		// Color change menu scrolling fix is no longer necessary
+		SendNameAndColor3();
+	}
+	else
+	{
+		CV_StealthSetValue(&cv_followercolor, players[displayplayers[2]].followercolor);
+	}
+}
+
+static void Followercolor4_OnChange(void)
+{
+	if (!Playing() || splitscreen < 3)
+		return; // do whatever you want if you aren't in the game or don't have a follower.
+
+	if (!P_PlayerMoving(displayplayers[3]))
+	{
+		// Color change menu scrolling fix is no longer necessary
+		SendNameAndColor4();
+	}
+	else
+	{
+		CV_StealthSetValue(&cv_followercolor, players[displayplayers[3]].followercolor);
+	}
 }
 
 /** Sends a skin change for the console player, unless that player is moving.
@@ -6451,6 +6757,25 @@ static void Command_SkinSearch(void)
 		}
 	}
 				CONS_Printf("Total %d skins.\n", ic);
+}
+
+static void Command_FollowerSearch(void)
+{	
+	size_t i;
+	UINT16 s;
+	UINT16 ic = 0;
+	for (i = 1; i < COM_Argc(); i++){
+		for( s = 0 ; s <  numfollowers ; s++ )
+		{
+			follower_t *followerinput = &followers[s];
+			if (strcasestr(followerinput->name,COM_Argv(i)))
+			{	
+				ic++;
+				CONS_Printf("%d. %s\"%s\"\x80\n", ic,HU_SkinColorToConsoleColor(followerinput->defaultcolor),followerinput->name);
+			}
+		}
+	}
+				CONS_Printf("Total %d followers.\n", ic);
 }
 
 /** Sends a color change for the console player, unless that player is moving.
@@ -6728,3 +7053,6 @@ void Got_DiscordInfo(UINT8 **p, INT32 playernum)
 	(*p) += 3;
 #endif
 }
+
+#undef VOTEROWS
+#undef VOTEROWSADDSONE

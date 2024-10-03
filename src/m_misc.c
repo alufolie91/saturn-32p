@@ -334,6 +334,38 @@ boolean FIL_FileOK(char const *name)
 	return access(name,6)+1; //R_OK|W_OK
 }
 
+/** Copies contents of one file to another
+ *
+ * \param src   File to copy from
+ * \param dst   File to write into
+ * \return true if copy was succesful, false if it doesn't.
+ */
+boolean FIL_CopyFile(const char *src, const char *dst)
+{
+	FILE *srcFile = fopen(src, "rb");
+
+	if (srcFile == NULL)
+		return false;
+
+	FILE *dstFile = fopen(dst, "wb");
+
+	if (dstFile == NULL)
+	{
+		fclose(srcFile);
+		return false;
+	}
+
+	char buffer[1024];
+	size_t n;
+
+	while ((n = fread(buffer, 1, sizeof(buffer), srcFile)) > 0)
+		fwrite(buffer, 1, n, dstFile);
+
+	fclose(srcFile);
+	fclose(dstFile);
+
+	return true;
+}
 
 /** Checks if a pathname has a file extension and adds the extension provided
   * if not.
@@ -525,10 +557,27 @@ void M_SaveConfig(const char *filename)
 {
 	FILE *f;
 	char *filepath;
+	char backupfile[MAX_WADPATH+4];
 
 	// make sure not to write back the config until it's been correctly loaded
 	if (!gameconfig_loaded)
 		return;
+
+	// Create backup of the config file
+	snprintf(backupfile, sizeof backupfile, "%s.bak", configfile);
+	backupfile[sizeof backupfile - 1] = '\0';
+
+	FILE *config = fopen(configfile, "r");
+
+	if (config != NULL)
+	{
+		fclose(config);
+		if (FIL_CopyFile(configfile, backupfile) == false)
+		{
+			CONS_Alert(CONS_WARNING,"Failed to create a backup of the configuration file. Will not attempt to write to file\n");
+			return;
+		}
+	}
 
 	// can change the file name
 	if (filename)
@@ -997,7 +1046,7 @@ static boolean M_SetupaPNG(png_const_charp filename, png_bytep pal)
 	png_init_io(apng_ptr, apng_FILE);
 
 #ifdef PNG_SET_USER_LIMITS_SUPPORTED
-	png_set_user_limits(apng_ptr, MAXVIDWIDTH, MAXVIDHEIGHT);
+	png_set_user_limits(apng_ptr, MAXPNGWIDTH, MAXPNGHEIGHT);
 #endif
 
 	//png_set_filter(apng_ptr, 0, PNG_ALL_FILTERS);
@@ -1306,7 +1355,7 @@ boolean M_SavePNG(const char *filename, void *data, int width, int height, const
 	png_init_io(png_ptr, png_FILE);
 
 #ifdef PNG_SET_USER_LIMITS_SUPPORTED
-	png_set_user_limits(png_ptr, MAXVIDWIDTH, MAXVIDHEIGHT);
+	png_set_user_limits(png_ptr, MAXPNGWIDTH, MAXPNGHEIGHT);
 #endif
 
 	//png_set_filter(png_ptr, 0, PNG_ALL_FILTERS);
@@ -1938,7 +1987,7 @@ char *sizeu5(size_t num)
 	return sizeu5_buf;
 }
 
-void *M_Memcpy(void *dest, const void *src, size_t n)
+FUNCINLINE ATTRINLINE void *M_Memcpy(void *dest, const void *src, size_t n)
 {
 	return memcpy(dest, src, n);
 }

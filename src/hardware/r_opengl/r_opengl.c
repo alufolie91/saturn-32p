@@ -119,6 +119,14 @@ static GLfloat modelMatrix[16];
 GLfloat projMatrix[16];
 static GLint   viewport[4];
 
+#ifdef USE_FBO_OGL
+static boolean GLFramebuffer_IsFuncAvailible(void);
+
+GLuint FramebufferObject, FramebufferTexture, RenderbufferObject;
+GLboolean FrameBufferEnabled = GL_FALSE, RenderToFramebuffer = GL_FALSE;
+
+boolean supportFBO = false;
+#endif
 
 // Sryder:	NextTexAvail is broken for these because palette changes or changes to the texture filter or antialiasing
 //			flush all of the stored textures, leaving them unavailable at times such as between levels
@@ -429,7 +437,32 @@ typedef void (APIENTRY * PFNglCopyTexImage2D) (GLenum target, GLint level, GLenu
 static PFNglCopyTexImage2D pglCopyTexImage2D;
 typedef void (APIENTRY * PFNglCopyTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 static PFNglCopyTexSubImage2D pglCopyTexSubImage2D;
-#endif
+
+#ifdef USE_FBO_OGL
+/* 3.0 functions for framebuffers and renderbuffers */
+typedef void (APIENTRY * PFNglGenFramebuffers) (GLsizei n, GLuint *ids);
+static PFNglGenFramebuffers pglGenFramebuffers;
+typedef void (APIENTRY * PFNglBindFramebuffer) (GLenum target, GLuint framebuffer);
+static PFNglBindFramebuffer pglBindFramebuffer;
+typedef void (APIENTRY * PFNglDeleteFramebuffers) (GLsizei n, GLuint *ids);
+static PFNglDeleteFramebuffers pglDeleteFramebuffers;
+typedef void (APIENTRY * PFNglFramebufferTexture2D) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+static PFNglFramebufferTexture2D pglFramebufferTexture2D;
+typedef GLenum (APIENTRY * PFNglCheckFramebufferStatus) (GLenum target);
+static PFNglCheckFramebufferStatus pglCheckFramebufferStatus;
+typedef void (APIENTRY * PFNglGenRenderbuffers) (GLsizei n, GLuint *renderbuffers);
+static PFNglGenRenderbuffers pglGenRenderbuffers;
+typedef void (APIENTRY * PFNglBindRenderbuffer) (GLenum target, GLuint renderbuffer);
+static PFNglBindRenderbuffer pglBindRenderbuffer;
+typedef void (APIENTRY * PFNglDeleteRenderbuffers) (GLsizei n, GLuint *renderbuffers);
+static PFNglDeleteRenderbuffers pglDeleteRenderbuffers;
+typedef void (APIENTRY * PFNglRenderbufferStorage) (GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
+static PFNglRenderbufferStorage pglRenderbufferStorage;
+typedef void (APIENTRY * PFNglFramebufferRenderbuffer) (GLenum target, GLenum attachment, GLenum renderbuffertarget, GLenum renderbuffer);
+static PFNglFramebufferRenderbuffer pglFramebufferRenderbuffer;
+#endif // USE_FBO_OGL
+
+#endif //!STATIC_OPENGL
 
 /* 1.2 functions for 3D textures */
 typedef void (APIENTRY * PFNglTexImage3D) (GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
@@ -576,6 +609,7 @@ typedef void  	(APIENTRY *PFNglDeleteProgram)		(GLuint);
 typedef void 	(APIENTRY *PFNglAttachShader)		(GLuint, GLuint);
 typedef void 	(APIENTRY *PFNglLinkProgram)		(GLuint);
 typedef void 	(APIENTRY *PFNglGetProgramiv)		(GLuint, GLenum, GLint*);
+typedef void 	(APIENTRY *PFNglGetProgramInfoLog)	(GLuint, GLsizei, GLsizei*, GLchar*);
 typedef void 	(APIENTRY *PFNglUseProgram)			(GLuint);
 typedef void 	(APIENTRY *PFNglUniform1i)			(GLint, GLint);
 typedef void 	(APIENTRY *PFNglUniform1f)			(GLint, GLfloat);
@@ -598,6 +632,7 @@ static PFNglDeleteProgram pglDeleteProgram;
 static PFNglAttachShader pglAttachShader;
 static PFNglLinkProgram pglLinkProgram;
 static PFNglGetProgramiv pglGetProgramiv;
+static PFNglGetProgramInfoLog pglGetProgramInfoLog;
 static PFNglUseProgram pglUseProgram;
 static PFNglUniform1i pglUniform1i;
 static PFNglUniform1f pglUniform1f;
@@ -637,6 +672,8 @@ typedef enum
 
 	// misc.
 	gluniform_leveltime,
+
+	gluniform_scr_resolution,
 	
 	gluniform_max,
 } gluniform_t;
@@ -703,6 +740,7 @@ void SetupGLFunc4(void)
 	pglAttachShader = GetGLFunc("glAttachShader");
 	pglLinkProgram = GetGLFunc("glLinkProgram");
 	pglGetProgramiv = GetGLFunc("glGetProgramiv");
+	pglGetProgramInfoLog = GetGLFunc("glGetProgramInfoLog");
 	pglUseProgram = GetGLFunc("glUseProgram");
 	pglUniform1i = GetGLFunc("glUniform1i");
 	pglUniform1f = GetGLFunc("glUniform1f");
@@ -713,7 +751,38 @@ void SetupGLFunc4(void)
 	pglUniform2fv = GetGLFunc("glUniform2fv");
 	pglUniform3fv = GetGLFunc("glUniform3fv");
 	pglGetUniformLocation = GetGLFunc("glGetUniformLocation");
+
+#ifdef USE_FBO_OGL
+	if (GLFramebuffer_IsFuncAvailible())
+	{
+		pglGenFramebuffers = GetGLFunc("glGenFramebuffers");
+		pglBindFramebuffer = GetGLFunc("glBindFramebuffer");
+		pglDeleteFramebuffers = GetGLFunc("glDeleteFramebuffers");
+		pglFramebufferTexture2D = GetGLFunc("glFramebufferTexture2D");
+		pglCheckFramebufferStatus = GetGLFunc("glCheckFramebufferStatus");
+		pglGenRenderbuffers = GetGLFunc("glGenRenderbuffers");
+		pglBindRenderbuffer = GetGLFunc("glBindRenderbuffer");
+		pglDeleteRenderbuffers = GetGLFunc("glDeleteRenderbuffers");
+		pglRenderbufferStorage = GetGLFunc("glRenderbufferStorage");
+		pglFramebufferRenderbuffer = GetGLFunc("glFramebufferRenderbuffer");
+	}
+#endif
 }
+
+#ifdef USE_FBO_OGL
+static boolean GLFramebuffer_IsFuncAvailible(void)
+{
+	//this stuff needs atleast OGL 3.0
+	if (majorGL < 3)
+		return false;
+
+	return((isExtAvailable("GL_ARB_framebuffer_no_attachments",gl_extensions)) && 
+	(isExtAvailable("GL_ARB_framebuffer_object",gl_extensions)) && 
+	(isExtAvailable("GL_ARB_framebuffer_sRGB",gl_extensions)));
+
+	return false;
+}
+#endif
 
 EXPORT boolean HWRAPI(InitShaders) (void)
 {
@@ -890,13 +959,6 @@ void SetModelView(GLint w, GLint h)
 {
 	//GL_DBG_Printf("SetModelView(): %dx%d\n", (int)w, (int)h);
 
-	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
-	if (screen_width != w || screen_height != h)
-		FlushScreenTextures();
-
-	screen_width = w;
-	screen_height = h;
-
 	pglViewport(0, 0, w, h);
 
 	pglMatrixMode(GL_PROJECTION);
@@ -981,6 +1043,117 @@ EXPORT void HWRAPI(DeleteTexture) (GLMipmap_t *pTexInfo)
 	pTexInfo->downloaded = 0;
 }
 
+#ifdef USE_FBO_OGL
+void GLFramebuffer_Generate(void)
+{
+	if (!GLFramebuffer_IsFuncAvailible())
+		return;
+
+	// Generate the framebuffer
+	if (FramebufferObject == 0)
+		pglGenFramebuffers(1, &FramebufferObject);
+
+	if (pglCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE)
+		GLFramebuffer_GenerateAttachments();
+}
+
+void GLFramebuffer_Delete(void)
+{
+	if (!GLFramebuffer_IsFuncAvailible())
+		return;
+
+	// Unbind the framebuffer
+	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if (FramebufferObject)
+		pglDeleteFramebuffers(1, &FramebufferObject);
+
+	GLFramebuffer_DeleteAttachments();
+	FramebufferObject = 0;
+}
+
+void GLFramebuffer_GenerateAttachments(void)
+{
+	if (!GLFramebuffer_IsFuncAvailible())
+		return;
+
+	// Bind the framebuffer
+	pglBindFramebuffer(GL_FRAMEBUFFER, FramebufferObject);
+
+	// Generate the framebuffer texture
+	if (FramebufferTexture == 0)
+	{
+		pglGenTextures(1, &FramebufferTexture);
+		pglBindTexture(GL_TEXTURE_2D, FramebufferTexture);
+		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screen_width, screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		pglBindTexture(GL_TEXTURE_2D, 0);
+
+		// Attach the framebuffer texture to the framebuffer
+		pglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FramebufferTexture, 0);
+	}
+
+	// Generate the renderbuffer
+	if (RenderbufferObject == 0)
+	{
+		pglGenRenderbuffers(1, &RenderbufferObject);
+
+		pglBindRenderbuffer(GL_RENDERBUFFER, RenderbufferObject);
+		pglRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, screen_width, screen_height);
+		pglFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RenderbufferObject);
+
+		// Clear the renderbuffer
+		ClearBuffer(true, true, true, NULL);
+
+		pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+	}
+
+	// Unbind the framebuffer
+	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void GLFramebuffer_DeleteAttachments(void)
+{
+	if (!GLFramebuffer_IsFuncAvailible())
+		return;
+
+	// Unbind the framebuffer
+	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if (FramebufferTexture)
+		pglDeleteTextures(1, &FramebufferTexture);
+
+	if (RenderbufferObject)
+		pglDeleteRenderbuffers(1, &RenderbufferObject);
+
+	FramebufferTexture = 0;
+	RenderbufferObject = 0;
+}
+
+void GLFramebuffer_Enable(void)
+{
+	if (!GLFramebuffer_IsFuncAvailible())
+		return;
+
+	if (FramebufferObject == 0)
+		GLFramebuffer_Generate();
+	else if (FramebufferTexture == 0 || RenderbufferObject == 0)
+		GLFramebuffer_GenerateAttachments();
+
+	pglBindFramebuffer(GL_FRAMEBUFFER, FramebufferObject);
+	pglBindRenderbuffer(GL_RENDERBUFFER, RenderbufferObject);
+}
+
+void GLFramebuffer_Disable(void)
+{
+	if (!GLFramebuffer_IsFuncAvailible())
+		return;
+
+	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+}
+#endif
 
 // -----------------+
 // Flush            : flush OpenGL textures
@@ -1669,6 +1842,8 @@ static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAF
 
 		UNIFORM_1(shader->uniforms[gluniform_leveltime], ((float)shader_leveltime) / TICRATE, pglUniform1f);
 
+		UNIFORM_2(shader->uniforms[gluniform_scr_resolution], vid.width, vid.height, pglUniform2f);
+
 		#undef UNIFORM_1
 		#undef UNIFORM_2
 		#undef UNIFORM_3
@@ -1683,6 +1858,7 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	GLint result;
 	const GLchar *vert_shader = shader->vertex_shader;
 	const GLchar *frag_shader = shader->fragment_shader;
+	GLchar info_log[512];
 
 	if (shader->program)
 		pglDeleteProgram(shader->program);
@@ -1712,7 +1888,10 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 		pglGetShaderiv(gl_vertShader, GL_COMPILE_STATUS, &result);
 		if (result == GL_FALSE)
 		{
-			GL_MSG_Error("Error compiling vertex shader", gl_vertShader, i);
+            pglGetShaderInfoLog(gl_vertShader, 512, NULL, info_log);
+
+			GL_MSG_Error("Error compiling vertex shader: %s\n", info_log);
+
 			pglDeleteShader(gl_vertShader);
 			return false;
 		}
@@ -1739,7 +1918,9 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 		pglGetShaderiv(gl_fragShader, GL_COMPILE_STATUS, &result);
 		if (result == GL_FALSE)
 		{
-			GL_MSG_Error("Error compiling fragment shader", gl_fragShader, i);
+            pglGetShaderInfoLog(gl_fragShader, 512, NULL, info_log);
+
+			GL_MSG_Error("Error compiling fragment shader: %s\n", info_log);
 			pglDeleteShader(gl_vertShader);
 			pglDeleteShader(gl_fragShader);
 			return false;
@@ -1765,7 +1946,8 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	// couldn't link?
 	if (result != GL_TRUE)
 	{
-		GL_MSG_Error("Shader_CompileProgram: Error linking shader program %s\n", HWR_GetShaderName(i));
+        pglGetProgramInfoLog(shader->program, 512, NULL, info_log);
+		GL_MSG_Error("Shader_CompileProgram: Error linking shader program %s: %s\n", HWR_GetShaderName(i), info_log);
 		pglDeleteProgram(shader->program);
 		return false;
 	}
@@ -1785,6 +1967,8 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	shader->uniforms[gluniform_palette_tex] = GETUNI("palette_tex");
 	shader->uniforms[gluniform_palette_lookup_tex] = GETUNI("palette_lookup_tex");
 	shader->uniforms[gluniform_lighttable_tex] = GETUNI("lighttable_tex");
+
+	shader->uniforms[gluniform_scr_resolution] = GETUNI("scr_resolution");
 
 	// misc.
 	shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
@@ -2157,7 +2341,18 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 		case HWD_SET_SHADERS:
 			gl_allowshaders = Value;
 			break;
+#ifdef USE_FBO_OGL
+		case HWD_SET_FRAMEBUFFER:
+			FrameBufferEnabled = Value ? GL_TRUE : GL_FALSE;
+			supportFBO = GLFramebuffer_IsFuncAvailible();
 
+			if (!supportFBO)
+			{
+				FrameBufferEnabled = GL_FALSE;
+				CV_Set(&cv_grframebuffer, "Off");
+			}
+			break;
+#endif
 		case HWD_SET_TEXTUREFILTERMODE:
 			switch (Value)
 			{
@@ -2749,6 +2944,8 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 		// mirroring from Kart
 		if (stransform->mirror)
 			pglScalef(-stransform->scalex, stransform->scaley, -stransform->scalez);
+		else if (stransform->mirrorflip)
+			pglScalef(-stransform->scalex, -stransform->scaley, -stransform->scalez);
 		else
 #endif
 		if (stransform->flip)
@@ -2780,7 +2977,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 	if (shearing)
 	{
 		float dy = FIXED_TO_FLOAT(AIMINGTODY((stransform->viewaiming)) * 2)* ((float)vid.width / vid.height) / ((float)BASEVIDWIDTH / BASEVIDHEIGHT); //screen_width/BASEVIDWIDTH;
-		if (stransform->flip)
+		if (stransform->flip || stransform->mirrorflip)
 			dy *= -1.0f;
 		pglTranslatef(0.0f, -dy/BASEVIDHEIGHT, 0.0f);
 	}

@@ -10,6 +10,7 @@
 /// \file  dehacked.c
 /// \brief Load dehacked file and change tables and text
 
+#include "d_ticcmd.h"
 #include "doomdef.h"
 #include "d_main.h" // for srb2home
 #include "g_game.h"
@@ -38,6 +39,7 @@
 #include "lua_hook.h"
 #include "d_clisrv.h"
 #include "v_video.h" // video flags (for lua)
+#include "r_things.h"	// for followers
 
 #include "lua_script.h"
 #include "lua_libs.h"
@@ -49,7 +51,7 @@
 // Free slot names
 // The crazy word-reading stuff uses these.
 static char *FREE_STATES[NUMSTATEFREESLOTS];
-static char *FREE_MOBJS[NUMMOBJFREESLOTS];
+char *FREE_MOBJS[NUMMOBJFREESLOTS];
 static UINT8 used_spr[(NUMSPRITEFREESLOTS / 8) + 1]; // Bitwise flag for sprite freeslot in use! I would use ceil() here if I could, but it only saves 1 byte of memory anyway.
 #define initfreeslots() {\
 memset(FREE_STATES,0,sizeof(char *) * NUMSTATEFREESLOTS);\
@@ -521,6 +523,300 @@ static void readfreeslots(MYFILE *f)
 
 	Z_Free(s);
 }
+
+// This here is our current only way to make followers.
+INT32 numfollowers = 0;
+
+static void readfollower(MYFILE *f)
+{
+	char *s;
+	char *word, *word2;
+	char *tmp;
+	char testname[SKINNAMESIZE+1];
+
+	boolean nameset;
+	INT32 fallbackstate = 0;
+	INT32 res;
+	INT32 i;
+
+	if (numfollowers >= MAXFOLLOWERS)
+	{
+		I_Error("Out of Followers\nLoad less addons to fix this.");
+		return;
+	}
+
+	s = Z_Malloc(MAXLINELEN, PU_STATIC, NULL);
+
+	// Ready the default variables for followers. We will overwrite them as we go! We won't set the name or states RIGHT HERE as this is handled down instead.
+	followers[numfollowers].mode = FOLLOWERMODE_FLOAT;
+	followers[numfollowers].scale = FRACUNIT;
+	followers[numfollowers].atangle =  FixedAngle(230 * FRACUNIT);
+	followers[numfollowers].dist = 32*FRACUNIT;
+	followers[numfollowers].zoffs = 32*FRACUNIT;
+	followers[numfollowers].horzlag = 3*FRACUNIT;
+	followers[numfollowers].vertlag = 6*FRACUNIT;
+	followers[numfollowers].anglelag = 8*FRACUNIT;
+	followers[numfollowers].bobspeed = TICRATE*2;
+	followers[numfollowers].bobamp = 4;
+	followers[numfollowers].hitconfirmtime = TICRATE;
+	followers[numfollowers].defaultcolor = FOLLOWERCOLOR_MATCH;
+
+	do
+	{
+		if (myfgets(s, MAXLINELEN, f))
+		{
+			if (s[0] == '\n')
+				break;
+
+			tmp = strchr(s, '#');
+			if (tmp)
+				*tmp = '\0';
+			if (s == tmp)
+				continue; // Skip comment lines, but don't break.
+
+			word = strtok(s, " ");
+			if (word)
+				strupr(word);
+			else
+				break;
+
+			word2 = strtok(NULL, " = ");
+
+			if (!word2)
+				break;
+
+			if (word2[strlen(word2)-1] == '\n')
+				word2[strlen(word2)-1] = '\0';
+
+			if (fastcmp(word, "NAME"))
+			{
+				DEH_WriteUndoline(word, va("%s", followers[numfollowers].name), UNDO_NONE);
+				strlcpy(followers[numfollowers].name, word2, SKINNAMESIZE+1);
+				nameset = true;
+			}
+			else if (fastcmp(word, "ICON"))
+			{
+				deh_warning("Follower \"%s\": icon is unsupported. Please consider removing it from your SOC file.", followers[numfollowers].name);
+			}
+			else if (fastcmp(word, "CATEGORY"))
+			{
+				deh_warning("Follower \"%s\": category is unsupported. Please consider removing it from your SOC file.", followers[numfollowers].name);
+			}
+			else if (fastcmp(word, "MODE"))
+			{
+				if (word2)
+					strupr(word2);
+
+				if (fastcmp(word2, "FLOAT") || fastcmp(word2, "DEFAULT"))
+					followers[numfollowers].mode = FOLLOWERMODE_FLOAT;
+				else if (fastcmp(word2, "GROUND"))
+					followers[numfollowers].mode = FOLLOWERMODE_GROUND;
+				else
+					deh_warning("Follower %d: unknown follower mode '%s'", numfollowers, word2);
+			}
+			else if (fastcmp(word, "DEFAULTCOLOR"))
+			{
+				INT32 j;
+				for (j = 0; j < MAXSKINCOLORS +2; j++)	// +2 because of Match and Opposite
+				{
+					if (!stricmp(Followercolor_cons_t[j].strvalue, word2))
+					{
+						followers[numfollowers].defaultcolor = Followercolor_cons_t[j].value;
+						break;
+					}
+				}
+
+				if (j == MAXSKINCOLORS+2)
+				{
+					deh_warning("Follower %d: unknown follower color '%s'", numfollowers, word2);
+				}
+			}
+			else if (fastcmp(word, "SCALE"))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].scale), UNDO_NONE);
+				followers[numfollowers].scale = get_number(word2);
+			}
+			else if (fastcmp(word, "BUBBLESCALE"))
+			{
+				deh_warning("Follower \"%s\": bubblescale is unsupported. Please consider removing it from your SOC file.", followers[numfollowers].name);
+			}
+			else if (fastcmp(word, "HORNSOUND"))
+			{
+				deh_warning("Follower \"%s\": hornsound is unsupported. Please consider removing it from your SOC file.", followers[numfollowers].name);
+			}
+			else if (fastcmp(word, "ATANGLE"))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].atangle), UNDO_NONE);
+				followers[numfollowers].atangle = (angle_t)(get_number(word2) * ANG1);
+			}
+			else if (fastcmp(word, "HORZLAG"))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].horzlag), UNDO_NONE);
+				followers[numfollowers].horzlag = (fixed_t)get_number(word2);
+			}
+			else if (fastcmp(word, "VERTLAG"))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].vertlag), UNDO_NONE);
+				followers[numfollowers].vertlag = (fixed_t)get_number(word2);
+			}
+			else if (fastcmp(word, "ANGLELAG"))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].anglelag), UNDO_NONE);
+				followers[numfollowers].anglelag = (fixed_t)get_number(word2);;
+			}
+			else if (fastcmp(word, "BOBSPEED"))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].bobspeed), UNDO_NONE);
+				followers[numfollowers].bobspeed = (tic_t)get_number(word2);
+			}
+			else if (fastcmp(word, "BOBAMP"))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].bobamp), UNDO_NONE);
+				followers[numfollowers].bobamp = (fixed_t)get_number(word2);
+			}
+			else if (fastcmp(word, "ZOFFSET") || (fastcmp(word, "ZOFFS")))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].zoffs), UNDO_NONE);
+				followers[numfollowers].zoffs = (fixed_t)get_number(word2);
+			}
+			else if (fastcmp(word, "DISTANCE") || (fastcmp(word, "DIST")))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].dist), UNDO_NONE);
+				followers[numfollowers].dist = (fixed_t)get_number(word2);
+			}
+			else if (fastcmp(word, "HEIGHT"))
+			{
+				followers[numfollowers].height = (fixed_t)get_number(word2);
+			}
+			else if (fastcmp(word, "IDLESTATE"))
+			{
+				if (word2)
+					strupr(word2);
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].idlestate), UNDO_NONE);
+				followers[numfollowers].idlestate = get_number(word2);
+				fallbackstate = followers[numfollowers].idlestate;
+			}
+			else if (fastcmp(word, "FOLLOWSTATE"))
+			{
+				if (word2)
+					strupr(word2);
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].followstate), UNDO_NONE);
+				followers[numfollowers].followstate = get_number(word2);
+			}
+			else if (fastcmp(word, "HURTSTATE"))
+			{
+				if (word2)
+					strupr(word2);
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].hurtstate), UNDO_NONE);
+				followers[numfollowers].hurtstate = get_number(word2);
+			}
+			else if (fastcmp(word, "LOSESTATE"))
+			{
+				if (word2)
+					strupr(word2);
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].losestate), UNDO_NONE);
+				followers[numfollowers].losestate = get_number(word2);
+			}
+			else if (fastcmp(word, "WINSTATE"))
+			{
+				if (word2)
+					strupr(word2);
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].winstate), UNDO_NONE);
+				followers[numfollowers].winstate = get_number(word2);
+			}
+			else if (fastcmp(word, "HITSTATE") || (fastcmp(word, "HITCONFIRMSTATE")))
+			{
+				if (word2)
+					strupr(word2);
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].hitconfirmstate), UNDO_NONE);
+				followers[numfollowers].hitconfirmstate = get_number(word2);
+			}
+			else if (fastcmp(word, "HITTIME") || (fastcmp(word, "HITCONFIRMTIME")))
+			{
+				DEH_WriteUndoline(word, va("%d", followers[numfollowers].hitconfirmtime), UNDO_NONE);
+				followers[numfollowers].hitconfirmtime = (INT32)atoi(word2);
+			}
+			else
+				deh_warning("Follower %d: unknown word '%s'", numfollowers, word);
+		}
+	} while (!myfeof(f)); // finish when the line is empty
+	
+	if (!nameset)
+	{
+		// well this is problematic.
+		strlcpy(followers[numfollowers].name, va("Follower%d", numfollowers), SKINNAMESIZE+1);
+		(strcpy)(testname, followers[numfollowers].name);
+	}
+	else
+	{
+		(strcpy)(testname, followers[numfollowers].name);
+
+		// now that the skin name is ready, post process the actual name to turn the underscores into spaces!
+		for (i = 0; followers[numfollowers].name[i]; i++)
+		{
+			if (followers[numfollowers].name[i] == '_')
+				followers[numfollowers].name[i] = ' ';
+		}
+
+		res = R_FollowerAvailable(followers[numfollowers].name);
+		if (res > -1)	// yikes, someone else has stolen our name already
+		{
+			deh_warning("Follower%d: Name \"%s\" already in use!", numfollowers, testname);
+			strlcpy(followers[numfollowers].name, va("Follower%d", numfollowers), SKINNAMESIZE+1);
+		}
+	}
+
+	// fallbacks for variables
+	// Print a warning if the variable is on a weird value and set it back to the minimum available if that's the case.
+	
+	if (followers[numfollowers].mode < FOLLOWERMODE_FLOAT || followers[numfollowers].mode >= FOLLOWERMODE__MAX)
+	{
+		followers[numfollowers].mode = FOLLOWERMODE_FLOAT;
+		deh_warning("Follower '%s': Value for 'mode' should be between %d and %d.", testname, FOLLOWERMODE_FLOAT, FOLLOWERMODE__MAX-1);
+	}
+	
+#define FALLBACK(field, field2, threshold, set) \
+if (followers[numfollowers].field < threshold) \
+{ \
+	followers[numfollowers].field = set; \
+	deh_warning("Follower '%s': Value for '%s' is too low! Minimum should be %d. Value was overwritten to %d.", testname, field2, set, set); \
+} \
+
+	FALLBACK(dist, "DIST", 0, 0);
+	FALLBACK(zoffs, "ZOFFS", 0, 0);
+	FALLBACK(horzlag, "HORZLAG", FRACUNIT, FRACUNIT);
+	FALLBACK(vertlag, "VERTLAG", FRACUNIT, FRACUNIT);
+	FALLBACK(anglelag, "ANGLELAG", FRACUNIT, FRACUNIT);
+	FALLBACK(bobamp, "BOBAMP", 0, 0);
+	FALLBACK(bobspeed, "BOBSPEED", 0, 0);
+	FALLBACK(scale, "SCALE", 1, 1);		
+	FALLBACK(hitconfirmtime, "HITCONFIRMTIME", 1, 1);
+#undef FALLBACK
+
+	// also check if we forgot states. If we did, we will set any missing state to the follower's idlestate.
+	// Print a warning in case we don't have a fallback and set the state to S_INVISIBLE (rather than S_NULL) if unavailable.
+
+#define NOSTATE(field, field2) \
+if (!followers[numfollowers].field) \
+{ \
+	followers[numfollowers].field = fallbackstate ? fallbackstate : S_INVISIBLE; \
+	if (!fallbackstate) \
+		deh_warning("Follower '%s' is missing state definition for '%s', no idlestate fallback was found", testname, field2); \
+} \
+
+	NOSTATE(idlestate, "IDLESTATE");
+	NOSTATE(followstate, "FOLLOWSTATE");
+	NOSTATE(hurtstate, "HURTSTATE");
+	NOSTATE(losestate, "LOSESTATE");
+	NOSTATE(winstate, "WINSTATE");
+	NOSTATE(hitconfirmstate, "HITCONFIRMSTATE");
+#undef NOSTATE
+
+	CONS_Printf("Added follower '%s'\n", testname);
+	numfollowers++;	// add 1 follower
+	Z_Free(s);
+}
+
 
 static void readthing(MYFILE *f, INT32 num)
 {
@@ -1419,25 +1715,10 @@ static void readhuditem(MYFILE *f, INT32 num)
 	Z_Free(s);
 }
 
-/*
-Sprite number = 10
-Sprite subnumber = 32968
-Duration = 200
-Next frame = 200
-*/
 
-/** Action pointer for reading actions from Dehacked lumps.
-  */
-typedef struct
-{
-	actionf_t action; ///< Function pointer corresponding to the actual action.
-	const char *name; ///< Name of the action in ALL CAPS.
-} actionpointer_t;
-
-/** Array mapping action names to action functions.
-  * Names must be in ALL CAPS for case insensitive comparisons.
-  */
-static actionpointer_t actionpointers[] =
+// IMPORTANT!
+// DO NOT FORGET TO SYNC THIS LIST WITH THE ACTIONNUM ENUM IN INFO.H
+actionpointer_t actionpointers[] =
 {
 	{{A_Explode},              "A_EXPLODE"},
 	{{A_Pain},                 "A_PAIN"},
@@ -1592,6 +1873,7 @@ static actionpointer_t actionpointers[] =
 	{{A_FZBoomSmoke},          "A_FZBOOMSMOKE"}, //SRB2kart
 	{{A_RandomShadowFrame},	   "A_RANDOMSHADOWFRAME"}, //SRB2kart
 	{{A_RoamingShadowThinker}, "A_ROAMINGSHADOWTHINKER"}, //SRB2kart
+	{{A_MayonakaArrow}, 	   "A_MAYONAKAARROW"}, //SRB2kart
 	{{A_ReaperThinker}, 	   "A_REAPERTHINKER"}, //SRB2kart
 	{{A_MementosTPParticles},  "A_MEMENTOSTPPARTICLES"}, //SRB2kart
 	{{A_FlameParticle},        "A_FLAMEPARTICLE"}, // SRB2kart
@@ -2989,6 +3271,13 @@ static void DEH_LoadDehackedFile(MYFILE *f, UINT16 wad)
 				DEH_WriteUndoline(word, "", UNDO_HEADER);
 				// This is not a major mod.
 				continue;
+			}
+			else if (fastcmp(word, "FOLLOWER"))
+			{
+				readfollower(f);	// at the same time this will be our only way to ADD followers for now. Yikes.
+				DEH_WriteUndoline(word, "", UNDO_HEADER);
+				// This is not a major mod either.
+				continue;	// continue so that we don't error.
 			}
 			word2 = strtok(NULL, " ");
 			if (fastcmp(word, "CHARACTER"))
@@ -6511,6 +6800,23 @@ static const char *const STATE_LIST[] = { // array length left dynamic for sanit
 	//Booststack
 	"S_BOOSTSTACK",
 
+	"S_WATERTRAIL1",
+	"S_WATERTRAIL2",
+	"S_WATERTRAIL3",
+	"S_WATERTRAIL4",
+	"S_WATERTRAIL5",
+	"S_WATERTRAIL6",
+	"S_WATERTRAIL7",
+	"S_WATERTRAIL8",
+	"S_WATERTRAILUNDERLAY1",
+	"S_WATERTRAILUNDERLAY2",
+	"S_WATERTRAILUNDERLAY3",
+	"S_WATERTRAILUNDERLAY4",
+	"S_WATERTRAILUNDERLAY5",
+	"S_WATERTRAILUNDERLAY6",
+	"S_WATERTRAILUNDERLAY7",
+	"S_WATERTRAILUNDERLAY8",
+
 #ifdef SEENAMES
 	"S_NAMECHECK",
 #endif
@@ -6519,7 +6825,7 @@ static const char *const STATE_LIST[] = { // array length left dynamic for sanit
 // RegEx to generate this from info.h: ^\tMT_([^,]+), --> \t"MT_\1",
 // I am leaving the prefixes solely for clarity to programmers,
 // because sadly no one remembers this place while searching for full state names.
-static const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for sanity testing later.
+const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for sanity testing later.
 	"MT_NULL",
 	"MT_UNKNOWN",
 
@@ -7308,6 +7614,10 @@ static const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for s
 	//Booststack effect
 	"MT_BOOSTSTACK",
 
+	"MT_WATERTRAIL",
+	"MT_WATERTRAILUNDERLAY",
+
+	"MT_FOLLOWER",
 #ifdef SEENAMES
 	"MT_NAMECHECK",
 #endif
@@ -7705,7 +8015,7 @@ static const char *COLOR_ENUMS[] = { // Rejigged for Kart.
 	"MULBERRY",     // SKINCOLOR_MULBERRY
 	"BOYSENBERRY",  // SKINCOLOR_BOYSENBERRY
 	"MYSTIC",       // SKINCOLOR_MYSTIC
-	"WICKED",       // SKINCOLOR_WICKED
+	"WICKED",        // SKINCOLOR_WICKED
 
 	// Special super colors
 	// Super Sonic Yellow
@@ -7909,7 +8219,9 @@ static const char *const KARTSTUFF_LIST[] = {
 	"HPHEALTH",
 	"PANELTIMER",
 	"REALPANELTIMER",
-	"PANELSTACK"
+	"PANELSTACK",
+	"CHAINSOUND",
+	"DRIFTLOCK"
 	
 };
 
@@ -8266,6 +8578,8 @@ struct {
 	// Slope flags
 	{"SL_NOPHYSICS",SL_NOPHYSICS},      // Don't do momentum adjustment with this slope
 	{"SL_NODYNAMIC",SL_NODYNAMIC},      // Slope will never need to move during the level, so don't fuss with recalculating it
+	{"SL_ANCHORVERTEX",SL_ANCHORVERTEX},// Slope is using a Slope Vertex Thing to anchor its position
+	{"SL_VERTEXSLOPE",SL_VERTEXSLOPE},  // Slope is built from three Slope Vertex Things
 
 	// Angles
 	{"ANG1",ANG1},
@@ -8318,6 +8632,7 @@ struct {
 	{"BT_ATTACK",BT_ATTACK},
 	{"BT_FORWARD",BT_FORWARD},
 	{"BT_BACKWARD",BT_BACKWARD},
+	{"BT_LOOKBACK",BT_LOOKBACK},
 	{"BT_CUSTOM1",BT_CUSTOM1}, // Lua customizable
 	{"BT_CUSTOM2",BT_CUSTOM2}, // Lua customizable
 	{"BT_CUSTOM3",BT_CUSTOM3}, // Lua customizable
@@ -8449,6 +8764,11 @@ struct {
 	{"FEATURE_INTERMISSIONHUD",1},
 	{"FEATURE_VOTEHUD",1},
 	{"FEATURE_TITLEHUD",1},
+	
+	// followermode_t
+	{"FOLLOWERMODE_FLOAT",FOLLOWERMODE_FLOAT},
+	{"FOLLOWERMODE_GROUND",FOLLOWERMODE_GROUND},
+
 
 	{NULL,0}
 };
@@ -9258,12 +9578,15 @@ int LUA_EnumLib(lua_State *L)
 		char *str = NULL;
 		int size = 0;
 
+		// Sound enum tables preallocated for sfx_freeslot0 elements because using NUMSFX may be too
+		// much if number of skins increased a lot (because of skinsound freeslots)
+
 		/* SFX (SFX_) */
 		lua_pushcfunction(L, lua_glib_new_enum);
-		lua_createtable(L, 0, NUMSFX);
+		lua_createtable(L, 0, sfx_freeslot0);
 			for (int i = 0; i < NUMSFX; i++)
 			{
-				if (!S_sfx[i].name) continue;
+				if (!S_sfx[i].name || !S_sfx[i].priority) continue;
 
 				if (lua_enumlib_sprintf_upper(&str, &size, "SFX_%s", S_sfx[i].name) == NULL)
 					return luaL_error(L, "Ran out of memory.");
@@ -9278,10 +9601,10 @@ int LUA_EnumLib(lua_State *L)
 
 		/* SFX (DS) */
 		lua_pushcfunction(L, lua_glib_new_enum);
-		lua_createtable(L, 0, NUMSFX);
+		lua_createtable(L, 0, sfx_freeslot0);
 			for (int i = 0; i < NUMSFX; i++)
 			{
-				if (!S_sfx[i].name) continue;
+				if (!S_sfx[i].name || !S_sfx[i].priority) continue;
 
 				if (lua_enumlib_sprintf_upper(&str, &size, "DS%s", S_sfx[i].name) == NULL)
 					return luaL_error(L, "Ran out of memory.");
@@ -9316,10 +9639,10 @@ int LUA_EnumLib(lua_State *L)
 	{
 		/* SFX (sfx_) */
 		lua_pushcfunction(L, lua_glib_new_enum);
-		lua_createtable(L, 0, NUMSFX);
+		lua_createtable(L, 0, sfx_freeslot0);
 			for (int i = 0; i < NUMSFX; i++)
 			{
-				if (!S_sfx[i].name) continue;
+				if (!S_sfx[i].name || !S_sfx[i].priority) continue;
 
 				lua_pushfstring(L, "sfx_%s", S_sfx[i].name);
 				lua_pushinteger(L, i);
@@ -9552,3 +9875,11 @@ void LUA_SetActionByName(void *state, const char *actiontocompare)
 	}
 }
 
+enum actionnum LUA_GetActionNumByName(const char *actiontocompare)
+{
+	size_t z;
+	for (z = 0; actionpointers[z].name; z++)
+		if (fasticmp(actiontocompare, actionpointers[z].name))
+			return z;
+	return z;
+}

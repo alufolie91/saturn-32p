@@ -21,19 +21,27 @@
 extern consvar_t cv_playername;
 extern consvar_t cv_playercolor;
 extern consvar_t cv_skin;
+extern consvar_t cv_follower;
+extern consvar_t cv_followercolor;
 extern consvar_t cv_localskin;
 // secondary splitscreen player
 extern consvar_t cv_playername2;
 extern consvar_t cv_playercolor2;
 extern consvar_t cv_skin2;
+extern consvar_t cv_follower2;
+extern consvar_t cv_followercolor2;
 // third splitscreen player
 extern consvar_t cv_playername3;
 extern consvar_t cv_playercolor3;
 extern consvar_t cv_skin3;
+extern consvar_t cv_follower3;
+extern consvar_t cv_followercolor3;
 // fourth splitscreen player
 extern consvar_t cv_playername4;
 extern consvar_t cv_playercolor4;
 extern consvar_t cv_skin4;
+extern consvar_t cv_follower4;
+extern consvar_t cv_followercolor4;
 // preferred number of players
 extern consvar_t cv_splitplayers;
 
@@ -134,6 +142,8 @@ extern consvar_t cv_stacking;
 extern consvar_t cv_stackingdim;
 extern consvar_t cv_stackingdimval;
 extern consvar_t cv_stackingbrakemod;
+extern consvar_t cv_stackinglowspeedbuff;
+extern consvar_t cv_stackingoldcompat;
 //boosts
 extern consvar_t cv_sneakerstack;
 
@@ -463,6 +473,7 @@ extern consvar_t cv_kartvoterulechanges;
 extern consvar_t cv_kartgametypepreference;
 extern consvar_t cv_kartspeedometer;
 extern consvar_t cv_kartvoices;
+extern consvar_t cv_karthitemdialog;
 
 //Less encore votes and less battlevotes
 extern consvar_t cv_lessbattlevotes;
@@ -551,9 +562,15 @@ extern consvar_t cv_ps_thinkframe_page;
 extern consvar_t cv_ps_samplesize;
 extern consvar_t cv_ps_descriptor;
 
+extern consvar_t cv_director, cv_kartdebugdirector;
+
 extern consvar_t cv_showtrackaddon;
 
 extern consvar_t cv_showspecstuff;
+
+extern consvar_t cv_betainterscreen;
+
+extern consvar_t cv_laglesscam;
 
 typedef enum
 {
@@ -666,7 +683,6 @@ void D_SetupVote(void);
 void D_ModifyClientVote(SINT8 voted, UINT8 splitplayer);
 void D_PickVote(void);
 void ObjectPlace_OnChange(void);
-void P_SetPlayerSpectator(INT32 playernum);
 boolean IsPlayerAdmin(INT32 playernum);
 void SetAdminPlayer(INT32 playernum);
 void ClearAdminPlayers(void);

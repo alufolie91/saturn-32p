@@ -65,7 +65,7 @@ static void AmigaType_OnChange(void);
 
 consvar_t cv_samplerate = {"samplerate", "44100", 0, CV_Unsigned, NULL, 22050, NULL, NULL, 0, 0, NULL}; //Alam: For easy hacking?
 
-static CV_PossibleValue_t audbuffersize_cons_t[] = {{512, "512"}, {1024, "1024"}, {2048, "2048"}, {4096, "4096"}, {0, NULL}};
+static CV_PossibleValue_t audbuffersize_cons_t[] = {{256, "256"}, {512, "512"}, {1024, "1024"}, {2048, "2048"}, {4096, "4096"}, {0, NULL}};
 consvar_t cv_audbuffersize = {"buffersize", "2048", CV_SAVE, audbuffersize_cons_t, BufferSize_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 // stereo reverse
@@ -311,8 +311,6 @@ void S_RegisterSoundStuff(void)
 
 static void SetChannelsNum(void)
 {
-	INT32 i;
-
 	// Allocating the internal channels for mixing
 	// (the maximum number of sounds rendered
 	// simultaneously) within zone memory.
@@ -321,7 +319,6 @@ static void SetChannelsNum(void)
 
 	Z_Free(channels);
 	channels = NULL;
-
 
 	if (cv_numChannels.value == 999999999) //Alam_GBC: OH MY ROD!(ROD rimmiced with GOD!)
 		CV_StealthSet(&cv_numChannels,cv_numChannels.defaultvalue);
@@ -333,13 +330,10 @@ static void SetChannelsNum(void)
 		return;
 	}
 #endif
-	if (cv_numChannels.value)
-		channels = (channel_t *)Z_Malloc(cv_numChannels.value * sizeof (channel_t), PU_STATIC, NULL);
-	numofchannels = cv_numChannels.value;
 
-	// Free all channels for use
-	for (i = 0; i < numofchannels; i++)
-		channels[i].sfxinfo = 0;
+	if (cv_numChannels.value)
+		channels = (channel_t *)Z_Calloc(cv_numChannels.value * sizeof (channel_t), PU_STATIC, NULL);
+	numofchannels = (channels ? cv_numChannels.value : 0);
 }
 
 // Retrieve the lump number of sfx
@@ -1046,7 +1040,8 @@ boolean S_AdjustSoundParams(const mobj_t *listener, const mobj_t *source, INT32 
 
 	if (sfxinfo->pitch & SF_OUTSIDESOUND) // Rain special case
 	{
-		fixed_t x, y, yl, yh, xl, xh, newdist;
+		INT64 x, y, yl, yh, xl, xh;
+		fixed_t newdist;
 
 		if (R_PointInSubsector(listensource.x, listensource.y)->sector->ceilingpic == skyflatnum)
 			approx_dist = 0;
@@ -1375,17 +1370,7 @@ void S_LoadMusicDefs(UINT16 wadnum)
 	// Find music def
 	while (stoken)
 	{
-		/*if ((stoken[0] == '/' && stoken[1] == '/')
-			|| (stoken[0] == '#')) // skip comments
-		{
-			stoken = strtok(NULL, "\r\n"); // skip end of line
-			if (def)
-				stoken = strtok(NULL, "\r\n= ");
-			else
-				stoken = strtok(NULL, "\r\n ");
-			line++;
-		}
-		else*/ if (!stricmp(stoken, "lump"))
+		if (!stricmp(stoken, "lump"))
 		{
 			value = strtok(NULL, "\r\n ");
 
@@ -1460,35 +1445,44 @@ skip_lump:
 				return;
 			}
 			
-			if (!stricmp(stoken, "usage")) {
+			if (!stricmp(stoken, "usage"))
+			{
 				STRBUFCPY(def->usage, value);
 				for (value = def->usage; *value; value++)
 					if (*value == '_') *value = ' '; // turn _ into spaces.
 				//CONS_Printf("S_LoadMusicDefs: Set usage to '%s'\n", def->usage);
-			} else if (!stricmp(stoken, "source")) {
+			}
+			else if (!stricmp(stoken, "source"))
+			{
 				STRBUFCPY(def->source, value);
 				for (value = def->source; *value; value++)
 					if (*value == '_') *value = ' '; // turn _ into spaces.
 				//CONS_Printf("S_LoadMusicDefs: Set source to '%s'\n", def->source);
-			} else if (!stricmp(stoken, "title")) {
+			}
+			else if (!stricmp(stoken, "title"))
+			{
 				def->use_info = true;
 				STRBUFCPY(def->title, value);
 				for (value = def->title; *value; value++)
 					if (*value == '_') *value = ' '; // turn _ into spaces.
 				//CONS_Printf("S_LoadMusicDefs: Set source to '%s'\n", def->source);
-			} else if (!stricmp(stoken, "alttitle")) {
+			}
+			else if (!stricmp(stoken, "alttitle"))
+			{
 				STRBUFCPY(def->alttitle, value);
 				for (value = def->alttitle; *value; value++)
 					if (*value == '_') *value = ' '; // turn _ into spaces.
 				//CONS_Printf("S_LoadMusicDefs: Set source to '%s'\n", def->source);
-			} else if (!stricmp(stoken, "authors")) {
+			}
+			else if (!stricmp(stoken, "authors"))
+			{
 				STRBUFCPY(def->authors, value);
 				for (value = def->authors; *value; value++)
 					if (*value == '_') *value = ' '; // turn _ into spaces.
 				//CONS_Printf("S_LoadMusicDefs: Set source to '%s'\n", def->source);
-			} else {
-				CONS_Alert(CONS_WARNING, "MUSICDEF: Invalid field '%s'. (file %s, line %d)\n", stoken, wadfiles[wadnum]->filename, line);
 			}
+			else
+				CONS_Alert(CONS_WARNING, "MUSICDEF: Invalid field '%s'. (file %s, line %d)\n", stoken, wadfiles[wadnum]->filename, line);
 
 skip_field:
 			stoken = strtok(NULL, "\r\n= ");
@@ -1559,17 +1553,7 @@ void S_LoadMTDefs(UINT16 wadnum)
 	// Find music def
 	while (stoken)
 	{
-		/*if ((stoken[0] == '/' && stoken[1] == '/')
-			|| (stoken[0] == '#')) // skip comments
-		{
-			stoken = strtok(NULL, "\r\n"); // skip end of line
-			if (def)
-				stoken = strtok(NULL, "\r\n= ");
-			else
-				stoken = strtok(NULL, "\r\n ");
-			line++;
-		}
-		else*/ if (!stricmp(stoken, "lump"))
+		if (!stricmp(stoken, "lump"))
 		{
 			value = strtok(NULL, "\r\n ");
 
@@ -1638,25 +1622,30 @@ skip_lump:
 				return;
 			}
 			
-			if (!stricmp(stoken, "title")) {
+			if (!stricmp(stoken, "title"))
+			{
 				def->use_info = true;
 				STRBUFCPY(def->title, value);
 				for (value = def->title; *value; value++)
 					if (*value == '_') *value = ' '; // turn _ into spaces.
 				//CONS_Printf("S_LoadMusicDefs: Set source to '%s'\n", def->source);
-			} else if (!stricmp(stoken, "alttitle")) {
+			}
+			else if (!stricmp(stoken, "alttitle"))
+			{
 				STRBUFCPY(def->alttitle, value);
 				for (value = def->alttitle; *value; value++)
 					if (*value == '_') *value = ' '; // turn _ into spaces.
 				//CONS_Printf("S_LoadMusicDefs: Set source to '%s'\n", def->source);
-			} else if (!stricmp(stoken, "authors")) {
+			}
+			else if (!stricmp(stoken, "authors"))
+			{
 				STRBUFCPY(def->authors, value);
 				for (value = def->authors; *value; value++)
 					if (*value == '_') *value = ' '; // turn _ into spaces.
 				//CONS_Printf("S_LoadMusicDefs: Set source to '%s'\n", def->source);
-			} else {
-				CONS_Alert(CONS_WARNING, "MUSCINFO: Invalid field '%s'. (file %s, line %d)\n", stoken, wadfiles[wadnum]->filename, line);
 			}
+			else
+				CONS_Alert(CONS_WARNING, "MUSCINFO: Invalid field '%s'. (file %s, line %d)\n", stoken, wadfiles[wadnum]->filename, line);
 
 skip_field:
 			stoken = strtok(NULL, "\r\n= ");
@@ -1994,9 +1983,9 @@ void S_ChangeMusicEx(const char *mmusic, UINT16 mflags, boolean looping, UINT32 
 		|| demo.title) // SRB2Kart: Demos don't interrupt title screen music
 		return;
 
-	strncpy(newmusic, mmusic, 7);
+	strncpy(newmusic, mmusic, 6);
 
-	if(LUAh_MusicChange(music_name, newmusic, &mflags, &looping, &position, &prefadems, &fadeinms))
+	if (LUAh_MusicChange(music_name, newmusic, &mflags, &looping, &position, &prefadems, &fadeinms))
 		return;
 
  	// No Music (empty string)
@@ -2363,9 +2352,8 @@ static void Command_ShowMusicCredit_f(void)
 
 	musicdef_t *def = S_FindMusicCredit(musname);
 
-	if (def) {
+	if (def)
 		CONS_Printf("%.6s - %.255s\n", musname, def->source);
-	}
 }
 
 static void GameSounds_OnChange(void)
@@ -2396,6 +2384,7 @@ static void SoundPrecache_OnChange(void)
 	else if (!S_PrecacheSound())
 	{
 		S_ClearSfx();
+
 		if (!sound_disabled)
 			S_InitSfxChannels(cv_soundvolume.value);
 	}

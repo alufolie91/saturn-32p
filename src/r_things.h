@@ -40,8 +40,8 @@
 
 // Constant arrays used for psprite clipping
 //  and initializing clipping.
-extern INT16 *negonearray;
-extern INT16 *screenheightarray;
+extern INT16 negonearray[MAXVIDWIDTH];
+extern INT16 screenheightarray[MAXVIDWIDTH];
 
 // vars for R_DrawMaskedColumn
 extern INT16 *mfloorclip;
@@ -63,6 +63,7 @@ void R_AddSpriteDefs(UINT16 wadnum);
 
 //SoM: 6/5/2000: Light sprites correctly!
 void R_AddSprites(sector_t *sec, INT32 lightlevel);
+void R_AddPrecipitationSprites(void);
 void R_InitSprites(void);
 void R_ClearSprites(void);
 void R_DrawMasked(void);
@@ -109,16 +110,83 @@ typedef struct
 
 extern CV_PossibleValue_t Forceskin_cons_t[];
 
+// for followers.
+//
+// We'll define these here because they're really just a mobj that'll follow some rules behind a player
+//
+
+#define FOLLOWERCOLOR_MATCH UINT8_MAX
+#define FOLLOWERCOLOR_OPPOSITE (UINT8_MAX-1)
+
+typedef enum
+{
+	FOLLOWERMODE_FLOAT,		// Default behavior, floats in the position you set it to.
+	FOLLOWERMODE_GROUND,	// Snaps to the ground & rotates with slopes.
+	FOLLOWERMODE__MAX
+} followermode_t;
+
+typedef enum
+{
+	FOLLOWERSTATE_RESET, // Set to this to reset the state entirely.
+	FOLLOWERSTATE_IDLE,
+	FOLLOWERSTATE_FOLLOW,
+	FOLLOWERSTATE_HURT,
+	FOLLOWERSTATE_WIN,
+	FOLLOWERSTATE_LOSE,
+	FOLLOWERSTATE_HITCONFIRM, // Uses movecount as a timer for how long to play this state.
+	FOLLOWERSTATE__MAX
+} followerstate_t;
+
+typedef struct follower_s
+{
+	char name[SKINNAMESIZE+1];		// Name. This is used for the menus. We'll just follow the same rules as skins for this.
+
+	UINT8 defaultcolor;	// default color for menus.
+	followermode_t mode;			// Follower behavior modifier.
+	
+	fixed_t scale;			// Scale relative to the player's.
+
+	// some position shenanigans:
+	INT32 atangle;			// angle the object will be at around the player. The object itself will always face the same direction as the player.
+	INT32 dist;				// distance relative to the player. (In a circle)
+	fixed_t height;			// height of the follower, this is mostly important for Z flipping.
+	INT32 zoffs;			// Z offset relative to the player's height. Cannot be negative.
+
+	// movement options
+
+	INT32 horzlag;			// Lag for X/Y displacement. Default is 2. Must be > 0 because we divide by this number.
+	INT32 vertlag;			// not Vert from Neptunia lagging, this is for Z displacement lag Default is 6. Must be > 0 because we divide by this number.
+	INT32 anglelag;			// Lag for Turn angle
+	INT32 bobamp;			// Bob amplitude. Default is 4.
+	INT32 bobspeed;			// Arbitrary modifier for bobbing speed, default is TICRATE*2 (70).
+
+	// from there on out, everything is STATES to allow customization
+	// these are only set once when the action is performed and are then free to animate however they want.
+
+	INT32 idlestate;		// state when the player is at a standstill
+	INT32 followstate;		// state when the player is moving
+	INT32 hurtstate;		// state when the player is being hurt
+	INT32 winstate;			// state when the player has won
+	INT32 losestate;		// state when the player has lost
+	INT32 hitconfirmstate;	// state for hit confirm
+	INT32 hitconfirmtime;	// time to keep the above playing for
+} follower_t;
+
+UINT8 K_GetEffectiveFollowerColor(UINT8 followercolor, follower_t *follower, UINT8 playercolor, skin_t *playerskin);
+
 // -----------
 // NOT SKINS STUFF !
 // -----------
 typedef enum
 {
-	SC_NONE = 0,
-	SC_TOP = 1,
-	SC_BOTTOM = 2,
-	SC_VFLIP = 3,
-	SC_NOTVISIBLE = 4,
+	// actual cuts
+	SC_NONE       = 0,
+	SC_TOP        = 1,
+	SC_BOTTOM     = 1<<1,
+	SC_VFLIP 	  = 1<<2,
+	SC_ISSCALED   = 1<<3,
+	SC_SHADOW 	  = 1<<4,
+	SC_NOTVISIBLE = 1<<5,
 	SC_CUTMASK    = SC_TOP|SC_BOTTOM|SC_NOTVISIBLE,
 	SC_FLAGMASK   = ~SC_CUTMASK
 } spritecut_e;
@@ -144,7 +212,15 @@ typedef struct vissprite_s
 	fixed_t thingscale; // the object's scale
 	fixed_t sortscale; // sortscale only differs from scale for flat sprites
 	fixed_t scalestep; // only for flat sprites, 0 otherwise
+	fixed_t paperoffset, paperdistance; // for paper sprites, offset/dist relative to the angle
 	fixed_t xiscale; // negative if flipped
+
+	angle_t centerangle; // for paper sprites
+
+	struct {
+		fixed_t tan; // The amount to shear the sprite vertically per row
+		INT32 offset; // The center of the shearing location offset from x1
+	} shear;
 
 	fixed_t texturemid;
 	patch_t *patch;
@@ -167,25 +243,20 @@ typedef struct vissprite_s
 
 	spritecut_e cut;
 	UINT32 renderflags;
-	UINT8 rotateflags;
 
 	fixed_t spritexscale, spriteyscale;
 	fixed_t spritexoffset, spriteyoffset;
 
-
-	INT16 *clipbot, *cliptop;
+	INT16 clipbot[MAXVIDWIDTH], cliptop[MAXVIDWIDTH];
 
 	boolean precip;
 	boolean vflip; // Flip vertically
-	boolean isScaled;
 	INT32 dispoffset; // copy of info->dispoffset, affects ordering but not drawing
 } vissprite_t;
 
 extern UINT32 visspritecount, numvisiblesprites;
 
 void R_ClipSprites(void);
-
-void R_AllocVisSpriteMemory(void);
 
 UINT8 *R_GetSpriteTranslation(vissprite_t *vis);
 
@@ -211,13 +282,17 @@ extern INT32 numskins;
 extern INT32 numlocalskins;
 extern INT32 numallskins;
 extern skin_t skins[MAXSKINS];
+
+extern INT32 numfollowers;
+extern follower_t followers[MAXFOLLOWERS];	// again, use the same rules as skins, no reason not to.
+
 extern UINT16 skinstats[9][9][MAXSKINS];
 extern UINT16 skinstatscount[9][9];
 extern UINT16 skinsorted[MAXSKINS];
 
 void sortSkinGrid(void);
-extern skin_t localskins[MAXSKINS];
-extern skin_t allskins[MAXSKINS*2];
+extern skin_t localskins[MAXLOCALSKINS];
+extern skin_t allskins[MAXSKINS+MAXLOCALSKINS];
 
 boolean SetPlayerSkin(INT32 playernum,const char *skinname);
 void SetPlayerSkinByNum(INT32 playernum,INT32 skinnum); // Tails 03-16-2002
@@ -226,6 +301,11 @@ INT32 R_SkinAvailable(const char *name);
 INT32 R_AnySkinAvailable(const char *name);
 INT32 R_LocalSkinAvailable(const char *name, boolean local);
 void R_AddSkins(UINT16 wadnum, boolean local);
+
+INT32 R_FollowerAvailable(const char *name);
+boolean SetPlayerFollower(INT32 playernum,const char *skinname);
+void SetFollower(INT32 playernum,INT32 skinnum);
+
 
 void R_InitDrawNodes(void);
 

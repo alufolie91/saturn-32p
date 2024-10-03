@@ -826,6 +826,9 @@ sfxinfo_t S_sfx[NUMSFX] =
   {"syfail",  true,  96,  8, -1, NULL, 0,        -1,  -1, LUMPERROR}, // Funny sync failure
   {"itfree", false,  64,  0, -1, NULL, 0,        -1,  -1, LUMPERROR}, // :shitsfree:
   {"dbgsal", false, 255,  8, -1, NULL, 0,        -1,  -1, LUMPERROR}, // Debug notification
+  
+  // Neptune Sounds!
+  {"bstchn", false, 255,  8, -1, NULL, 0,        -1,  -1, LUMPERROR}, // Plays when you chain a sneaker with a mini turbo
 
   // SRB2Kart - Engine sounds
   // Engine class A

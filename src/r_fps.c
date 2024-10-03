@@ -23,6 +23,7 @@
 #include "r_state.h"
 #include "z_zone.h"
 #include "console.h" // con_startup_loadprogress
+
 #ifdef HWRENDER
 #include "hardware/hw_main.h" // for cv_grshearing
 #endif
@@ -42,8 +43,6 @@ static CV_PossibleValue_t fpscap_cons_t[] = {
 consvar_t cv_fpscap = {"fpscap", "Match refresh rate", CV_SAVE, fpscap_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_precipinterp = {"precipinterpolation", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-consvar_t cv_mobjssector = {"mobjsubsectorinterp", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 UINT32 R_GetFramerateCap(void)
 {
@@ -101,7 +100,7 @@ static angle_t R_LerpAngle(angle_t from, angle_t to, fixed_t frac)
 	return from + FixedMul(frac, to - from);
 }
 
-static vector2_t *R_LerpVector2(const vector2_t *from, const vector2_t *to, fixed_t frac, vector2_t *out)
+/*static vector2_t *R_LerpVector2(const vector2_t *from, const vector2_t *to, fixed_t frac, vector2_t *out)
 {
 	FV2_SubEx(to, from, out);
 	FV2_MulEx(out, frac, out);
@@ -115,7 +114,7 @@ static vector3_t *R_LerpVector3(const vector3_t *from, const vector3_t *to, fixe
 	FV3_MulEx(out, frac, out);
 	FV3_AddEx(from, out, out);
 	return out;
-}
+}*/
 
 // recalc necessary stuff for mouseaiming
 // slopes are already calculated for the full possible view (which is 4*viewheight).
@@ -145,6 +144,11 @@ static void R_SetupFreelook(void)
 }
 
 #undef AIMINGTODY
+
+void R_InterpolateViewRollAngle(fixed_t frac)
+{
+	viewroll = R_LerpAngle(oldview->roll, newview->roll, frac);
+}
 
 void R_InterpolateView(fixed_t frac, boolean forceinvalid)
 {
@@ -177,12 +181,11 @@ void R_InterpolateView(fixed_t frac, boolean forceinvalid)
 
 	viewangle = R_LerpAngle(prevview->angle, newview->angle, frac);
 	aimingangle = R_LerpAngle(prevview->aim, newview->aim, frac);
+	viewroll = R_LerpAngle(prevview->roll, newview->roll, frac);
 
 	viewsin = FINESINE(viewangle>>ANGLETOFINESHIFT);
 	viewcos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
 
-	// this is gonna create some interesting visual errors for long distance teleports...
-	// might want to recalculate the view sector every frame instead...
 	viewplayer = newview->player;
 	viewsector = R_PointInSubsector(viewx, viewy)->sector;
 
@@ -278,6 +281,11 @@ angle_t R_InterpolateAngle(angle_t from, angle_t to)
 	return (R_LerpAngle(from, to, rendertimefrac));
 }*/
 
+#define IFCHANGED(a, b)\
+if (mobj->a == mobj->b)\
+(out->a = mobj->a);\
+else
+
 void R_InterpolateMobjState(mobj_t *mobj, fixed_t frac, interpmobjstate_t *out)
 {
 	if (frac == FRACUNIT)
@@ -285,6 +293,7 @@ void R_InterpolateMobjState(mobj_t *mobj, fixed_t frac, interpmobjstate_t *out)
 		out->x = mobj->x;
 		out->y = mobj->y;
 		out->z = mobj->z;
+		out->floorz = mobj->floorz;
 		out->scale = mobj->scale;
 		out->subsector = mobj->subsector;
 		out->angle = mobj->player ? mobj->player->frameangle : mobj->angle;
@@ -299,87 +308,77 @@ void R_InterpolateMobjState(mobj_t *mobj, fixed_t frac, interpmobjstate_t *out)
 		return;
 	}
 
-	if (mobj->x == mobj->old_x)
-		out->x = mobj->x;
-	else
+	IFCHANGED(x, old_x)
 		out->x = R_LerpFixed(mobj->old_x, mobj->x, frac);
 
-	if (mobj->y == mobj->old_y)
-		out->y = mobj->y;
-	else
+	IFCHANGED(y, old_y)
 		out->y = R_LerpFixed(mobj->old_y, mobj->y, frac);
 
-	if (mobj->z == mobj->old_z)
-		out->z = mobj->z;
-	else
+	IFCHANGED(z, old_z)
 		out->z = R_LerpFixed(mobj->old_z, mobj->z, frac);
 
-	if (mobj->spritexscale == mobj->old_spritexscale)
-		out->spritexscale = mobj->spritexscale;
+	if (!(cv_sloperoll.value && cv_spriteroll.value))
+	{
+		IFCHANGED(floorz, old_floorz)
+			out->floorz = R_LerpFixed(mobj->old_floorz, mobj->floorz, frac);
+	}
 	else
+		out->floorz = mobj->floorz;
+
+	IFCHANGED(spritexscale, old_spritexscale)
 		out->spritexscale = mobj->resetinterp ? mobj->spritexscale : R_LerpFixed(mobj->old_spritexscale, mobj->spritexscale, frac);
 
-	if (mobj->spriteyscale == mobj->old_spriteyscale)
-		out->spriteyscale = mobj->spriteyscale;
-	else
+	IFCHANGED(spriteyscale, old_spriteyscale)
 		out->spriteyscale = mobj->resetinterp ? mobj->spriteyscale : R_LerpFixed(mobj->old_spriteyscale, mobj->spriteyscale, frac);
 
-	if (mobj->spritexoffset == mobj->old_spritexoffset)
-		out->spritexoffset = mobj->spritexoffset;
-	else
+	IFCHANGED(spritexoffset, old_spritexoffset)
 		out->spritexoffset = mobj->resetinterp ? mobj->spritexoffset : R_LerpFixed(mobj->old_spritexoffset, mobj->spritexoffset, frac);
 
-	if (mobj->spriteyoffset == mobj->old_spriteyoffset)
-		out->spriteyoffset = mobj->spriteyoffset;
-	else
+	IFCHANGED(spriteyoffset, old_spriteyoffset)
 		out->spriteyoffset = mobj->resetinterp ? mobj->spriteyoffset : R_LerpFixed(mobj->old_spriteyoffset, mobj->spriteyoffset, frac);
 
-	if (mobj->scale == mobj->old_scale) // Tiny optimisation - scale is usually unchanging, so let's skip a lerp, two FixedMuls, and two FixedDivs
-		out->scale = mobj->scale;
-	else
+	IFCHANGED(scale, old_scale)
 		out->scale = mobj->resetinterp ? mobj->scale : R_LerpFixed(mobj->old_scale, mobj->scale, frac);
 
-	if (cv_mobjssector.value)
-		out->subsector = R_PointInSubsector(out->x, out->y);
-	else
-		out->subsector = mobj->subsector;
+	//out->subsector = R_PointInSubsector(out->x, out->y); // why was this even done?
+	out->subsector = mobj->subsector;
 
 	if (mobj->player)
 	{
-		if (mobj->angle == mobj->player->old_frameangle)
-			out->angle = mobj->player->frameangle;
-		else
+		IFCHANGED(angle, player->old_frameangle)
 			out->angle = mobj->resetinterp ? mobj->player->frameangle : R_LerpAngle(mobj->player->old_frameangle, mobj->player->frameangle, frac);
 	}
 	else
 	{
-		if (mobj->angle == mobj->old_angle)
-			out->angle = mobj->angle;
-		else
+		IFCHANGED(angle, old_angle)
 			out->angle = mobj->resetinterp ? mobj->angle : R_LerpAngle(mobj->old_angle, mobj->angle, frac);
 	}
 
-	// pitch roll stuff
-	if (mobj->pitch == mobj->old_pitch)
+#ifdef HWRENDER
+	if (cv_grmdls.value)
+	{
+		// pitch roll stuff
+		IFCHANGED(pitch, old_pitch)
+			out->pitch = mobj->resetinterp ? mobj->pitch : R_LerpAngle(mobj->old_pitch, mobj->pitch, frac);
+
+		IFCHANGED(roll, old_roll)
+			out->roll = mobj->resetinterp ? mobj->roll : R_LerpAngle(mobj->old_roll, mobj->roll, frac);
+
+		// and the slope stuff
+		IFCHANGED(slopepitch, old_slopepitch)
+			out->slopepitch = mobj->resetinterp ? mobj->slopepitch : R_LerpAngle(mobj->old_slopepitch, mobj->slopepitch, frac);
+
+		IFCHANGED(sloperoll, old_sloperoll)
+			out->sloperoll = mobj->resetinterp ? mobj->sloperoll : R_LerpAngle(mobj->old_sloperoll, mobj->sloperoll, frac);
+	}
+	else
+#endif
+	{
 		out->pitch = mobj->pitch;
-	else
-		out->pitch = mobj->resetinterp ? mobj->pitch : R_LerpAngle(mobj->old_pitch, mobj->pitch, frac);
-
-	if (mobj->roll == mobj->old_roll)
 		out->roll = mobj->roll;
-	else
-		out->roll = mobj->resetinterp ? mobj->roll : R_LerpAngle(mobj->old_roll, mobj->roll, frac);
-
-	// and the slope stuff
-	if (mobj->slopepitch == mobj->old_slopepitch)
 		out->slopepitch = mobj->slopepitch;
-	else
-		out->slopepitch = mobj->resetinterp ? mobj->slopepitch : R_LerpAngle(mobj->old_slopepitch, mobj->slopepitch, frac);
-
-	if (mobj->sloperoll == mobj->old_sloperoll)
 		out->sloperoll = mobj->sloperoll;
-	else
-		out->sloperoll = mobj->resetinterp ? mobj->sloperoll : R_LerpAngle(mobj->old_sloperoll, mobj->sloperoll, frac);
+	}
 }
 
 void R_InterpolatePrecipMobjState(precipmobj_t *mobj, fixed_t frac, interpmobjstate_t *out)
@@ -389,6 +388,7 @@ void R_InterpolatePrecipMobjState(precipmobj_t *mobj, fixed_t frac, interpmobjst
 		out->x = mobj->x;
 		out->y = mobj->y;
 		out->z = mobj->z;
+		out->floorz = mobj->floorz;
 		out->scale = FRACUNIT;
 		out->subsector = mobj->subsector;
 		out->angle = mobj->angle;
@@ -402,22 +402,22 @@ void R_InterpolatePrecipMobjState(precipmobj_t *mobj, fixed_t frac, interpmobjst
 		out->x = R_LerpFixed(mobj->old_x, mobj->x, frac);
 		out->y = R_LerpFixed(mobj->old_y, mobj->y, frac);
 		out->z = R_LerpFixed(mobj->old_z, mobj->z, frac);
+		out->floorz = mobj->floorz;
 		out->scale = FRACUNIT;
 		out->spritexscale = mobj->spritexscale;
 		out->spriteyscale = mobj->spriteyscale;
 		out->spritexoffset = mobj->spritexoffset;
 		out->spriteyoffset = mobj->spriteyoffset;
 
-		if (cv_mobjssector.value)
-			out->subsector = R_PointInSubsector(out->x, out->y);
-		else
-			out->subsector = mobj->subsector;
+		//out->subsector = R_PointInSubsector(out->x, out->y); // i dont understand lol
+		out->subsector = mobj->subsector;
 
-		if (mobj->angle == mobj->old_angle)
-			out->angle = mobj->angle;
-		else
-			out->angle = R_LerpAngle(mobj->old_angle, mobj->angle, frac);
+		//IFCHANGED(angle, old_angle)
+			//out->angle = R_LerpAngle(mobj->old_angle, mobj->angle, frac);
+		out->angle = mobj->angle;
 }
+
+#undef IFCHANGED
 
 static void AddInterpolator(levelinterpolator_t* interpolator)
 {
@@ -516,7 +516,7 @@ void R_CreateInterpolator_Polyobj(thinker_t *thinker, polyobj_t *polyobj)
 	interp->polyobj.oldcy = interp->polyobj.bakcy = polyobj->centerPt.y;
 }
 
-void R_CreateInterpolator_DynSlope(thinker_t *thinker, pslope_t *slope)
+/*void R_CreateInterpolator_DynSlope(thinker_t *thinker, pslope_t *slope)
 {
 	levelinterpolator_t *interp = CreateInterpolator(LVLINTERP_DynSlope, thinker);
 	interp->dynslope.slope = slope;
@@ -528,7 +528,7 @@ void R_CreateInterpolator_DynSlope(thinker_t *thinker, pslope_t *slope)
 	FV2_Copy(&interp->dynslope.bakd, &slope->d);
 
 	interp->dynslope.oldzdelta = interp->dynslope.bakzdelta = slope->zdelta;
-}
+}*/
 
 void R_InitializeLevelInterpolators(void)
 {
@@ -572,7 +572,7 @@ static void UpdateLevelInterpolatorState(levelinterpolator_t *interp)
 		interp->polyobj.bakcx = interp->polyobj.polyobj->centerPt.x;
 		interp->polyobj.bakcy = interp->polyobj.polyobj->centerPt.y;
 		break;
-	case LVLINTERP_DynSlope:
+	/*case LVLINTERP_DynSlope:
 		FV3_Copy(&interp->dynslope.oldo, &interp->dynslope.bako);
 		FV2_Copy(&interp->dynslope.oldd, &interp->dynslope.bakd);
 		interp->dynslope.oldzdelta = interp->dynslope.bakzdelta;
@@ -580,7 +580,7 @@ static void UpdateLevelInterpolatorState(levelinterpolator_t *interp)
 		FV3_Copy(&interp->dynslope.bako, &interp->dynslope.slope->o);
 		FV2_Copy(&interp->dynslope.bakd, &interp->dynslope.slope->d);
 		interp->dynslope.bakzdelta = interp->dynslope.slope->zdelta;
-		break;
+		break;*/
 	}
 }
 
@@ -613,6 +613,11 @@ void R_ClearLevelInterpolatorState(thinker_t *thinker)
 	}
 }
 
+#define IFCHANGED(a, b, c)\
+if (interp->a == interp->b)\
+	(interp->a = interp->c);\
+else
+
 void R_ApplyLevelInterpolators(fixed_t frac)
 {
 	size_t i, ii;
@@ -626,16 +631,12 @@ void R_ApplyLevelInterpolators(fixed_t frac)
 		case LVLINTERP_SectorPlane:
 			if (interp->sectorplane.ceiling)
 			{
-				if (interp->sectorplane.sector->ceilingheight == interp->sectorplane.oldheight)
-					interp->sectorplane.sector->ceilingheight = interp->sectorplane.bakheight;
-				else
+				IFCHANGED(sectorplane.sector->ceilingheight, sectorplane.oldheight, sectorplane.bakheight)
 					interp->sectorplane.sector->ceilingheight = R_LerpFixed(interp->sectorplane.oldheight, interp->sectorplane.bakheight, frac);
 			}
 			else
 			{
-				if (interp->sectorplane.sector->floorheight == interp->sectorplane.oldheight)
-					interp->sectorplane.sector->floorheight = interp->sectorplane.bakheight;
-				else
+				IFCHANGED(sectorplane.sector->floorheight, sectorplane.oldheight, sectorplane.bakheight)
 					interp->sectorplane.sector->floorheight = R_LerpFixed(interp->sectorplane.oldheight, interp->sectorplane.bakheight, frac);
 			}
 			interp->sectorplane.sector->moved = true;
@@ -643,72 +644,54 @@ void R_ApplyLevelInterpolators(fixed_t frac)
 		case LVLINTERP_SectorScroll:
 			if (interp->sectorscroll.ceiling)
 			{
-				if (interp->sectorscroll.sector->ceiling_xoffs == interp->sectorscroll.oldxoffs)
-					interp->sectorscroll.sector->ceiling_xoffs = interp->sectorscroll.bakxoffs;
-				else
+				IFCHANGED(sectorscroll.sector->ceiling_xoffs, sectorscroll.oldxoffs, sectorscroll.bakxoffs)
 					interp->sectorscroll.sector->ceiling_xoffs = R_LerpFixed(interp->sectorscroll.oldxoffs, interp->sectorscroll.bakxoffs, frac);
-				
-				if (interp->sectorscroll.sector->ceiling_yoffs == interp->sectorscroll.oldyoffs)
-					interp->sectorscroll.sector->ceiling_yoffs = interp->sectorscroll.bakyoffs;
-				else
+
+				IFCHANGED(sectorscroll.sector->ceiling_yoffs, sectorscroll.oldyoffs, sectorscroll.bakyoffs)
 					interp->sectorscroll.sector->ceiling_yoffs = R_LerpFixed(interp->sectorscroll.oldyoffs, interp->sectorscroll.bakyoffs, frac);
 			}
 			else
 			{
-				if (interp->sectorscroll.sector->floor_xoffs == interp->sectorscroll.oldxoffs)
-					interp->sectorscroll.sector->floor_xoffs = interp->sectorscroll.bakxoffs;
-				else
+				IFCHANGED(sectorscroll.sector->floor_xoffs, sectorscroll.oldxoffs, sectorscroll.bakxoffs)
 					interp->sectorscroll.sector->floor_xoffs = R_LerpFixed(interp->sectorscroll.oldxoffs, interp->sectorscroll.bakxoffs, frac);
-				
-				if (interp->sectorscroll.sector->floor_yoffs == interp->sectorscroll.oldyoffs)
-					interp->sectorscroll.sector->floor_yoffs = interp->sectorscroll.bakyoffs;
-				else
+
+				IFCHANGED(sectorscroll.sector->floor_yoffs, sectorscroll.oldyoffs, sectorscroll.bakyoffs)
 					interp->sectorscroll.sector->floor_yoffs = R_LerpFixed(interp->sectorscroll.oldyoffs, interp->sectorscroll.bakyoffs, frac);
 			}
 			break;
 		case LVLINTERP_SideScroll:
-			if (interp->sidescroll.side->textureoffset == interp->sidescroll.oldtextureoffset)
-				interp->sidescroll.side->textureoffset = interp->sidescroll.baktextureoffset;
-			else
+			IFCHANGED(sidescroll.side->textureoffset, sidescroll.oldtextureoffset, sidescroll.baktextureoffset)
 				interp->sidescroll.side->textureoffset = R_LerpFixed(interp->sidescroll.oldtextureoffset, interp->sidescroll.baktextureoffset, frac);
-			
-			if (interp->sidescroll.side->rowoffset == interp->sidescroll.oldrowoffset)
-				interp->sidescroll.side->rowoffset = interp->sidescroll.bakrowoffset;
-			else
+
+			IFCHANGED(sidescroll.side->rowoffset, sidescroll.oldrowoffset, sidescroll.bakrowoffset)
 				interp->sidescroll.side->rowoffset = R_LerpFixed(interp->sidescroll.oldrowoffset, interp->sidescroll.bakrowoffset, frac);
 			break;
 		case LVLINTERP_Polyobj:
 			for (ii = 0; ii < interp->polyobj.vertices_size; ii++)
 			{
-				if (interp->polyobj.polyobj->vertices[ii]->x == interp->polyobj.oldvertices[ii * 2    ])
-					interp->polyobj.polyobj->vertices[ii]->x = interp->polyobj.bakvertices[ii * 2    ];
-				else
+				IFCHANGED(polyobj.polyobj->vertices[ii]->x, polyobj.oldvertices[ii * 2    ], polyobj.bakvertices[ii * 2    ])
 					interp->polyobj.polyobj->vertices[ii]->x = R_LerpFixed(interp->polyobj.oldvertices[ii * 2    ], interp->polyobj.bakvertices[ii * 2    ], frac);
 
-				if (interp->polyobj.polyobj->vertices[ii]->y == interp->polyobj.oldvertices[ii * 2 + 1])
-					interp->polyobj.polyobj->vertices[ii]->y = interp->polyobj.bakvertices[ii * 2 + 1];
-				else
+				IFCHANGED(polyobj.polyobj->vertices[ii]->y, polyobj.oldvertices[ii * 2 + 1], polyobj.bakvertices[ii * 2 + 1])
 					interp->polyobj.polyobj->vertices[ii]->y = R_LerpFixed(interp->polyobj.oldvertices[ii * 2 + 1], interp->polyobj.bakvertices[ii * 2 + 1], frac);
 			}
-			if (interp->polyobj.polyobj->centerPt.x == interp->polyobj.oldcx)
-				interp->polyobj.polyobj->centerPt.x = interp->polyobj.bakcx;
-			else
+			IFCHANGED(polyobj.polyobj->centerPt.x, polyobj.oldcx, polyobj.bakcx)
 				interp->polyobj.polyobj->centerPt.x = R_LerpFixed(interp->polyobj.oldcx, interp->polyobj.bakcx, frac);
-			
-			if (interp->polyobj.polyobj->centerPt.y == interp->polyobj.oldcy)
-				interp->polyobj.polyobj->centerPt.y = interp->polyobj.bakcy;
-			else
+
+			IFCHANGED(polyobj.polyobj->centerPt.y, polyobj.oldcy, polyobj.bakcy)
 				interp->polyobj.polyobj->centerPt.y = R_LerpFixed(interp->polyobj.oldcy, interp->polyobj.bakcy, frac);
-			
+
 			break;
-		case LVLINTERP_DynSlope:
+		/*case LVLINTERP_DynSlope:
 			R_LerpVector3(&interp->dynslope.oldo, &interp->dynslope.bako, frac, &interp->dynslope.slope->o);
 			R_LerpVector2(&interp->dynslope.oldd, &interp->dynslope.bakd, frac, &interp->dynslope.slope->d);
 			interp->dynslope.slope->zdelta = R_LerpFixed(interp->dynslope.oldzdelta, interp->dynslope.bakzdelta, frac);
-			break;
+			break;*/
 		}
 	}
 }
+
+#undef IFCHANGED
 
 void R_RestoreLevelInterpolators(void)
 {
@@ -756,11 +739,11 @@ void R_RestoreLevelInterpolators(void)
 			interp->polyobj.polyobj->centerPt.x = interp->polyobj.bakcx;
 			interp->polyobj.polyobj->centerPt.y = interp->polyobj.bakcy;
 			break;
-		case LVLINTERP_DynSlope:
+		/*case LVLINTERP_DynSlope:
 			FV3_Copy(&interp->dynslope.slope->o, &interp->dynslope.bako);
 			FV2_Copy(&interp->dynslope.slope->d, &interp->dynslope.bakd);
 			interp->dynslope.slope->zdelta = interp->dynslope.bakzdelta;
-			break;
+			break;*/
 		}
 	}
 }
@@ -880,6 +863,7 @@ void R_ResetMobjInterpolationState(mobj_t *mobj)
 	mobj->old_x = mobj->x;
 	mobj->old_y = mobj->y;
 	mobj->old_z = mobj->z;
+	mobj->old_floorz = mobj->floorz;
 	mobj->old_angle = mobj->angle;
 
 	// rotation humor, again
@@ -920,6 +904,7 @@ void R_ResetPrecipitationMobjInterpolationState(precipmobj_t *mobj)
 	mobj->old_x = mobj->x;
 	mobj->old_y = mobj->y;
 	mobj->old_z = mobj->z;
+	mobj->old_floorz = mobj->floorz;
 	mobj->old_angle = mobj->angle;
 	mobj->old_spritexscale = mobj->spritexscale;
 	mobj->old_spriteyscale = mobj->spriteyscale;

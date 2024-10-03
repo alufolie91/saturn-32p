@@ -167,6 +167,7 @@ set(SRB2_CORE_GAME_SOURCES
 	p_telept.c
 	p_tick.c
 	p_user.c
+	k_director.c
 	k_kart.c
 	i_time.c
 
@@ -180,6 +181,7 @@ set(SRB2_CORE_GAME_SOURCES
 	p_slopes.h
 	p_spec.h
 	p_tick.h
+	k_director.h
 	k_kart.h
 )
 
@@ -216,6 +218,8 @@ set(SRB2_CONFIG_HWRENDER ON CACHE BOOL
 	"Enable hardware rendering through OpenGL.")
 set(SRB2_CONFIG_STATIC_OPENGL OFF CACHE BOOL
 	"Use statically linked OpenGL. NOT RECOMMENDED.")
+set(SRB2_CONFIG_USE_FBO_OGL ON CACHE BOOL
+	"Enable OpenGL FBO Downsampling support.")
 
 ### use internal libraries?
 if(${CMAKE_SYSTEM} MATCHES "Windows") ###set on Windows only
@@ -237,6 +241,7 @@ if(${SRB2_CONFIG_HAVE_BLUA})
 		lua_mathlib.c
 		lua_mobjlib.c
 		lua_playerlib.c
+		lua_followerlib.c
 		lua_script.c
 		lua_skinlib.c
 		lua_thinkerlib.c
@@ -285,6 +290,7 @@ if(${SRB2_CONFIG_HAVE_BLUA})
 		blua/lundump.c
 		blua/lvm.c
 		blua/lzio.c
+		blua/loslib.c
 	)
 	set(SRB2_BLUA_HEADERS
 		blua/lapi.h
@@ -463,7 +469,6 @@ if(${SRB2_CONFIG_HWRENDER})
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_cache.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_clip.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_draw.c
-		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_light.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_main.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_md2.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_md2load.c
@@ -481,7 +486,6 @@ if(${SRB2_CONFIG_HWRENDER})
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_dll.h
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_drv.h
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_glob.h
-		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_light.h
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_main.h
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_md2.h
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_md2load.h
@@ -510,6 +514,12 @@ if(${SRB2_CONFIG_HWRENDER} AND ${SRB2_CONFIG_STATIC_OPENGL})
 	endif()
 endif()
 
+if(${SRB2_CONFIG_HWRENDER})
+	if(${SRB2_CONFIG_USE_FBO_OGL})
+		set(SRB2_USE_FBO_OGL ON)
+		add_definitions(-DUSE_FBO_OGL)
+	endif()
+endif()
 
 # Targets
 

@@ -24,6 +24,7 @@
 #define FINEMASK (FINEANGLES - 1)
 #define ANGLETOFINESHIFT 19 // 0x100000000 to 0x2000
 #define FINEANGLE_C(x) ((FixedAngle((x)*FRACUNIT)>>ANGLETOFINESHIFT) & FINEMASK) // ((x*(ANGLE_45/45))>>ANGLETOFINESHIFT) & FINEMASK
+#define ANGLETOFINE(x) (((x)>>ANGLETOFINESHIFT) & FINEMASK)
 
 // Effective size is 10240.
 extern fixed_t finesine[5*FINEANGLES/4];
@@ -85,7 +86,7 @@ extern angle_t tantoangle[SLOPERANGE+1];
 
 // Utility function, called by R_PointToAngle.
 FUNCMATH unsigned SlopeDiv(unsigned num, unsigned den);
-// Only called by R_PointToAngleEx
+// Only called by R_PointToAngle64
 FUNCMATH UINT64 SlopeDivEx(unsigned int num, unsigned int den);
 
 // 360 - angle_t(ANGLE_45) = ANGLE_315
@@ -93,12 +94,20 @@ FUNCMATH FUNCINLINE static ATTRINLINE angle_t InvAngle(angle_t a)
 {
 	return (ANGLE_MAX-a)+1;
 }
+
+// 315 = 45
+FUNCMATH FUNCINLINE static ATTRINLINE angle_t AbsAngle(angle_t a)
+{
+	return a & ANGLE_180 ? InvAngle(a) : a;
+}
 // angle_t to fixed_t f(ANGLE_45) = 45*FRACUNIT
 FUNCMATH fixed_t AngleFixed(angle_t af);
 // fixed_t to angle_t f(45*FRACUNIT) = ANGLE_45
 FUNCMATH angle_t FixedAngle(fixed_t fa);
 // and with a factor, with +factor for (fa/factor) and -factor for (fa*factor)
 FUNCMATH angle_t FixedAngleC(fixed_t fa, fixed_t factor);
+
+FUNCMATH INT32 AngleDeltaSigned(angle_t a1, angle_t a2);
 
 /// The FixedAcos function
 FUNCMATH angle_t FixedAcos(fixed_t x);
@@ -120,5 +129,9 @@ void FM_Rotate(matrix_t *dest, angle_t angle, fixed_t x, fixed_t y, fixed_t z);
 #define FINESINE(n) (finesine[n]>>(FINE_FRACBITS-FRACBITS))
 #define FINECOSINE(n) (finecosine[n]>>(FINE_FRACBITS-FRACBITS))
 #define FINETANGENT(n) (finetangent[n]>>(FINE_FRACBITS-FRACBITS))
+
+// FSIN(ANGLE_90) = FRACUNIT
+#define FSIN(n) FINESINE(ANGLETOFINE(n))
+#define FCOS(n) FINECOSINE(ANGLETOFINE(n))
 
 #endif
