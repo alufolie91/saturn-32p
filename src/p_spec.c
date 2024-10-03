@@ -3865,8 +3865,6 @@ DoneSection2:
 				sequence = abs(lines[lineindex].dy)>>FRACBITS;
 				waypoint = P_GetLastWaypoint(sequence);
 
-				waypoint = P_GetLastWaypoint(sequence);
-
 				if (!waypoint)
 				{
 					CONS_Debug(DBG_GAMELOGIC, "ERROR: LAST WAYPOINT IN SEQUENCE %d NOT FOUND.\n", sequence);
