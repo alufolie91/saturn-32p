@@ -5535,26 +5535,8 @@ static void M_DrawGenericScrollMenu(void)
 	DoToolTips(OP_SaturnDef, OP_SaturnTooltips);
 	DoToolTips(OP_SaturnHudDef, OP_SaturnHudTooltips);
 	DoToolTips(OP_AdvServerOptionsDef, OP_AdvServerOptionsTooltips);
-	
-	if (currentMenu == &OP_NeptuneDef)
-	{
-		if (!(OP_NeptuneTooltips[itemOn] == NULL)) 
-		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_NeptuneTooltips[itemOn], coolalphatimer);
-			if (coolalphatimer > 0 && interpTimerHackAllow)
-				coolalphatimer--;
-		}
-	}
-	
-	if (currentMenu == &OP_NeptuneTwoDef)
-	{
-		if (!(OP_NeptuneTwoTooltips[itemOn] == NULL)) 
-		{
-			M_DrawSplitText(BASEVIDWIDTH / 2, BASEVIDHEIGHT-50, V_ALLOWLOWERCASE|V_SNAPTOBOTTOM, OP_NeptuneTwoTooltips[itemOn], coolalphatimer);
-			if (coolalphatimer > 0 && interpTimerHackAllow)
-				coolalphatimer--;
-		}
-	}
+	DoToolTips(OP_NeptuneDef, OP_NeptuneTooltips);
+	DoToolTips(OP_NeptuneTwoDef, OP_NeptuneTwoTooltips);
 }
 
 static void M_DrawPauseMenu(void)
@@ -11306,12 +11288,7 @@ static void M_DrawSetupMultiPlayerMenu(void)
 			colwidth = colwidth - 10;
 			j = -colwidth;
 		}
-		
-		INT32 j = -colwidth;
-		INT32 col = setupm_fakecolor - colwidth;
-		INT32 x = mx;
-		INT32 cw = indexwidth;
-		UINT8 ch;
+
 		col = colormode - colwidth;
 
 		while (col < 1)
@@ -12079,8 +12056,6 @@ static void M_SetupMultiPlayer(INT32 choice)
 
 	//change the y offsets of the menu depending on cvar settings
 	SKINSELECTMENUEDIT
-		
-	sortSkinGrid();
 
 	sortSkinGrid();
 
@@ -12137,8 +12112,6 @@ static void M_SetupMultiPlayer2(INT32 choice)
 		
 	sortSkinGrid();
 
-	sortSkinGrid();
-
 	MP_PlayerSetupDef.prevMenu = currentMenu;
 	M_SetupNextMenu(&MP_PlayerSetupDef);
 }
@@ -12190,8 +12163,6 @@ static void M_SetupMultiPlayer3(INT32 choice)
 	//change the y offsets of the menu depending on cvar settings
 	SKINSELECTMENUEDIT
 		
-	sortSkinGrid();
-
 	sortSkinGrid();
 
 	MP_PlayerSetupDef.prevMenu = currentMenu;
