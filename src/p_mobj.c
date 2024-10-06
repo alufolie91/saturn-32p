@@ -775,7 +775,8 @@ fixed_t P_MobjFloorZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed_t
 {
 	I_Assert(mobj != NULL);
 	I_Assert(sector != NULL);
-	if (sector->f_slope) {
+	if (sector->f_slope)
+	{
 		fixed_t testx, testy;
 		pslope_t *slope = sector->f_slope;
 
@@ -790,7 +791,8 @@ fixed_t P_MobjFloorZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed_t
 		else
 			testy = -mobj->radius;
 
-		if ((slope->zdelta > 0) ^ !!(lowest)) {
+		if ((slope->zdelta > 0) ^ !!(lowest))
+		{
 			testx = -testx;
 			testy = -testy;
 		}
@@ -803,22 +805,21 @@ fixed_t P_MobjFloorZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed_t
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
-		if (perfect) {
+		if (perfect)
+		{
 			size_t i;
 			line_t *ld;
 			fixed_t bbox[4];
 			fixed_t finalheight;
 
-			if (lowest)
-				finalheight = INT32_MAX;
-			else
-				finalheight = INT32_MIN;
+			finalheight = lowest ? INT32_MAX : INT32_MIN;
 
 			bbox[BOXLEFT] = x-mobj->radius;
 			bbox[BOXRIGHT] = x+mobj->radius;
 			bbox[BOXTOP] = y+mobj->radius;
 			bbox[BOXBOTTOM] = y-mobj->radius;
-			for (i = 0; i < boundsec->linecount; i++) {
+			for (i = 0; i < boundsec->linecount; i++)
+			{
 				ld = boundsec->lines[i];
 
 				if (bbox[BOXRIGHT] <= ld->bbox[BOXLEFT] || bbox[BOXLEFT] >= ld->bbox[BOXRIGHT]
@@ -851,7 +852,8 @@ fixed_t P_MobjCeilingZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed
 {
 	I_Assert(mobj != NULL);
 	I_Assert(sector != NULL);
-	if (sector->c_slope) {
+	if (sector->c_slope)
+	{
 		fixed_t testx, testy;
 		pslope_t *slope = sector->c_slope;
 
@@ -866,7 +868,8 @@ fixed_t P_MobjCeilingZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed
 		else
 			testy = -mobj->radius;
 
-		if ((slope->zdelta > 0) ^ !!(lowest)) {
+		if ((slope->zdelta > 0) ^ !!(lowest))
+		{
 			testx = -testx;
 			testy = -testy;
 		}
@@ -879,22 +882,21 @@ fixed_t P_MobjCeilingZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
-		if (perfect) {
+		if (perfect)
+		{
 			size_t i;
 			line_t *ld;
 			fixed_t bbox[4];
 			fixed_t finalheight;
 
-			if (lowest)
-				finalheight = INT32_MAX;
-			else
-				finalheight = INT32_MIN;
+			finalheight = lowest ? INT32_MAX : INT32_MIN;
 
 			bbox[BOXLEFT] = x-mobj->radius;
 			bbox[BOXRIGHT] = x+mobj->radius;
 			bbox[BOXTOP] = y+mobj->radius;
 			bbox[BOXBOTTOM] = y-mobj->radius;
-			for (i = 0; i < boundsec->linecount; i++) {
+			for (i = 0; i < boundsec->linecount; i++)
+			{
 				ld = boundsec->lines[i];
 
 				if (bbox[BOXRIGHT] <= ld->bbox[BOXLEFT] || bbox[BOXLEFT] >= ld->bbox[BOXRIGHT]
@@ -929,7 +931,8 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 	I_Assert(mobj != NULL);
 	I_Assert(sector != NULL);
 
-	if (sector->f_slope) {
+	if (sector->f_slope)
+	{
 		fixed_t testx, testy;
 		pslope_t *slope = sector->f_slope;
 
@@ -944,7 +947,8 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 		else
 			testy = -mobj->radius;
 
-		if ((slope->zdelta > 0) ^ !!(lowest)) {
+		if ((slope->zdelta > 0) ^ !!(lowest))
+		{
 			testx = -testx;
 			testy = -testy;
 		}
@@ -957,22 +961,21 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
-		if (perfect) {
+		if (perfect)
+		{
 			size_t i;
 			line_t *ld;
 			fixed_t bbox[4];
 			fixed_t finalheight;
 
-			if (lowest)
-				finalheight = INT32_MAX;
-			else
-				finalheight = INT32_MIN;
+			finalheight = lowest ? INT32_MAX : INT32_MIN;
 
 			bbox[BOXLEFT] = x-mobj->radius;
 			bbox[BOXRIGHT] = x+mobj->radius;
 			bbox[BOXTOP] = y+mobj->radius;
 			bbox[BOXBOTTOM] = y-mobj->radius;
-			for (i = 0; i < boundsec->linecount; i++) {
+			for (i = 0; i < boundsec->linecount; i++)
+			{
 				ld = boundsec->lines[i];
 
 				if (bbox[BOXRIGHT] <= ld->bbox[BOXLEFT] || bbox[BOXLEFT] >= ld->bbox[BOXRIGHT]
@@ -1006,7 +1009,8 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 	I_Assert(mobj != NULL);
 	I_Assert(sector != NULL);
 
-	if (sector->c_slope) {
+	if (sector->c_slope)
+	{
 		fixed_t testx, testy;
 		pslope_t *slope = sector->c_slope;
 
@@ -1021,7 +1025,8 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 		else
 			testy = -mobj->radius;
 
-		if ((slope->zdelta > 0) ^ !!(lowest)) {
+		if ((slope->zdelta > 0) ^ !!(lowest))
+		{
 			testx = -testx;
 			testy = -testy;
 		}
@@ -1034,22 +1039,21 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 			return P_GetZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
-		if (perfect) {
+		if (perfect)
+		{
 			size_t i;
 			line_t *ld;
 			fixed_t bbox[4];
 			fixed_t finalheight;
 
-			if (lowest)
-				finalheight = INT32_MAX;
-			else
-				finalheight = INT32_MIN;
+			finalheight = lowest ? INT32_MAX : INT32_MIN;
 
 			bbox[BOXLEFT] = x-mobj->radius;
 			bbox[BOXRIGHT] = x+mobj->radius;
 			bbox[BOXTOP] = y+mobj->radius;
 			bbox[BOXBOTTOM] = y-mobj->radius;
-			for (i = 0; i < boundsec->linecount; i++) {
+			for (i = 0; i < boundsec->linecount; i++)
+			{
 				ld = boundsec->lines[i];
 
 				if (bbox[BOXRIGHT] <= ld->bbox[BOXLEFT] || bbox[BOXLEFT] >= ld->bbox[BOXRIGHT]
@@ -6342,7 +6346,7 @@ void P_RollPitchMobj(mobj_t* mobj)
     if (cv_sloperolldist.value > 0)
         usedist = true;
 
-    if ((cv_spriteroll.value) && (cv_sloperoll.value == 2))
+    if (cv_spriteroll.value && cv_sloperoll.value == 2)
     {
         K_RollMobjBySlopes(mobj, usedist, mobj->standingslope);
     }
@@ -6568,7 +6572,7 @@ void P_MobjThinker(mobj_t *mobj)
 					return;
 				}
 				
-				if (mobj->state == &states[S_SHADOW] && cv_sloperoll.value == 2)
+				if (cv_sloperoll.value == 2 && mobj->state == &states[S_SHADOW])
 				{
 					mobj->slopepitch = mobj->target->slopepitch;
 					mobj->sloperoll = mobj->target->sloperoll;
