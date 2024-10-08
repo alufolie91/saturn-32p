@@ -486,7 +486,7 @@ tic_t GetLag(INT32 node);
 UINT8 GetFreeXCmdSize(void);
 
 extern UINT8 hu_redownloadinggamestate;
-extern UINT8 hu_stopped; // kart, true when the game is stopped for players due to a disconnecting or connecting player
+extern boolean hu_stopped; // kart, true when the game is stopped for players due to a disconnecting or connecting player
 
 typedef struct rewind_s {
 	UINT8 savebuffer[(768*1024)];
