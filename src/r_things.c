@@ -20,6 +20,7 @@
 #include "z_zone.h"
 #include "m_misc.h"
 #include "i_video.h" // rendermode
+#include "r_main.h" // stplyr
 #include "r_fps.h"
 #include "r_things.h"
 #include "r_patch.h"
@@ -648,7 +649,7 @@ void R_DrawMaskedColumn(column_t *column)
 		if (dc_yh >= vid.height)
 			dc_yh = vid.height - 1;
 
-		if (dc_yl <= dc_yh && dc_yh > 0)
+		if (dc_yl <= dc_yh && dc_yh > 0 && column->length != 0)
 		{
 			dc_source = (UINT8 *)column + 3;
 			dc_texturemid = basetexturemid - (topdelta<<FRACBITS);
@@ -708,7 +709,7 @@ static void R_DrawFlippedMaskedColumn(column_t *column)
 		if (dc_yh >= vid.height)
 			dc_yh = vid.height - 1;
 
-		if (dc_yl <= dc_yh && dc_yh > 0)
+		if (dc_yl <= dc_yh && dc_yh > 0 && column->length != 0)
 		{
 			dc_source = ZZ_Alloc(column->length);
 			for (s = (UINT8 *)column+2+column->length, d = dc_source; d < dc_source+column->length; --s)
@@ -949,6 +950,7 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 	INT32 texturecolumn;
 	fixed_t frac;
 	patch_t *patch;
+	fixed_t this_scale = vis->thingscale;
 	INT64 overflow_test;
 
 	//Fab : R_InitSprites now sets a wad lump number
@@ -972,7 +974,7 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 		dc_colormap += COLORMAP_REMAPOFFSET;
 
 	dc_iscale = FixedDiv(FRACUNIT, vis->scale);
-	dc_texturemid = vis->texturemid;
+	dc_texturemid = FixedDiv(vis->texturemid, this_scale);
 	dc_texheight = 0;
 
 	frac = vis->startfrac;
@@ -1992,7 +1994,8 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	fixed_t iscale;
 
 	//SoM: 3/17/2000
-	fixed_t gz ,gzt;
+	fixed_t gz, gzt;
+	fixed_t this_scale;
 
 	INT32 dist = 1;
 
@@ -2001,6 +2004,12 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 
 	// uncapped/interpolation
 	interpmobjstate_t interp = {0};
+
+	// okay... this is a hack, but weather isn't networked, so it should be ok
+	if (!P_PrecipThinker(thing))
+	{
+		return;
+	}
 
 	// do interpolation
 	if (R_UsingFrameInterpolation() && !paused && (!cv_grmaxinterpdist.value || dist < cv_grmaxinterpdist.value))
@@ -2012,6 +2021,8 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 		R_InterpolatePrecipMobjState(thing, FRACUNIT, &interp);
 	}
 
+	this_scale = interp.scale;
+
 	// transform the origin point
 	tr_x = interp.x - viewx;
 	tr_y = interp.y - viewy;
@@ -2022,7 +2033,7 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	tz = gxt - gyt;
 
 	// thing is behind view plane?
-	if (tz < MINZ)
+	if (tz < FixedMul(MINZ, this_scale))
 		return;
 
 	gxt = -FixedMul(tr_x, viewsin);
@@ -2063,14 +2074,14 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	lump = sprframe->lumpid[0];     //Fab: see note above
 
 	// calculate edges of the shape
-	tx -= spritecachedinfo[lump].offset;
+	tx -= FixedMul(spritecachedinfo[lump].offset, this_scale);
 	x1 = (centerxfrac + FixedMul (tx,xscale)) >>FRACBITS;
 
 	// off the right side?
 	if (x1 > viewwidth)
 		return;
 
-	tx += spritecachedinfo[lump].width;
+	tx += FixedMul(spritecachedinfo[lump].width, this_scale);
 	x2 = ((centerxfrac + FixedMul (tx,xscale)) >>FRACBITS) - 1;
 
 	// off the left side
@@ -2088,18 +2099,20 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	}
 
 	//SoM: 3/17/2000: Disregard sprites that are out of view..
-	gzt = interp.z + spritecachedinfo[lump].topoffset;
-	gz = gzt - spritecachedinfo[lump].height;
+	gzt = interp.z + FixedMul(spritecachedinfo[lump].topoffset, this_scale);
+	gz = gzt - FixedMul(spritecachedinfo[lump].height, this_scale);
 
 	if (thing->subsector->sector->cullheight)
 	{
 		if (R_DoCulling(thing->subsector->sector->cullheight, viewsector->cullheight, viewz, gz, gzt))
-			goto weatherthink;
+			return;
 	}
 
 	// store information in a vissprite
 	vis = R_NewVisSprite();
-	vis->scale = vis->sortscale = yscale; //<<detailshift;
+	vis->scale = FixedMul(yscale, this_scale);
+	vis->sortscale = yscale; //<<detailshift;
+	vis->thingscale = interp.scale;
 	vis->dispoffset = 0; // Monster Iestyn: 23/11/15
 	vis->gx = interp.x;
 	vis->gy = interp.y;
@@ -2134,9 +2147,7 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	iscale = FixedDiv(FRACUNIT, xscale);
 
 	vis->startfrac = 0;
-	vis->xiscale = iscale;
-
-	vis->thingscale = interp.scale;
+	vis->xiscale = FixedDiv(iscale, this_scale);
 
 	if (vis->x1 > x1)
 		vis->startfrac += vis->xiscale*(vis->x1-x1);
@@ -2160,18 +2171,6 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->colormap = colormaps;
 	vis->precip = true;
 	vis->vflip = false;
-	
-weatherthink:
-	// okay... this is a hack, but weather isn't networked, so it should be ok
-	if (!(thing->precipflags & PCF_THUNK))
-	{
-		if (thing->precipflags & PCF_RAIN)
-			P_RainThinker(thing);
-		else
-			P_SnowThinker(thing);
-		thing->precipflags |= PCF_THUNK;
-	}
-
 }
 
 // R_AddSprites
@@ -2181,17 +2180,13 @@ void R_AddSprites(sector_t *sec, INT32 lightlevel)
 {
 	mobj_t *thing;
 	INT32 lightnum;
-	fixed_t approx_dist, limit_dist;
-
-	INT32 splitflags;			// check if a mobj has spliscreen flags
-	boolean split_drawsprite;	// used for splitscreen flags
 
 	if (rendermode != render_soft)
 		return;
 
 	// BSP is traversed by subsector.
 	// A sector might have been split into several
-	//  subsectors during BSP building.
+	// subsectors during BSP building.
 	// Thus we check whether its already added.
 	if (sec->validcount == validcount)
 		return;
@@ -2215,88 +2210,16 @@ void R_AddSprites(sector_t *sec, INT32 lightlevel)
 
 	// Handle all things in sector.
 	// If a limit exists, handle things a tiny bit different.
-	if ((limit_dist = (fixed_t)(cv_drawdist.value) * mapobjectscale))
+	const fixed_t limit_dist = (fixed_t)(cv_drawdist.value) * mapobjectscale;
+	for (thing = sec->thinglist; thing; thing = thing->snext)
 	{
-		for (thing = sec->thinglist; thing; thing = thing->snext)
-		{
-			split_drawsprite = false;
+		if (!R_ThingWithinDist(thing, limit_dist))
+			continue;
 
-			if (thing->sprite == SPR_NULL || thing->flags2 & MF2_DONTDRAW)
-				continue;
+		if (!R_ThingVisible(thing))
+			continue;
 
-			splitflags = thing->eflags & (MFE_DRAWONLYFORP1|MFE_DRAWONLYFORP2|MFE_DRAWONLYFORP3|MFE_DRAWONLYFORP4);
-
-			if (splitscreen && splitflags)
-			{
-				if (thing->eflags & MFE_DRAWONLYFORP1)
-					if (viewssnum == 0)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP2)
-					if (viewssnum == 1)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP3 && splitscreen > 1)
-					if (viewssnum == 2)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP4 && splitscreen > 2)
-					if (viewssnum == 3)
-						split_drawsprite = true;
-			}
-			else
-				split_drawsprite = true;
-
-			if (!split_drawsprite)
-				continue;
-
-			approx_dist = P_AproxDistance(viewx-thing->x, viewy-thing->y);
-
-			if (approx_dist > limit_dist)
-				continue;
-
-			R_ProjectSprite(thing);
-		}
-	}
-	else
-	{
-		// Draw everything in sector, no checks
-		for (thing = sec->thinglist; thing; thing = thing->snext)
-		{
-
-			split_drawsprite = false;
-
-			if (thing->sprite == SPR_NULL || thing->flags2 & MF2_DONTDRAW)
-				continue;
-
-			splitflags = thing->eflags & (MFE_DRAWONLYFORP1|MFE_DRAWONLYFORP2|MFE_DRAWONLYFORP3|MFE_DRAWONLYFORP4);
-
-			if (splitscreen && splitflags)
-			{
-				if (thing->eflags & MFE_DRAWONLYFORP1)
-					if (viewssnum == 0)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP2)
-					if (viewssnum == 1)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP3 && splitscreen > 1)
-					if (viewssnum == 2)
-						split_drawsprite = true;
-
-				if (thing->eflags & MFE_DRAWONLYFORP4 && splitscreen > 2)
-					if (viewssnum == 3)
-						split_drawsprite = true;
-			}
-			else
-				split_drawsprite = true;
-
-			if (!split_drawsprite)
-				continue;
-
-			R_ProjectSprite(thing);
-		}
+		R_ProjectSprite(thing);
 	}
 }
 
@@ -2307,13 +2230,13 @@ void R_AddSprites(sector_t *sec, INT32 lightlevel)
 //
 void R_AddPrecipitationSprites(void)
 {
-	const fixed_t drawdist = (fixed_t)(cv_drawdist_precip.value) * mapobjectscale;
+	fixed_t drawdist = (fixed_t)(cv_drawdist_precip.value) * (cv_mobjscaleprecip.value ? mapobjectscale : FRACUNIT);
 
 	INT32 xl, xh, yl, yh, bx, by;
 	precipmobj_t *th, *next;
 
 	// no, no infinite draw distance for precipitation. this option at zero is supposed to turn it off
-	if (drawdist == 0)
+	if (drawdist == 0 || curWeather == PRECIP_BLANK || curWeather == PRECIP_STORM_NORAIN)
 	{
 		return;
 	}
@@ -3100,6 +3023,41 @@ void R_ClipSprites(void)
 	}
 }
 
+/* Check if thing may be drawn from our current view. */
+boolean R_ThingVisible (mobj_t *thing)
+{
+	if (thing->sprite == SPR_NULL || thing->flags2 & MF2_DONTDRAW)
+		return false;
+
+	if (viewmobj && (thing == viewmobj))
+		return false;
+
+	if (splitscreen)
+	{
+		if ((viewssnum == 0 && (thing->renderflags & MFE_DRAWONLYFORP1))
+			|| (viewssnum == 1 && (thing->renderflags & MFE_DRAWONLYFORP2))
+			|| (viewssnum == 2 && (thing->renderflags & MFE_DRAWONLYFORP2))
+			|| (viewssnum == 3 && (thing->renderflags & MFE_DRAWONLYFORP4)))
+			return true;
+	}
+
+	return true;
+}
+
+boolean R_ThingWithinDist (mobj_t *thing, fixed_t limit_dist)
+{
+	if (limit_dist)
+	{
+		const fixed_t dist = P_AproxDistance(viewx-thing->x, viewy-thing->y);
+		if (dist > limit_dist)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 //
 // R_DrawMasked
 //
@@ -3492,21 +3450,6 @@ void SetPlayerSkinByNum(INT32 playernum, INT32 skinnum)
 		// SRB2kart
 		player->kartspeed = skin->kartspeed;
 		player->kartweight = skin->kartweight;
-
-		/*if (!(cv_debug || devparm) && !(netgame || multiplayer || demo.playback || modeattacking))
-		{
-			if (playernum == consoleplayer)
-				CV_StealthSetValue(&cv_playercolor, skin->prefcolor);
-			else if (playernum == displayplayers[1])
-				CV_StealthSetValue(&cv_playercolor2, skin->prefcolor);
-			else if (playernum == displayplayers[2])
-				CV_StealthSetValue(&cv_playercolor3, skin->prefcolor);
-			else if (playernum == displayplayers[3])
-				CV_StealthSetValue(&cv_playercolor4, skin->prefcolor);
-			player->skincolor = skin->prefcolor;
-			if (player->mo)
-				player->mo->color = player->skincolor;
-		}*/
 
 		if (player->mo)
 			P_SetScale(player->mo, player->mo->scale);

@@ -518,6 +518,7 @@ extern consvar_t cv_minihead;
 extern consvar_t cv_showlapemblem; 
 
 extern consvar_t cv_showviewpointtext;
+extern consvar_t cv_showdownloadprompt;
 extern consvar_t cv_luaimmersion;
 extern consvar_t cv_fakelocalskin;
 extern consvar_t cv_showlocalskinmenus;
@@ -562,7 +563,7 @@ extern consvar_t cv_ps_thinkframe_page;
 extern consvar_t cv_ps_samplesize;
 extern consvar_t cv_ps_descriptor;
 
-extern consvar_t cv_director, cv_kartdebugdirector;
+extern consvar_t cv_director, cv_kartdebugdirector, cv_showdirectorhud;
 
 extern consvar_t cv_showtrackaddon;
 

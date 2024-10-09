@@ -68,8 +68,6 @@ void Command_Numthinkers_f(void)
 		CONS_Printf(M_GetText("numthinkers <#>: Count number of thinkers\n"));
 		CONS_Printf(
 			"\t1: P_MobjThinker\n"
-			/*"\t2: P_RainThinker\n"
-			"\t3: P_SnowThinker\n"*/
 			"\t2: P_NullPrecipThinker\n"
 			"\t3: T_Friction\n"
 			"\t4: T_Pusher\n"
@@ -85,14 +83,6 @@ void Command_Numthinkers_f(void)
 			action = (actionf_p1)P_MobjThinker;
 			CONS_Printf(M_GetText("Number of %s: "), "P_MobjThinker");
 			break;
-		/*case 2:
-			action = (actionf_p1)P_RainThinker;
-			CONS_Printf(M_GetText("Number of %s: "), "P_RainThinker");
-			break;
-		case 3:
-			action = (actionf_p1)P_SnowThinker;
-			CONS_Printf(M_GetText("Number of %s: "), "P_SnowThinker");
-			break;*/
 		case 2:
 			action = (actionf_p1)P_NullPrecipThinker;
 			CONS_Printf(M_GetText("Number of %s: "), "P_NullPrecipThinker");
@@ -226,23 +216,41 @@ static thinker_t *currentthinker;
 // remove it, and set currentthinker to one node preceeding it, so
 // that the next step in P_RunThinkers() will get its successor.
 //
-void P_RemoveThinkerDelayed(void *pthinker)
+void P_RemoveThinkerDelayed(thinker_t *thinker)
 {
-	thinker_t *thinker = pthinker;
-	if (!thinker->references)
-	{
-		{
-			/* Remove from main thinker list */
-			thinker_t *next = thinker->next;
-			/* Note that currentthinker is guaranteed to point to us,
-			 * and since we're freeing our memory, we had better change that. So
-			 * point it to thinker->prev, so the iterator will correctly move on to
-			 * thinker->prev->next = thinker->next */
-			(next->prev = currentthinker = thinker->prev)->next = next;
-		}
-		R_DestroyLevelInterpolators(thinker);
-		Z_Free(thinker);
-	}
+#ifdef PARANOIA
+	if (thinker->next)
+		thinker->next = NULL;
+	else if (thinker->references) // Usually gets cleared up in one frame; what's going on here, then?
+		CONS_Printf("Number of potentially faulty references: %d\n", thinker->references);
+#endif
+	if (thinker->references)
+		return;
+
+	/* Remove from main thinker list */
+	thinker_t *next = thinker->next;
+	/* Note that currentthinker is guaranteed to point to us,
+	* and since we're freeing our memory, we had better change that. So
+	* point it to thinker->prev, so the iterator will correctly move on to
+	* thinker->prev->next = thinker->next */
+	(next->prev = currentthinker = thinker->prev)->next = next;
+	R_DestroyLevelInterpolators(thinker);
+	Z_Free(thinker);
+}
+
+//
+// P_UnlinkThinker()
+//
+// Actually removes thinker from the list and frees its memory.
+//
+void P_UnlinkThinker(thinker_t *thinker)
+{
+	thinker_t *next = thinker->next;
+
+	I_Assert(thinker->references == 0);
+
+	(next->prev = thinker->prev)->next = next;
+	Z_Free(thinker);
 }
 
 //
@@ -260,7 +268,7 @@ void P_RemoveThinkerDelayed(void *pthinker)
 void P_RemoveThinker(thinker_t *thinker)
 {
 	LUA_InvalidateUserdata(thinker);
-	thinker->function.acp1 = P_RemoveThinkerDelayed;
+	thinker->function.acp1 = (actionf_p1)P_RemoveThinkerDelayed;
 }
 
 /*
@@ -279,7 +287,7 @@ mobj_t *P_SetTarget(mobj_t **mop, mobj_t *targ)
 {
 	if (*mop)              // If there was a target already, decrease its refcount
 		(*mop)->thinker.references--;
-if ((*mop = targ) != NULL) // Set new target and if non-NULL, increase its counter
+	if ((*mop = targ) != NULL) // Set new target and if non-NULL, increase its counter
 		targ->thinker.references++;
 	return targ;
 }
@@ -310,8 +318,12 @@ static inline void P_RunThinkers(void)
 {
 	for (currentthinker = thinkercap.next; currentthinker != &thinkercap; currentthinker = currentthinker->next)
 	{
-		if (currentthinker->function.acp1)
-			currentthinker->function.acp1(currentthinker);
+		if (currentthinker->function.acp1 == (actionf_p1)P_NullPrecipThinker)
+			continue;
+#ifdef PARANOIA
+		I_Assert(currentthinker->function.acp1 != NULL)
+#endif
+		currentthinker->function.acp1(currentthinker);
 	}
 }
 
@@ -356,7 +368,7 @@ static inline void P_DeviceRumbleTick(void)
 		{
 			low = high = 65536 / 8;
 		}
-		else if ((player->kartstuff[k_offroad])
+		else if ((player->kartstuff[k_offroad] && !player->kartstuff[k_hyudorotimer])
 			&& P_IsObjectOnGround(player->mo) && player->speed != 0)
 		{
 			low = high = 65536 / 64;
@@ -383,6 +395,36 @@ void P_RunChaseCameras(void)
 		if (camera[i].chase)
 			P_MoveChaseCamera(&players[displayplayers[i]], &camera[i], false);
 	}
+}
+
+static inline void P_RunQuakes(void)
+{
+	fixed_t ir;
+
+	if (quake.time <= 0)
+	{
+		quake.x = quake.y = quake.z = quake.roll = 0;
+		return;
+	}
+
+	ir = quake.intensity>>1;
+
+	/// \todo Calculate distance from epicenter if set and modulate the intensity accordingly based on radius.
+	quake.x = M_RandomRange(-ir,ir);
+	quake.y = M_RandomRange(-ir,ir);
+	quake.z = M_RandomRange(-ir,ir);
+
+	ir >>= 2;
+	ir = M_RandomRange(-ir,ir);
+
+	if (ir < 0)
+		ir = ANGLE_MAX - FixedAngle(-ir);
+	else
+		ir = FixedAngle(ir);
+
+	quake.roll = ir;
+
+	--quake.time;
 }
 
 //
@@ -417,6 +459,8 @@ void P_Ticker(boolean run)
 		if (demo.rewinding && leveltime > 0)
 		{
 			leveltime = (leveltime-1) & ~3;
+			if (timeinmap > 0)
+				timeinmap = (timeinmap-1) & ~3;
 			G_PreviewRewind(leveltime);
 		}
 		else if (demo.freecam && democam.cam)	// special case: allow freecam to MOVE during pause!
@@ -493,8 +537,7 @@ void P_Ticker(boolean run)
 	if (run)
 	{
 		// Dynamic slopeness
-		if (midgamejoin) // only run here if we joined midgame to fix some desynchs
-			P_RunDynamicSlopes();
+		P_RunDynamicSlopes();
 
 		PS_START_TIMING(ps_thinkertime);
 		P_RunThinkers();
@@ -575,24 +618,7 @@ void P_Ticker(boolean run)
 				K_CalculateBattleWanted();
 		}
 
-		if (quake.time)
-		{
-			fixed_t ir = quake.intensity>>1;
-			/// \todo Calculate distance from epicenter if set and modulate the intensity accordingly based on radius.
-			quake.x = M_RandomRange(-ir,ir);
-			quake.y = M_RandomRange(-ir,ir);
-			quake.z = M_RandomRange(-ir,ir);
-			ir >>= 2;
-			ir = M_RandomRange(-ir,ir);
-			if (ir < 0)
-				ir = ANGLE_MAX - FixedAngle(-ir);
-			else
-				ir = FixedAngle(ir);
-			quake.roll = ir;
-			--quake.time;
-		}
-		else
-			quake.x = quake.y = quake.z = quake.roll = 0;
+		P_RunQuakes();
 
 		if (metalplayback)
 			G_ReadMetalTic(metalplayback);
@@ -645,6 +671,7 @@ void P_Ticker(boolean run)
 	if (run)
 	{
 		R_UpdateLevelInterpolators();
+		R_UpdateViewInterpolation();
 
 		// Hack: ensure newview is assigned every tic.
 		// Ensures view interpolation is T-1 to T in poor network conditions
@@ -655,8 +682,10 @@ void P_Ticker(boolean run)
 			{
 				player_t *player = &players[displayplayers[i]];
 				boolean isSkyVisibleForPlayer = skyVisiblePerPlayer[i];
+
 				if (!player->mo)
 					continue;
+
 				if (isSkyVisibleForPlayer && skyboxmo[0] && cv_skybox.value)
 				{
 					R_SkyboxFrame(player);
@@ -670,8 +699,6 @@ void P_Ticker(boolean run)
 
 	if (demo.playback)
 		G_StoreRewindInfo();
-
-//	Z_CheckMemCleanup();
 }
 
 // Abbreviated ticker for pre-loading, calls thinkers and assorted things
@@ -710,8 +737,7 @@ void P_PreTicker(INT32 frames)
 			}
 
 		// Dynamic slopeness
-		if (midgamejoin)
-			P_RunDynamicSlopes();
+		P_RunDynamicSlopes();
 
 		P_RunThinkers();
 

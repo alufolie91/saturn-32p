@@ -528,7 +528,7 @@ const char *GetPalette(void)
 	return "PLAYPAL";
 }
 
-static void LoadMapPalette(void)
+void V_ReloadPalette(void)
 {
 	LoadPalette(GetPalette());
 }
@@ -540,7 +540,7 @@ static void LoadMapPalette(void)
 void V_SetPalette(INT32 palettenum)
 {
 	if (!pLocalPalette)
-		LoadMapPalette();
+		V_ReloadPalette();
 
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
@@ -575,7 +575,7 @@ static void CV_palette_OnChange(void)
 	if (loaded_config == false)
 		return;
 	// reload palette
-	LoadMapPalette();
+	V_ReloadPalette();
 	V_SetPalette(0);
 }
 
@@ -1610,21 +1610,19 @@ void V_DrawFadeScreen(UINT16 color, UINT8 strength)
     }
 #endif
 
-    {
-        const UINT8 *fadetable =
-			(color > 0xFFF0) // Grab a specific colormap palette?
-			? R_GetTranslationColormap(color | 0xFFFF0000, strength, GTC_CACHE)
-			: ((color & 0xFF00) // Color is not palette index?
-			? ((UINT8 *)colormaps + strength*256) // Do COLORMAP fade.
-			: ((UINT8 *)transtables + ((9-strength)<<FF_TRANSSHIFT) + color*256)); // Else, do TRANSMAP** fade.
-        const UINT8 *deststop = screens[0] + vid.rowbytes * vid.height;
-        UINT8 *buf = screens[0];
+	const UINT8 *fadetable =
+		(color > 0xFFF0) // Grab a specific colormap palette?
+		? R_GetTranslationColormap(color | 0xFFFF0000, strength, GTC_CACHE)
+		: ((color & 0xFF00) // Color is not palette index?
+		? ((UINT8 *)colormaps + strength*256) // Do COLORMAP fade.
+		: ((UINT8 *)transtables + ((9-strength)<<FF_TRANSSHIFT) + color*256)); // Else, do TRANSMAP** fade.
+	const UINT8 *deststop = screens[0] + vid.rowbytes * vid.height;
+	UINT8 *buf = screens[0];
 
-        // heavily simplified -- we don't need to know x or y
-        // position when we're doing a full screen fade
-        for (; buf < deststop; ++buf)
-            *buf = fadetable[*buf];
-    }
+	// heavily simplified -- we don't need to know x or y
+	// position when we're doing a full screen fade
+	for (; buf < deststop; ++buf)
+		*buf = fadetable[*buf];
 }
 
 // Simple translucency with one color, over a set number of lines starting from the top.
@@ -3020,6 +3018,7 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_PINK:
 		case SKINCOLOR_ROSE:
 		case SKINCOLOR_BRICK:
+		case SKINCOLOR_CITRINE:
 		case SKINCOLOR_LEMONADE:
 		case SKINCOLOR_BUBBLEGUM:
 		case SKINCOLOR_LILAC:
@@ -3097,7 +3096,7 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_CROCODILE:
 		case SKINCOLOR_OLIVE:
 		case SKINCOLOR_BANANA:
-		case SKINCOLOR_CITRINE:
+		case SKINCOLOR_LEMON:
 		case SKINCOLOR_MOON:
 			cstart = 0x82; // V_YELLOWMAP
 			break;
@@ -3108,6 +3107,7 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_TEA:
 		case SKINCOLOR_PISTACHIO:
 		case SKINCOLOR_SUNFLOWER:
+		case SKINCOLOR_OLIVINE:
 		case SKINCOLOR_PERIDOT:
 		case SKINCOLOR_APPLE:
 		case SKINCOLOR_SEAFOAM:
@@ -3158,6 +3158,7 @@ char V_GetSkincolorChar(INT32 color)
 		case SKINCOLOR_NAVY:
 		case SKINCOLOR_SAPPHIRE:
 		case SKINCOLOR_TOPAZ:
+		case SKINCOLOR_FROST:
 		case SKINCOLOR_WAVE:
 		case SKINCOLOR_ICY:
 		case SKINCOLOR_EVERGREEN:
@@ -3475,8 +3476,6 @@ void V_Init(void)
 	INT32 i;
 	UINT8 *base = vid.buffer;
 	const INT32 screensize = vid.rowbytes * vid.height;
-
-	LoadMapPalette();
 
 	for (i = 0; i < NUMSCREENS; i++)
 		screens[i] = NULL;

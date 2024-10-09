@@ -90,7 +90,7 @@ consvar_t cv_saltyhopsfx = {"hardcodehopsfx", "On", CV_SAVE, CV_OnOff, NULL, 0, 
 consvar_t cv_saltysquish = {"hardcodehopsquish", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 //Colourized HUD
-consvar_t cv_colorizedhud = {"colorizedhud", "On", CV_SAVE|CV_CALL, CV_OnOff, Saturn_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_colorizedhud = {"colorizedhud", "On", CV_SAVE|CV_CALL, CV_OnOff, SaturnHud_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_colorizeditembox = {"colorizeditembox", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t HudColor_cons_t[MAXSKINCOLORS+1];
@@ -254,11 +254,13 @@ const char *KartColor_Names[MAXSKINCOLORS] =
 	"Sandy",          // SKINCOLOR_SANDY
 	"Banana",         // SKINCOLOR_BANANA
 	"Sunflower",      // SKINCOLOR_SUNFLOWER
+	"Olivine",        // SKINCOLOR_OLIVINE
 	"Peridot",        // SKINCOLOR_PERIDOT
 	"Apple",          // SKINCOLOR_APPLE
 	"Seafoam",        // SKINCOLOR_SEAFOAM
 	"Forest",         // SKINCOLOR_FOREST
 	"Topaz",          // SKINCOLOR_TOPAZ
+	"Frost",          // SKINCOLOR_FROST
 	"Wave",           // SKINCOLOR_WAVE
 	"Icy",            // SKINCOLOR_ICY
 	"Peacock",        // SKINCOLOR_PEACOCK
@@ -293,6 +295,7 @@ const char *KartColor_Names[MAXSKINCOLORS] =
 	"Dune",           // SKINCOLOR_DUNE
 	"Brass",          // SKINCOLOR_BRASS
 	"Citrine",        // SKINCOLOR_CITRINE
+	"Lemon",          // SKINCOLOR_LEMON
 	"Casket",         // SKINCOLOR_CASKET
 	"Khaki",          // SKINCOLOR_KHAKI
 	"Light",          // SKINCOLOR_LIGHT
@@ -460,15 +463,17 @@ const UINT8 KartColor_Opposite[MAXSKINCOLORS*2] =
 	SKINCOLOR_GHOST,8,        // SKINCOLOR_PEACHY
 	SKINCOLOR_WAVE,8,         // SKINCOLOR_QUAIL
 	SKINCOLOR_BLUEBELL,8,     // SKINCOLOR_LANTERN
-	SKINCOLOR_TOPAZ,10,       // SKINCOLOR_APRICOT
+	SKINCOLOR_FROST,10,       // SKINCOLOR_APRICOT
 	SKINCOLOR_PEACOCK,8,      // SKINCOLOR_SANDY
 	SKINCOLOR_ICY,8,          // SKINCOLOR_BANANA
 	SKINCOLOR_MAGENTA,8,      // SKINCOLOR_SUNFLOWER
+	SKINCOLOR_VIOLET,8,       // SKINCOLOR_OLIVINE
 	SKINCOLOR_VIOLET,8,       // SKINCOLOR_PERIDOT
 	SKINCOLOR_GEMSTONE,8,     // SKINCOLOR_APPLE
 	SKINCOLOR_PLUM,10,        // SKINCOLOR_SEAFOAM
 	SKINCOLOR_NEON,8,         // SKINCOLOR_FOREST
 	SKINCOLOR_APRICOT,8,      // SKINCOLOR_TOPAZ
+	SKINCOLOR_APRICOT,8,      // SKINCOLOR_FROST
 	SKINCOLOR_QUAIL,8,        // SKINCOLOR_WAVE
 	SKINCOLOR_BANANA,10,      // SKINCOLOR_ICY
 	SKINCOLOR_SANDY,8,        // SKINCOLOR_PEACOCK
@@ -503,6 +508,7 @@ const UINT8 KartColor_Opposite[MAXSKINCOLORS*2] =
 	SKINCOLOR_PEPPERMINT,9,   // SKINCOLOR_DUNE
 	SKINCOLOR_LUNAR,8,        // SKINCOLOR_BRASS
 	SKINCOLOR_BYZANTIUM,8,    // SKINCOLOR_CITRINE
+	SKINCOLOR_ORCA,8,         // SKINCOLOR_LEMON
 	SKINCOLOR_TURQUOISE,8,    // SKINCOLOR_CASKET
 	SKINCOLOR_SNOW,8,         // SKINCOLOR_KHAKI
 	SKINCOLOR_COTTONCANDY,10, // SKINCOLOR_LIGHT
@@ -537,7 +543,7 @@ const UINT8 KartColor_Opposite[MAXSKINCOLORS*2] =
 	SKINCOLOR_BRASS,10,       // SKINCOLOR_LUNAR
 	SKINCOLOR_MUD,6,          // SKINCOLOR_ONYX
 	SKINCOLOR_HOTDOG,8,       // SKINCOLOR_LAPIS
-	SKINCOLOR_CITRINE,10,     // SKINCOLOR_ORCA
+	SKINCOLOR_LEMON,10,       // SKINCOLOR_ORCA
 	SKINCOLOR_PEARL,8,        // SKINCOLOR_STORM
 	SKINCOLOR_AMBER,6,        // SKINCOLOR_MIDNIGHT
 	SKINCOLOR_LIGHT,10,       // SKINCOLOR_COTTONCANDY
@@ -556,7 +562,7 @@ const UINT8 KartColor_Opposite[MAXSKINCOLORS*2] =
 };
 
 UINT8 colortranslations[MAXTRANSLATIONS][16] = {
-	{  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0}, // SKINCOLOR_NONE
+    {  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0}, // SKINCOLOR_NONE
 	{120, 120, 120, 120,   0,   2,   5,   8,   9,  11,  14,  17,  20,  22,  25,  28}, // SKINCOLOR_WHITE
 	{  0,   1,   2,   3,   5,   7,   9,  12,  13,  15,  18,  20,  23,  25,  27,  30}, // SKINCOLOR_SILVER
 	{  1,   3,   5,   7,   9,  11,  13,  15,  17,  19,  21,  23,  25,  27,  29,  31}, // SKINCOLOR_GREY
@@ -672,11 +678,13 @@ UINT8 colortranslations[MAXTRANSLATIONS][16] = {
 	{112, 113, 114, 115, 116,  54,  56,  57,  58,  59,  60, 254, 254, 255, 255, 244}, // SKINCOLOR_SANDY
 	{ 96,  98,  99, 100, 102, 103, 113, 105, 106, 107, 108, 109, 183, 110,  63, 111}, // SKINCOLOR_BANANA
 	{ 97,  98,  99, 112, 113, 105, 106, 107, 107, 108, 170, 171, 172, 173, 174, 175}, // SKINCOLOR_SUNFLOWER
-	{120,  97,  97, 176, 176, 160, 160, 184, 184, 185, 185, 186, 187, 188, 189, 190}, // SKINCOLOR_PERIDOT
+	{120,  97,  97, 176, 176, 160, 160, 184, 184, 185, 185, 186, 187, 188, 189, 190}, // SKINCOLOR_OLIVINE
+	{176, 176, 177, 105 ,105, 106, 106, 107, 107, 108, 182, 182, 183, 183, 173, 191}, // SKINCOLOR_PERIDOT
 	{ 99, 101, 113, 105, 106, 107, 107, 168, 169, 170, 171, 171, 172, 173, 174, 175}, // SKINCOLOR_APPLE
 	{120,  97, 176, 177, 178, 179, 180, 221, 222, 222, 223, 223, 240, 242, 244,  31}, // SKINCOLOR_SEAFOAM
 	{164, 166, 167, 168, 169, 170, 171, 172, 173, 174, 174, 175, 175,  31,  31,  31}, // SKINCOLOR_FOREST
 	{120, 208, 209, 211, 211, 161, 161, 162, 162, 163, 163, 165, 167, 169, 171, 173}, // SKINCOLOR_TOPAZ
+	{120,   0, 208, 247, 247, 211, 213, 220, 216, 217, 221, 222, 223, 173, 174, 175}, // SKINCOLOR_FROST
 	{120, 208, 210, 213, 215, 216, 217, 218, 219, 205, 198, 198, 199, 199, 207, 243}, // SKINCOLOR_WAVE
 	{120, 120, 120, 120, 208, 210, 213, 214, 215, 216, 229, 229, 204, 205, 206, 207}, // SKINCOLOR_ICY
 	{214, 215, 216, 217, 218, 219, 219, 223, 223, 173, 240, 241, 243, 244, 245, 246}, // SKINCOLOR_PEACOCK
@@ -711,6 +719,7 @@ UINT8 colortranslations[MAXTRANSLATIONS][16] = {
 	{120,  96,  80,  81,  82,  70,  72,  75,  79,  91,  93, 152, 154, 156, 158, 140}, // SKINCOLOR_DUNE
 	{ 96,  98, 112, 113, 114, 115, 116, 117, 118,  58,  59,  60,  61,  62,  63,  28}, // SKINCOLOR_BRASS
 	{120,  97,  97, 176, 176, 176, 105, 105, 105, 106, 106, 107, 107, 108, 108, 182}, // SKINCOLOR_CITRINE
+	{120, 120,  96,  96,  97,  98,  99, 100, 101, 113, 105, 106, 107, 108, 109, 110}, // SKINCOLOR_LEMON
 	{104, 105, 106, 107, 107, 108, 108, 182, 109, 183, 110,  63, 191, 111,  30,  31}, // SKINCOLOR_CASKET
 	{ 65,  68,  70,  73,  32,  34,  36,  38, 108, 108, 182, 109, 183, 110, 174,  31}, // SKINCOLOR_KHAKI
 	{120,  96,  97,  98,  99, 100, 176, 177, 178, 179,  15,  18,  21,  24,  27,  29}, // SKINCOLOR_LIGHT
@@ -4610,8 +4619,7 @@ void K_ExplodePlayer(player_t *player, mobj_t *source, mobj_t *inflictor) // A b
 
 	if (P_IsLocalPlayer(player))
 	{
-		quake.intensity = 64*FRACUNIT;
-		quake.time = 5;
+		P_StartQuake(5, 64<<FRACBITS, 0);
 	}
 
 	player->kartstuff[k_instashield] = 15;
@@ -10020,7 +10028,7 @@ static void K_initKartHUD(void)
 		}
 	}
 
-	if (timeinmap > 113)
+	if (timeinmap > 113 || forceshowhud)
 		hudtrans = cv_translucenthud.value;
 	else if (timeinmap > 105)
 		hudtrans = ((((INT32)timeinmap) - 105)*cv_translucenthud.value)/(113-105);
@@ -10703,39 +10711,36 @@ void K_drawKartTimestamp(tic_t drawtime, INT32 TX, INT32 TY, INT16 emblemmap, UI
 	{
 		tic_t worktime = drawtime/(60*TICRATE);
 
-		if (worktime >= 100)
-		{
-			worktime = 99;
-			drawtime = (100*(60*TICRATE))-1;
-		}
-
-		if ((cv_timelimit.value && G_BattleGametype()) && (!players[consoleplayer].exiting && (leveltime > (timelimitintics + starttime + TICRATE/2)) && cv_overtime.value)) // i hate this so much
+		if ((G_BattleGametype() && cv_timelimit.value) && (!players[consoleplayer].exiting && (leveltime > (timelimitintics + starttime + TICRATE/2)) && cv_overtime.value)) // i hate this so much
 		{
 			V_DrawKartString(TX, TY+3, splitflags, va("OVERTIME"));
-			return;
 		}
+		else if (worktime < 100)
+		{
+			// minutes time      00 __ __
+			V_DrawKartString(TX,    TY+3, splitflags, va("%d", worktime/10));
+			V_DrawKartString(TX+12, TY+3, splitflags, va("%d", worktime%10));
 
-		// minutes time      00 __ __
-		V_DrawKartString(TX,    TY+3, splitflags, va("%d", worktime/10));
-		V_DrawKartString(TX+12, TY+3, splitflags, va("%d", worktime%10));
+			// apostrophe location     _'__ __
+			V_DrawKartString(TX+24, TY+3, splitflags, va("'"));
 
-		// apostrophe location     _'__ __
-		V_DrawKartString(TX+24, TY+3, splitflags, va("'"));
+			worktime = (drawtime/TICRATE % 60);
 
-		worktime = (drawtime/TICRATE % 60);
+			// seconds time       _ 00 __
+			V_DrawKartString(TX+36, TY+3, splitflags, va("%d", worktime/10));
+			V_DrawKartString(TX+48, TY+3, splitflags, va("%d", worktime%10));
 
-		// seconds time       _ 00 __
-		V_DrawKartString(TX+36, TY+3, splitflags, va("%d", worktime/10));
-		V_DrawKartString(TX+48, TY+3, splitflags, va("%d", worktime%10));
+			// quotation mark location    _ __"__
+			V_DrawKartString(TX+60, TY+3, splitflags, va("\""));
 
-		// quotation mark location    _ __"__
-		V_DrawKartString(TX+60, TY+3, splitflags, va("\""));
+			worktime = G_TicsToCentiseconds(drawtime);
 
-		worktime = G_TicsToCentiseconds(drawtime);
-
-		// tics               _ __ 00
-		V_DrawKartString(TX+72, TY+3, splitflags, va("%d", worktime/10));
-		V_DrawKartString(TX+84, TY+3, splitflags, va("%d", worktime%10));
+			// tics               _ __ 00
+			V_DrawKartString(TX+72, TY+3, splitflags, va("%d", worktime/10));
+			V_DrawKartString(TX+84, TY+3, splitflags, va("%d", worktime%10));
+		}
+		else if ((drawtime/TICRATE) & 1)
+			V_DrawKartString(TX, TY+3, splitflags, va("99'59\"99"));
 	}
 
 	if (emblemmap && (modeattacking || (mode == 1)) && !demo.playback) // emblem time!
@@ -11238,6 +11243,7 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 
 			if (tab[i].num == whiteplayer)
 				V_DrawScaledPatch(x, y-4, 0, kp_facehighlight[(leveltime / 4) % 8]);
+
 			if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] <= 0)
 				V_DrawScaledPatch(x-4, y-7, 0, kp_ranknobumpers);
 			else
@@ -11344,7 +11350,7 @@ static void K_drawKartLaps(void)
 			else
 				V_DrawMappedPatch(fx, fy, V_HUDTRANS|splitflags, kp_lapstickerclr, colormap);
 		}
-		
+
 		if (stplyr->exiting)
 			V_DrawKartString(fx+33, fy+3, V_HUDTRANS|splitflags, "FIN");
 		else
@@ -11359,7 +11365,7 @@ static void K_drawKartSpeedometer(void)
 		return;
 
 	fixed_t convSpeed = 0;
-	
+
 	//KartZ speedo
 	fixed_t fuspeed = 0;
 	INT32 spdpatch = 0;
@@ -11496,6 +11502,14 @@ static void K_drawKartBumpersOrKarma(void)
 	fx = info.x;
 	fy = info.y;
 	fflags = info.flags;
+
+	if (cv_battlespeedo.value && !splitscreen)
+	{
+		if ((cv_newspeedometer.value == 2 && xtra_speedo) || (cv_newspeedometer.value == 3 && achi_speedo) || (cv_newspeedometer.value == 5 && xtra_speedo3))
+			fy += 5;
+		else
+			fy += 7;
+	}
 
 	if (splitscreen > 1)
 	{
@@ -11951,8 +11965,19 @@ static void K_drawDriftGauge(void)
 		0, 31, 47, 63, 79, 95, 111, 119, 127, 143, 159, 175, 183, 191, 199, 207, 223, 247
 	};
 
-	if (!stplyr->mo || !stplyr->kartstuff[k_drift] || (!splitscreen && !camera->chase))
+	if (demo.playback && demo.freecam)
 		return;
+
+	if (!stplyr->mo || (!splitscreen && !camera->chase))
+		return;
+
+	if (forceshowhud)
+		goto skipcrap; // i will skip the drift early return and you cant stop me!
+
+	if (!stplyr->kartstuff[k_drift])
+		return;
+
+skipcrap:
 
 	if (!K_GetScreenCoords(&pos, stplyr, stplyr->mo, FixedMul(cv_driftgaugeofs.value, cv_driftgaugeofs.value > 0 ? stplyr->mo->scale : mapobjectscale), false))
 		return;
@@ -12192,7 +12217,7 @@ static void K_drawKartPlayerCheck(void)
 	}
 }
 
-static void K_drawKartMinimapHead(mobj_t *mo, INT32 x, INT32 y, INT32 flags, patch_t *AutomapPic)
+static void K_drawKartMinimapHead(mobj_t *mo, INT32 x, INT32 y, INT32 flags)
 {
 	// amnum xpos & ypos are the icon's speed around the HUD.
 	// The number being divided by is for how fast it moves.
@@ -12207,60 +12232,17 @@ static void K_drawKartMinimapHead(mobj_t *mo, INT32 x, INT32 y, INT32 flags, pat
 	fixed_t amnumxpos, amnumypos;
 	INT32 amxpos, amypos;
 
-	node_t *bsp = &nodes[numnodes-1];
-	fixed_t maxx, minx, maxy, miny;
-
-	fixed_t mapwidth, mapheight;
-	fixed_t xoffset, yoffset;
-	fixed_t xscale, yscale, zoom;
-
 	if (mo->skin)
-		skin = ((skin_t*)((mo->localskin) ? mo->localskin : mo->skin))-((skinlocal) ? localskins : skins);
+		skin = ((skin_t*)(mo->localskin ? mo->localskin : mo->skin))-(skinlocal ? localskins : skins);
 
-	maxx = maxy = INT32_MAX;
-	minx = miny = INT32_MIN;
-	minx = bsp->bbox[0][BOXLEFT];
-	maxx = bsp->bbox[0][BOXRIGHT];
-	miny = bsp->bbox[0][BOXBOTTOM];
-	maxy = bsp->bbox[0][BOXTOP];
-
-	if (bsp->bbox[1][BOXLEFT] < minx)
-		minx = bsp->bbox[1][BOXLEFT];
-	if (bsp->bbox[1][BOXRIGHT] > maxx)
-		maxx = bsp->bbox[1][BOXRIGHT];
-	if (bsp->bbox[1][BOXBOTTOM] < miny)
-		miny = bsp->bbox[1][BOXBOTTOM];
-	if (bsp->bbox[1][BOXTOP] > maxy)
-		maxy = bsp->bbox[1][BOXTOP];
-
-	// You might be wondering why these are being bitshift here
-	// it's because mapwidth and height would otherwise overflow for maps larger than half the size possible...
-	// map boundaries and sizes will ALWAYS be whole numbers thankfully
-	// later calculations take into consideration that these are actually not in terms of FRACUNIT though
-	minx >>= FRACBITS;
-	maxx >>= FRACBITS;
-	miny >>= FRACBITS;
-	maxy >>= FRACBITS;
-
-	mapwidth = maxx - minx;
-	mapheight = maxy - miny;
-
-	// These should always be small enough to be bitshift back right now
-	xoffset = (minx + mapwidth/2)<<FRACBITS;
-	yoffset = (miny + mapheight/2)<<FRACBITS;
-
-	xscale = FixedDiv(AutomapPic->width, mapwidth);
-	yscale = FixedDiv(AutomapPic->height, mapheight);
-	zoom = FixedMul(min(xscale, yscale), FRACUNIT-FRACUNIT/20);
-
-	amnumxpos = (FixedMul(lerp(mo->old_x, mo->x), zoom) - FixedMul(xoffset, zoom));
-	amnumypos = -(FixedMul(lerp(mo->old_y, mo->y), zoom) - FixedMul(yoffset, zoom));
+	amnumxpos = (FixedMul(lerp(mo->old_x, mo->x), minimapinfo.zoom) - minimapinfo.offs_x);
+	amnumypos = -(FixedMul(lerp(mo->old_y, mo->y), minimapinfo.zoom) - minimapinfo.offs_y);
 
 	if (encoremode)
 		amnumxpos = -amnumxpos;
 
-	amxpos = amnumxpos + ((x + AutomapPic->width/2 - (((skinlocal) ? localfacemmapprefix : facemmapprefix)[skin]->width/2))<<FRACBITS);
-	amypos = amnumypos + ((y + AutomapPic->height/2 - (((skinlocal) ? localfacemmapprefix : facemmapprefix)[skin]->height/2))<<FRACBITS);
+	amxpos = amnumxpos + ((x + (SHORT(minimapinfo.minimap_pic->width)-SHORT((skinlocal ? localfacemmapprefix : facemmapprefix)[skin]->width))/2)<<FRACBITS);
+	amypos = amnumypos + ((y + (SHORT(minimapinfo.minimap_pic->height)-SHORT((skinlocal ? localfacemmapprefix : facemmapprefix)[skin]->height))/2)<<FRACBITS);
 
 	if (!mo->color) // 'default' color
 		V_DrawSciencePatch(amxpos, amypos, flags, ( (skinlocal) ? localfacemmapprefix : facemmapprefix )[skin], FRACUNIT);
@@ -12298,8 +12280,6 @@ static void K_drawKartMinimapHead(mobj_t *mo, INT32 x, INT32 y, INT32 flags, pat
 
 static void K_drawKartMinimap(void)
 {
-	INT32 lumpnum;
-	patch_t *AutomapPic;
 	INT32 i = 0;
 	INT32 x, y;
 	INT32 minimaptrans, splitflags;
@@ -12314,21 +12294,21 @@ static void K_drawKartMinimap(void)
 	if (stplyr != &players[displayplayers[0]])
 		return;
 
-	lumpnum = W_CheckNumForName(va("%sR", G_BuildMapName(gamemap)));
-
-	if (lumpnum != -1)
-		AutomapPic = W_CachePatchName(va("%sR", G_BuildMapName(gamemap)), PU_HUDGFX);
-	else
+	if (minimapinfo.minimap_pic == NULL)
+	{
 		return; // no pic, just get outta here
+	}
 
 	drawinfo_t info;
 	K_getMinimapDrawinfo(&info);
-	x = info.x - (AutomapPic->width/2);
-	y = info.y - (AutomapPic->height/2);
+	x = info.x - (SHORT(minimapinfo.minimap_pic->width)/2);
+	y = info.y - (SHORT(minimapinfo.minimap_pic->height)/2);
 	splitflags = info.flags;
 
 
-	if (timeinmap > 105)
+	if (forceshowhud)
+		minimaptrans = cv_kartminimap.value;
+	else if (timeinmap > 105)
 	{
 		minimaptrans = cv_kartminimap.value;
 		if (timeinmap <= 113)
@@ -12343,9 +12323,9 @@ static void K_drawKartMinimap(void)
 	splitflags |= minimaptrans;
 
 	if (encoremode)
-		V_DrawScaledPatch(x+(AutomapPic->width), y, splitflags|V_FLIP, AutomapPic);
+		V_DrawScaledPatch(x+SHORT(minimapinfo.minimap_pic->width), y, splitflags|V_FLIP, minimapinfo.minimap_pic);
 	else
-		V_DrawScaledPatch(x, y, splitflags, AutomapPic);
+		V_DrawScaledPatch(x, y, splitflags, minimapinfo.minimap_pic);
 
 	if (!(splitscreen == 2))
 	{
@@ -12355,10 +12335,10 @@ static void K_drawKartMinimap(void)
 
 	// let offsets transfer to the heads, too!
 	if (encoremode)
-		x += SHORT(AutomapPic->leftoffset);
+		x += SHORT(minimapinfo.minimap_pic->leftoffset);
 	else
-		x -= SHORT(AutomapPic->leftoffset);
-	y -= SHORT(AutomapPic->topoffset);
+		x -= SHORT(minimapinfo.minimap_pic->leftoffset);
+	y -= SHORT(minimapinfo.minimap_pic->topoffset);
 
 	// initialize
 	for (i = 0; i < 4; i++)
@@ -12370,7 +12350,7 @@ static void K_drawKartMinimap(void)
 		demoghost *g = ghosts;
 		while (g)
 		{
-			K_drawKartMinimapHead(g->mo, x, y, splitflags, AutomapPic);
+			K_drawKartMinimapHead(g->mo, x, y, splitflags);
 			g = g->next;
 		}
 
@@ -12411,7 +12391,7 @@ static void K_drawKartMinimap(void)
 				continue;
 			}
 
-			K_drawKartMinimapHead(players[i].mo, x, y, splitflags, AutomapPic);
+			K_drawKartMinimapHead(players[i].mo, x, y, splitflags);
 		}
 	}
 
@@ -12423,7 +12403,7 @@ static void K_drawKartMinimap(void)
 	{
 		if (i == -1)
 			continue; // this doesn't interest us
-		K_drawKartMinimapHead(players[localplayers[i]].mo, x, y, splitflags, AutomapPic);
+		K_drawKartMinimapHead(players[localplayers[i]].mo, x, y, splitflags);
 	}
 }
 
@@ -13173,7 +13153,7 @@ void K_drawKartHUD(void)
 			&& stplyr->kartstuff[k_lapanimation]
 			&& !stplyr->exiting
 			&& stplyr->laptime[LAP_LAST] != 0
-			&& !midgamejoin)
+			&& stplyr->laptime[LAP_LAST] != UINT32_MAX)
 		{
 			if ((stplyr->kartstuff[k_lapanimation] / 5) & 1)
 			{
@@ -13214,6 +13194,7 @@ void K_drawKartHUD(void)
 		if (demo.title) // Draw title logo instead in demo.titles
 		{
 			INT32 x = (BASEVIDWIDTH - 32)*FRACUNIT, y = 128*FRACUNIT, offs;
+			INT32 logoflags = V_SNAPTORIGHT|V_SNAPTOBOTTOM;
 
 			if (splitscreen == 3)
 			{
@@ -13232,8 +13213,8 @@ void K_drawKartHUD(void)
 				x += offs - frac;
 			}
 
-			V_DrawSciencePatch(x - (54*FRACUNIT), y, 0, W_CachePatchName("TTKBANNR", PU_CACHE), FRACUNIT/4);
-			V_DrawSciencePatch(x - (54*FRACUNIT), y + (25*FRACUNIT), 0, W_CachePatchName("TTKART", PU_CACHE), FRACUNIT/4);
+			V_DrawSciencePatch(x - (54*FRACUNIT), y, logoflags, W_CachePatchName("TTKBANNR", PU_CACHE), FRACUNIT/4);
+			V_DrawSciencePatch(x - (54*FRACUNIT), y + (25*FRACUNIT), logoflags, W_CachePatchName("TTKART", PU_CACHE), FRACUNIT/4);
 		}
 		else if (G_RaceGametype()) // Race-only elements
 		{

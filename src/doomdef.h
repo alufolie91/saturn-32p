@@ -337,11 +337,13 @@ typedef enum
 	SKINCOLOR_SANDY,
 	SKINCOLOR_BANANA,
 	SKINCOLOR_SUNFLOWER,
+	SKINCOLOR_OLIVINE,
 	SKINCOLOR_PERIDOT,
 	SKINCOLOR_APPLE,
 	SKINCOLOR_SEAFOAM,
 	SKINCOLOR_FOREST,
 	SKINCOLOR_TOPAZ,
+	SKINCOLOR_FROST,
 	SKINCOLOR_WAVE,
 	SKINCOLOR_ICY,
 	SKINCOLOR_PEACOCK,
@@ -376,6 +378,7 @@ typedef enum
 	SKINCOLOR_DUNE,
 	SKINCOLOR_BRASS,
 	SKINCOLOR_CITRINE,
+	SKINCOLOR_LEMON,
 	SKINCOLOR_CASKET,
 	SKINCOLOR_KHAKI,
 	SKINCOLOR_LIGHT,
@@ -580,7 +583,12 @@ void M_StartupLocale(void);
 // M_GetText function that just returns the string.
 #define M_GetText(x) (x)
 #endif
-void *M_Memcpy(void* dest, const void* src, size_t n);
+
+FUNCINLINE static ATTRINLINE void *M_Memcpy(void *dest, const void *src, size_t n)
+{
+	return memcpy(dest, src, n);
+}
+
 char *va(const char *format, ...) FUNCPRINTF;
 char *M_GetToken(const char *inputString);
 char *sizeu1(size_t num);

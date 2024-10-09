@@ -865,6 +865,8 @@ consvar_t cv_showlapemblem = {"showlapemblem", "On", CV_SAVE, CV_OnOff, NULL, 0,
 
 consvar_t cv_showviewpointtext = {"showviewpointtext", "On", CV_SAVE, CV_OnOff, 0, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_showdownloadprompt = {"showdownloadprompt", "On", CV_SAVE, CV_OnOff, 0, 0, NULL, NULL, 0, 0, NULL};
+
 // Intermission time Tails 04-19-2002
 static CV_PossibleValue_t inttime_cons_t[] = {{0, "MIN"}, {3600, "MAX"}, {0, NULL}};
 consvar_t cv_inttime = {"inttime", "20", CV_NETVAR, inttime_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -948,6 +950,7 @@ consvar_t cv_ps_descriptor = {"ps_descriptor", "Average", 0, ps_descriptor_cons_
 
 consvar_t cv_director = {"director", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_kartdebugdirector = {"debugdirector", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_showdirectorhud = {"showdirectorhud", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_showtrackaddon = {"showtrackaddon", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -965,7 +968,8 @@ static CV_PossibleValue_t skinselectgridsort_t[] ={
 };
 consvar_t cv_skinselectgridsort ={ "skinselectgridsort", "Real name", CV_SAVE|CV_CALL|CV_NOINIT, skinselectgridsort_t, sortSkinGrid, 0, NULL, NULL, 0, 0, NULL };
 
-consvar_t cv_betainterscreen = {"betaintermissionscreen", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t betainterscreen_t[] = {{0, "Off"}, {1, "On"}, {2, "NoBG"}, {0, NULL}};
+consvar_t cv_betainterscreen = {"betaintermissionscreen", "Off", CV_SAVE, betainterscreen_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 INT16 gametype = GT_RACE; // SRB2kart
 boolean forceresetplayers = false;
@@ -1171,7 +1175,7 @@ void D_RegisterServerCommands(void)
 
 	// d_clisrv
 	CV_RegisterVar(&cv_maxplayers);
-	CV_RegisterVar(&cv_allowresynch);
+	CV_RegisterVar(&cv_gamestateattempts);
 	CV_RegisterVar(&cv_resynchcooldown);
 	CV_RegisterVar(&cv_maxsend);
 	CV_RegisterVar(&cv_noticedownload);
@@ -1222,6 +1226,8 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_recordmultiplayerdemos);
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
+	CV_RegisterVar(&cv_demochangemap);
+
 	CV_RegisterVar(&cv_keyboardlayout);
 }
 
@@ -1386,9 +1392,11 @@ void D_RegisterClientCommands(void)
 
 	CV_RegisterVar(&cv_showtrackaddon);
 	CV_RegisterVar(&cv_showviewpointtext);
+	CV_RegisterVar(&cv_showdownloadprompt);
 
 	CV_RegisterVar(&cv_director);
 	CV_RegisterVar(&cv_kartdebugdirector);
+	CV_RegisterVar(&cv_showdirectorhud);
 
 	CV_RegisterVar(&cv_luaimmersion);
 	CV_RegisterVar(&cv_fakelocalskin);
@@ -1653,18 +1661,68 @@ void D_RegisterClientCommands(void)
  */
 static void Skin_FindRealNameSkin(consvar_t *cvar)
 {
-	// Not the best way to implements this but it will do.
+	INT32 matches[MAXSKINS] = {0}; // Skin numbers of matching skins
+	INT32 matches_pos[MAXSKINS] = {0}; // Index of matching substring
+	INT32 nummatches = 0;
 
-	int i;
+	INT32 i;
 	const char *value = cvar->string;
+
 	for (i = 0; i < numskins; i++)
 	{
-		if (strncmp(value, skins[i].realname, sizeof skins[i].realname) == 0)
-		{
-			// Change the cvar to be the value of the name.
-			CV_StealthSet(cvar, skins[i].name);
+		// Perfect match with some skin name, no need to find matching realname
+		if (strncasecmp(value, skins[i].name, sizeof skins[i].name) == 0)
 			return;
+
+		const char *match = strcasestr(skins[i].realname, value);
+		if (match != NULL)
+		{
+			matches[nummatches] = i;
+			matches_pos[nummatches] = match - skins[i].realname;
+			++nummatches;
 		}
+	}
+
+	if (nummatches == 1)
+	{
+		// Change the cvar to be the value of the name.
+		CV_StealthSet(cvar, skins[matches[0]].name);
+	}
+	else if (nummatches > 1)
+	{
+		size_t query_length = strlen(value);
+
+		char start[SKINNAMESIZE+1] = {0}; // Start of name, printed with normal color
+		char match[SKINNAMESIZE+1] = {0}; // Matching part of name, highlighted in red
+		const char *end = NULL; // End of the name, printed with normal color. Can be just a pointer into realname part
+
+		CONS_Printf("\x86Multiple matches found:\n");
+
+		for (i = 0; i < nummatches; ++i)
+		{
+			const char *realname = skins[matches[i]].realname;
+
+			if (matches_pos[i] == 0)
+				start[0] = 0;
+			else
+			{
+				memcpy(start, realname, matches_pos[i]);
+				start[matches_pos[i]] = 0;
+			}
+
+			memcpy(match, realname+matches_pos[i], query_length);
+			match[matches_pos[i] + query_length] = 0;
+
+			end = realname + matches_pos[i] + query_length;
+
+			CONS_Printf("%s\x85%s\x80%s (%s)\n", start, match, end, skins[matches[i]].name);
+		}
+
+		CONS_Printf("\x86Try be more specific\n");
+	}
+	else
+	{
+		CONS_Printf("\x86Skin not found\n");
 	}
 }
 
@@ -2111,8 +2169,9 @@ static void SendNameAndColor(void)
 	cv_skin.value = R_SkinAvailable(cv_skin.string);
 	if (cv_skin.value < 0)
 	{
-		CV_StealthSet(&cv_skin, DEFAULTSKIN);
-		cv_skin.value = 0;
+		INT32 skinnum = players[consoleplayer].skin;
+		CV_StealthSet(&cv_skin, skins[skinnum].name);
+		cv_skin.value = skinnum;
 	}
 
 	// Finally write out the complete packet and send it off.
@@ -2257,8 +2316,9 @@ static void SendNameAndColor2(void)
 	cv_skin2.value = R_SkinAvailable(cv_skin2.string);
 	if (cv_skin2.value < 0)
 	{
-		CV_StealthSet(&cv_skin2, DEFAULTSKIN);
-		cv_skin2.value = 0;
+		INT32 skinnum = players[displayplayers[1]].skin;
+		CV_StealthSet(&cv_skin2, skins[skinnum].name);
+		cv_skin2.value = skinnum;
 	}
 
 	// Finally write out the complete packet and send it off.
@@ -2395,8 +2455,9 @@ static void SendNameAndColor3(void)
 	cv_skin3.value = R_SkinAvailable(cv_skin3.string);
 	if (cv_skin3.value < 0)
 	{
-		CV_StealthSet(&cv_skin3, DEFAULTSKIN);
-		cv_skin3.value = 0;
+		INT32 skinnum = players[displayplayers[2]].skin;
+		CV_StealthSet(&cv_skin3, skins[skinnum].name);
+		cv_skin3.value = skinnum;
 	}
 
 	// Finally write out the complete packet and send it off.
@@ -2540,8 +2601,9 @@ static void SendNameAndColor4(void)
 	cv_skin4.value = R_SkinAvailable(cv_skin4.string);
 	if (cv_skin4.value < 0)
 	{
-		CV_StealthSet(&cv_skin4, DEFAULTSKIN);
-		cv_skin4.value = 0;
+		INT32 skinnum = players[displayplayers[3]].skin;
+		CV_StealthSet(&cv_skin4, skins[skinnum].name);
+		cv_skin4.value = skinnum;
 	}
 
 	// Finally write out the complete packet and send it off.
@@ -3503,6 +3565,10 @@ static void Command_Map_f(void)
 		}
 	}
 
+	// spend atleast 35 seconds in one map
+	if (cv_demochangemap.value && demo.recording && demo.savemode != DSM_NOTSAVING && (timeinmap > 1463) && ((cv_demochangemap.value == 2 && newmapnum == gamemap) || newmapnum != gamemap))
+		G_SaveDemo();
+
 	fromlevelselect = false;
 	D_MapChange(newmapnum, newgametype, newencoremode, newresetplayers, 0, false, false);
 
@@ -3693,6 +3759,8 @@ static void Got_Pause(UINT8 **cp, INT32 playernum)
 		else
 			S_ResumeAudio();
 	}
+
+	G_ResetAllDeviceRumbles();
 }
 
 static void Command_ReplayMarker(void)
@@ -3710,7 +3778,10 @@ static void Command_ReplayMarker(void)
 		demo.savemode = DSM_WILLAUTOSAVE;
 		if (adjustedleveltime < 0)
 			adjustedleveltime = 0;
-		snprintf(demo.titlename, 64, "%s [%i:%02d/%.5s]", G_BuildMapTitle(gamemap), G_TicsToMinutes(adjustedleveltime, false), G_TicsToSeconds(adjustedleveltime), modeattacking ? "Record Attack" : connectedservername);
+		char *title = G_BuildMapTitle(gamemap);
+		snprintf(demo.titlename, 64, "%s [%i:%02d/%.5s]", title, G_TicsToMinutes(adjustedleveltime, false), G_TicsToSeconds(adjustedleveltime), modeattacking ? "Record Attack" : connectedservername);
+		if (title)
+			Z_Free(title);
 		CONS_Printf("Replay will be saved!\n");
 	}
 }
@@ -6236,6 +6307,12 @@ static void Command_Displayplayer_f(void)
 void Command_ExitGame_f(void)
 {
 	INT32 i;
+
+	if (dedicated)
+	{
+		CONS_Printf("This command cannot be used on dedicated server\n");
+		return;
+	}
 
 	D_QuitNetGame();
 	CL_Reset();

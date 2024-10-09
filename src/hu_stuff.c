@@ -910,6 +910,7 @@ const char *HU_SkinColorToConsoleColor(skincolors_t color)
 		case SKINCOLOR_OLIVE:
 		case SKINCOLOR_BANANA:
 		case SKINCOLOR_CITRINE:
+		case SKINCOLOR_LEMON:
 		case SKINCOLOR_MOON:
 			return "\x82"; // V_YELLOWMAP
 		case SKINCOLOR_ARTICHOKE:
@@ -918,6 +919,7 @@ const char *HU_SkinColorToConsoleColor(skincolors_t color)
 		case SKINCOLOR_TEA:
 		case SKINCOLOR_PISTACHIO:
 		case SKINCOLOR_SUNFLOWER:
+		case SKINCOLOR_OLIVINE:
 		case SKINCOLOR_PERIDOT:
 		case SKINCOLOR_APPLE:
 		case SKINCOLOR_SEAFOAM:
@@ -964,6 +966,7 @@ const char *HU_SkinColorToConsoleColor(skincolors_t color)
 		case SKINCOLOR_NAVY:
 		case SKINCOLOR_SAPPHIRE:
 		case SKINCOLOR_TOPAZ:
+		case SKINCOLOR_FROST:
 		case SKINCOLOR_WAVE:
 		case SKINCOLOR_ICY:
 		case SKINCOLOR_EVERGREEN:
@@ -1025,7 +1028,6 @@ const char *HU_SkinColorToConsoleColor(skincolors_t color)
 		case SKINCOLOR_AMETHYST:
 		case SKINCOLOR_IRIS:
 			return "\x89"; // V_LAVENDERMAP
-
 		default:
 			return "\x83";
 	}
@@ -2844,10 +2846,14 @@ static void HU_DrawRankings(void)
 		//V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, gametype_cons_t[gametype].strvalue);
 	
 	// draw the current map in the lower right if theres none just say its unknown
-	if (!G_BuildMapTitle(gamemap))
+	char *maptitle = G_BuildMapTitle(gamemap);
+	if (!maptitle)
 		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, "UNKNOWN");
 	else
-		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, G_BuildMapTitle(gamemap));
+	{
+		V_DrawString(4, 188, hilicol|V_SNAPTOBOTTOM|V_SNAPTOLEFT, maptitle);
+		Z_Free(maptitle);
+	}
 
 	if (G_GametypeHasTeams())
 	{
@@ -2897,18 +2903,6 @@ static void HU_DrawRankings(void)
 			V_DrawCenteredString(256, 16, hilicol, va("%d", cv_pointlimit.value));
 		}
 	}
-	/*else if (gametype == GT_COOP)
-	{
-		INT32 totalscore = 0;
-		for (i = 0; i < MAXPLAYERS; i++)
-		{
-			if (playeringame[i])
-				totalscore += players[i].score;
-		}
-
-		V_DrawCenteredString(256, 8, 0, "TOTAL SCORE");
-		V_DrawCenteredString(256, 16, 0, va("%u", totalscore));
-	}*/
 	else
 	{
 		if (circuitmap)
@@ -2981,13 +2975,7 @@ static void HU_DrawRankings(void)
 #endif*/
 	}
 
-	/*if (G_GametypeHasTeams())
-		HU_DrawTeamTabRankings(tab, whiteplayer); //separate function for Spazzo's silly request -- gotta fix this up later
-	else if (scorelines > 10)*/
-	//tab ranking adjustment courtesy of fickle's 1.1 battleroyale
 	HU_DrawTabRankings(((scorelines > 8) ? 6 : 40), (scorelines > 8) ? 29 : 33, tab, scorelines, whiteplayer, hilicol);
-	/*else
-		HU_DrawDualTabRankings(32, 32, tab, scorelines, whiteplayer);*/
 
 	// draw spectators in a ticker across the bottom
 	if (netgame && G_GametypeHasSpectators())

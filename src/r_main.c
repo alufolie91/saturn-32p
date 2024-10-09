@@ -16,6 +16,7 @@
 #include "doomdef.h"
 #include "g_game.h"
 #include "g_input.h"
+#include "g_state.h"
 #include "r_local.h"
 #include "r_splats.h" // faB(21jan): testing
 #include "r_sky.h"
@@ -69,29 +70,12 @@ player_t *viewplayer;
 // You can thank and/or curse JTE for these.
 UINT8 portalrender;
 sector_t *portalcullsector;
-typedef struct portal_pair
-{
-	INT32 line1;
-	INT32 line2;
-	UINT8 pass;
-	struct portal_pair *next;
-
-	fixed_t viewx;
-	fixed_t viewy;
-	fixed_t viewz;
-	angle_t viewangle;
-
-	INT32 start;
-	INT32 end;
-	INT16 *ceilingclip;
-	INT16 *floorclip;
-	fixed_t *frontscale;
-} portal_pair;
 portal_pair *portal_base, *portal_cap;
 line_t *portalclipline;
 INT32 portalclipstart, portalclipend;
 
 fixed_t rendertimefrac;
+fixed_t rendertimefrac_unpaused;
 fixed_t renderdeltatics;
 boolean renderisnewtic;
 
@@ -172,10 +156,6 @@ static CV_PossibleValue_t maxportals_cons_t[] = {{0, "MIN"}, {12, "MAX"}, {0, NU
 static CV_PossibleValue_t homremoval_cons_t[] = {{0, "No"}, {1, "Yes"}, {2, "Flash"}, {0, NULL}};
 
 static void Fov_OnChange(void);
-static void ChaseCam_OnChange(void);
-static void ChaseCam2_OnChange(void);
-static void ChaseCam3_OnChange(void);
-static void ChaseCam4_OnChange(void);
 static void FlipCam_OnChange(void);
 static void FlipCam2_OnChange(void);
 static void FlipCam3_OnChange(void);
@@ -185,11 +165,13 @@ void SendWeaponPref2(void);
 void SendWeaponPref3(void);
 void SendWeaponPref4(void);
 
+static void Precipstuff_OnChange(void);
+
 consvar_t cv_tailspickup = {"tailspickup", "On", CV_NETVAR|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_chasecam = {"chasecam", "On", CV_CALL, CV_OnOff, ChaseCam_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_chasecam2 = {"chasecam2", "On", CV_CALL, CV_OnOff, ChaseCam2_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_chasecam3 = {"chasecam3", "On", CV_CALL, CV_OnOff, ChaseCam3_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_chasecam4 = {"chasecam4", "On", CV_CALL, CV_OnOff, ChaseCam4_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_chasecam = {"chasecam", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_chasecam2 = {"chasecam2", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_chasecam3 = {"chasecam3", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_chasecam4 = {"chasecam4", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_flipcam = {"flipcam", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_flipcam2 = {"flipcam2", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_flipcam3 = {"flipcam3", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam3_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -209,10 +191,13 @@ consvar_t cv_uncappedhud = {"uncappedhud", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NU
 
 consvar_t cv_translucency = {"translucency", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_drawdist = {"drawdist", "Infinite", CV_SAVE, drawdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_drawdist_precip = {"drawdist_precip", "1024", CV_SAVE, drawdist_precip_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_lessprecip = {"lessweathereffects", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_drawdist_precip = {"drawdist_precip", "1024", CV_SAVE|CV_CALL|CV_NOINIT, drawdist_precip_cons_t, Precipstuff_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_lessprecip = {"lessweathereffects", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Precipstuff_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_mobjscaleprecip = {"scaleprecipmobjscale", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Precipstuff_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_grmaxinterpdist = {"gr_maxinterpdist", "Infinite", CV_SAVE, maxinterpdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_ripplewater = {"waterripples", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // cap fov, fov too high tears software apart.
 consvar_t cv_fov = {"fov", "90", CV_FLOAT|CV_CALL|CV_SAVE, fov_cons_t, Fov_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -269,45 +254,7 @@ void SplitScreen_OnChange(void)
 }
 static void Fov_OnChange(void)
 {
-	// Shouldn't be needed with render parity?
-	//if ((netgame || multiplayer) && !cv_debug && cv_fov.value != 90*FRACUNIT)
-	//	CV_Set(&cv_fov, cv_fov.defaultvalue);
-
 	R_SetViewSize();
-}
-
-static void ChaseCam_OnChange(void)
-{
-	/*if (!cv_chasecam.value || !cv_useranalog.value)
-		CV_SetValue(&cv_analog, 0);
-	else
-		CV_SetValue(&cv_analog, 1);*/
-}
-
-static void ChaseCam2_OnChange(void)
-{
-	if (botingame)
-		return;
-	/*if (!cv_chasecam2.value || !cv_useranalog2.value)
-		CV_SetValue(&cv_analog2, 0);
-	else
-		CV_SetValue(&cv_analog2, 1);*/
-}
-
-static void ChaseCam3_OnChange(void)
-{
-	/*if (!cv_chasecam3.value || !cv_useranalog3.value)
-		CV_SetValue(&cv_analog3, 0);
-	else
-		CV_SetValue(&cv_analog3, 1);*/
-}
-
-static void ChaseCam4_OnChange(void)
-{
-	/*if (!cv_chasecam4.value || !cv_useranalog4.value)
-		CV_SetValue(&cv_analog4, 0);
-	else
-		CV_SetValue(&cv_analog4, 1);*/
 }
 
 static void FlipCam_OnChange(void)
@@ -328,6 +275,29 @@ static void FlipCam3_OnChange(void)
 static void FlipCam4_OnChange(void)
 {
 	SendWeaponPref4();
+}
+
+static void Precipstuff_OnChange(void)
+{
+	if (gamestate != GS_LEVEL)
+		return;
+
+	thinker_t *think;
+	thinker_t *next;
+	precipmobj_t *precipmobj;
+
+	for (think = thinkercap.next; think != &thinkercap; think = next)
+	{
+		next = think->next;
+
+		if (think->function.acp1 != (actionf_p1)P_NullPrecipThinker)
+			continue; // not a precipmobj thinker
+
+		precipmobj = (precipmobj_t *)think;
+		P_FreePrecipMobj(precipmobj);
+	}
+
+	P_SpawnPrecipitation();
 }
 
 //
@@ -488,6 +458,11 @@ angle_t R_PlayerSliptideAngle(player_t *player)
 INT32 R_GetHudUncap(void)
 {
 	return cv_uncappedhud.value ? rendertimefrac & FRACMASK : 0;
+}
+
+INT32 R_GetMenuUncap(void)
+{
+	return cv_uncappedhud.value ? rendertimefrac_unpaused & FRACMASK : 0;
 }
 
 //
@@ -1011,6 +986,16 @@ void R_ExecuteSetViewSize(void)
 
 	R_InitTextureMapping();
 
+	// why did we calc all the software crap?
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
+	{
+		HWR_SetViewSize();
+		am_recalc = true;
+		return;
+	}
+#endif
+
 	// thing clipping
 	for (i = 0; i < viewwidth; i++)
 		screenheightarray[i] = (INT16)viewheight;
@@ -1019,27 +1004,24 @@ void R_ExecuteSetViewSize(void)
 	R_SetSkyScale();
 
 	// planes
-	if (rendermode == render_soft)
+	// this is only used for planes rendering in software mode
+	j = viewheight*16;
+	for (i = 0; i < j; i++)
 	{
-		// this is only used for planes rendering in software mode
-		j = viewheight*16;
-		for (i = 0; i < j; i++)
-		{
-			dy = (i - viewheight*8)<<FRACBITS;
-			dy = FixedMul(abs(dy), fovtan);
-			yslopetab[i] = FixedDiv(centerx*FRACUNIT, dy);
-		}
-		
-		if (ds_su)
-			Z_Free(ds_su);
-		if (ds_sv)
-			Z_Free(ds_sv);
-		if (ds_sz)
-			Z_Free(ds_sz);
-
-		ds_su = ds_sv = ds_sz = NULL;
-		ds_sup = ds_svp = ds_szp = NULL;
+		dy = (i - viewheight*8)<<FRACBITS;
+		dy = FixedMul(abs(dy), fovtan);
+		yslopetab[i] = FixedDiv(centerx*FRACUNIT, dy);
 	}
+		
+	if (ds_su)
+		Z_Free(ds_su);
+	if (ds_sv)
+		Z_Free(ds_sv);
+	if (ds_sz)
+		Z_Free(ds_sz);
+
+	ds_su = ds_sv = ds_sz = NULL;
+	ds_sup = ds_svp = ds_szp = NULL;
 
 	memset(scalelight, 0xFF, sizeof(scalelight));
 
@@ -1060,12 +1042,6 @@ void R_ExecuteSetViewSize(void)
 			scalelight[i][j] = colormaps + level*256;
 		}
 	}
-
-	// continue to do the software setviewsize as long as we use the reference software view
-#ifdef HWRENDER
-	if (rendermode != render_soft)
-		HWR_SetViewSize();
-#endif
 
 	am_recalc = true;
 }
@@ -1098,7 +1074,6 @@ void R_Init(void)
 
 	framecount = 0;
 }
-
 
 //
 // R_IsPointInSector
@@ -1183,7 +1158,6 @@ subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y)
 
 	ret = &subsectors[nodenum & ~NF_SUBSECTOR];
 	for (i = 0; i < ret->numlines; i++)
-		//if (R_PointOnSegSide(x, y, &segs[ret->firstline + i])) -- breaks in ogl because polyvertex_t cast over vertex pointers
 		if (P_PointOnLineSide(x, y, segs[ret->firstline + i].linedef) != segs[ret->firstline + i].side)
 			return 0;
 
@@ -1194,7 +1168,7 @@ subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y)
 // R_SetupFrame
 //
 
-static mobj_t *viewmobj;
+mobj_t *viewmobj;
 
 void R_SkyboxFrame(player_t *player)
 {
@@ -1431,7 +1405,7 @@ void R_SkyboxFrame(player_t *player)
 	// newview->sin = FINESINE(viewangle>>ANGLETOFINESHIFT);
 	// newview->cos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
 
-	R_InterpolateView(R_UsingFrameInterpolation() ? rendertimefrac : FRACUNIT, false);
+	R_InterpolateView(R_UsingFrameInterpolation() ? demo.playback ? rendertimefrac_unpaused : rendertimefrac : FRACUNIT, false);
 }
 
 void R_SetupFrame(player_t *player, boolean skybox)
@@ -1439,62 +1413,46 @@ void R_SetupFrame(player_t *player, boolean skybox)
 	camera_t *thiscam;
 	boolean chasecam = false;
 
+#define SETUPCAM(num, var, context)\
+	thiscam = &camera[num];\
+	chasecam = (var.value != 0);\
+	R_SetViewContext(context);\
+	if (thiscam->reset)\
+	{\
+		R_ResetViewInterpolation(num+1);\
+		thiscam->reset = false;\
+	}
+
 	if (splitscreen > 2 && player == &players[displayplayers[3]])
 	{
-		thiscam = &camera[3];
-		chasecam = (cv_chasecam4.value != 0);
-		R_SetViewContext(VIEWCONTEXT_PLAYER4);
-		if (thiscam->reset)
-		{
-			R_ResetViewInterpolation(4);
-			thiscam->reset = false;
-		}
+		SETUPCAM(3, cv_chasecam4, VIEWCONTEXT_PLAYER4)
 	}
 	else if (splitscreen > 1 && player == &players[displayplayers[2]])
 	{
-		thiscam = &camera[2];
-		chasecam = (cv_chasecam3.value != 0);
-		R_SetViewContext(VIEWCONTEXT_PLAYER3);
-		if (thiscam->reset)
-		{
-			R_ResetViewInterpolation(3);
-			thiscam->reset = false;
-		}
+		SETUPCAM(2, cv_chasecam3, VIEWCONTEXT_PLAYER3)
 	}
 	else if (splitscreen && player == &players[displayplayers[1]])
 	{
-		thiscam = &camera[1];
-		chasecam = (cv_chasecam2.value != 0);
-		R_SetViewContext(VIEWCONTEXT_PLAYER2);
-		if (thiscam->reset)
-		{
-			R_ResetViewInterpolation(2);
-			thiscam->reset = false;
-		}
+		SETUPCAM(1, cv_chasecam2, VIEWCONTEXT_PLAYER2)
 	}
 	else
 	{
-		thiscam = &camera[0];
-		chasecam = (cv_chasecam.value != 0);
-		R_SetViewContext(VIEWCONTEXT_PLAYER1);
-		if (thiscam->reset)
-		{
-			R_ResetViewInterpolation(1);
-			thiscam->reset = false;
-		}
+		SETUPCAM(0, cv_chasecam, VIEWCONTEXT_PLAYER1)
 	}
+
+#undef SETUPCAM
 
 	if (player->spectator) // no spectator chasecam
 		chasecam = false; // force chasecam off
 	else if (player->playerstate == PST_DEAD || player->exiting)
 		chasecam = true; // force chasecam on
 
-	if (chasecam && !thiscam->chase)
+	if (chasecam && (thiscam && !thiscam->chase))
 	{
 		P_ResetCamera(player, thiscam);
 		thiscam->chase = true;
 	}
-	else if (!chasecam)
+	else if (thiscam && !chasecam)
 		thiscam->chase = false;
 
 	newview->sky = !skybox;
@@ -1503,20 +1461,40 @@ void R_SetupFrame(player_t *player, boolean skybox)
 		// cut-away view stuff
 		viewmobj = player->awayviewmobj; // should be a MT_ALTVIEWMAN
 		I_Assert(viewmobj != NULL);
+
+		newview->x = viewmobj->x;
+		newview->y = viewmobj->y;
 		newview->z = viewmobj->z + 20*FRACUNIT;
 		newview->aim = player->awayviewaiming;
 		newview->angle = viewmobj->angle;
+
+		newview->x += quake.x;
+		newview->y += quake.y;
+
+		if (!P_MobjWasRemoved(viewmobj) && viewmobj->subsector && thiscam && thiscam->subsector->sector)
+			newview->sector = viewmobj->subsector->sector;
+		else
+			newview->sector = R_PointInSubsector(newview->x, newview->y)->sector;
 	}
-	else if (!player->spectator && chasecam)
-	// use outside cam view
+	else if (!player->spectator && (thiscam && chasecam)) // use outside cam view
 	{
 		viewmobj = NULL;
+
+		newview->x = thiscam->x;
+		newview->y = thiscam->y;
 		newview->z = thiscam->z + (thiscam->height>>1);
 		newview->aim = thiscam->aiming;
 		newview->angle = thiscam->angle;
+
+		newview->x += quake.x;
+		newview->y += quake.y;
+
+		if (thiscam->subsector && thiscam->subsector->sector)
+			newview->sector = thiscam->subsector->sector;
+		else
+			newview->sector = R_PointInSubsector(newview->x, newview->y)->sector;
 	}
-	else
-	// use the player's eyes view
+	else // use the player's eyes view
 	{
 		newview->z = player->viewz;
 
@@ -1548,40 +1526,13 @@ void R_SetupFrame(player_t *player, boolean skybox)
 			}
 		}
 	}
+
 	newview->roll = R_ViewRollAngle(player);
 	newview->z += quake.z;
 
 	newview->player = player;
 
-	if (chasecam && !player->awayviewtics && !player->spectator)
-	{
-		newview->x = thiscam->x;
-		newview->y = thiscam->y;
-		newview->x += quake.x;
-		newview->y += quake.y;
-
-		if (thiscam->subsector && thiscam->subsector->sector)
-			newview->sector = thiscam->subsector->sector;
-		else
-			newview->sector = R_PointInSubsector(newview->x, newview->y)->sector;
-	}
-	else
-	{
-		newview->x = viewmobj->x;
-		newview->y = viewmobj->y;
-		newview->x += quake.x;
-		newview->y += quake.y;
-
-		if (viewmobj->subsector && thiscam->subsector->sector)
-			newview->sector = viewmobj->subsector->sector;
-		else
-			newview->sector = R_PointInSubsector(newview->x, newview->y)->sector;
-	}
-
-	// newview->sin = FINESINE(viewangle>>ANGLETOFINESHIFT);
-	// newview->cos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
-
-	R_InterpolateView(R_UsingFrameInterpolation() ? rendertimefrac : FRACUNIT, false);
+	R_InterpolateView(R_UsingFrameInterpolation() ? demo.playback ? rendertimefrac_unpaused : rendertimefrac : FRACUNIT, false);
 }
 
 #define ANGLED_PORTALS
@@ -1674,7 +1625,7 @@ void R_AddPortal(INT32 line1, INT32 line2, INT32 x1, INT32 x2)
 	portal->start = x1;
 	portal->end = x2;
 
-	portalline = true; // this tells R_StoreWallRange that curline is a portal seg
+	g_portal = portal; // this tells R_StoreWallRange that curline is a portal seg
 
 	portal->viewx = viewx;
 	portal->viewy = viewy;
@@ -1888,6 +1839,7 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_drawdist);
 	CV_RegisterVar(&cv_drawdist_precip);
 	CV_RegisterVar(&cv_lessprecip);
+	CV_RegisterVar(&cv_mobjscaleprecip);
 	CV_RegisterVar(&cv_fov);
 
 	CV_RegisterVar(&cv_chasecam);
@@ -1933,6 +1885,8 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_tiltsmoothing);
 	CV_RegisterVar(&cv_actionmovie);
 
+	CV_RegisterVar(&cv_lookbackmom);
+
 	CV_RegisterVar(&cv_driftsparkpulse);
 	CV_RegisterVar(&cv_gravstretch);
 	CV_RegisterVar(&cv_sloperoll);
@@ -1948,6 +1902,8 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_maxportals);
 
 	CV_RegisterVar(&cv_grmaxinterpdist);
+
+	CV_RegisterVar(&cv_ripplewater);
 
 	// Default viewheight is changeable,
 	// initialized to standard viewheight

@@ -28,7 +28,7 @@ side_t *sidedef;
 line_t *linedef;
 sector_t *frontsector;
 sector_t *backsector;
-boolean portalline; // is curline a portal seg?
+portal_pair *g_portal; // is curline a portal seg?
 
 // very ugly realloc() of drawsegs at run-time, I upped it to 512
 // instead of 256.. and someone managed to send me a level with
@@ -259,22 +259,25 @@ sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec, INT32 *floorlightlevel,
 	else if (sec->heightsec != -1)
 	{
 		const sector_t *s = &sectors[sec->heightsec];
-		mobj_t *viewmobj = viewplayer->mo;
+		mobj_t *pviewmobj = viewplayer->mo;
 		INT32 heightsec;
 		boolean underwater;
 		UINT8 i;
 
 		for (i = 0; i <= splitscreen; i++)
 		{
-			if (!(viewplayer == &players[displayplayers[i]] && camera[i].chase))
+			if (viewplayer != &players[displayplayers[i]])
+				continue;
+
+			if (!camera[i].chase)
 				continue;
 
 			heightsec = R_PointInSubsector(camera[i].x, camera[i].y)->sector->heightsec;
 			break;
 		}
 
-		if (i > splitscreen && viewmobj)
-			heightsec = R_PointInSubsector(viewmobj->x, viewmobj->y)->sector->heightsec;
+		if (i > splitscreen && pviewmobj)
+			heightsec = R_PointInSubsector(pviewmobj->x, pviewmobj->y)->sector->heightsec;
 		else
 			return sec;
 
@@ -414,7 +417,7 @@ static void R_AddLine(seg_t *line)
 	angle_t angle1, angle2, span, tspan;
 	static sector_t tempsec;
 
-	portalline = false;
+	g_portal = NULL;
 
 	if (line->polyseg && !(line->polyseg->flags & POF_RENDERSIDES))
 		return;
@@ -1167,13 +1170,13 @@ void R_Prep3DFloors(sector_t *sector)
 	count = 1;
 	for (rover = sector->ffloors; rover; rover = rover->next)
 	{
-		if (!((rover->flags & FF_EXISTS) && (!(rover->flags & FF_NOSHADE)
-			|| (rover->flags & FF_CUTLEVEL) || (rover->flags & FF_CUTSPRITES))))
-			continue;
-
-		count++;
-		if (rover->flags & FF_DOUBLESHADOW)
+		if ((rover->flags & FF_EXISTS) && (!(rover->flags & FF_NOSHADE)
+			|| (rover->flags & FF_CUTLEVEL) || (rover->flags & FF_CUTSPRITES)))
+		{
 			count++;
+			if (rover->flags & FF_DOUBLESHADOW)
+				count++;
+		}
 	}
 
 	if (count != sector->numlights)
@@ -1330,8 +1333,7 @@ void R_RenderBSPNode(INT32 bspnum)
 	// PORTAL CULLING
 	if (portalcullsector)
 	{
-		sector_t *sect = subsectors[bspnum & ~NF_SUBSECTOR].sector;
-		if (sect != portalcullsector)
+		if (subsectors[bspnum & ~NF_SUBSECTOR].sector != portalcullsector)
 			return;
 		portalcullsector = NULL;
 	}
