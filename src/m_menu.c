@@ -11726,7 +11726,6 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				if (setupm_colormode == 0)
 				{
 					setupm_fakecolor--;
-					setupm_fakecolor--;
 					G_SetPlayerGamepadIndicatorColor(setupm_playernum, setupm_fakecolor);
 				}
 				else
