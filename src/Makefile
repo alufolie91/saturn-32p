@@ -207,12 +207,6 @@ USE_FBO_OGL=1
 endif
 endif
 
-ifndef NONET
-#ifndef NOSATURNPAK
-#DOSATURNPAK=1
-#endif
-endif
-
 ifdef MINGW
 include win32/Makefile.cfg
 endif #ifdef MINGW
@@ -392,12 +386,6 @@ OPTS+=-DUSE_FBO_OGL
 endif
 endif
 
-ifndef NONET
-#ifndef NOSATURNPAK
-#OPTS+=-DDOSATURNPAK
-#endif
-endif
-
 ifdef HAVE_MINIUPNPC
 ifdef NONET
 HAVE_MINIUPNPC=''
@@ -517,6 +505,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/m_fixed.o  \
 		$(OBJDIR)/m_menu.o   \
 		$(OBJDIR)/m_misc.o   \
+		$(OBJDIR)/m_textinput.o   \
 		$(OBJDIR)/m_perfstats.o \
 		$(OBJDIR)/m_random.o \
 		$(OBJDIR)/m_queue.o  \

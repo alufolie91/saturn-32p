@@ -568,7 +568,7 @@ static boolean D_Display(void)
 		V_DrawScaledPatch(viewwindowx + (BASEVIDWIDTH - SHORT(patch->width))/2, py, V_SNAPTOTOP, patch);
 	}
 
-	if (demo.rewinding)
+	if (rendermode == render_soft && demo.rewinding)
 		V_DrawFadeScreen(TC_RAINBOW, (leveltime & 0x20) ? SKINCOLOR_PASTEL : SKINCOLOR_MOONSLAM);
 
 	// vid size change is now finished if it was on...
@@ -827,7 +827,7 @@ void D_SRB2Loop(void)
 				rendertimefrac = FRACUNIT;
 			}
 
-			rendertimefrac_unpaused = (!hu_stopped) ? g_time.timefrac : FRACUNIT;
+			rendertimefrac_unpaused = g_time.timefrac;
 		}
 		else
 		{

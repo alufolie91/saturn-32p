@@ -99,11 +99,6 @@ typedef enum
 
 	PT_PING,          // Packet sent to tell clients the other client's latency to server.
 
-#ifdef SATURNPAK
-	// we will reserve this for now even if unused, so order wont get mangled
-	PT_ISSATURN, 			// Saturn specific identifier packet
-#endif
-
 	NUMPACKETTYPE
 } packettype_t;
 

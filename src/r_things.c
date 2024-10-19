@@ -609,6 +609,7 @@ void R_DrawMaskedColumn(column_t *column)
 			dc_yh = mfloorclip[dc_x]-1;
 		if (dc_yl <= mceilingclip[dc_x])
 			dc_yl = mceilingclip[dc_x]+1;
+
 		if (dc_yl < 0)
 			dc_yl = 0;
 		if (dc_yh >= vid.height)
@@ -625,6 +626,10 @@ void R_DrawMaskedColumn(column_t *column)
 			// quick fix... something more proper should be done!!!
 			if (ylookup[dc_yl])
 				colfunc();
+#ifdef PARANOIA
+			else
+				I_Error("R_DrawMaskedColumn: Invalid ylookup for dc_yl %d", dc->yl);
+#endif
 		}
 		column = (column_t *)((UINT8 *)column + column->length + 4);
 	}
@@ -837,22 +842,15 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	if (vis->x2 >= vid.width)
 		vis->x2 = vid.width-1;
 
-	// Something is occasionally setting 1px-wide sprites whose frac is exactly the width of the sprite, causing crashes due to
-	// accessing invalid column info. Until the cause is found, let's try to correct those manually...
-	{
-		fixed_t temp = ((frac + vis->xiscale*(vis->x2-vis->x1))>>FRACBITS) - SHORT(patch->width);
-		if (temp > 0)
-			vis->x2 -= temp;
-	}
-
 	localcolfunc = (vis->vflip) ? R_DrawFlippedMaskedColumn : R_DrawMaskedColumn;
-	lengthcol = patch->height;
+	lengthcol = SHORT(patch->height);
 
 	// Split drawing loops for paper and non-paper to reduce conditional checks per sprite
 	if (vis->scalestep)
 	{
 		fixed_t horzscale = FixedMul(vis->spritexscale, this_scale);
 		fixed_t scalestep = FixedMul(vis->scalestep, vis->spriteyscale);
+
 		pwidth = SHORT(patch->width);
 
 		// Papersprite drawing loop
