@@ -10366,6 +10366,7 @@ static void M_StartServerMenu(INT32 choice)
 // ==============
 
 static char setupm_ip[28];
+static player_t  *setupm_player;
 static textinput_t setupm_input_ip;
 #endif
 
