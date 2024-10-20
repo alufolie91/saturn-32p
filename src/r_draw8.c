@@ -714,14 +714,14 @@ void R_DrawSpan_8 (void)
 	fixed_t xposition;
 	fixed_t yposition;
 	fixed_t xstep, ystep;
-	UINT32 bit;
+	register UINT32 bit;
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 	const UINT8 *deststop = screens[0] + vid.rowbytes * vid.height;
 
-	size_t count = (ds_x2 - ds_x1 + 1);
+	register size_t count = (ds_x2 - ds_x1 + 1);
 	size_t i;
 
 	xposition = ds_xfrac; yposition = ds_yfrac;
@@ -809,13 +809,13 @@ void R_DrawTiltedSpan_8(void)
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 
 	double startz, startu, startv;
 	double izstep, uzstep, vzstep;
 	double endz, endu, endv;
 	UINT32 stepu, stepv;
-	UINT32 bit;
+	register UINT32 bit;
 
 	iz = ds_szp->z + ds_szp->y*(centery-ds_y) + ds_szp->x*(ds_x1-centerx);
 
@@ -950,13 +950,13 @@ void R_DrawTiltedTranslucentSpan_8(void)
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 
 	double startz, startu, startv;
 	double izstep, uzstep, vzstep;
 	double endz, endu, endv;
 	UINT32 stepu, stepv;
-	UINT32 bit;
+	register UINT32 bit;
 
 	iz = ds_szp->z + ds_szp->y*(centery-ds_y) + ds_szp->x*(ds_x1-centerx);
 
@@ -1092,14 +1092,14 @@ void R_DrawTiltedTranslucentWaterSpan_8(void)
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 	UINT8 *dsrc;
 
 	double startz, startu, startv;
 	double izstep, uzstep, vzstep;
 	double endz, endu, endv;
 	UINT32 stepu, stepv;
-	UINT32 bit;
+	register UINT32 bit;
 
 	iz = ds_szp->z + ds_szp->y*(centery-ds_y) + ds_szp->x*(ds_x1-centerx);
 
@@ -1233,7 +1233,7 @@ void R_DrawTiltedSplat_8(void)
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 
 	UINT8 val;
 
@@ -1241,7 +1241,7 @@ void R_DrawTiltedSplat_8(void)
 	double izstep, uzstep, vzstep;
 	double endz, endu, endv;
 	UINT32 stepu, stepv;
-	UINT32 bit;
+	register UINT32 bit;
 
 	iz = ds_szp->z + ds_szp->y*(centery-ds_y) + ds_szp->x*(ds_x1-centerx);
 
@@ -1385,13 +1385,13 @@ void R_DrawSplat_8 (void)
 	UINT32 xposition;
 	UINT32 yposition;
 	UINT32 xstep, ystep;
-	UINT32 bit;
+	register UINT32 bit;
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 
-	size_t count;
+	register size_t count;
 	size_t i;
 	UINT32 val;
 
@@ -1455,13 +1455,13 @@ void R_DrawTranslucentSplat_8 (void)
 	UINT32 xposition;
 	UINT32 yposition;
 	UINT32 xstep, ystep;
-	UINT32 bit;
+	register UINT32 bit;
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 
-	size_t count;
+	register size_t count;
 	size_t i;
 	UINT8 val;
 
@@ -1520,14 +1520,14 @@ void R_DrawTranslucentSpan_8 (void)
 	fixed_t xposition;
 	fixed_t yposition;
 	fixed_t xstep, ystep;
-	UINT32 bit;
+	register UINT32 bit;
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 	const UINT8 *deststop = screens[0] + vid.rowbytes * vid.height;
 
-	size_t count = (ds_x2 - ds_x1 + 1);
+	register size_t count = (ds_x2 - ds_x1 + 1);
 	size_t i;
 
 	xposition = ds_xfrac; yposition = ds_yfrac;
@@ -1579,14 +1579,14 @@ void R_DrawTranslucentWaterSpan_8(void)
 	UINT32 xposition;
 	UINT32 yposition;
 	UINT32 xstep, ystep;
-	UINT32 bit;
+	register UINT32 bit;
 
 	UINT8 *source;
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 	UINT8 *dsrc;
 
-	size_t count;
+	register size_t count;
 	size_t i;
 
 	// SoM: we only need 6 bits for the integer part (0 thru 63) so the rest
@@ -1638,9 +1638,9 @@ void R_DrawTranslucentWaterSpan_8(void)
 void R_DrawFogSpan_8(void)
 {
 	UINT8 *colormap;
-	UINT8 *dest;
+	register UINT8 *dest;
 
-	size_t count;
+	register size_t count;
 
 	colormap = ds_colormap;
 	//dest = ylookup[ds_y] + columnofs[ds_x1];
@@ -1671,8 +1671,8 @@ void R_DrawFogSpan_8(void)
 */
 void R_DrawFogColumn_8(void)
 {
-	INT32 count;
-	UINT8 *dest;
+	register INT32 count;
+	register UINT8 *dest;
 
 	count = dc_yh - dc_yl;
 
@@ -1707,7 +1707,8 @@ void R_DrawFogColumn_8(void)
 */
 void R_DrawColumnShadowed_8(void)
 {
-	INT32 count, realyh, i, height, bheight = 0, solid = 0;
+	register INT32 count;
+	INT32 realyh, i, height, bheight = 0, solid = 0;
 
 	realyh = dc_yh;
 
