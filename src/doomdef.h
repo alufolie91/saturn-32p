@@ -192,9 +192,9 @@ extern char  logfilename[1024];
 // NOTE: it needs more than this to increase the number of players...
 
 #define MAXPLAYERS 64
+#define MAXPLAYERSLOTS (MAXPLAYERS-1)
 #define MAXSKINS 383
 #define MAXLOCALSKINS 32
-#define PLAYERSMASK (MAXPLAYERS-1)
 #define MAXPLAYERNAME 21
 
 // Master Server compatibility ONLY

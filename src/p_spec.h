@@ -294,8 +294,8 @@ typedef struct
 typedef struct
 {
 	thinker_t thinker;
-	fixed_t vars[16];   // Misc. variables
-	fixed_t var2s[16];   // Second misc variables buffer.
+	fixed_t vars[(MAXPLAYERS+1)/2];   // Misc. variables
+	fixed_t var2s[(MAXPLAYERS+1)/2];   // Second misc variables buffer.
 	line_t *sourceline; // Source line of the thinker
 	sector_t *sector;   // Sector the thinker is from
 } levelspecthink_t;

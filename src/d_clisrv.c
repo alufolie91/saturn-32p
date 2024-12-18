@@ -915,7 +915,7 @@ static void SV_SendServerInfo(INT32 node, tic_t servertime)
 	netbuffer->u.serverinfo.leveltime = (tic_t)LONG(leveltime);
 
 	netbuffer->u.serverinfo.numberofplayer = (UINT8)D_NumPlayers();
-	netbuffer->u.serverinfo.maxplayer = (UINT8)(min((dedicated ? MAXPLAYERS-1 : MAXPLAYERS), cv_maxplayers.value));
+	netbuffer->u.serverinfo.maxplayer = (UINT8)(min((dedicated ? MAXPLAYERSLOTS-1 : MAXPLAYERSLOTS), cv_maxplayers.value));
 
 	// SRB2Kart: Vanilla's gametype constants for MS support
 	netbuffer->u.serverinfo.gametype = (UINT8)((gt == GT_MATCH) ? VANILLA_GT_MATCH : VANILLA_GT_RACE);
@@ -3411,7 +3411,7 @@ consvar_t cv_allownewplayer = {"allowjoin", "On", CV_SAVE|CV_CALL, CV_OnOff, Joi
 consvar_t cv_joinnextround = {"joinnextround", "Off", CV_SAVE|CV_NETVAR, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; /// \todo not done
 #endif
 
-static CV_PossibleValue_t maxplayers_cons_t[] = {{2, "MIN"}, {MAXPLAYERS, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t maxplayers_cons_t[] = {{2, "MIN"}, {MAXPLAYERSLOTS, "MAX"}, {0, NULL}};
 consvar_t cv_maxplayers = {"maxplayers", "8", CV_SAVE|CV_CALL, maxplayers_cons_t, Joinable_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 // Here for dedicated servers
@@ -3693,8 +3693,7 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 
 	node = READUINT8(*p);
 	newplayernum = READUINT8(*p);
-	splitscreenplayer = newplayernum/MAXPLAYERS;
-	newplayernum %= MAXPLAYERS;
+	splitscreenplayer = READUINT8(*p);
 
 	// Clear player before joining, lest some things get set incorrectly
 	CL_ClearPlayer(newplayernum);
@@ -3798,7 +3797,7 @@ static void Got_RemovePlayer(UINT8 **p, INT32 playernum)
 static boolean SV_AddWaitingPlayers(void)
 {
 	INT32 node, n, newplayer = false;
-	UINT8 buf[2];
+	UINT8 buf[3];
 	UINT8 newplayernum = 0;
 
 	// What is the reason for this? Why can't newplayernum always be 0?
@@ -3833,6 +3832,7 @@ static boolean SV_AddWaitingPlayers(void)
 
 			buf[0] = (UINT8)node;
 			buf[1] = newplayernum;
+			buf[2] = 0;
 			if (playerpernode[node] < 1)
 			{
 				nodetoplayer[node] = newplayernum;
@@ -3840,21 +3840,21 @@ static boolean SV_AddWaitingPlayers(void)
 			else if (playerpernode[node] < 2)
 			{
 				nodetoplayer2[node] = newplayernum;
-				buf[1] += MAXPLAYERS;
+				buf[2] = 1;
 			}
 			else if (playerpernode[node] < 3)
 			{
 				nodetoplayer3[node] = newplayernum;
-				buf[1] += MAXPLAYERS*2;
+				buf[2] = 2;
 			}
 			else
 			{
 				nodetoplayer4[node] = newplayernum;
-				buf[1] += MAXPLAYERS*3;
+				buf[2] = 3;
 			}
 			playerpernode[node]++;
 
-			SendNetXCmd(XD_ADDPLAYER, &buf, 2);
+			SendNetXCmd(XD_ADDPLAYER, &buf, 3);
 
 			DEBFILE(va("Server added player %d node %d\n", newplayernum, node));
 			// use the next free slot (we can't put playeringame[newplayernum] = true here)
@@ -3989,10 +3989,10 @@ static void HandleConnect(SINT8 node)
 	// Sal: Dedicated mode is INCREDIBLY hacked together.
 	// If a server filled out, then it'd overwrite the host and turn everyone into weird husks.....
 	// It's too much effort to legimately fix right now. Just prevent it from reaching that state.
-	UINT8 maxplayers = min((dedicated ? MAXPLAYERS-1 : MAXPLAYERS), cv_maxplayers.value);
+	UINT8 maxplayers = min((dedicated ? MAXPLAYERSLOTS-1 : MAXPLAYERSLOTS), cv_maxplayers.value);
 	UINT8 connectedplayers = 0;
 
-	for (UINT8 i = dedicated ? 1 : 0; i < MAXPLAYERS; i++)
+	for (UINT8 i = dedicated ? 1 : 0; i < MAXPLAYERSLOTS; i++)
 		if (playernode[i] != UINT8_MAX) // We use this to count players because it is affected by SV_AddWaitingPlayers when more than one client joins on the same tic, unlike playeringame and D_NumPlayers. UINT8_MAX denotes no node for that player
 			connectedplayers++;
 

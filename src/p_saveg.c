@@ -1315,7 +1315,7 @@ static void SaveSpecialLevelThinker(savebuffer_t *save, const thinker_t *th, con
 	const levelspecthink_t *ht  = (const void *)th;
 	size_t i;
 	WRITEUINT8(save->p, type);
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < (MAXPLAYERS+1)/2; i++)
 	{
 		WRITEFIXED(save->p, ht->vars[i]); //var[16]
 		WRITEFIXED(save->p, ht->var2s[i]); //var[16]
@@ -2247,7 +2247,7 @@ static void LoadSpecialLevelThinker(savebuffer_t *save, actionf_p1 thinker, UINT
 	levelspecthink_t *ht = Z_Malloc(sizeof (*ht), PU_LEVSPEC, NULL);
 	size_t i;
 	ht->thinker.function.acp1 = thinker;
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < (MAXPLAYERS+1)/2; i++)
 	{
 		ht->vars[i] = READFIXED(save->p); //var[16]
 		ht->var2s[i] = READFIXED(save->p); //var[16]
@@ -3283,7 +3283,15 @@ static void P_NetArchiveMisc(savebuffer_t *save, boolean resending)
 	WRITEINT16(save->p, gametype);
 
 	for (i = 0; i < MAXPLAYERS; i++)
-		pig |= (playeringame[i] != 0)<<i;
+	{
+		if (i != 0 && !(i&31))
+		{
+			WRITEUINT32(save->p, pig);
+			pig = 0;
+		}
+		pig |= (playeringame[i] != 0)<<(i&31);
+	}
+
 	WRITEUINT32(save->p, pig);
 
 	WRITEUINT32(save->p, P_GetRandSeed());
@@ -3391,10 +3399,12 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(savebuffer_t *save, bool
 
 	gametype = READINT16(save->p);
 
-	pig = READUINT32(save->p);
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-		playeringame[i] = (pig & (1<<i)) != 0;
+		if (!(i & 31))
+			pig = READUINT32(save->p);
+
+		playeringame[i] = (pig & (1<<(i&31))) != 0;
 		// playerstate is set in unarchiveplayers
 	}
 

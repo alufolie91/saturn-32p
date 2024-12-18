@@ -514,7 +514,7 @@ static boolean SOCK_cmpaddr(mysockaddr_t *a, mysockaddr_t *b, UINT8 mask)
   */
 static void cleanupnodes(void)
 {
-	SINT8 j;
+	UINT8 j;
 
 	if (!Playing())
 		return;
