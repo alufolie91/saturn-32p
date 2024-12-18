@@ -371,11 +371,6 @@ static boolean PIT_CheckThing(mobj_t *thing)
 	if (!(thing->flags & (MF_SOLID|MF_SPECIAL|MF_PAIN|MF_SHOOTABLE)) || (thing->flags & MF_NOCLIPTHING))
 		return true;
 
-	// Don't collide with your buddies while NiGHTS-flying.
-	if (tmthing->player && thing->player && (maptol & TOL_NIGHTS)
-		&& ((tmthing->player->pflags & PF_NIGHTSMODE) || (thing->player->pflags & PF_NIGHTSMODE)))
-		return true;
-
 	blockdist = thing->radius + tmthing->radius;
 
 	if (abs(thing->x - tmx) >= blockdist || abs(thing->y - tmy) >= blockdist)
@@ -449,7 +444,7 @@ static boolean PIT_CheckThing(mobj_t *thing)
 	}
 
 	{
-		UINT8 shouldCollide = LUAh_MobjCollide(thing, tmthing); // checks hook for thing's type
+		UINT8 shouldCollide = LUA_Hook2Mobj(thing, tmthing, MOBJ_HOOK(MobjCollide)); // checks hook for thing's type
 		if (P_MobjWasRemoved(tmthing) || P_MobjWasRemoved(thing))
 			return true; // one of them was removed???
 		if (shouldCollide == 1)
@@ -458,7 +453,7 @@ static boolean PIT_CheckThing(mobj_t *thing)
 			return true; // force no collide
 	}
 	{
-		UINT8 shouldCollide = LUAh_MobjMoveCollide(tmthing, thing); // checks hook for tmthing's type
+		UINT8 shouldCollide = LUA_Hook2Mobj(tmthing, thing, MOBJ_HOOK(MobjMoveCollide)); // checks hook for tmthing's type
 		if (P_MobjWasRemoved(tmthing) || P_MobjWasRemoved(thing))
 			return true; // one of them was removed???
 		if (shouldCollide == 1)
@@ -1670,6 +1665,8 @@ static boolean PIT_CheckLine(line_t *ld)
 //                         MOVEMENT CLIPPING
 // =========================================================================
 
+static boolean P_CheckPositionShadow(mobj_t *thing, fixed_t x, fixed_t y);
+
 //
 // P_CheckPosition
 // This is purely informative, nothing is modified
@@ -1715,6 +1712,12 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 		I_Error("Previously-removed Thing of type %u crashes P_CheckPosition!", thing->type);
 #endif
 
+	// crappy optimization lmao hope this works out
+	if (thing->type == MT_SHADOW)
+	{
+		return P_CheckPositionShadow(thing, x, y);
+	}
+
 	P_SetTarget(&tmthing, thing);
 	tmflags = thing->flags;
 
@@ -1726,7 +1729,11 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 	tmbbox[BOXRIGHT] = x + tmthing->radius;
 	tmbbox[BOXLEFT] = x - tmthing->radius;
 
-	newsubsec = R_PointInSubsector(x, y);
+	if (thing->x != x || thing->y != y || thing->subsector == NULL)
+		newsubsec = R_PointInSubsector(x, y);
+	else
+		newsubsec = thing->subsector;
+
 	ceilingline = blockingline = NULL;
 
 	// The base floor / ceiling is from the subsector
@@ -1747,7 +1754,7 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 
 		for (rover = newsubsec->sector->ffloors; rover; rover = rover->next)
 		{
-			fixed_t topheight, bottomheight;
+			fixed_t topheight, bottomheight, midheight;
 
 			if (!(rover->flags & FF_EXISTS))
 				continue;
@@ -1812,10 +1819,10 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 				continue;
 			}
 
-			delta1 = thing->z - (bottomheight
-				+ ((topheight - bottomheight)/2));
-			delta2 = thingtop - (bottomheight
-				+ ((topheight - bottomheight)/2));
+			midheight = (bottomheight + ((topheight - bottomheight)/2));
+
+			delta1 = thing->z - midheight;
+			delta2 = thingtop - midheight;
 
 			if (topheight > tmfloorz && abs(delta1) < abs(delta2)
 				&& !(rover->flags & FF_REVERSEPLATFORM))
@@ -1846,10 +1853,13 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 	BMBOUNDFIX(xl, xh, yl, yh);
 
 	// Check polyobjects and see if tmfloorz/tmceilingz need to be altered
+	// do we really have to iterate through the complete blockmap for polyobjects if there are no polyobjects on the map?
+	if (numPolyObjects)
 	{
 		validcount++;
 
 		for (by = yl; by <= yh; by++)
+		{
 			for (bx = xl; bx <= xh; bx++)
 			{
 				INT32 offset;
@@ -1900,12 +1910,14 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 						delta1 = thing->z - (polybottom + ((polytop - polybottom)/2));
 						delta2 = thingtop - (polybottom + ((polytop - polybottom)/2));
 
-						if (polytop > tmfloorz && abs(delta1) < abs(delta2)) {
+						if (polytop > tmfloorz && abs(delta1) < abs(delta2))
+						{
 							tmfloorz = tmdropoffz = polytop;
 							tmfloorslope = NULL;
 						}
 
-						if (polybottom < tmceilingz && abs(delta1) >= abs(delta2)) {
+						if (polybottom < tmceilingz && abs(delta1) >= abs(delta2))
+						{
 							tmceilingz = tmdrpoffceilz = polybottom;
 							tmceilingslope = NULL;
 						}
@@ -1913,6 +1925,7 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 					plink = (polymaplink_t *)(plink->link.next);
 				}
 			}
+		}
 	}
 
 	// tmfloorthing is set when tmfloorz comes from a thing's top
@@ -1948,6 +1961,113 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 				blockval = false;
 
 	return blockval;
+}
+
+// P_CheckPosition but its actually R_GetShadowZ from SRB2
+// this checks for less and keeps everything simpler
+// since i dont want VISUAL shadows crapping by checking for a crapton of stuff
+static boolean P_CheckPositionShadow(mobj_t *thing, fixed_t x, fixed_t y)
+{
+	subsector_t *newsubsec;
+
+	P_SetTarget(&tmthing, thing);
+	tmflags = thing->flags;
+
+	tmx = x;
+	tmy = y;
+
+	tmbbox[BOXTOP] = y + tmthing->radius;
+	tmbbox[BOXBOTTOM] = y - tmthing->radius;
+	tmbbox[BOXRIGHT] = x + tmthing->radius;
+	tmbbox[BOXLEFT] = x - tmthing->radius;
+
+	if (thing->x != x || thing->y != y || thing->subsector == NULL)
+		newsubsec = R_PointInSubsector(x, y);
+	else
+		newsubsec = thing->subsector;
+
+	ceilingline = blockingline = NULL;
+
+	// The base floor / ceiling is from the subsector
+	// that contains the point.
+	// Any contacted lines the step closer together
+	// will adjust them.
+	tmfloorz = tmdropoffz = P_GetFloorZ(thing, newsubsec->sector, x, y, NULL); //newsubsec->sector->floorheight;
+	tmceilingz = P_GetCeilingZ(thing, newsubsec->sector, x, y, NULL); //newsubsec->sector->ceilingheight;
+	tmfloorslope = newsubsec->sector->f_slope;
+	tmceilingslope = newsubsec->sector->c_slope;
+
+	const fixed_t halfHeight = (thing->z + (thing->height >> 1));
+
+	// Check list of fake floors and see if tmfloorz/tmceilingz need to be altered.
+	if (newsubsec->sector->ffloors)
+	{
+		ffloor_t *rover;
+
+		for (rover = newsubsec->sector->ffloors; rover; rover = rover->next)
+		{
+			fixed_t topheight, bottomheight;
+
+			if (!(rover->flags & FF_EXISTS) || !(rover->flags & FF_RENDERPLANES) || (rover->alpha < 90 && !(rover->flags & FF_SWIMMABLE)))
+				continue;
+
+			topheight = P_GetFOFTopZ(thing, newsubsec->sector, rover, x, y, NULL);
+			bottomheight = P_GetFOFBottomZ(thing, newsubsec->sector, rover, x, y, NULL);
+
+			if (topheight < halfHeight && topheight > tmfloorz)
+			{
+				tmfloorz = tmdropoffz = topheight;
+				tmfloorslope = *rover->t_slope;
+			}
+			if (bottomheight > halfHeight && bottomheight < tmfloorz)
+			{
+				tmceilingz = tmdrpoffceilz = bottomheight;
+				tmceilingslope = *rover->b_slope;
+			}
+		}
+	}
+
+	tmfloorthing = NULL;
+	tmhitthing = NULL;
+
+	// Check polyobjects and see if groundz needs to be altered
+	// This isn't very precise, but the precise method was far too slow.
+	// (Polies are just naturally pretty flickery anyway :P)
+
+	// do we really have to iterate through the complete blockmap for polyobjects if there are no polyobjects on the map?
+	if (numPolyObjects)
+	{
+		polyobj_t *po = newsubsec->polyList;
+		fixed_t z;
+
+		while (po)
+		{
+			if (!(po->flags & POF_RENDERPLANES) || !P_MobjInsidePolyobj(po, tmthing))
+			{
+				po = (polyobj_t *)(po->link.next);
+				continue;
+			}
+
+			// We're inside it! Yess...
+			z = po->lines[0]->backsector->floorheight;
+			if (z < halfHeight && z > tmfloorz)
+			{
+				tmfloorz = z;
+				tmfloorslope = NULL;
+			}
+
+			z = po->lines[0]->backsector->ceilingheight;
+			if (z > halfHeight && z < tmfloorz)
+			{
+				tmceilingz = z;
+				tmceilingslope = NULL;
+			}
+
+			po = (polyobj_t *)(po->link.next);
+		}
+	}
+
+	return true;
 }
 
 static const fixed_t hoopblockdist = 16*FRACUNIT + 8*FRACUNIT;
@@ -2072,6 +2192,8 @@ boolean P_CheckCameraPosition(fixed_t x, fixed_t y, camera_t *thiscam)
 	BMBOUNDFIX(xl, xh, yl, yh);
 
 	// Check polyobjects and see if tmfloorz/tmceilingz need to be altered
+	// do we really have to iterate through the complete blockmap for polyobjects if there are no polyobjects on the map?
+	if (numPolyObjects)
 	{
 		validcount++;
 
@@ -2165,7 +2287,6 @@ boolean P_TryCameraMove(fixed_t x, fixed_t y, camera_t *thiscam)
 {
 	subsector_t *s = R_PointInSubsector(x, y);
 	boolean retval = true;
-	boolean itsatwodlevel = false;
 	UINT8 i;
 
 	floatok = false;
@@ -2173,22 +2294,7 @@ boolean P_TryCameraMove(fixed_t x, fixed_t y, camera_t *thiscam)
 	if (dedicated) // this crashes so don't even try it
 		return false;
 
-	if (twodlevel)
-		itsatwodlevel = true;
-	else
-	{
-		for (i = 0; i <= splitscreen; i++)
-		{
-			if (thiscam == &camera[i] && players[displayplayers[i]].mo
-				&& (players[displayplayers[i]].mo->flags2 & MF2_TWOD))
-			{
-				itsatwodlevel = true;
-				break;
-			}
-		}
-	}
-
-	if (!itsatwodlevel && players[displayplayers[0]].mo)
+	if (players[displayplayers[0]].mo)
 	{
 		fixed_t tryx = thiscam->x;
 		fixed_t tryy = thiscam->y;
@@ -2391,16 +2497,19 @@ boolean P_TryMove(mobj_t *thing, fixed_t x, fixed_t y, boolean allowdropoff)
 		{
 			//All things are affected by their scale.
 			fixed_t maxstep = FixedMul(MAXSTEPMOVE, mapobjectscale);
+			INT32 special = 0;
 
 			if (thing->player)
 			{
+				 special = GETSECSPECIAL(R_PointInSubsector(x, y)->sector->special, 1);
+
 				// If using type Section1:13, double the maxstep.
 				if (P_PlayerTouchingSectorSpecial(thing->player, 1, 13)
-				|| GETSECSPECIAL(R_PointInSubsector(x, y)->sector->special, 1) == 13)
+				|| special == 13)
 					maxstep <<= 1;
 				// If using type Section1:12, no maxstep. For ledges you don't want the player to climb! (see: Egg Zeppelin & SMK port walls)
 				else if (P_PlayerTouchingSectorSpecial(thing->player, 1, 12)
-				|| GETSECSPECIAL(R_PointInSubsector(x, y)->sector->special, 1) == 12)
+				|| special == 12)
 					maxstep = 0;
 			}
 
@@ -2446,7 +2555,7 @@ boolean P_TryMove(mobj_t *thing, fixed_t x, fixed_t y, boolean allowdropoff)
 			else if (maxstep > 0 && !(
 				thing->player && (
 				P_PlayerTouchingSectorSpecial(thing->player, 1, 14)
-				|| GETSECSPECIAL(R_PointInSubsector(x, y)->sector->special, 1) == 14)
+				|| special == 14)
 				)) // Step down
 			{
 				// If the floor difference is MAXSTEPMOVE or less, and the sector isn't Section1:14, ALWAYS
@@ -3179,16 +3288,8 @@ stairstep:
 
 	P_HitSlideLine(bestslideline); // clip the moves
 
-	if ((twodlevel || (mo->flags2 & MF2_TWOD)) && mo->player)
-	{
-		mo->momx = tmxmove;
-		tmymove = 0;
-	}
-	else
-	{
-		mo->momx = tmxmove;
-		mo->momy = tmymove;
-	}
+	mo->momx = tmxmove;
+	mo->momy = tmymove;
 
 	do {
 		if (tmxmove > mo->radius) {

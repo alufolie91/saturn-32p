@@ -72,7 +72,40 @@ extern lighttable_t *zlight[LIGHTLEVELS][MAXLIGHTZ];
 #define COLORMAP_REMAPOFFSET COLORMAP_SIZE
 
 // Utility functions.
-INT32 R_PointOnSide(fixed_t x, fixed_t y, const node_t *node);
+
+//
+// R_PointOnSide
+// Traverse BSP (sub) tree,
+// check point against partition plane.
+// Returns side 0 (front) or 1 (back).
+//
+// killough 5/2/98: reformatted
+//
+FUNCINLINE static ATTRINLINE PUREFUNC INT32 R_PointOnSide(fixed_t x, fixed_t y, const node_t *restrict node)
+{
+	if (!node->dx)
+		return x <= node->x ? node->dy > 0 : node->dy < 0;
+
+	if (!node->dy)
+		return y <= node->y ? node->dx < 0 : node->dx > 0;
+
+	x -= node->x;
+	y -= node->y;
+
+	// Try to quickly decide by looking at sign bits.
+	// also use a mask to avoid branch prediction
+	INT32 mask = (node->dy ^ node->dx ^ x ^ y) >> 31;
+	return (mask & ((node->dy ^ x) < 0)) |  // (left is negative)
+	(~mask & (FixedMul(y, node->dx>>FRACBITS) >= FixedMul(node->dy>>FRACBITS, x)));
+}
+
+// This is not as accurate
+// SHOULD NOT BE USED FOR ANYTHING GAMEPLAY RELATED!!
+FUNCINLINE static ATTRINLINE PUREFUNC INT32 R_PointOnSideFast(fixed_t x, fixed_t y, const node_t *node)
+{
+	// use cross product to determine side quickly
+	return ((INT64)y - node->y) * node->dx - ((INT64)x - node->x) * node->dy > 0;
+}
 
 FUNCINLINE static ATTRINLINE PUREFUNC INT32 R_PointOnSegSide(fixed_t x, fixed_t y, const seg_t *line)
 {
@@ -82,7 +115,7 @@ FUNCINLINE static ATTRINLINE PUREFUNC INT32 R_PointOnSegSide(fixed_t x, fixed_t 
     fixed_t ldy = line->v2->y - ly;
 
 	// use cross product to determine side quickly
-	return (INT64)(y - ly) * ldx - (INT64)(x - lx) * ldy > 0;
+	return ((INT64)y - ly) * ldx - ((INT64)x - lx) * ldy > 0;
 }
 
 angle_t R_PointToAngle(fixed_t x, fixed_t y);
@@ -91,13 +124,106 @@ angle_t R_PointToAngle2(fixed_t px2, fixed_t py2, fixed_t px1, fixed_t py1);
 angle_t R_PlayerSliptideAngle(player_t *player);
 
 fixed_t R_ScaleFromGlobalAngle(angle_t visangle);
-boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y);
-subsector_t *R_PointInSubsector(fixed_t x, fixed_t y);
-subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y);
+
+//
+// R_IsPointInSector
+//
+FUNCINLINE static ATTRINLINE boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y)
+{
+	size_t i;
+	size_t passes = 0;
+
+	for (i = 0; i < sector->linecount; i++)
+	{
+		line_t *line = sector->lines[i];
+		vertex_t *v1, *v2;
+
+		if (line->frontsector == line->backsector)
+			continue;
+
+		v1 = line->v1;
+		v2 = line->v2;
+
+		// make sure v1 is below v2
+		if (v1->y > v2->y)
+		{
+			vertex_t *tmp = v1;
+			v1 = v2;
+			v2 = tmp;
+		}
+		else if (v1->y == v2->y) // horizontal line, we can't match this
+			continue;
+
+		if (v1->y < y && y <= v2->y)
+		{
+			// if the y axis in inside the line, find the point where we intersect on the x axis...
+			fixed_t vx = v1->x + (INT64)(v2->x - v1->x) * (y - v1->y) / (v2->y - v1->y);
+
+			// ...and if that point is to the left of the point, count it as inside.
+			if (vx < x)
+				passes++;
+		}
+	}
+
+	// and odd number of passes means we're inside the polygon.
+	return (boolean)(passes % 2);
+}
+
+//
+// R_PointInSubsector
+//
+FUNCINLINE static ATTRINLINE subsector_t *R_PointInSubsector(fixed_t x, fixed_t y)
+{
+	size_t nodenum = numnodes-1;
+
+	while (!(nodenum & NF_SUBSECTOR))
+		nodenum = nodes[nodenum].children[R_PointOnSide(x, y, nodes+nodenum)];
+
+	return &subsectors[nodenum & ~NF_SUBSECTOR];
+}
+
+// uses R_PointOnSideFast
+// SHOULD NOT BE USED FOR ANYTHING GAMEPLAY RELATED!!
+FUNCINLINE static ATTRINLINE subsector_t *R_PointInSubsectorFast(fixed_t x, fixed_t y)
+{
+	size_t nodenum = numnodes-1;
+
+	while (!(nodenum & NF_SUBSECTOR))
+		nodenum = nodes[nodenum].children[R_PointOnSideFast(x, y, nodes+nodenum)];
+
+	return &subsectors[nodenum & ~NF_SUBSECTOR];
+}
+
+//
+// R_IsPointInSubsector, same as above but returns 0 if not in subsector
+//
+FUNCINLINE static ATTRINLINE subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y)
+{
+	node_t *node;
+	INT32 side, i;
+	size_t nodenum;
+	subsector_t *ret;
+
+	nodenum = numnodes - 1;
+
+	while (!(nodenum & NF_SUBSECTOR))
+	{
+		node = &nodes[nodenum];
+		//side = R_PointOnSide(x, y, node);
+		side = R_PointOnSideFast(x, y, node); // this is fine since R_IsPointInSubsector is only used for precip spawn unless you disable noclipcam lol
+		nodenum = node->children[side];
+	}
+
+	ret = &subsectors[nodenum & ~NF_SUBSECTOR];
+	for (i = 0; i < ret->numlines; i++)
+		if (P_PointOnLineSide(x, y, segs[ret->firstline + i].linedef) != segs[ret->firstline + i].side)
+			return 0;
+
+	return ret;
+}
 
 #define R_PointToDist(x, y) R_PointToDist2(viewx, viewy, x, y)
 #define R_PointToDist2(px2, py2, px1, py1) FixedHypot((px1) - (px2), (py1) - (py2))
-
 
 boolean R_DoCulling(line_t *cullheight, line_t *viewcullheight, fixed_t vz, fixed_t bottomh, fixed_t toph);
 void R_GetRenderBlockMapDimensions(fixed_t drawdist, INT32 *xl, INT32 *xh, INT32 *yl, INT32 *yh);
@@ -128,8 +254,8 @@ extern ps_metric_t ps_numpolyobjects;
 
 extern consvar_t cv_showhud, cv_translucenthud, cv_uncappedhud;
 extern consvar_t cv_homremoval;
-extern consvar_t cv_chasecam, cv_chasecam2, cv_chasecam3, cv_chasecam4;
-extern consvar_t cv_flipcam, cv_flipcam2, cv_flipcam3, cv_flipcam4;
+extern consvar_t cv_chasecam[MAXSPLITSCREENPLAYERS];
+extern consvar_t cv_flipcam[MAXSPLITSCREENPLAYERS];
 extern consvar_t cv_shadow, cv_shadowoffs;
 extern consvar_t cv_ffloorclip, cv_spriteclip;
 extern consvar_t cv_translucency;
@@ -139,6 +265,8 @@ extern consvar_t cv_skybox;
 extern consvar_t cv_tailspickup;
 extern consvar_t cv_maxinterpdist;
 extern consvar_t cv_ripplewater;
+
+extern consvar_t cv_randomdirlight;
 
 // Called by startup code.
 void R_Init(void);
@@ -154,9 +282,9 @@ void R_SetViewSize(void);
 // do it (sometimes explicitly called)
 void R_ExecuteSetViewSize(void);
 
-void R_SkyboxFrame(player_t *player);
+void R_SkyboxFrame(int s);
+void R_SetupFrame(int s, boolean skybox);
 
-void R_SetupFrame(player_t *player, boolean skybox);
 // Called by G_Drawer.
 void R_RenderPlayerView(player_t *player);
 

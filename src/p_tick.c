@@ -49,6 +49,7 @@ tic_t leveltime;
 
 // Both the head and tail of the thinker list.
 thinker_t thinkercap;
+thinker_t precipcap;
 
 void Command_Numthinkers_f(void)
 {
@@ -104,12 +105,25 @@ void Command_Numthinkers_f(void)
 			return;
 	}
 
-	for (think = thinkercap.next; think != &thinkercap; think = think->next)
+	if (num == 2) // P_NullPrecipThinker
 	{
-		if (think->function.acp1 != action)
-			continue;
+		for (think = precipcap.next; think != &precipcap; think = think->next)
+		{
+			if (think->function.acp1 != action)
+				continue;
 
-		count++;
+			count++;
+		}
+	}
+	else
+	{
+		for (think = thinkercap.next; think != &thinkercap; think = think->next)
+		{
+			if (think->function.acp1 != action)
+				continue;
+
+			count++;
+		}
 	}
 
 	CONS_Printf("%d\n", count);
@@ -181,6 +195,7 @@ void Command_CountMobjs_f(void)
 void P_InitThinkers(void)
 {
 	thinkercap.prev = thinkercap.next = &thinkercap;
+	precipcap.prev = precipcap.next = &precipcap;
 	waypointcap = NULL;
 }
 
@@ -196,6 +211,24 @@ void P_AddThinker(thinker_t *thinker)
 	thinkercap.prev = thinker;
 
 	thinker->references = 0;    // killough 11/98: init reference counter to 0
+
+	thinker->cachable = (thinker->function.acp1 == (actionf_p1)P_MobjThinker);
+}
+
+//
+// P_AddPrecipThinker
+// Adds a new precip thinker at the end of the list.
+//
+void P_AddPrecipThinker(thinker_t *thinker)
+{
+	precipcap.prev->next = thinker;
+	thinker->next = &precipcap;
+	thinker->prev = precipcap.prev;
+	precipcap.prev = thinker;
+
+	thinker->references = 0;    // killough 11/98: init reference counter to 0
+
+	thinker->cachable = false;
 }
 
 //
@@ -235,7 +268,17 @@ void P_RemoveThinkerDelayed(thinker_t *thinker)
 	* thinker->prev->next = thinker->next */
 	(next->prev = currentthinker = thinker->prev)->next = next;
 	R_DestroyLevelInterpolators(thinker);
-	Z_Free(thinker);
+
+	if (thinker->cachable == true)
+	{
+		// put cachable thinkers in the mobj cache, so we can avoid allocations
+		((mobj_t *)thinker)->hnext = mobjcache;
+		mobjcache = (mobj_t *)thinker;
+	}
+	else
+	{
+		Z_Free(thinker);
+	}
 }
 
 //
@@ -250,8 +293,19 @@ void P_UnlinkThinker(thinker_t *thinker)
 	I_Assert(thinker->references == 0);
 
 	(next->prev = thinker->prev)->next = next;
-	Z_Free(thinker);
+
+	if (thinker->cachable == true)
+	{
+		// put cachable thinkers in the mobj cache, so we can avoid allocations
+		((mobj_t *)thinker)->hnext = mobjcache;
+		mobjcache = (mobj_t *)thinker;
+	}
+	else
+	{
+		Z_Free(thinker);
+	}
 }
+
 
 //
 // P_RemoveThinker
@@ -318,8 +372,6 @@ static inline void P_RunThinkers(void)
 {
 	for (currentthinker = thinkercap.next; currentthinker != &thinkercap; currentthinker = currentthinker->next)
 	{
-		if (currentthinker->function.acp1 == (actionf_p1)P_NullPrecipThinker)
-			continue;
 #ifdef PARANOIA
 		I_Assert(currentthinker->function.acp1 != NULL)
 #endif
@@ -327,7 +379,7 @@ static inline void P_RunThinkers(void)
 	}
 }
 
-static inline void P_DeviceRumbleTick(void)
+static void P_DeviceRumbleTick(void)
 {
 	UINT8 i;
 
@@ -345,7 +397,7 @@ static inline void P_DeviceRumbleTick(void)
 		if (!P_IsLocalPlayer(player))
 			continue;
 
-		if (G_GetDeviceForPlayer(i) == 0)
+		if (cv_usejoystick[i].value == 0)
 			continue;
 
 		if (!playeringame[displayplayers[i]] || player->spectator)
@@ -397,7 +449,7 @@ void P_RunChaseCameras(void)
 	}
 }
 
-static inline void P_RunQuakes(void)
+static void P_RunQuakes(void)
 {
 	fixed_t ir;
 
@@ -434,10 +486,21 @@ void P_Ticker(boolean run)
 {
 	INT32 i;
 
-	//Increment jointime even if paused.
+	// Increment jointime even if paused
 	for (i = 0; i < MAXPLAYERS; i++)
+	{
 		if (playeringame[i])
-			++players[i].jointime;
+		{
+			players[i].jointime++;
+		}
+	}
+
+	if (run)
+	{
+		// Update old view state BEFORE ticking so resetting
+		// the old interpolation state from game logic works.
+		R_UpdateViewInterpolation();
+	}
 
 	if (objectplacing)
 	{
@@ -517,7 +580,7 @@ void P_Ticker(boolean run)
 		ps_checkposition_calls.value.i = 0;
 
 		PS_START_TIMING(ps_lua_prethinkframe_time);
-		LUAh_PreThinkFrame();
+		LUA_HookPreThinkFrame();
 		PS_STOP_TIMING(ps_lua_prethinkframe_time);
 
 		PS_START_TIMING(ps_playerthink_time);
@@ -552,7 +615,7 @@ void P_Ticker(boolean run)
 		}
 
 		PS_START_TIMING(ps_lua_thinkframe_time);
-		LUAh_ThinkFrame();
+		LUA_HookThinkFrame();
 		PS_STOP_TIMING(ps_lua_thinkframe_time);
 	}
 
@@ -628,14 +691,17 @@ void P_Ticker(boolean run)
 
 			G_WriteAllGhostTics();
 
-			if (cv_recordmultiplayerdemos.value && (demo.savemode == DSM_NOTSAVING || demo.savemode == DSM_WILLAUTOSAVE))
-				if (demo.savebutton && demo.savebutton + 3*TICRATE < leveltime && (InputDown(gc_lookback, 1) || (cv_usejoystick.value && axis > 0)))
-					demo.savemode = DSM_TITLEENTRY;
+			if (cv_recordmultiplayerdemos.value)
+			{
+				if (demo.savemode == DSM_NOTSAVING || demo.savemode == DSM_WILLAUTOSAVE)
+					if (demo.savebutton && demo.savebutton + 3*TICRATE < leveltime && (InputDown(gc_lookback, 1) || (cv_usejoystick[0].value && axis > 0)))
+						demo.savemode = DSM_TITLEENTRY;
 
-			//if there are no players left at all, stop demo recording
-			//Demos that that dont have any players crash during playback, which can happen with dedicated servers
-			if (cv_recordmultiplayerdemos.value && demo.savemode == DSM_WILLAUTOSAVE && !D_NumPlayers())
-				G_SaveDemo();
+				// if there are no players left at all, stop demo recording
+				// Demos that that dont have any players crash during playback, which can happen with dedicated servers
+				if (demo.savemode == DSM_WILLAUTOSAVE && !D_NumPlayers())
+					G_ResetDemoRecording();
+			}
 		}
 		else if (demo.playback) // Use Ghost data for consistency checks.
 		{
@@ -656,7 +722,7 @@ void P_Ticker(boolean run)
 				D_MapChange(gamemap, gametype, encoremode, true, 0, false, false);
 
 		PS_START_TIMING(ps_lua_postthinkframe_time);
-		LUAh_PostThinkFrame();
+		LUA_HookPostThinkFrame();
 		PS_STOP_TIMING(ps_lua_postthinkframe_time);
 	}
 
@@ -668,7 +734,6 @@ void P_Ticker(boolean run)
 	if (run)
 	{
 		R_UpdateLevelInterpolators();
-		R_UpdateViewInterpolation();
 
 		// Hack: ensure newview is assigned every tic.
 		// Ensures view interpolation is T-1 to T in poor network conditions
@@ -678,16 +743,18 @@ void P_Ticker(boolean run)
 			for (i = 0; i <= splitscreen; i++)
 			{
 				player_t *player = &players[displayplayers[i]];
-				boolean isSkyVisibleForPlayer = skyVisiblePerPlayer[i];
 
 				if (!player->mo)
 					continue;
 
-				if (isSkyVisibleForPlayer && skyboxmo[0] && cv_skybox.value)
+				const boolean skybox = (skyboxmo[0] && cv_skybox.value);
+
+				if (skyVisiblePerPlayer[i] && skybox)
 				{
-					R_SkyboxFrame(player);
+					R_SkyboxFrame(i);
 				}
-				R_SetupFrame(player, (skyboxmo[0] && cv_skybox.value));
+
+				R_SetupFrame(i, skybox);
 			}
 		}
 	}
@@ -712,7 +779,7 @@ void P_PreTicker(INT32 frames)
 
 		R_UpdateMobjInterpolators();
 
-		LUAh_PreThinkFrame();
+		LUA_HOOK(PreThinkFrame);
 
 		for (i = 0; i < MAXPLAYERS; i++)
 			if (playeringame[i] && players[i].mo && !P_MobjWasRemoved(players[i].mo))
@@ -740,7 +807,7 @@ void P_PreTicker(INT32 frames)
 			if (playeringame[i] && players[i].mo && !P_MobjWasRemoved(players[i].mo))
 				P_PlayerAfterThink(&players[i]);
 
-		LUAh_ThinkFrame();
+		LUA_HookThinkFrame();
 
 		P_RunOverlays();
 		P_RunShadows();
@@ -748,7 +815,7 @@ void P_PreTicker(INT32 frames)
 		P_UpdateSpecials();
 		P_RespawnSpecials();
 
-		LUAh_PostThinkFrame();
+		LUA_HOOK(PostThinkFrame);
 
 		R_UpdateLevelInterpolators();
 		R_UpdateViewInterpolation();

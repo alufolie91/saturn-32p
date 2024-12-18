@@ -45,6 +45,10 @@ extern boolean g_in_exiting_signal_handler;
 */
 size_t I_GetFreeMem(size_t *total);
 
+/**	\brief	Fills a buffer with random data, returns amount of data obtained.
+  */
+size_t I_GetRandomBytes(char *destination, size_t count);
+
 /**	\brief	Returns precise time value for performance measurement. The precise
             time should be a monotonically increasing counter, and will wrap.
 			precise_t is internally represented as an unsigned integer and
@@ -202,9 +206,13 @@ void I_JoyScale4(void);
 
 // Called by D_SRB2Main.
 
+/**	\brief to startup joystick
+ */
+void I_InitJoystick(UINT8 index);
+
 /**	\brief to startup the first joystick
 */
-void I_InitJoystick(void);
+void I_InitJoystick1(void);
 
 /**	\brief to startup the second joystick
 */
@@ -307,21 +315,9 @@ INT32 I_mkdir(const char *dirname, INT32 unixright);
 */
 const char *I_LocateWad(void);
 
-/**	\brief First Joystick's events
+/**	\brief Joystick events
 */
-void I_GetJoystickEvents(void);
-
-/**	\brief Second Joystick's events
-*/
-void I_GetJoystick2Events(void);
-
-/**	\brief Third Joystick's events
-*/
-void I_GetJoystick3Events(void);
-
-/**	\brief Fourth Joystick's events
-*/
-void I_GetJoystick4Events(void);
+void I_GetJoystickEvents(UINT8 index);
 
 /**	\brief Mouses events
 */

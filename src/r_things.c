@@ -27,6 +27,7 @@
 #include "r_plane.h"
 #include "p_tick.h"
 #include "p_local.h"
+#include "p_setup.h"
 #include "p_slopes.h"
 #include "dehacked.h" // get_number (for thok)
 #include "d_netfil.h" // blargh. for nameonly().
@@ -107,6 +108,13 @@ static drawsegs_xrange_t drawsegs_xranges[DS_RANGES_COUNT];
 static drawseg_xrange_item_t *drawsegs_xrange;
 static size_t drawsegs_xrange_size = 0;
 static INT32 drawsegs_xrange_count = 0;
+
+INT32 R_ThingLightLevel(mobj_t* thing)
+{
+	INT32 lightlevel = thing->lightlevel;
+
+	return lightlevel;
+}
 
 // ==========================================================================
 //
@@ -965,7 +973,8 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 
 //
 // R_SplitSprite
-// runs through a sector's lightlist and
+// runs through a sector's lightlist and splits the sprite according to the heights
+//
 static void R_SplitSprite(vissprite_t *sprite, mobj_t *thing)
 {
 	INT32 i, lightnum, lindex;
@@ -1108,6 +1117,26 @@ fixed_t R_GetShadowZ(mobj_t *thing, pslope_t **shadowslope)
 #undef CHECKZ
 }
 
+fixed_t R_GetSpriteDirectionalLighting(angle_t angle)
+{
+	// Copied from P_UpdateSegLightOffset
+	const UINT8 contrast = min(max(0, maplighting.contrast - maplighting.backlight), UINT8_MAX);
+	const fixed_t contrastFixed = ((fixed_t)contrast) * FRACUNIT;
+
+	fixed_t light = FRACUNIT;
+	fixed_t extralight = 0;
+
+	light = FixedMul(FINECOSINE(angle >> ANGLETOFINESHIFT), FINECOSINE(maplighting.angle >> ANGLETOFINESHIFT))
+		+ FixedMul(FINESINE(angle >> ANGLETOFINESHIFT), FINESINE(maplighting.angle >> ANGLETOFINESHIFT));
+	light = (light + FRACUNIT) / 2;
+
+	light = FixedMul(light, FRACUNIT - FSIN(abs(AngleDeltaSigned(angle, maplighting.angle)) / 2));
+
+	extralight = -contrastFixed + FixedMul(light, contrastFixed * 2);
+
+	return extralight;
+}
+
 //
 // R_ProjectSprite
 // Generates a vissprite for a thing
@@ -1142,17 +1171,22 @@ static void R_ProjectSprite(mobj_t *thing)
 	vissprite_t *vis;
 
 	angle_t ang = 0; // gcc 4.6 and lower fix
+#ifdef ROTSPRITE
 	angle_t camang = 0;
+#endif
 	fixed_t iscale;
 	fixed_t scalestep; // toast '16
 	fixed_t offset, offset2;
 	boolean papersprite = (thing->frame & FF_PAPERSPRITE);
 	fixed_t paperoffset = 0, paperdistance = 0; angle_t centerangle = 0;
 
+	INT32 lightnum;
+
 	//SoM: 3/17/2000
 	fixed_t gz, gzt;
 	INT32 heightsec, phs;
 	INT32 light = 0;
+	lighttable_t **lights_array = spritelights;
 	fixed_t this_scale;
 	fixed_t spritexscale, spriteyscale;
 
@@ -1163,7 +1197,6 @@ static void R_ProjectSprite(mobj_t *thing)
 #ifdef ROTSPRITE
 	patch_t *rotsprite = NULL;
 	INT32 rollangle = 0;
-	angle_t rollsum = 0;
 	angle_t pitchnroll = 0;
 	angle_t sliptiderollangle = 0;
 #endif
@@ -1206,7 +1239,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	tx = -(gyt + gxt);
 
 	// too far off the side?
-	if (!papersprite && abs(tx) > tz<<2) // papersprite clipping is handled later
+	if (!papersprite && abs(tx) > (INT64)tz<<2) // papersprite clipping is handled later
 		return;
 
 	// aspect ratio stuff
@@ -1219,7 +1252,13 @@ static void R_ProjectSprite(mobj_t *thing)
 		I_Error("R_ProjectSprite: invalid sprite number %d ", thing->sprite);
 #endif
 
-	rot = thing->frame&FF_FRAMEMASK;
+	rot = (thing->frame & FF_FRAMEMASK);
+
+#ifdef ROTSPRITE
+	// determine here if sprite should rotate for optimization
+	const boolean sliprollrotate = (cv_sloperoll.value && cv_sliptideroll.value && (thing->player && thing->player->sliproll));
+	const boolean shouldrotate = (cv_sloperoll.value && (interp.roll || interp.pitch || interp.sloperoll || interp.slopepitch || thing->rollangle || sliprollrotate));
+#endif
 
 	//Fab : 02-08-98: 'skin' override spritedef currently used for skin
 	if ((thing->skin || thing->localskin) && thing->sprite == SPR_PLAY)
@@ -1250,7 +1289,7 @@ static void R_ProjectSprite(mobj_t *thing)
 #ifdef ROTSPRITE
 		sprinfo = &spriteinfo[thing->sprite];
 #endif
-		rot = thing->frame&FF_FRAMEMASK;
+		rot = (thing->frame & FF_FRAMEMASK);
 		if (!thing->skin)
 		{
 			thing->state->sprite = thing->sprite;
@@ -1265,10 +1304,17 @@ static void R_ProjectSprite(mobj_t *thing)
 		I_Error("R_ProjectSprite: sprframes NULL for sprite %d\n", thing->sprite);
 #endif
 
-	if (sprframe->rotate != SRF_SINGLE || papersprite || (cv_sloperoll.value == 2 && cv_spriteroll.value))
+	if (sprframe->rotate != SRF_SINGLE || papersprite ||
+#ifdef ROTSPRITE
+		(shouldrotate)
+#endif
+	)
 	{
-		ang = R_PointToAngle (interp.x, interp.y) - interp.angle;
-		camang = R_PointToAngle (interp.x, interp.y);
+		ang = R_PointToAngle(interp.x, interp.y);
+#ifdef ROTSPRITE
+		camang = ang;
+#endif
+		ang -= interp.angle;
 
 		if (mirrored)
 			ang = InvAngle(ang);
@@ -1311,9 +1357,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	spr_topoffset = spritecachedinfo[lump].topoffset;
 
 #ifdef ROTSPRITE
-    pitchnroll = 0;  // set this to 0, non-paper sprites will affect this value
-
-	if (cv_spriteroll.value)
+	if (shouldrotate)
 	{
 		if (papersprite)
 		{
@@ -1331,29 +1375,21 @@ static void R_ProjectSprite(mobj_t *thing)
 		{
 			// this is very messy, but it on-the-fly calculates rotations for all the
 			// pitch and roll variables
-			pitchnroll = FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), interp.roll) +
-						 FixedMul(FINESINE((ang) >> ANGLETOFINESHIFT), interp.pitch) +
-						 FixedMul(FINECOSINE((camang) >> ANGLETOFINESHIFT), interp.sloperoll) +
-						 FixedMul(FINESINE((camang) >> ANGLETOFINESHIFT), interp.slopepitch);
-
+			pitchnroll = R_RotationAngle(ang, camang, &interp);
 			rollangle = thing->rollangle;
 		}
 
-		if (rollangle || pitchnroll || (thing->player && thing->player->sliproll))
+		if (rollangle || pitchnroll || sliprollrotate)
 		{
-			rollsum = pitchnroll;
-
-			if (thing->player)
+			if (sliprollrotate)
 			{
-				sliptiderollangle =
-					cv_sliptideroll.value ? thing->player->sliproll * (thing->player->sliptidemem) : 0;
-				rollsum += thing->rollangle +
-						   FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), sliptiderollangle);
+				sliptiderollangle = thing->player->sliproll * thing->player->kartstuff[k_aizdriftstrat];
+				pitchnroll += rollangle + FixedMul(FINECOSINE((ang) >> ANGLETOFINESHIFT), sliptiderollangle);
 			}
 			else
-				rollsum += thing->rollangle;
+				pitchnroll += rollangle;
 
-			rollangle = R_GetRollAngle(rollsum);
+			rollangle = R_GetRollAngle(pitchnroll);
 			rotsprite = Patch_GetRotatedSprite(sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
 
 			if (rotsprite != NULL)
@@ -1558,27 +1594,68 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	if (thing->subsector->sector->numlights)
 	{
-		INT32 lightnum;
 		light = thing->subsector->sector->numlights - 1;
 
 		for (lightnum = 1; lightnum < thing->subsector->sector->numlights; lightnum++) {
 			fixed_t h = thing->subsector->sector->lightlist[lightnum].slope ? P_GetZAt(thing->subsector->sector->lightlist[lightnum].slope, interp.x, interp.y)
-			            : thing->subsector->sector->lightlist[lightnum].height;
+					: thing->subsector->sector->lightlist[lightnum].height;
 			if (h <= gzt)
 			{
 				light = lightnum - 1;
 				break;
 			}
 		}
-		lightnum = (*thing->subsector->sector->lightlist[light].lightlevel >> LIGHTSEGSHIFT);
 
-		if (lightnum < 0)
-			spritelights = scalelight[0];
-		else if (lightnum >= LIGHTLEVELS)
-			spritelights = scalelight[LIGHTLEVELS-1];
-		else
-			spritelights = scalelight[lightnum];
+		lightnum = *thing->subsector->sector->lightlist[light].lightlevel;
 	}
+	else
+	{
+		lightnum = thing->subsector->sector->lightlevel;
+	}
+
+	lightnum = (lightnum + R_ThingLightLevel(thing)) >> LIGHTSEGSHIFT;
+
+	if (maplighting.directional == true && P_SectorUsesDirectionalLighting(thing->subsector->sector))
+	{
+		fixed_t extralight = R_GetSpriteDirectionalLighting(papersprite
+				? interp.angle + (ang >= ANGLE_180 ? -ANGLE_90 : ANGLE_90)
+				: R_PointToAngle(interp.x, interp.y));
+
+		// Krangle contrast in 3P/4P because scalelight
+		// scales differently depending on the screen
+		// width (which is halved in 3P/4P).
+		if (splitscreen > 1)
+		{
+			extralight *= 2;
+		}
+
+		// Less change in contrast in dark sectors
+		extralight = FixedMul(extralight, min(max(0, lightnum), LIGHTLEVELS - 1) * FRACUNIT / (LIGHTLEVELS - 1));
+
+		if (papersprite)
+		{
+			// Papersprite contrast should match walls
+			lightnum += FixedFloor((extralight / 8) + (FRACUNIT / 2)) / FRACUNIT;
+		}
+		else
+		{
+			fixed_t n = FixedDiv(FixedMul(xscale, LIGHTRESOLUTIONFIX), ((MAXLIGHTSCALE-1) << LIGHTSCALESHIFT));
+
+			// Less change in contrast at further distances, to counteract DOOM diminished light
+			extralight = FixedMul(extralight, min(n, FRACUNIT));
+
+			// Contrast is stronger for normal sprites, stronger than wall lighting is at the same distance
+			lightnum += FixedFloor((extralight / 4) + (FRACUNIT / 2)) / FRACUNIT;
+		}
+	}
+
+	if (lightnum < 0)
+		lights_array = scalelight[0];
+	else if (lightnum >= LIGHTLEVELS)
+		lights_array = scalelight[LIGHTLEVELS-1];
+	else
+		lights_array = scalelight[lightnum];
+
 
 	heightsec = thing->subsector->sector->heightsec;
 	if (viewplayer && viewplayer->mo && viewplayer->mo->subsector)
@@ -1664,7 +1741,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	//Fab: lumppat is the lump number of the patch to use, this is different
 	//     than lumpid for sprites-in-pwad : the graphics are patched
 #ifdef ROTSPRITE
-	if ((rotsprite != NULL) && (cv_spriteroll.value))
+	if (rotsprite != NULL)
 		vis->patch = rotsprite;
 	else
 #endif
@@ -1697,7 +1774,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		// Mitigate against negative xscale and arithmetic overflow
 		lindex = CLAMP(lindex, 0, MAXLIGHTSCALE - 1);
 
-		vis->colormap = spritelights[lindex];
+		vis->colormap = lights_array[lindex];
 	}
 
 	vis->precip = false;
@@ -2759,7 +2836,7 @@ boolean R_ThingVisible (mobj_t *thing)
 	if (thing->sprite == SPR_NULL || thing->flags2 & MF2_DONTDRAW)
 		return false;
 
-	if (viewmobj && (thing == viewmobj))
+	if (!P_MobjWasRemoved(viewmobj) && (thing == viewmobj))
 		return false;
 
 	if (splitscreen)

@@ -15,8 +15,9 @@
 #include "hw_main.h"
 #include "../i_system.h"
 
-#include "../qs22j.h"
+#include "../doomdef.h"
 
+#include "../qs22j.h"
 
 // The texture for the next polygon given to HWR_ProcessPolygon.
 // Set with HWR_SetCurrentTexture.
@@ -64,7 +65,7 @@ void HWR_StartBatching(void)
 	currently_batching = true;
 }
 
-// This replaces the direct calls to pfnSetTexture in cases where batching is available.
+// This replaces the direct calls to GL_SetTexture in cases where batching is available.
 // The texture selection is saved for the next HWR_ProcessPolygon call.
 // Doing this was easier than getting a texture pointer to HWR_ProcessPolygon.
 void HWR_SetCurrentTexture(GLMipmap_t *texture)
@@ -75,7 +76,7 @@ void HWR_SetCurrentTexture(GLMipmap_t *texture)
 	}
 	else
 	{
-		HWD.pfnSetTexture(texture);
+		GL_SetTexture(texture);
 	}
 }
 
@@ -129,8 +130,8 @@ void HWR_ProcessPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPt
 	}
 	else
 	{
-		HWD.pfnSetShader((shader_target != SHADER_NONE) ? HWR_GetShaderFromTarget(shader_target) : shader_target);
-		HWD.pfnDrawPolygon(pSurf, pOutVerts, iNumPts, PolyFlags);
+		GL_SetShader((shader_target != SHADER_NONE) ? HWR_GetShaderFromTarget(shader_target) : shader_target);
+		GL_DrawPolygon(pSurf, pOutVerts, iNumPts, PolyFlags);
 	}
 }
 
@@ -179,6 +180,10 @@ static int comparePolygons(const void *p1, const void *p2)
 	diff = poly1->surf.LightInfo.fade_start - poly2->surf.LightInfo.fade_start;
 	if (diff != 0) return diff;
 	diff = poly1->surf.LightInfo.fade_end - poly2->surf.LightInfo.fade_end;
+	if (diff != 0) return diff;
+
+	diff = poly1->surf.LightInfo.directional - poly2->surf.LightInfo.directional;
+
 	return diff;
 }
 
@@ -227,7 +232,7 @@ void HWR_RenderBatches(void)
 
 	int currentShader;
 	int nextShader = 0;
-	GLMipmap_t *currentTexture;
+	GLMipmap_t *currentTexture = NULL;
 	GLMipmap_t *nextTexture = NULL;
 	FBITFIELD currentPolyFlags = 0;
 	FBITFIELD nextPolyFlags = 0;
@@ -242,6 +247,7 @@ void HWR_RenderBatches(void)
 	nextSurfaceInfo.LightInfo.fade_end = 0;
 	nextSurfaceInfo.LightInfo.fade_start = 0;
 	nextSurfaceInfo.LightInfo.light_level = 0;
+	nextSurfaceInfo.LightInfo.directional = false;
 
 	currently_batching = false;// no longer collecting batches
 	if (!polygonArraySize)
@@ -291,13 +297,13 @@ void HWR_RenderBatches(void)
 
 	if (cv_glshaders.value && gl_shadersavailable)
 	{
-		HWD.pfnSetShader(currentShader);
+		GL_SetShader(currentShader);
 	}
 
 	if (currentPolyFlags & PF_NoTexture)
 		currentTexture = NULL;
 	else
-	    HWD.pfnSetTexture(currentTexture);
+		GL_SetTexture(currentTexture);
 
 	while (1)// note: remember handling notexture polyflag as having texture number 0 (also in comparePolygons)
 	{
@@ -393,7 +399,8 @@ void HWR_RenderBatches(void)
 					currentSurfaceInfo.FadeColor.rgba != nextSurfaceInfo.FadeColor.rgba ||
 					currentSurfaceInfo.LightInfo.light_level != nextSurfaceInfo.LightInfo.light_level ||
 					currentSurfaceInfo.LightInfo.fade_start != nextSurfaceInfo.LightInfo.fade_start ||
-					currentSurfaceInfo.LightInfo.fade_end != nextSurfaceInfo.LightInfo.fade_end)
+					currentSurfaceInfo.LightInfo.fade_end != nextSurfaceInfo.LightInfo.fade_end ||
+					currentSurfaceInfo.LightInfo.directional != nextSurfaceInfo.LightInfo.directional)
 				{
 					changeState = true;
 					changeSurfaceInfo = true;
@@ -412,7 +419,7 @@ void HWR_RenderBatches(void)
 		if (changeState || stopFlag)
 		{
 			// execute draw call
-            HWD.pfnDrawIndexedTriangles(&currentSurfaceInfo, finalVertexArray, finalIndexWritePos, currentPolyFlags, finalVertexIndexArray);
+			GL_DrawIndexedTriangles(&currentSurfaceInfo, finalVertexArray, finalIndexWritePos, currentPolyFlags, finalVertexIndexArray);
 			// update stats
 			ps_hw_numcalls.value.i++;
 			ps_hw_numverts.value.i += finalIndexWritePos;
@@ -430,7 +437,7 @@ void HWR_RenderBatches(void)
 		{
 			if (changeShader)
 			{
-				HWD.pfnSetShader(nextShader);
+				GL_SetShader(nextShader);
 				currentShader = nextShader;
 				changeShader = false;
 
@@ -438,8 +445,8 @@ void HWR_RenderBatches(void)
 			}
 			if (changeTexture)
 			{
-				// texture should be already ready for use from calls to SetTexture during batch collection
-				HWD.pfnSetTexture(nextTexture);
+				// texture should be already ready for use from calls to GL_SetTexture during batch collection
+				GL_SetTexture(nextTexture);
 				currentTexture = nextTexture;
 				changeTexture = false;
 

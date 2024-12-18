@@ -25,12 +25,14 @@
 #include "../doomstat.h"
 
 #ifdef HWRENDER
-#include "hw_drv.h"
+
+#include "hw_gl.h"
 #include "hw_md2.h"
 #include "../d_main.h"
 #include "../r_bsp.h"
 #include "../r_fps.h"
 #include "../r_main.h"
+#include "../p_setup.h"
 #include "../m_misc.h"
 #include "../w_wad.h"
 #include "../z_zone.h"
@@ -43,8 +45,8 @@
 
 #include "hw_main.h"
 #include "../v_video.h"
-#ifdef HAVE_PNG
 
+#ifdef HAVE_PNG
 #ifndef _MSC_VER
 #ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
@@ -417,7 +419,7 @@ static void md2_loadTexture(md2_t *model)
 			}
 		}
 	}
-	HWD.pfnSetTexture(glpatch->mipmap);
+	GL_SetTexture(glpatch->mipmap);
 	HWR_UnlockCachedPatch(glpatch);
 }
 
@@ -467,7 +469,7 @@ static void md2_loadBlendTexture(md2_t *model)
 		glpatch->mipmap->width = (UINT16)w;
 		glpatch->mipmap->height = (UINT16)h;
 	}
-	HWD.pfnSetTexture(glpatch->mipmap); // We do need to do this so that it can be cleared and knows to recreate it when necessary
+	GL_SetTexture(glpatch->mipmap); // We do need to do this so that it can be cleared and knows to recreate it when necessary
 	HWR_UnlockCachedPatch(glpatch);
 
 	Z_Free(filename);
@@ -680,7 +682,7 @@ spritemd2found:
 #define SETBRIGHTNESS(brightness,r,g,b) \
 	brightness = (UINT8)(((1063*(UINT32)(r))/5000) + ((3576*(UINT32)(g))/5000) + ((361*(UINT32)(b))/5000))
 
-static void HWR_CreateBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, GLMipmap_t *glmip, INT32 skinnum, skincolors_t color)
+static void HWR_CreateBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, GLMipmap_t *glMipmap, INT32 skinnum, skincolors_t color)
 {
 	UINT16 w = gpatch->width, h = gpatch->height;
 	UINT32 size = w*h;
@@ -696,24 +698,24 @@ static void HWR_CreateBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, 
 	memset(translation, 0, sizeof(translation));
 	memset(cutoff, 0, sizeof(cutoff));
 
-	if (glmip->width == 0)
+	if (glMipmap->width == 0)
 	{
-		glmip->width = gpatch->width;
-		glmip->height = gpatch->height;
+		glMipmap->width = gpatch->width;
+		glMipmap->height = gpatch->height;
 
 		// no wrap around, no chroma key
-		glmip->flags = 0;
+		glMipmap->flags = 0;
 		// setup the texture info
-		glmip->format = GL_TEXFMT_RGBA;
+		glMipmap->format = GL_TEXFMT_RGBA;
 	}
 
-	if (glmip->data)
+	if (glMipmap->data)
 	{
-		Z_Free(glmip->data);
-		glmip->data = NULL;
+		Z_Free(glMipmap->data);
+		glMipmap->data = NULL;
 	}
 
-	cur = Z_Malloc(size*4, PU_HWRCACHE, &glmip->data);
+	cur = Z_Malloc(size*4, PU_HWRCACHE, &glMipmap->data);
 	memset(cur, 0x00, size*4);
 
 	image = gpatch->mipmap->data;
@@ -794,10 +796,9 @@ static void HWR_CreateBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, 
 				}
 			}
 		}
-	}
 
-	if (translen > 0)
 		colorbrightnesses[translen] = colorbrightnesses[translen-1];
+	}
 
 	while (size--)
 	{
@@ -1044,28 +1045,29 @@ skippixel:
 static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT32 skinnum, const UINT8 *colormap, skincolors_t color)
 {
 	// mostly copied from HWR_GetMappedPatch, hence the similarities and comment
-	GLMipmap_t *glmip, *newmip;
+	GLMipmap_t *glMipmap, *newMipmap;
 
 	if (colormap == colormaps || colormap == NULL)
 	{
 		// Don't do any blending
-		HWD.pfnSetTexture(gpatch->mipmap);
+		GL_SetTexture(gpatch->mipmap);
 		return;
 	}
 
 	// search for the mimmap
 	// skip the first (no colormap translated)
-	for (glmip = gpatch->mipmap; glmip->nextcolormap; )
+	for (glMipmap = gpatch->mipmap; glMipmap->nextcolormap; )
 	{
-		glmip = glmip->nextcolormap;
-		if (glmip->colormap == colormap)
+		glMipmap = glMipmap->nextcolormap;
+
+		if (glMipmap->colormap != colormap)
+			continue;
+
+		if (glMipmap->downloaded && glMipmap->data)
 		{
-			if (glmip->downloaded && glmip->data)
-			{
-				HWD.pfnSetTexture(glmip); // found the colormap, set it to the correct texture
-				Z_ChangeTag(glmip->data, PU_HWRCACHE_UNLOCKED);
-				return;
-			}
+			GL_SetTexture(glMipmap); // found the colormap, set it to the correct texture
+			Z_ChangeTag(glMipmap->data, PU_HWRCACHE_UNLOCKED);
+			return;
 		}
 	}
 
@@ -1076,16 +1078,16 @@ static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT
 	//              (it have a liste of mipmap)
 	//    this malloc is cleared in HWR_FreeTextureCache
 	//    (...) unfortunately z_malloc fragment alot the memory :(so malloc is better
-	newmip = calloc(1, sizeof (*newmip));
-	if (newmip == NULL)
+	newMipmap = calloc(1, sizeof (*newMipmap));
+	if (newMipmap == NULL)
 		I_Error("%s: Out of memory", "HWR_GetMappedPatch");
-	glmip->nextcolormap = newmip;
-	newmip->colormap = colormap;
+	glMipmap->nextcolormap = newMipmap;
+	newMipmap->colormap = colormap;
 
-	HWR_CreateBlendedTexture(gpatch, blendgpatch, newmip, skinnum, color);
+	HWR_CreateBlendedTexture(gpatch, blendgpatch, newMipmap, skinnum, color);
 
-	HWD.pfnSetTexture(newmip);
-	Z_ChangeTag(newmip->data, PU_HWRCACHE_UNLOCKED);
+	GL_SetTexture(newMipmap);
+	Z_ChangeTag(newMipmap->data, PU_HWRCACHE_UNLOCKED);
 }
 
 
@@ -1119,7 +1121,7 @@ void HWR_DrawMD2(gl_vissprite_t *spr)
 	{
 		sector_t *sector = spr->mobj->subsector->sector;
 		extracolormap_t *colormap = sector->extra_colormap;
-		UINT8 lightlevel = 255;
+		INT32 lightlevel = 255;
 
 		if (sector->numlights)
 		{
@@ -1142,7 +1144,9 @@ void HWR_DrawMD2(gl_vissprite_t *spr)
 				colormap = sector->extra_colormap;
 		}
 
-		HWR_Lighting(&Surf, lightlevel, colormap);
+		HWR_ObjectLightLevelPost(spr, sector, &lightlevel, true);
+
+		HWR_Lighting(&Surf, lightlevel, colormap, P_SectorUsesDirectionalLighting(sector) && !(spr->mobj->frame & FF_FULLBRIGHT));
 	}
 	else
 	{
@@ -1234,7 +1238,7 @@ void HWR_DrawMD2(gl_vissprite_t *spr)
 			if (md2->model)
 			{
 				md2_printModelInfo(md2->model);
-				HWD.pfnCreateModelVBOs(md2->model);
+				GL_CreateModelVBOs(md2->model);
 			}
 			else
 			{
@@ -1289,7 +1293,7 @@ void HWR_DrawMD2(gl_vissprite_t *spr)
 			else
 			{
 				// This is safe, since we know the texture has been downloaded
-				HWD.pfnSetTexture(gpatch->mipmap);
+				GL_SetTexture(gpatch->mipmap);
 			}
 		}
 		else
@@ -1370,19 +1374,16 @@ void HWR_DrawMD2(gl_vissprite_t *spr)
 		
 		p.spritexscale = FIXED_TO_FLOAT(spr->mobj->spritexscale);
 		p.spriteyscale = FIXED_TO_FLOAT(spr->mobj->spriteyscale);
-		
-		angle_t sliptideroll = 0;
 
-		if (spr->mobj->player)
-			sliptideroll = ((cv_sloperoll.value && cv_sliptideroll.value) ? spr->mobj->player->sliproll : 0);
+		angle_t sliptideroll = ((cv_sloperoll.value && cv_sliptideroll.value && spr->mobj->player) ? spr->mobj->player->sliproll : 0);
 
-		if ((spr->mobj->rollangle)||(sliptideroll && cv_sliptideroll.value))
+		if (spr->mobj->rollangle || sliptideroll)
 		{
 			angle_t rollang = 0;
 			rollfactor = ((spr->mobj->rollmodel == true) ? 1 : 0);
 
-			rollang = (spr->mobj->player && sliptideroll && cv_sliptideroll.value)
-            ? (spr->mobj->rollangle * rollfactor) + (sliptideroll * spr->mobj->player->sliptidemem)
+			rollang = sliptideroll
+            ? (spr->mobj->rollangle * rollfactor) + (sliptideroll * spr->mobj->player->kartstuff[k_aizdriftstrat])
             : (spr->mobj->rollangle * rollfactor);
 			
 			fixed_t anglef = AngleFixed(rollang);
@@ -1465,7 +1466,7 @@ void HWR_DrawMD2(gl_vissprite_t *spr)
 		p.mirror = atransform.mirror; // from Kart
 #endif
 
-		HWD.pfnSetShader(SHADER_MODEL);	// model shader
+		GL_SetShader(SHADER_MODEL);	// model shader
 		{
 			SINT8 flipfactor = flip ? -1 : 1;
 			
@@ -1482,7 +1483,7 @@ void HWR_DrawMD2(gl_vissprite_t *spr)
 			p.y += ox * gl_viewcos;
 			p.z += oy;
 
-			HWD.pfnDrawModel(md2->model, frame, durs, tics, nextFrame, &p, md2->scale * xs, md2->scale * ys, flip, hflip, &Surf);
+			GL_DrawModel(md2->model, frame, durs, tics, nextFrame, &p, md2->scale * xs, md2->scale * ys, flip, hflip, &Surf);
 		}
 	}
 }

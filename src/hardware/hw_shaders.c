@@ -13,7 +13,7 @@
 
 #include "hw_main.h"
 #include "hw_glob.h"
-#include "hw_drv.h"
+#include "hw_gl.h"
 #include "hw_shaders.h"
 #include "../z_zone.h"
 
@@ -29,9 +29,6 @@ static struct {
 	// Floor shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_FLOOR_FRAGMENT_SHADER},
 
-	// Shadow shader
-	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SHADOW_FRAGMENT_SHADER},
-
 	// Wall shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WALL_FRAGMENT_SHADER},
 
@@ -39,7 +36,7 @@ static struct {
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WALL_FRAGMENT_SHADER},
 
 	// Model shader
-	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WALL_FRAGMENT_SHADER},
+	{GLSL_MODEL_LIGHTING_VERTEX_SHADER, GLSL_WALL_FRAGMENT_SHADER},
 
 	// Water shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WATER_FRAGMENT_SHADER},
@@ -90,7 +87,7 @@ boolean HWR_InitShaders(void)
 {
 	int i;
 
-	if (!HWD.pfnInitShaders())
+	if (!GL_InitShaders())
 		return false;
 
 	for (i = 0; i < NUMSHADERTARGETS; i++)
@@ -369,16 +366,16 @@ static void HWR_CompileShader(int index)
 	{
 		char *preprocessed = HWR_PreprocessShader(vertex_source);
 		if (!preprocessed) return;
-		HWD.pfnLoadShader(index, preprocessed, HWD_SHADERSTAGE_VERTEX);
+		GL_LoadShader(index, preprocessed, HWD_SHADERSTAGE_VERTEX);
 	}
 	if (fragment_source)
 	{
 		char *preprocessed = HWR_PreprocessShader(fragment_source);
 		if (!preprocessed) return;
-		HWD.pfnLoadShader(index, preprocessed, HWD_SHADERSTAGE_FRAGMENT);
+		GL_LoadShader(index, preprocessed, HWD_SHADERSTAGE_FRAGMENT);
 	}
 
-	gl_shaders[index].compiled = HWD.pfnCompileShader(index);
+	gl_shaders[index].compiled = GL_CompileShader(index);
 }
 
 // compile or recompile shaders
@@ -432,7 +429,6 @@ static inline UINT16 HWR_FindShaderDefs(UINT16 wadnum)
 customshaderxlat_t shaderxlat[] =
 {
 	{"Flat", SHADER_FLOOR},
-	{"Shadow", SHADER_SHADOW},
 	{"WallTexture", SHADER_WALL},
 	{"Sprite", SHADER_SPRITE},
 	{"Model", SHADER_MODEL},

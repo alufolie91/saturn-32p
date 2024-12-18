@@ -25,6 +25,7 @@
 #include "console.h"
 #include "k_kart.h" // SRB2Kart
 #include "d_netcmd.h" // IsPlayerAdmin
+#include "d_main.h"
 
 #include "lua_script.h"
 #include "lua_libs.h"
@@ -37,6 +38,119 @@
 boolean luaL_checkboolean(lua_State *L, int narg) {
 	luaL_checktype(L, narg, LUA_TBOOLEAN);
 	return lua_toboolean(L, narg);
+}
+
+#define FILELIMIT 1024*1024 // Size limit for reading/writing files
+
+static const char *whitelist[] = { // Allow scripters to write files of these types to SRB2's folder
+	".txt",
+	".sav2",
+	".cfg",
+	".png",
+	".bmp"
+};
+
+static int StartsWith(const char *a, const char *b) // this is wolfs being lazy yet again
+{
+	if(strncmp(a, b, strlen(b)) == 0) return 1;
+	return 0;
+};
+
+// Wrapper for opening files
+static int lib_open(lua_State *L)
+{
+	const char *filename = luaL_checkstring(L, 1);
+	int pass = 0;
+	size_t i;
+	int length = strlen(filename);
+	char *splitter, *forward, *backward;
+	char *destFilename;
+
+	for (i = 0; i < (sizeof (whitelist) / sizeof(const char *)); i++)
+	{
+		if (!stricmp(&filename[length - strlen(whitelist[i])], whitelist[i]))
+		{
+			pass = 1;
+			break;
+		}
+	}
+	if (strstr(filename, "..") || strchr(filename, ':') || StartsWith(filename, "\\")
+		|| StartsWith(filename, "/") || !pass)
+	{
+		return luaL_error(L,"access denied to %s", filename);
+	}
+
+	destFilename = va("%s"PATHSEP"luafiles"PATHSEP"%s", srb2home, filename);
+
+	// Make directories as needed
+	splitter = destFilename;
+
+	forward = strchr(splitter, '/');
+	backward = strchr(splitter, '\\');
+	while ((splitter = (forward && backward) ? min(forward, backward) : (forward ?: backward)))
+	{
+		*splitter = 0;
+		I_mkdir(destFilename, 0755);
+		*splitter = '/';
+		splitter++;
+
+		forward = strchr(splitter, '/');
+		backward = strchr(splitter, '\\');
+	}
+
+	// replace the filename string
+	lua_pushstring(L, destFilename);
+	lua_replace(L, 1);
+	// now call the real io.open
+	lua_pushvalue(L, lua_upvalueindex(1));
+	lua_insert(L, 1);
+	lua_call(L, lua_gettop(L)-1, LUA_MULTRET);
+	return lua_gettop(L);
+}
+
+// Wrapper for writing to files
+static int lib_write(lua_State *L, int arg)
+{
+	int top = lua_gettop(L);
+	boolean error = true;
+	size_t len, size = 0;
+
+	if (arg != 1) {
+		FILE *fp = *(FILE **)luaL_checkudata(L, 1, LUA_FILEHANDLE);
+		if (fp == NULL) goto call; // real file:write will throw
+		size = ftell(fp);
+	}
+
+	// check the size of each argument. if there's too much data,
+	// cut off the stack and print an error
+	for (; arg <= top; arg++) {
+		if (lua_tolstring(L, arg, &len) == NULL) goto call;
+		if ((size += len) > FILELIMIT) {
+			// oops! too many bytes!
+			lua_settop(L, arg-1);
+			goto call;
+		}
+	}
+	error = false;
+
+call:
+	lua_pushvalue(L, lua_upvalueindex(1));
+	lua_insert(L, 1);
+	lua_call(L, lua_gettop(L)-1, LUA_MULTRET);
+
+	if (error)
+		return luaL_error(L,"write limit bypassed in file. Changes have been discarded.");
+	return lua_gettop(L);
+}
+
+static int lib_write_f(lua_State *L)
+{
+	return lib_write(L, 2);
+}
+
+static int lib_write_io(lua_State *L)
+{
+	return lib_write(L, 1);
 }
 
 // String concatination
@@ -200,6 +314,24 @@ static int lib_pRandomRange(lua_State *L)
 		LUA_UsageWarning(L, "P_RandomRange: range > 65536 is undefined behavior");
 	lua_pushinteger(L, P_RandomRange(a, b));
 	demo_writerng = 2;
+	return 1;
+}
+
+static int lib_mRandomRange(lua_State *L)
+{
+	INT32 a = (INT32)luaL_checkinteger(L, 1);
+	INT32 b = (INT32)luaL_checkinteger(L, 2);
+
+	NOHUD
+	if (b < a) {
+		INT32 c = a;
+		a = b;
+		b = c;
+	}
+	if ((b-a+1) > 65536)
+		LUA_UsageWarning(L, "M_RandomRange: range > 65536 is undefined behavior");
+	lua_pushinteger(L, M_RandomRange(a, b));
+	demo_writerng = 0;
 	return 1;
 }
 
@@ -455,14 +587,7 @@ static int lib_pSpawnAlteredDirectionMissile(lua_State *L)
 
 static int lib_pColorTeamMissile(lua_State *L)
 {
-	mobj_t *missile = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
-	player_t *source = *((player_t **)luaL_checkudata(L, 2, META_PLAYER));
-	NOHUD
-	if (!missile)
-		return LUA_ErrInvalid(L, "mobj_t");
-	if (!source)
-		return LUA_ErrInvalid(L, "player_t");
-	P_ColorTeamMissile(missile, source);
+	(void)L;
 	return 0;
 }
 
@@ -1109,6 +1234,18 @@ static int lib_pCheckSight(lua_State *L)
 	return 1;
 }
 
+// DONT USE THIS FOR ANYTHING GAMEPLAY, THIS WILL DESYNCH!
+static int lib_pCheckSightFast(lua_State *L)
+{
+	mobj_t *t1 = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
+	mobj_t *t2 = *((mobj_t **)luaL_checkudata(L, 2, META_MOBJ));
+	//HUDSAFE?
+	if (!t1 || !t2)
+		return LUA_ErrInvalid(L, "mobj_t");
+	lua_pushboolean(L, P_CheckSightFast(t1, t2));
+	return 1;
+}
+
 static int lib_pCheckHoopPosition(lua_State *L)
 {
 	mobj_t *hoopthing = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
@@ -1246,12 +1383,7 @@ static int lib_pPlayerEmeraldBurst(lua_State *L)
 
 static int lib_pPlayerFlagBurst(lua_State *L)
 {
-	player_t *player = *((player_t **)luaL_checkudata(L, 1, META_PLAYER));
-	boolean toss = lua_optboolean(L, 2);
-	NOHUD
-	if (!player)
-		return LUA_ErrInvalid(L, "player_t");
-	P_PlayerFlagBurst(player, toss);
+	(void)L;
 	return 0;
 }
 
@@ -1817,7 +1949,7 @@ static int lib_sStartSoundAtVolume(lua_State *L)
 			return LUA_ErrInvalid(L, "player_t");
 	}
 	if (!player || P_IsLocalPlayer(player))
-	S_StartSoundAtVolume(origin, sound_id, volume);
+		S_StartSoundAtVolume(origin, sound_id, volume);
 	return 0;
 }
 
@@ -1919,7 +2051,7 @@ static int lib_sChangeMusic(lua_State *L)
 		music_flags = (UINT16)((music_num & 0x7FFF0000) >> 16);
 	else
 #endif
-	music_flags = (UINT16)luaL_optinteger(L, 4, 0);
+		music_flags = (UINT16)luaL_optinteger(L, 4, 0);
 
 	position = (UINT32)luaL_optinteger(L, 5, 0);
 	prefadems = (UINT32)luaL_optinteger(L, 6, 0);
@@ -2446,14 +2578,14 @@ static int lib_gIsSpecialStage(lua_State *L)
 static int lib_gGametypeUsesLives(lua_State *L)
 {
 	//HUDSAFE
-	lua_pushboolean(L, G_GametypeUsesLives());
+	lua_pushboolean(L, false);
 	return 1;
 }
 
 static int lib_gGametypeHasTeams(lua_State *L)
 {
 	//HUDSAFE
-	lua_pushboolean(L, G_GametypeHasTeams());
+	lua_pushboolean(L, false);
 	return 1;
 }
 
@@ -2481,7 +2613,7 @@ static int lib_gRaceGametype(lua_State *L)
 static int lib_gTagGametype(lua_State *L)
 {
 	//HUDSAFE
-	lua_pushboolean(L, G_TagGametype());
+	lua_pushboolean(L, false);
 	return 1;
 }
 
@@ -3087,6 +3219,8 @@ static luaL_Reg lib[] = {
 	{"P_SignedRandom",lib_pSignedRandom}, // MACRO
 	{"P_RandomChance",lib_pRandomChance}, // MACRO
 
+	{"M_RandomRange",lib_mRandomRange},
+
 	// p_maputil
 	{"P_AproxDistance",lib_pAproxDistance},
 	{"P_ClosestPointOnLine",lib_pClosestPointOnLine},
@@ -3154,7 +3288,6 @@ static luaL_Reg lib[] = {
 	{"P_LookForEnemies",lib_pLookForEnemies},
 	{"P_NukeEnemies",lib_pNukeEnemies},
 	{"P_HomingAttack",lib_pHomingAttack},
-	//{"P_SuperReady",lib_pSuperReady},
 	{"P_Telekinesis",lib_pTelekinesis},
 
 	// p_map
@@ -3167,6 +3300,7 @@ static luaL_Reg lib[] = {
 	{"P_SlideMove",lib_pSlideMove},
 	{"P_BounceMove",lib_pBounceMove},
 	{"P_CheckSight", lib_pCheckSight},
+	{"P_CheckSightFast", lib_pCheckSightFast},
 	{"P_CheckHoopPosition",lib_pCheckHoopPosition},
 	{"P_RadiusAttack",lib_pRadiusAttack},
 	{"P_FloorzAtPos",lib_pFloorzAtPos},
@@ -3333,6 +3467,29 @@ int LUA_BaseLib(lua_State *L)
 	lua_pushcfunction(L,lib_concat); // push concatination function
 	lua_setfield(L,-2,"__add"); // ... store it as mathematical addition
 	lua_pop(L, 2); // pop metatable and dummy string
+
+	// replaces an existing function with another,
+	// saving the original as an upvalue
+#define REPLACE(name, func) \
+	lua_pushliteral(L, name); \
+	lua_rawget(L, -2); \
+	lua_pushcclosure(L, &func, 1); \
+	lua_pushliteral(L, name); \
+	lua_pushvalue(L, -2); \
+	lua_rawset(L, -4); \
+	lua_pop(L, 1);
+
+	// replace io.open
+	lua_getglobal(L, "io");
+	REPLACE("open", lib_open)
+	REPLACE("write", lib_write_io)
+	lua_pop(L, 1);
+
+	// replace file:write
+	luaL_getmetatable(L, LUA_FILEHANDLE);
+	REPLACE("write", lib_write_f)
+	lua_pop(L, 1);
+#undef REPLACE
 
 	lua_newtable(L);
 	lua_setfield(L, LUA_REGISTRYINDEX, LREG_EXTVARS);

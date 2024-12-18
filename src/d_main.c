@@ -15,6 +15,7 @@
 ///        plus functions to parse command line parameters, configure game
 ///        parameters, and call the startup functions.
 
+#include "d_netcmd.h"
 #if defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -70,6 +71,7 @@
 #include "filesrch.h" // refreshdirmenu, pathisdirectory
 #include "d_protocol.h"
 #include "m_perfstats.h"
+#include "m_random.h"
 #include "k_kart.h"
 
 #include "lua_script.h"
@@ -82,10 +84,6 @@
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h" // 3D View Rendering
-#endif
-
-#ifdef HW3SOUND
-#include "hardware/hw3sound.h"
 #endif
 
 #ifdef HAVE_DISCORDRPC
@@ -181,7 +179,7 @@ static inline void D_DeviceLEDTick(void)
 
 	for (i = 0; i <= splitscreen; i++)
 	{
-		if (G_GetDeviceForPlayer(i) == 0)
+		if (cv_usejoystick[i].value == 0)
 			continue;
 
 		color[i] = G_GetSkinColor(i);
@@ -449,6 +447,8 @@ static boolean D_Display(void)
 			{
 				if (players[displayplayers[i]].mo || players[displayplayers[i]].playerstate == PST_DEAD)
 				{
+					viewssnum = i;
+
 					if (i == 0) // Initialize for P1
 					{
 						viewwindowy = 0;
@@ -457,8 +457,6 @@ static boolean D_Display(void)
 						topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 						objectsdrawn = 0;
 					}
-
-					viewssnum = i;
 
 #ifdef HWRENDER
 					if (rendermode == render_opengl)
@@ -537,6 +535,8 @@ static boolean D_Display(void)
 		PS_START_TIMING(ps_uitime);
 		ST_Drawer();
 		HU_Drawer();
+
+		NetUpdate(); // TEST: run this EVERY frame
 	}
 	else
 	{
@@ -734,16 +734,12 @@ void D_SRB2Loop(void)
 		interp = R_UsingFrameInterpolation() && !dedicated;
 		doDisplay = false;
 
-#ifdef HW3SOUND
-		HW3S_BeginFrameUpdate();
-#endif
-
 		renderisnewtic = (realtics > 0 || singletics);
-
-		refreshdirmenu = 0; // not sure where to put this, here as good as any?
 
 		if (renderisnewtic)
 		{
+			refreshdirmenu = 0; // not sure where to put this, here as good as any?
+
 			// don't skip more than 10 frames at a time
 			// (fadein / fadeout cause massive frame skip!)
 			if (realtics > 8)
@@ -813,7 +809,7 @@ void D_SRB2Loop(void)
 		{
 			renderdeltatics = FLOAT_TO_FIXED(deltatics);
 
-			if (!(paused || P_AutoPause()) && deltatics < 1.0 && !hu_stopped)
+			if (!(paused || P_AutoPause()) && !hu_stopped)
 			{
 				rendertimefrac = g_time.timefrac;
 			}
@@ -845,9 +841,6 @@ void D_SRB2Loop(void)
 		// consoleplayer -> displayplayers (hear sounds from viewpoint)
 		S_UpdateSounds(); // move positional sounds
 
-#ifdef HW3SOUND
-		HW3S_EndFrameUpdate();
-#endif
 
 		LUA_Step();
 
@@ -961,6 +954,9 @@ void D_StartTitle(void)
 	//demosequence = -1;
 	gametype = GT_RACE; // SRB2kart
 	paused = false;
+
+	S_ResetKeepAndSpecialMus(); // just in case
+
 	F_StartTitleScreen();
 
 	// Reset the palette -- SRB2Kart: actually never mind let's do this in the middle of every fade
@@ -1461,8 +1457,12 @@ void D_SRB2Main(void)
 
 	D_SetupProtocol();
 
-	// rand() needs seeded regardless of password
-	srand((unsigned int)time(NULL));
+	// seed M_Random because it is necessary; seed P_Random for scripts that
+	// might want to use random numbers immediately at start
+	if (!M_RandomSeedFromOS())
+		M_RandomSeed((UINT32)time(NULL)); // less good but serviceable
+
+	P_SetRandSeed(M_RandomizedSeed());
 
 	if (M_CheckParm("-password") && M_IsNextParm())
 		D_SetPassword(M_GetNextParm());
@@ -1836,7 +1836,6 @@ void D_SRB2Main(void)
 	}
 
 	S_InitMusicDefs();
-	S_InitMTDefs();
 
 	CONS_Printf("ST_Init(): Init status bar.\n");
 	ST_Init();
