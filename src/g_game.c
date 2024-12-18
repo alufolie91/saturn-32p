@@ -549,7 +549,7 @@ consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, 
 
 consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-#if MAXPLAYERS > 128
+#if MAXPLAYERS > 127
 #error "please update player_name table using the new value for MAXPLAYERS"
 #endif
 
@@ -579,7 +579,7 @@ char player_names[MAXPLAYERS][MAXPLAYERNAME + 1] = {
 	"Player 109", "Player 110", "Player 111", "Player 112", "Player 113", "Player 114",
 	"Player 115", "Player 116", "Player 117", "Player 118", "Player 119", "Player 120",
 	"Player 121", "Player 122", "Player 123", "Player 124", "Player 125", "Player 126",
-	"Player 127", "Player 128"
+	"Player 127"
 }; // oh god
 
 INT32 player_name_changes[MAXPLAYERS];

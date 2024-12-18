@@ -10180,7 +10180,7 @@ static void M_DrawMPMainMenu(void)
 	M_DrawGenericMenu();
 
 #ifndef NONET
-#if MAXPLAYERS != 128
+#if MAXPLAYERS != 127
 Update the maxplayers label...
 #endif
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+MP_MainMenu[4].alphaKey,

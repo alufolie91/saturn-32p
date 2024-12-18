@@ -191,7 +191,7 @@ extern char  logfilename[1024];
 // The maximum number of players, multiplayer/networking.
 // NOTE: it needs more than this to increase the number of players...
 
-#define MAXPLAYERS 128
+#define MAXPLAYERS 127
 #define MAXPLAYERSLOTS (MAXPLAYERS-1)
 #define MAXSKINS 383
 #define MAXLOCALSKINS 32
