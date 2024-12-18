@@ -339,45 +339,45 @@ boolean HWR_PalRenderFlashpal(void)
 	return (HWR_ShouldUsePaletteRendering() && cv_glflashpal.value);
 }
 
-void HWR_ObjectLightLevelPost(gl_vissprite_t *spr, const sector_t *sector, INT32 *lightlevel, boolean model)
+void HWR_ObjectLightLevelPost(gl_vissprite_t *spr, const sector_t *sector, INT32 *lightlevel, boolean model, const boolean papersprite)
 {
-	const boolean papersprite = (spr->mobj->frame & FF_PAPERSPRITE);
+	(void)papersprite;
 
-	*lightlevel += R_ThingLightLevel(spr->mobj);
+	if (maplighting.directional == false || !P_SectorUsesDirectionalLighting(sector) || model == true)
+		return;
 
-	if (maplighting.directional == true && P_SectorUsesDirectionalLighting(sector))
+	fixed_t extralight = R_GetSpriteDirectionalLighting(R_PointToAngle(spr->mobj->x, spr->mobj->y));
+
+	// this seems to be wrong???
+	/*fixed_t extralight = R_GetSpriteDirectionalLighting(
+		papersprite
+		? R_PointToAngle(spr->mobj->x, spr->mobj->y) + (spr->flip ? -ANGLE_90 : ANGLE_90)
+		: R_PointToAngle(spr->mobj->x, spr->mobj->y) // fixme
+	);*/
+
+	// Less change in contrast in dark sectors
+	extralight = FixedMul(extralight, min(max(0, *lightlevel), 255) * FRACUNIT / 255);
+
+	// NO NO BAD! WHY!?
+	/*if (papersprite)
 	{
-		if (model == false) // this is implemented by shader
-		{
-			fixed_t extralight = R_GetSpriteDirectionalLighting(
-				papersprite
-				? R_PointToAngle(spr->mobj->x, spr->mobj->y) + (spr->flip ? -ANGLE_90 : ANGLE_90)
-				: R_PointToAngle(spr->mobj->x, spr->mobj->y) // fixme
-			);
-
-			// Less change in contrast in dark sectors
-			extralight = FixedMul(extralight, min(max(0, *lightlevel), 255) * FRACUNIT / 255);
-
-			if (papersprite)
-			{
-				// Papersprite contrast should match walls
-				*lightlevel += FixedFloor(extralight + (FRACUNIT / 2)) / FRACUNIT;
-			}
-			else
-			{
-				// simple OGL approximation
-				fixed_t tr = R_PointToDist(spr->mobj->x, spr->mobj->y);
-				fixed_t xscale = FixedDiv((vid.width / 2) << FRACBITS, tr);
-
-				// Less change in contrast at further distances, to counteract DOOM diminished light
-				fixed_t n = FixedDiv(FixedMul(xscale, LIGHTRESOLUTIONFIX), ((MAXLIGHTSCALE-1) << LIGHTSCALESHIFT));
-				extralight = FixedMul(extralight, min(n, FRACUNIT));
-
-				// Contrast is stronger for normal sprites, stronger than wall lighting is at the same distance
-				*lightlevel += FixedFloor((extralight * 2) + (FRACUNIT / 2)) / FRACUNIT;
-			}
-		}
+		// Papersprite contrast should match walls
+		*lightlevel += FixedFloor(extralight + (FRACUNIT / 2)) / FRACUNIT;
 	}
+	else*/
+	{
+		// simple OGL approximation
+		fixed_t tr = R_PointToDist(spr->mobj->x, spr->mobj->y);
+		fixed_t xscale = FixedDiv((vid.width / 2) << FRACBITS, tr);
+
+		// Less change in contrast at further distances, to counteract DOOM diminished light
+		fixed_t n = FixedDiv(FixedMul(xscale, LIGHTRESOLUTIONFIX), ((MAXLIGHTSCALE-1) << LIGHTSCALESHIFT));
+		extralight = FixedMul(extralight, min(n, FRACUNIT));
+
+		// Contrast is stronger for normal sprites, stronger than wall lighting is at the same distance
+		*lightlevel += FixedFloor((extralight * 2) + (FRACUNIT / 2)) / FRACUNIT;
+	}
+
 }
 
 void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *colormap, const boolean directional)
@@ -3643,7 +3643,7 @@ static void HWR_SplitSprite(gl_vissprite_t *spr, const boolean papersprite)
 		break;
 	}
 
-	HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false);
+	HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false, papersprite);
 
 	for (i = 0; i < sector->numlights; i++)
 	{
@@ -3655,7 +3655,7 @@ static void HWR_SplitSprite(gl_vissprite_t *spr, const boolean papersprite)
 		{
 			if (!(spr->mobj->frame & FF_FULLBRIGHT))
 				lightlevel = min(*list[i].lightlevel, 255);
-			HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false);
+			HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false, papersprite);
 			colormap = list[i].extra_colormap;
 		}
 
@@ -3855,7 +3855,7 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
 	if (!(spr->mobj->frame & FF_FULLBRIGHT))
 		lightlevel = min(sector->lightlevel, 255);
 
-	HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false);
+	HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false, papersprite);
 
 	HWR_Lighting(&Surf, lightlevel, colormap, P_SectorUsesDirectionalLighting(sector) && !(spr->mobj->frame & FF_FULLBRIGHT));
 
@@ -4932,20 +4932,22 @@ static void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
 
 static gl_sky_t gl_sky;
 
+#define DEG2RADGL(a) ((a * M_PIl) / 180.0f)
+
 static void HWR_SkyDomeVertex(gl_sky_t *sky, gl_skyvertex_t *vbo, int r, int c, signed char yflip, float delta, boolean foglayer)
 {
-	const float radians = (float)(M_PIl / 180.0f);
-	const float scale = 10000.0f;
-	const float maxSideAngle = 60.0f;
+	static const float scale = 10000.0f;
+	static const float maxSideAngle = DEG2RADGL(60.0f);
 
-	float topAngle = (c / (float)sky->columns * 360.0f);
-	float sideAngle = (maxSideAngle * (sky->rows - r) / sky->rows);
-	float height = (float)(sin(sideAngle * radians));
-	float realRadius = (float)(scale * cos(sideAngle * radians));
-	float x = (float)(realRadius * cos(topAngle * radians));
+	float topAngle = DEG2RADGL(c / (float)sky->columns * 360.0f);
+	float sideAngle = (maxSideAngle * (float)(sky->rows - r) / (float)sky->rows);
+	float height = (float)(sin(sideAngle));
+	float realRadius = (scale * (float)cos(sideAngle));
+	float x = (realRadius * (float)cos(topAngle));
 	float y = (!yflip) ? scale * height : -scale * height;
-	float z = (float)(realRadius * sin(topAngle * radians));
+	float z = (realRadius * (float)sin(topAngle));
 	float timesRepeat = (4 * (256.0f / sky->width));
+
 	if (fpclassify(timesRepeat) == FP_ZERO)
 		timesRepeat = 1.0f;
 
