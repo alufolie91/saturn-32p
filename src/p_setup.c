@@ -111,8 +111,6 @@ UINT8 levelfadecol;
 
 virtres_t *curmapvirt;
 
-SINT8 midgamejoin = 0;
-
 // BLOCKMAP
 // Created from axis aligned bounding box
 // of the map, a rectangular array of
@@ -248,6 +246,8 @@ mobj_t *P_GetClosestWaypoint(UINT8 sequence, mobj_t *mo)
 static SINT8 partadd_stage = -1;
 static boolean partadd_replacescurrentmap = false;
 static boolean partadd_important = false;
+
+SINT8 midgamejoin = 0;
 
 /** Logs an error about a map being corrupt, then terminate.
   * This allows reporting highly technical errors for usefulness, without

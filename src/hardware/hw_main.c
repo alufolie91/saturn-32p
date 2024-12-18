@@ -1883,13 +1883,6 @@ void HWR_ProcessSeg(void) // Sort of like GLWall::Process in GZDoom
 					l = lowcut;
 					lS = lowcutslope;
 				}
-				else
-				{
-					if (!(*rover->t_slope) && !gr_frontsector->c_slope && !gr_backsector->c_slope && h > highcut)
-						h = hS = highcut;
-					if (!(*rover->b_slope) && !gr_frontsector->f_slope && !gr_backsector->f_slope && l < lowcut)
-						l = lS = lowcut;
-				}
 
 				//Hurdler: HW code starts here
 				//FIXME: check if peging is correct

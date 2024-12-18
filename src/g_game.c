@@ -1286,8 +1286,6 @@ static void G_DoLoadLevel(boolean resetplayer)
 	Z_CheckHeap(-2);
 #endif
 
-	memset(localaiming, 0, sizeof(localaiming));
-
 	for (i = 0; i <= splitscreen; i++)
 	{
 		if (camera[i].chase)
