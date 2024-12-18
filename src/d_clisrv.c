@@ -5873,6 +5873,9 @@ void NetUpdate(void)
 
 			hu_redownloadinggamestate = false;
 
+			// Don't erase tics not acknowledged
+			counts = realtics;
+
 			firstticstosend = gametic;
 			for (i = 0; i < MAXNETNODES; i++)
 			{
@@ -5883,9 +5886,6 @@ void NetUpdate(void)
 				if (maketic + counts >= nettics[i] + (TICQUEUE - TICRATE))
 					Net_ConnectionTimeout(i);
 			}
-
-			// Don't erase tics not acknowledged
-			counts = realtics;
 
 			if (maketic + counts >= firstticstosend + TICQUEUE)
 				counts = firstticstosend+TICQUEUE-maketic-1;
