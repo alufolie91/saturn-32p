@@ -5883,8 +5883,8 @@ void NetUpdate(void)
 					continue;
 				if (nettics[i] < firstticstosend)
 					firstticstosend = nettics[i];
-				if (maketic + counts >= nettics[i] + (TICQUEUE - TICRATE))
-					Net_ConnectionTimeout(i);
+				//if (maketic + counts >= nettics[i] + (TICQUEUE - TICRATE))
+					//Net_ConnectionTimeout(i);
 			}
 
 			if (maketic + counts >= firstticstosend + TICQUEUE)
