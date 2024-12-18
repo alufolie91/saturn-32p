@@ -9513,7 +9513,7 @@ static void K_drawNameTags(void)
 		boolean flipped = 0;
 		fixed_t z;
 
-		if (i > PLAYERSMASK)
+		if (i > MAXPLAYERSLOTS)
 			continue;
 		if (P_MobjWasRemoved(players[i].mo) || players[i].spectator || !playeringame[i])
 			continue;
