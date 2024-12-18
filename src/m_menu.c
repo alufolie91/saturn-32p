@@ -10184,7 +10184,7 @@ static void M_DrawMPMainMenu(void)
 Update the maxplayers label...
 #endif
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+MP_MainMenu[4].alphaKey,
-		((itemOn == 4) ? highlightflags : 0)|MENUCAPS, "(2-16 Players)");
+		((itemOn == 4) ? highlightflags : 0)|MENUCAPS, "(2-126 Players)");
 #endif
 
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+MP_MainMenu[5].alphaKey,
