@@ -549,7 +549,7 @@ consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, 
 
 consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-#if MAXPLAYERS > 64
+#if MAXPLAYERS > 128
 #error "please update player_name table using the new value for MAXPLAYERS"
 #endif
 
@@ -557,18 +557,29 @@ consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL
 player_t *seenplayer; // player we're aiming at right now
 #endif
 
-char player_names[MAXPLAYERS][MAXPLAYERNAME+1] = {
-	"Player 1",  "Player 2",  "Player 3",  "Player 4",  "Player 5",  "Player 6",
-	"Player 7",  "Player 8",  "Player 9",  "Player 10", "Player 11", "Player 12",
-	"Player 13", "Player 14", "Player 15", "Player 16", "Player 17", "Player 18",
-	"Player 19", "Player 20", "Player 21", "Player 22", "Player 23", "Player 24",
-	"Player 25", "Player 26", "Player 27", "Player 28", "Player 29", "Player 30",
-	"Player 31", "Player 32", "Player 33", "Player 34", "Player 35", "Player 36",
-	"Player 37", "Player 38", "Player 39", "Player 40", "Player 41", "Player 42",
-	"Player 43", "Player 44", "Player 45", "Player 46", "Player 47", "Player 48",
-	"Player 49", "Player 50", "Player 51", "Player 52", "Player 53", "Player 54",
-	"Player 55", "Player 56", "Player 57", "Player 58", "Player 59", "Player 60",
-	"Player 61", "Player 62", "Player 63", "Player 64"
+char player_names[MAXPLAYERS][MAXPLAYERNAME + 1] = {
+	"Player 1",   "Player 2",   "Player 3",   "Player 4",   "Player 5",   "Player 6",
+	"Player 7",   "Player 8",   "Player 9",   "Player 10",  "Player 11",  "Player 12",
+	"Player 13",  "Player 14",  "Player 15",  "Player 16",  "Player 17",  "Player 18",
+	"Player 19",  "Player 20",  "Player 21",  "Player 22",  "Player 23",  "Player 24",
+	"Player 25",  "Player 26",  "Player 27",  "Player 28",  "Player 29",  "Player 30",
+	"Player 31",  "Player 32",  "Player 33",  "Player 34",  "Player 35",  "Player 36",
+	"Player 37",  "Player 38",  "Player 39",  "Player 40",  "Player 41",  "Player 42",
+	"Player 43",  "Player 44",  "Player 45",  "Player 46",  "Player 47",  "Player 48",
+	"Player 49",  "Player 50",  "Player 51",  "Player 52",  "Player 53",  "Player 54",
+	"Player 55",  "Player 56",  "Player 57",  "Player 58",  "Player 59",  "Player 60",
+	"Player 61",  "Player 62",  "Player 63",  "Player 64",  "Player 65",  "Player 66",
+	"Player 67",  "Player 68",  "Player 69",  "Player 70",  "Player 71",  "Player 72",
+	"Player 73",  "Player 74",  "Player 75",  "Player 76",  "Player 77",  "Player 78",
+	"Player 79",  "Player 80",  "Player 81",  "Player 82",  "Player 83",  "Player 84",
+	"Player 85",  "Player 86",  "Player 87",  "Player 88",  "Player 89",  "Player 90",
+	"Player 91",  "Player 92",  "Player 93",  "Player 94",  "Player 95",  "Player 96",
+	"Player 97",  "Player 98",  "Player 99",  "Player 100", "Player 101", "Player 102",
+	"Player 103", "Player 104", "Player 105", "Player 106", "Player 107", "Player 108",
+	"Player 109", "Player 110", "Player 111", "Player 112", "Player 113", "Player 114",
+	"Player 115", "Player 116", "Player 117", "Player 118", "Player 119", "Player 120",
+	"Player 121", "Player 122", "Player 123", "Player 124", "Player 125", "Player 126",
+	"Player 127", "Player 128"
 }; // oh god
 
 INT32 player_name_changes[MAXPLAYERS];

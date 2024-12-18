@@ -2831,11 +2831,11 @@ static void HU_DrawRankings(void)
 			tab[scorelines].count = players[i].marescore;
 
 		scorelines++;
-/*
-#if MAXPLAYERS > 16
-	if (scorelines > 16)
+
+#if MAXPLAYERS > 32
+	if (scorelines > 32)
 		break; //dont draw past bottom of screen, show the best only
-#endif*/
+#endif
 	}
 
 	HU_DrawTabRankings(((scorelines > 8) ? 6 : 40), (scorelines > 8) ? 29 : 33, tab, scorelines, whiteplayer, hilicol);
