@@ -3401,7 +3401,7 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(savebuffer_t *save, bool
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-		pig = 0;
+		//pig = 0;
 
 		if (!(i & 31))
 			pig = READUINT32(save->p);
