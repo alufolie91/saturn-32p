@@ -1578,6 +1578,7 @@ actionpointer_t actionpointers[] =
 	{{A_BrakLobShot},          "A_BRAKLOBSHOT"},
 	{{A_NapalmScatter},        "A_NAPALMSCATTER"},
 	{{A_SpawnFreshCopy},       "A_SPAWNFRESHCOPY"},
+	{{A_InvincSparkleRotate},    "A_INVINCSPARKLEROTATE"},
 
 	{{NULL},                   "NONE"},
 
@@ -8650,7 +8651,17 @@ static int lua_enumlib_basic_fallback(lua_State* L)
 
 static int lua_enumlib_mariomode_get(lua_State *L)
 {
-	lua_pushboolean(L, false);
+	lua_pushboolean(L, mariomode != 0);
+	return 1;
+}
+
+static int lua_enumlib_replayfreecam_get(lua_State *L)
+{
+	if (dedicated) // huh?
+		lua_pushboolean(L, false);
+	else
+		lua_pushboolean(L, camera[R_GetViewNumber()].freecam);
+
 	return 1;
 }
 
@@ -9331,7 +9342,7 @@ int LUA_EnumLib(lua_State *L)
 
 	lua_pushcfunction(L, lua_glib_new_getter);
 	lua_pushliteral(L, "replayfreecam");
-	lua_glib_push_bool_getter(L, &demo.freecam);
+	lua_pushcfunction(L, lua_enumlib_replayfreecam_get);
 	lua_call(L, 2, 0);
 
 	if (!mathlib)

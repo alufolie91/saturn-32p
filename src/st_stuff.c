@@ -16,6 +16,7 @@
 #include "doomdef.h"
 #include "g_game.h"
 #include "g_input.h"
+#include "k_director.h"
 #include "r_local.h"
 #include "p_local.h"
 #include "f_finale.h"
@@ -658,13 +659,13 @@ static void ST_overlayDrawer(void)
 
 	if (!hu_showscores) // hide the following if TAB is held
 	{
-		if (cv_showdirectorhud.value && !splitscreen && ((demo.playback && !demo.freecam && (!demo.title || !modeattacking)) || !P_IsLocalPlayer(stplyr)) && !K_DirectorIsPlayerAlone())
+		if (cv_showdirectorhud.value && !splitscreen && !P_IsLocalPlayer(stplyr) && K_DirectorIsAvailable(0) && !K_DirectorIsPlayerAlone())
 		{
 			char directortext[20] = {0};
 
-			snprintf(directortext, 20, "Director: %s", cv_director.value ? "On" : "Off");
+			snprintf(directortext, 20, "Director: %s", cv_director[0].value ? "On" : "Off");
 
-			directortextactive = true;
+			//directortextactive = true;
 
 			if ((!demo.playback && directortoggletimer < 13*TICRATE) || (demo.playback && directortoggletimer < 4*TICRATE))
 			{
@@ -680,7 +681,7 @@ static void ST_overlayDrawer(void)
 		else
 		{
 			directortoggletimer = 0;
-			directortextactive = false;
+			//directortextactive = false;
 		}
 
 		if (cv_showviewpointtext.value)
@@ -698,7 +699,7 @@ static void ST_overlayDrawer(void)
 					V_DrawCenteredString((BASEVIDWIDTH/2), BASEVIDHEIGHT-32, V_SNAPTOBOTTOM|V_HUDTRANS|V_ALLOWLOWERCASE, player_names[stplyr-players]);
 				}
 			}
-			else if (!demo.title && !demo.freecam)
+			else if (!demo.title && !camera[stplyrnum].freecam)
 			{
 				if (!splitscreen)
 				{
@@ -709,7 +710,7 @@ static void ST_overlayDrawer(void)
 				{
 					char name[MAXPLAYERNAME+12];
 
-					INT32 y = (stplyr == &players[displayplayers[0]]) ? 4 : BASEVIDHEIGHT/2-12;
+					INT32 y = (stplyrnum == 0) ? 4 : BASEVIDHEIGHT/2-12;
 					sprintf(name, "VIEWPOINT: %s", player_names[stplyr-players]);
 					V_DrawRightAlignedThinString(BASEVIDWIDTH-40, y, V_HUDTRANSHALF|V_ALLOWLOWERCASE|K_calcSplitFlags(V_SNAPTOTOP|V_SNAPTOBOTTOM|V_SNAPTORIGHT), name);
 				}

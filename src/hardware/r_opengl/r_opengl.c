@@ -129,6 +129,7 @@ static GLint   viewport[4];
 GLuint FramebufferObject, FramebufferTexture, RenderbufferObject;
 
 boolean supportFBO = false;
+boolean fbo_shader = false;
 static boolean fboinit = false;
 #endif
 
@@ -680,6 +681,9 @@ typedef enum
 	gluniform_leveltime,
 
 	gluniform_scr_resolution,
+
+	// supersampling crap
+	gluniform_inv_supersamplefactor,
 	
 	gluniform_max,
 } gluniform_t;
@@ -1198,6 +1202,8 @@ void GL_Framebuffer_Disable(void)
 	if (FramebufferObject == 0 && RenderbufferObject == 0)
 		return;
 
+	fbo_shader = false;
+
 	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
 	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
 
@@ -1322,14 +1328,13 @@ void GL_ReadScreenTexture(int tex, UINT16 *dst_data)
 // -----------------+
 void GL_SetPalette(RGBA_t *palette)
 {
-	INT32 i;
-
-	for (i = 0; i < 256; i++)
+	size_t palsize = (sizeof(RGBA_t) * 256);
+	// on a palette change, you have to reload all of the textures
+	if (memcmp(&myPaletteData, palette, palsize))
 	{
-		myPaletteData[i].s = palette[i].s;
+		memcpy(&myPaletteData, palette, palsize);
+		GL_Flush();
 	}
-
-	GL_Flush();
 }
 
 // -----------------+
@@ -1604,6 +1609,7 @@ static void GL_UpdateTexture(GLMipmap_t *pTexInfo)
 
 	INT32 w = pTexInfo->width, h = pTexInfo->height;
 	INT32 i, j;
+	INT32 idx;
 
 	const GLubyte *pImgData = (const GLubyte *)pTexInfo->data;
 	const GLvoid *ptex = NULL;
@@ -1632,12 +1638,10 @@ static void GL_UpdateTexture(GLMipmap_t *pTexInfo)
 
 			const int chromakeyed = (pTexInfo->flags & TF_CHROMAKEYED);
 
-			for (j = 0; j < h; j++)
+			for (idx = 0, j = 0; j < h; j++)
 			{
-				for (i = 0; i < w; i++)
+				for (i = 0; i < w; i++, idx++)
 				{
-					int idx = (w*j+i);
-
 					if (chromakeyed && (*pImgData == HWR_PATCHES_CHROMAKEY_COLORINDEX))
 					{
 						tex[idx].s.red   = 0;
@@ -1672,12 +1676,10 @@ static void GL_UpdateTexture(GLMipmap_t *pTexInfo)
 			ptex = tex = textureBuffer;
 			texformat = GL_LUMINANCE_ALPHA;
 
-			for (j = 0; j < h; j++)
+			for (idx = 0, j = 0; j < h; j++)
 			{
-				for (i = 0; i < w; i++)
+				for (i = 0; i < w; i++, idx++)
 				{
-					int idx = (w*j+i);
-
 					tex[idx].s.red   = *pImgData;
 					tex[idx].s.green = *pImgData;
 					tex[idx].s.blue  = *pImgData;
@@ -1692,12 +1694,10 @@ static void GL_UpdateTexture(GLMipmap_t *pTexInfo)
 			ptex = tex = textureBuffer;
 			texformat = GL_ALPHA;
 
-			for (j = 0; j < h; j++)
+			for (idx = 0, j = 0; j < h; j++)
 			{
-				for (i = 0; i < w; i++)
+				for (i = 0; i < w; i++, idx++)
 				{
-					int idx = (w*j+i);
-
 					tex[idx].s.red   = 255; // 255 because the fade mask is modulated with the screen texture, so alpha affects it while the colours don't
 					tex[idx].s.green = 255;
 					tex[idx].s.blue  = 255;
@@ -2015,6 +2015,9 @@ static boolean GL_Shader_CompileProgram(gl_shader_t *shader, GLint i)
 
 	shader->uniforms[gluniform_scr_resolution] = GETUNI("scr_resolution");
 
+	// supersampling crap
+	shader->uniforms[gluniform_inv_supersamplefactor] = GETUNI("inv_supersamplefactor");
+
 	// misc.
 	shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
 #undef GETUNI
@@ -2024,6 +2027,10 @@ static boolean GL_Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	if (uniform != -1) \
 		function (uniform, a);
 
+#define UNIFORM_2(uniform, a, b, function) \
+	if (uniform != -1) \
+		function (uniform, a, b);
+
 	pglUseProgram(shader->program);
 
 	// texture unit numbers for the samplers used for palette rendering
@@ -2031,9 +2038,13 @@ static boolean GL_Shader_CompileProgram(gl_shader_t *shader, GLint i)
 	UNIFORM_1(shader->uniforms[gluniform_palette_lookup_tex], 1, pglUniform1i);
 	UNIFORM_1(shader->uniforms[gluniform_lighttable_tex], 2, pglUniform1i);
 
+	// supersampling crap
+	UNIFORM_2(shader->uniforms[gluniform_inv_supersamplefactor], InvSupersampleFactorX, InvSupersampleFactorY, pglUniform2f);
+
 	// restore gl shader state
 	pglUseProgram(gl_shaderstate.program);
 #undef UNIFORM_1
+#undef UNIFORM_2
 
 	return true;
 }
@@ -3331,7 +3342,14 @@ void GL_DrawScreenFinalTexture(int tex, INT32 width, INT32 height, boolean usesh
 	pglBindTexture(GL_TEXTURE_2D, screenTextures[tex]);
 
 	if (useshader)
-		pglUseProgram(gl_shaders[SHADER_PALETTE_POSTPROCESS].program); // palette postprocess shader
+	{
+		// godawful but you can only ever run ONE shader per renderpass and since i dont want to draw an extra screen texture when you downsample from higher resolution
+		// so i combined the palette postprocess with this crap
+		if (fbo_shader)
+			pglUseProgram(gl_shaders[SHADER_DOWNSAMPLE].program);
+		else
+			pglUseProgram(gl_shaders[SHADER_PALETTE_POSTPROCESS].program); // palette postprocess shader
+	}
 
 	pglColor4ubv(white);
 

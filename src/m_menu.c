@@ -1182,6 +1182,7 @@ static menuitem_t OP_AllControlsMenu[] =
 {
 	{IT_SUBMENU|IT_STRING, NULL, "Gamepad Options...", &OP_Joystick1Def, 0},
 	{IT_CALL|IT_STRING, NULL, "Reset to defaults", M_ResetControls, 8},
+
 	//{IT_SPACE, NULL, NULL, NULL, 0},
 	{IT_HEADER, NULL, "Gameplay Controls", NULL, 0},
 	{IT_SPACE, NULL, NULL, NULL, 0},
@@ -1194,26 +1195,35 @@ static menuitem_t OP_AllControlsMenu[] =
 	{IT_CONTROL, NULL, "Aim Forward",           M_ChangeControl, gc_aimforward },
 	{IT_CONTROL, NULL, "Aim Backward",          M_ChangeControl, gc_aimbackward},
 	{IT_CONTROL, NULL, "Look Backward",         M_ChangeControl, gc_lookback   },
+
 	{IT_HEADER, NULL, "Miscelleanous Controls", NULL, 0},
 	{IT_SPACE, NULL, NULL, NULL, 0},
 	{IT_CONTROL, NULL, "Chat",                  M_ChangeControl, gc_talkkey    },
-	//{IT_CONTROL, NULL, "Team Chat",             M_ChangeControl, gc_teamkey    },
+	//{IT_CONTROL, NULL, "Team Chat",           M_ChangeControl, gc_teamkey    },
 	{IT_CONTROL, NULL, "Show Rankings",         M_ChangeControl, gc_scores     },
-	{IT_CONTROL, NULL, "Change Viewpoint",      M_ChangeControl, gc_viewpoint  },
-	{IT_CONTROL, NULL, "Reset Camera",          M_ChangeControl, gc_camreset   },
-	{IT_CONTROL, NULL, "Toggle First-Person",   M_ChangeControl, gc_camtoggle  },
 	{IT_CONTROL, NULL, "Pause",                 M_ChangeControl, gc_pause      },
 	{IT_CONTROL, NULL, "Screenshot",            M_ChangeControl, gc_screenshot },
 	{IT_CONTROL, NULL, "Toggle GIF Recording",  M_ChangeControl, gc_recordgif  },
 	{IT_CONTROL, NULL, "Open/Close Menu (ESC)", M_ChangeControl, gc_systemmenu },
 	{IT_CONTROL, NULL, "Developer Console",     M_ChangeControl, gc_console    },
-	{IT_HEADER, NULL, "Spectator Controls", NULL, 0},
+
+	{IT_HEADER, NULL, "Camera Controls", NULL, 0},
 	{IT_SPACE, NULL, NULL, NULL, 0},
-	{IT_CONTROL, NULL, "Become Spectator",      M_ChangeControl, gc_spectate   },
+	{IT_CONTROL, NULL, "Toggle Freecam",        M_ChangeControl, gc_freecam    },
 	{IT_CONTROL, NULL, "Look Up",               M_ChangeControl, gc_lookup     },
 	{IT_CONTROL, NULL, "Look Down",             M_ChangeControl, gc_lookdown   },
 	{IT_CONTROL, NULL, "Center View",           M_ChangeControl, gc_centerview },
+	{IT_CONTROL, NULL, "Float",                 M_ChangeControl, gc_camfloat   },
+	{IT_CONTROL, NULL, "Sink",                  M_ChangeControl, gc_camsink    },
+	{IT_CONTROL, NULL, "Change Viewpoint",      M_ChangeControl, gc_viewpoint  },
+	{IT_CONTROL, NULL, "Reset Camera",          M_ChangeControl, gc_camreset   },
+	//{IT_CONTROL, NULL, "Toggle First-Person", M_ChangeControl, gc_camtoggle  },
+
+	{IT_HEADER, NULL, "Spectator Controls", NULL, 0},
+	{IT_SPACE, NULL, NULL, NULL, 0},
+	{IT_CONTROL, NULL, "Become Spectator",      M_ChangeControl, gc_spectate   },
 	{IT_CONTROL, NULL, "Toggle Director",       M_ChangeControl, gc_director   },
+
 	{IT_HEADER, NULL, "Custom Lua Actions", NULL, 0},
 	{IT_SPACE, NULL, NULL, NULL, 0},
 	{IT_CONTROL, NULL, "Custom Action 1",       M_ChangeControl, gc_custom1    },
@@ -3997,19 +4007,19 @@ boolean M_Responder(event_t *ev)
 			// switch viewpoints:
 			case '1':	// viewpoint for p1 (also f12)
 				// maximum laziness:
-				if (!demo.freecam)
+				if (!camera[0].freecam)
 					G_AdjustView(1, 1, true);
 				break;
 			case '2':	// viewpoint for p2
-				if (!demo.freecam)
+				if (!camera[1].freecam)
 					G_AdjustView(2, 1, true);
 				break;
 			case '3':	// viewpoint for p3
-				if (!demo.freecam)
+				if (!camera[2].freecam)
 					G_AdjustView(3, 1, true);
 				break;
 			case '4':	// viewpoint for p4
-				if (!demo.freecam)
+				if (!camera[3].freecam)
 					G_AdjustView(4, 1, true);
 				break;
 
@@ -4236,19 +4246,19 @@ boolean M_DemoResponder(event_t *ev)
 			// switch viewpoints:
 			case '1':	// viewpoint for p1 (also f12)
 				// maximum laziness:
-				if (!demo.freecam)
+				if (!camera[0].freecam)
 					G_AdjustView(1, 1, true);
 				break;
 			case '2':	// viewpoint for p2
-				if (!demo.freecam)
+				if (!camera[1].freecam)
 					G_AdjustView(2, 1, true);
 				break;
 			case '3':	// viewpoint for p3
-				if (!demo.freecam)
+				if (!camera[2].freecam)
 					G_AdjustView(3, 1, true);
 				break;
 			case '4':	// viewpoint for p4
-				if (!demo.freecam)
+				if (!camera[3].freecam)
 					G_AdjustView(4, 1, true);
 				break;
 
@@ -7638,8 +7648,7 @@ static void M_PlaybackAdvance(INT32 choice)
 
 static void M_PlaybackSetViews(INT32 choice)
 {
-
-	if (demo.freecam)
+	if (camera[0].freecam || camera[1].freecam || camera[2].freecam || camera[3].freecam)
 		return;	// not here.
 
 	if (choice > 0)
@@ -7669,19 +7678,10 @@ static void M_PlaybackToggleFreecam(INT32 choice)
 	splitscreen = 0;
 	R_ExecuteSetViewSize();
 
-	P_InitCameraCmd();	// init camera controls
-	if (!demo.freecam)	// toggle on
+	UINT8 i;
+	for (i = 0; i <= splitscreen; ++i)
 	{
-		demo.freecam = true;
-		democam.cam = &camera[0];	// this is rather useful
-	}
-	else	// toggle off
-	{
-		demo.freecam = false;
-		// reset democam vars:
-		democam.cam = NULL;
-		democam.turnheld = false;
-		democam.keyboardlook = false;	// reset only these. localangle / aiming gets set before the cam does anything anyway
+		P_ToggleDemoCamera(i);
 	}
 }
 
@@ -12052,12 +12052,11 @@ static void M_Setup1PControlsMenu(INT32 choice)
 	// Unhide P1-only controls
 	OP_AllControlsMenu[15].status = IT_CONTROL; // Chat
 	OP_AllControlsMenu[16].status = IT_CONTROL; // Rankings
-	// 18 is Reset Camera, 19 is Toggle Chasecam
-	OP_AllControlsMenu[20].status = IT_CONTROL; // Pause
-	OP_AllControlsMenu[21].status = IT_CONTROL; // Screenshot
-	OP_AllControlsMenu[22].status = IT_CONTROL; // GIF
-	OP_AllControlsMenu[23].status = IT_CONTROL; // System Menu
-	OP_AllControlsMenu[24].status = IT_CONTROL; // Console
+	OP_AllControlsMenu[17].status = IT_CONTROL; // Pause
+	OP_AllControlsMenu[18].status = IT_CONTROL; // Screenshot
+	OP_AllControlsMenu[19].status = IT_CONTROL; // GIF
+	OP_AllControlsMenu[20].status = IT_CONTROL; // System Menu
+	OP_AllControlsMenu[21].status = IT_CONTROL; // Console
 
 	M_SetupNextMenu(&OP_AllControlsDef);
 }
@@ -12075,12 +12074,11 @@ static void M_Setup2PControlsMenu(INT32 choice)
 	// Hide P1-only controls
 	OP_AllControlsMenu[15].status = IT_GRAYEDOUT2; // Chat
 	OP_AllControlsMenu[16].status = IT_GRAYEDOUT2; // Rankings
-	// 18 is Reset Camera, 19 is Toggle Chasecam
-	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // Pause
-	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Screenshot
-	OP_AllControlsMenu[22].status = IT_GRAYEDOUT2; // GIF
-	OP_AllControlsMenu[23].status = IT_GRAYEDOUT2; // System Menu
-	OP_AllControlsMenu[24].status = IT_GRAYEDOUT2; // Console
+	OP_AllControlsMenu[17].status = IT_GRAYEDOUT2; // Pause
+	OP_AllControlsMenu[18].status = IT_GRAYEDOUT2; // Screenshot
+	OP_AllControlsMenu[19].status = IT_GRAYEDOUT2; // GIF
+	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // System Menu
+	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Console
 
 	M_SetupNextMenu(&OP_AllControlsDef);
 }
@@ -12098,12 +12096,11 @@ static void M_Setup3PControlsMenu(INT32 choice)
 	// Hide P1-only controls
 	OP_AllControlsMenu[15].status = IT_GRAYEDOUT2; // Chat
 	OP_AllControlsMenu[16].status = IT_GRAYEDOUT2; // Rankings
-	// 18 is Reset Camera, 19 is Toggle Chasecam
-	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // Pause
-	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Screenshot
-	OP_AllControlsMenu[22].status = IT_GRAYEDOUT2; // GIF
-	OP_AllControlsMenu[23].status = IT_GRAYEDOUT2; // System Menu
-	OP_AllControlsMenu[24].status = IT_GRAYEDOUT2; // Console
+	OP_AllControlsMenu[17].status = IT_GRAYEDOUT2; // Pause
+	OP_AllControlsMenu[18].status = IT_GRAYEDOUT2; // Screenshot
+	OP_AllControlsMenu[19].status = IT_GRAYEDOUT2; // GIF
+	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // System Menu
+	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Console
 
 	M_SetupNextMenu(&OP_AllControlsDef);
 }
@@ -12121,12 +12118,11 @@ static void M_Setup4PControlsMenu(INT32 choice)
 	// Hide P1-only controls
 	OP_AllControlsMenu[15].status = IT_GRAYEDOUT2; // Chat
 	OP_AllControlsMenu[16].status = IT_GRAYEDOUT2; // Rankings
-	// 18 is Reset Camera, 19 is Toggle Chasecam
-	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // Pause
-	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Screenshot
-	OP_AllControlsMenu[22].status = IT_GRAYEDOUT2; // GIF
-	OP_AllControlsMenu[23].status = IT_GRAYEDOUT2; // System Menu
-	OP_AllControlsMenu[24].status = IT_GRAYEDOUT2; // Console
+	OP_AllControlsMenu[17].status = IT_GRAYEDOUT2; // Pause
+	OP_AllControlsMenu[18].status = IT_GRAYEDOUT2; // Screenshot
+	OP_AllControlsMenu[19].status = IT_GRAYEDOUT2; // GIF
+	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // System Menu
+	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Console
 
 	M_SetupNextMenu(&OP_AllControlsDef);
 }

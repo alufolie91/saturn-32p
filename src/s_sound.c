@@ -116,7 +116,7 @@ consvar_t cv_birdmusic = {"birdmusicstuff", "No", CV_SAVE|CV_CALL, CV_YesNo, Bir
 
 consvar_t cv_keepmusic = {"keepmusic", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_skipintromusic = {"skipintromusic", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
-//consvar_t cv_ignoremusicchanges = {"ignoremusicchanges", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ignoremusicchanges = {"ignoremusicchanges", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 boolean keepmusic = false;
 static void S_CheckEventMus(const char *newmus);
@@ -302,7 +302,7 @@ void S_RegisterSoundStuff(void)
 
 	CV_RegisterVar(&cv_keepmusic);
 	CV_RegisterVar(&cv_skipintromusic);
-	//CV_RegisterVar(&cv_ignoremusicchanges);
+	CV_RegisterVar(&cv_ignoremusicchanges);
 
 	COM_AddCommand("tunes", Command_Tunes_f);
 	COM_AddCommand("restartaudio", Command_RestartAudio_f);
@@ -456,11 +456,7 @@ void S_StartSoundAtVolume(const void *origin_p, sfxenum_t sfx_id, INT32 volume)
 		memset(&listener[i], 0, sizeof (listener[i]));
 		listenmobj[i] = NULL;
 
-		if (i == 0 && democam.soundmobj)
-		{
-			listenmobj[i] = democam.soundmobj;
-		}
-		else if (player->awayviewtics)
+		if (player->awayviewtics)
 		{
 			listenmobj[i] = player->awayviewmobj;
 		}
@@ -469,7 +465,7 @@ void S_StartSoundAtVolume(const void *origin_p, sfxenum_t sfx_id, INT32 volume)
 			listenmobj[i] = player->mo;
 		}
 
-		if (origin && origin == listenmobj[i])
+		if (origin && origin == listenmobj[i] && !camera[i].freecam)
 		{
 			itsUs = true;
 		}
@@ -682,12 +678,6 @@ void S_UpdateSounds(void)
 		memset(&listener[i], 0, sizeof (listener[i]));
 		listenmobj[i] = NULL;
 
-		if (i == 0 && democam.soundmobj)
-		{
-			listenmobj[i] = democam.soundmobj;
-			continue;
-		}
-
 		if (player->awayviewtics)
 		{
 			listenmobj[i] = player->awayviewmobj;
@@ -743,6 +733,9 @@ void S_UpdateSounds(void)
 
 					for (i = splitscreen; i >= 0; i--)
 					{
+						if (camera[i].freecam)
+							continue;
+
 						if (c->origin != listenmobj[i])
 							continue;
 
@@ -829,6 +822,7 @@ void S_ClearSfx(void)
 
 static void S_StopChannel(INT32 cnum)
 {
+	INT32 i;
 	channel_t *c = &channels[cnum];
 
 	if (c->sfxinfo)
@@ -836,6 +830,12 @@ static void S_StopChannel(INT32 cnum)
 		// stop the sound playing
 		if (I_SoundIsPlaying(c->handle))
 			I_StopSound(c->handle);
+
+		// check to see
+		//  if other channels are playing the sound
+		for (i = 0; i < numofchannels; i++)
+			if (cnum != i && c->sfxinfo == channels[i].sfxinfo)
+				break;
 
 		// degrade usefulness of sound data
 		c->sfxinfo->usefulness--;
@@ -1185,12 +1185,13 @@ ReadMusicDefFields (UINT16 wadnum, int line, char *stoken, musicdef_t **defp)
 	if (!stricmp(stoken, "lump"))
 	{
 		value = strtok(NULL, " ");
+
 		if (!value)
 		{
 			CONS_Alert(CONS_WARNING,
 					"MUSICDEF: Field '%s' is missing name. (file %s, line %d)\n",
 					stoken, wadfiles[wadnum]->filename, line);
-			return false;
+			goto skip_lump;
 		}
 		else
 		{
@@ -1211,6 +1212,10 @@ ReadMusicDefFields (UINT16 wadnum, int line, char *stoken, musicdef_t **defp)
 
 			(*defp) = def;
 		}
+
+skip_lump:
+			stoken = strtok(NULL, " ");
+			line++;
 	}
 	else
 	{
@@ -1227,7 +1232,7 @@ ReadMusicDefFields (UINT16 wadnum, int line, char *stoken, musicdef_t **defp)
 			CONS_Alert(CONS_WARNING,
 					"MUSICDEF: Field '%s' is missing value. (file %s, line %d)\n",
 					stoken, wadfiles[wadnum]->filename, line);
-			return false;
+			goto skip_field;
 		}
 		else
 		{
@@ -1279,6 +1284,10 @@ ReadMusicDefFields (UINT16 wadnum, int line, char *stoken, musicdef_t **defp)
 			else
 				CONS_Alert(CONS_WARNING, "MUSICDEF: Invalid field '%s'. (file %s, line %d)\n", stoken, wadfiles[wadnum]->filename, line);
 #undef ADDDEF
+
+skip_field:
+			stoken = strtok(NULL, "= ");
+			line++;
 		}
 	}
 
@@ -1991,7 +2000,7 @@ void S_InitMapMusic(void)
 	{
 		char *maptitle = G_BuildMapTitle(gamemap);
 		// for some reason, occasionally the title screen music doesent seem to be reset in time, so skipping the intro may make it just continue playing it instead, weird..
-		skipintromus = (stricmp(music_name, "titles") != 0) && (maptitle && (stricmp(maptitle, "Wandering Falls") != 0)); // thanks diggle!
+		skipintromus = gamestate == GS_LEVEL && (stricmp(music_name, "titles") != 0) && (maptitle && (stricmp(maptitle, "Wandering Falls") != 0)); // thanks diggle!
 		if (maptitle)
 			Z_Free(maptitle);
 	}

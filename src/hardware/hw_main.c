@@ -118,6 +118,11 @@ ps_metric_t ps_hw_numcolors = {0};
 ps_metric_t ps_hw_batchsorttime = {0};
 ps_metric_t ps_hw_batchdrawtime = {0};
 
+// terrible optimization
+boolean havesnakerpad = false;
+boolean havepazrcst = false;
+boolean havefaytpad = false;
+
 static void HWR_SplitWall(sector_t *sector, FOutVector *wallVerts, INT32 texnum, boolean noencore, FSurfaceInfo* Surf, INT32 cutflag, ffloor_t *pfloor, FBITFIELD polyflags);
 static void HWR_RenderWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend, boolean fogwall, INT32 lightlevel, extracolormap_t *wallcolormap);
 
@@ -377,7 +382,6 @@ void HWR_ObjectLightLevelPost(gl_vissprite_t *spr, const sector_t *sector, INT32
 		// Contrast is stronger for normal sprites, stronger than wall lighting is at the same distance
 		*lightlevel += FixedFloor((extralight * 2) + (FRACUNIT / 2)) / FRACUNIT;
 	}
-
 }
 
 void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *colormap, const boolean directional)
@@ -690,6 +694,35 @@ static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, bool
 
 	if (slope)
 		lightlevel = HWR_CalcSlopeLight(lightlevel, slope, gl_frontsector, (FOFsector != NULL));
+
+	if (havesnakerpad || havepazrcst || havefaytpad)
+	{
+		if ((lightlevel != 255) && subsector && subsector->sector && (lumpnum != LUMPERROR))
+		{
+			const char *name = W_CheckNameForNum(lumpnum);
+
+			if (name)
+			{
+				// kart sneakerpad
+				if (havesnakerpad && memcmp(name, "BOST", 4) == 0)
+				{
+					if (GETSECSPECIAL(subsector->sector->special, 4) == 6)
+						lightlevel = 255;
+
+					// check the fof sector aswell
+					if (FOFsector != NULL)
+					{
+						if (GETSECSPECIAL(FOFsector->special, 4) == 6)
+							lightlevel = 255;
+					}
+				}
+				else if ((havepazrcst && (memcmp(name, "PAZRCST", 7) == 0)) || (havefaytpad && (memcmp(name, "FSBOST", 6) == 0))) // fayt sneakerpads lel
+				{
+					lightlevel = 255;
+				}
+			}
+		}
+	}
 
 	HWR_Lighting(&Surf, lightlevel, planecolormap, P_SectorUsesDirectionalLighting(gl_frontsector));
 
@@ -2507,16 +2540,16 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 {
 	float           height; //constant y for all points on the convex flat polygon
 	FOutVector      *v3d;
-	INT32             i;
+	INT32           i;
 	float           flatxref,flatyref;
-	float fflatsize;
-	INT32 flatflag;
-	size_t len;
-	float scrollx = 0.0f, scrolly = 0.0f;
-	angle_t angle = 0;
+	float           fflatsize;
+	INT32           flatflag;
+	size_t          len;
+	float           scrollx = 0.0f, scrolly = 0.0f;
+	angle_t         angle = 0;
 	FSurfaceInfo    Surf;
-	fixed_t tempxsow, tempytow;
-	size_t nrPlaneVerts;
+	fixed_t         tempxsow, tempytow;
+	size_t          nrPlaneVerts;
 
 	static FOutVector *planeVerts = NULL;
 	static UINT16 numAllocedPlaneVerts = 0;
@@ -2524,8 +2557,6 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 	INT32 shader = SHADER_NONE;
 
 	nrPlaneVerts = polysector->numVertices;
-
-	height = FIXED_TO_FLOAT(fixedheight);
 
 	if (nrPlaneVerts < 3)   //not even a triangle ?
 		return;
@@ -2543,6 +2574,8 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 		Z_Free(planeVerts);
 		Z_Malloc(numAllocedPlaneVerts * sizeof (FOutVector), PU_LEVEL, &planeVerts);
 	}
+
+	height = FIXED_TO_FLOAT(fixedheight);
 
 	len = W_LumpLength(lumpnum);
 
@@ -2741,7 +2774,6 @@ static void HWR_AddPolyObjectPlanes(void)
 	}
 }
 
-
 //
 // HWR_DoCulling
 // Hardware version of R_DoCulling
@@ -2754,6 +2786,7 @@ static boolean HWR_DoCulling(line_t *cullheight, line_t *viewcullheight, float v
 		return false;
 
 	cullplane = FIXED_TO_FLOAT(cullheight->frontsector->floorheight);
+
 	if (cullheight->flags & ML_NOCLIMB) // Group culling
 	{
 		if (!viewcullheight)
@@ -3206,7 +3239,7 @@ static gl_vissprite_t *HWR_NewVisSprite(void)
 }
 
 // Finds a floor through which light does not pass.
-static fixed_t HWR_OpaqueFloorAtPos(fixed_t x, fixed_t y, fixed_t z, fixed_t height)
+/*static fixed_t HWR_OpaqueFloorAtPos(fixed_t x, fixed_t y, fixed_t z, fixed_t height)
 {
 	const sector_t *sec = R_PointInSubsectorFast(x, y)->sector;
 	fixed_t floorz = sec->floorheight;
@@ -3268,11 +3301,11 @@ static void HWR_DrawSpriteShadow(gl_vissprite_t *spr, GLPatch_t *gpatch)
 		angle_t shadowdir;
 
 		// Set direction
-		if (splitscreen && stplyr == &players[displayplayers[1]])
+		if (splitscreen && R_GetViewNumber() == 1)
 			shadowdir = localangle[1] + FixedAngle(cv_cam_rotate[1].value);
-		else if (splitscreen > 1 && stplyr == &players[displayplayers[2]])
+		else if (splitscreen > 1 && R_GetViewNumber() == 2)
 			shadowdir = localangle[2] + FixedAngle(cv_cam_rotate[2].value);
-		else if (splitscreen > 2 && stplyr == &players[displayplayers[3]])
+		else if (splitscreen > 2 && R_GetViewNumber() == 3)
 			shadowdir = localangle[3] + FixedAngle(cv_cam_rotate[3].value);
 		else
 			shadowdir = localangle[0] + FixedAngle(cv_cam_rotate[0].value);
@@ -3407,7 +3440,7 @@ static void HWR_DrawSpriteShadow(gl_vissprite_t *spr, GLPatch_t *gpatch)
 		sSurf.PolyColor.s.alpha = (UINT8)(sSurf.PolyColor.s.alpha - floorheight/4);
 		HWR_ProcessPolygon(&sSurf, swallVerts, 4, blendmode|PF_Translucent|PF_Modulated, SHADER_NONE, false);
 	}
-}
+}*/
 
 // This is expecting a pointer to an array containing 4 wallVerts for a sprite
 static void HWR_RotateSpritePolyToAim(gl_vissprite_t *spr, FOutVector *wallVerts, const boolean precip, const boolean papersprite)
@@ -3465,6 +3498,7 @@ static void HWR_RotateSpritePolyToAim(gl_vissprite_t *spr, FOutVector *wallVerts
 	// be mobj->z or mobj->z + mobj->height
 	wallVerts[2].y = wallVerts[3].y = (spr->gzt - basey) * gl_viewludsin + basey;
 	wallVerts[0].y = wallVerts[1].y = (lowy - basey) * gl_viewludsin + basey;
+
 	// translate back to be around 0 before translating back
 	wallVerts[3].x += ((spr->gzt - basey) * gl_viewludcos) * gl_viewcos;
 	wallVerts[2].x += ((spr->gzt - basey) * gl_viewludcos) * gl_viewcos;
@@ -3527,7 +3561,7 @@ static void HWR_SplitSprite(gl_vissprite_t *spr, const boolean papersprite)
 	HWR_GetMappedPatch(gpatch, spr->colormap);
 
 	// Draw shadow BEFORE sprite
-	if (cv_shadow.value // Shadows enabled
+	/*if (cv_shadow.value // Shadows enabled
 		&& (spr->mobj->flags & (MF_SCENERY|MF_SPAWNCEILING|MF_NOGRAVITY)) != (MF_SCENERY|MF_SPAWNCEILING|MF_NOGRAVITY) // Ceiling scenery have no shadow.
 		&& !(spr->mobj->flags2 & MF2_DEBRIS) // Debris have no corona or shadow.
 		&& (spr->mobj->z >= spr->mobj->floorz)) // Without this, your shadow shows on the floor, even after you die and fall through the ground.
@@ -3536,7 +3570,7 @@ static void HWR_SplitSprite(gl_vissprite_t *spr, const boolean papersprite)
 		// SHADOW SPRITE! //
 		////////////////////
 		HWR_DrawSpriteShadow(spr, gpatch);
-	}
+	}*/
 
 	baseWallVerts[0].x = baseWallVerts[3].x = spr->x1;
 	baseWallVerts[2].x = baseWallVerts[1].x = spr->x2;
@@ -3764,7 +3798,7 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
 
 	INT32 shader = SHADER_NONE;
 
-	if (!spr->mobj)
+	if (P_MobjWasRemoved(spr->mobj))
 		return;
 
 	if (!spr->mobj->subsector)
@@ -3829,7 +3863,7 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
 	HWR_GetMappedPatch(gpatch, spr->colormap);
 
 	// Draw shadow BEFORE sprite
-	if (cv_shadow.value // Shadows enabled
+	/*if (cv_shadow.value // Shadows enabled
 		&& (spr->mobj->flags & (MF_SCENERY|MF_SPAWNCEILING|MF_NOGRAVITY)) != (MF_SCENERY|MF_SPAWNCEILING|MF_NOGRAVITY) // Ceiling scenery have no shadow.
 		&& !(spr->mobj->flags2 & MF2_DEBRIS) // Debris have no corona or shadow.
 		&& (spr->mobj->z >= spr->mobj->floorz)) // Without this, your shadow shows on the floor, even after you die and fall through the ground.
@@ -3838,7 +3872,7 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
 		// SHADOW SPRITE! //
 		////////////////////
 		HWR_DrawSpriteShadow(spr, gpatch);
-	}
+	}*/
 
 	// push it toward the camera to mitigate floor-clipping sprites
 	HWR_ApplyDispoffset(spr, wallVerts, papersprite);
@@ -3851,13 +3885,14 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
 	sector_t *sector = spr->mobj->subsector->sector;
 	INT32 lightlevel = 255;
 	extracolormap_t *colormap = sector->extra_colormap;
+	const boolean fullbright = (spr->mobj->frame & FF_FULLBRIGHT);
 
-	if (!(spr->mobj->frame & FF_FULLBRIGHT))
+	if (!fullbright)
 		lightlevel = min(sector->lightlevel, 255);
 
 	HWR_ObjectLightLevelPost(spr, sector, &lightlevel, false, papersprite);
 
-	HWR_Lighting(&Surf, lightlevel, colormap, P_SectorUsesDirectionalLighting(sector) && !(spr->mobj->frame & FF_FULLBRIGHT));
+	HWR_Lighting(&Surf, lightlevel, colormap, P_SectorUsesDirectionalLighting(sector) && !fullbright);
 
 	if (!cv_translucency.value) // translucency disabled
 	{
@@ -4315,6 +4350,7 @@ static void HWR_DrawSprites(void)
 		if (spr->mobj && spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
 		{
 			md2_t *md2;
+
 			if (spr->mobj->localskin)
 			{
 				if (spr->mobj->skinlocal)
@@ -4392,12 +4428,19 @@ static void HWR_AddSprites(sector_t *sec)
 // --------------------------------------------------------------------------
 static void HWR_AddPrecipitationSprites(void)
 {
-	fixed_t drawdist;
-	fixed_t precipscale = (cv_mobjscaleprecip.value ? mapobjectscale : FRACUNIT);
-	//const fixed_t drawdist = cv_drawdist_precip.value * mapobjectscale;
-
 	INT32 xl, xh, yl, yh, bx, by;
 	precipmobj_t *th;
+
+	fixed_t drawdist;
+
+	// save a little time on invisible weather
+	if (curWeather == PRECIP_BLANK || curWeather == PRECIP_STORM_NORAIN)
+	{
+		return;
+	}
+
+	const fixed_t precipscale = (cv_mobjscaleprecip.value ? mapobjectscale : FRACUNIT);
+	//const fixed_t drawdist = cv_drawdist_precip.value * mapobjectscale;
 
 	if (current_bsp_culling_distance)
 		drawdist = min((fixed_t)current_bsp_culling_distance, (fixed_t)(cv_drawdist_precip.value) * precipscale);
@@ -4405,7 +4448,7 @@ static void HWR_AddPrecipitationSprites(void)
 		drawdist = ((fixed_t)(cv_drawdist_precip.value) * precipscale);
 
 	// No to infinite precipitation draw distance.
-	if (drawdist == 0 || curWeather == PRECIP_BLANK || curWeather == PRECIP_STORM_NORAIN)
+	if (drawdist == 0)
 	{
 		return;
 	}
@@ -4474,11 +4517,6 @@ static void HWR_ProjectSprite(mobj_t *thing)
 	// uncapped/interpolation
 	interpmobjstate_t interp = {0};
 
-	const boolean mirrored = thing->mirrored;
-	const boolean vflip = (thing->eflags & MFE_VERTICALFLIP);
-	const boolean hflip = (!(thing->frame & FF_HORIZONTALFLIP) != !mirrored);
-	const boolean papersprite = (thing->frame & FF_PAPERSPRITE);
-
 	if (cv_maxinterpdist.value)
 		dist = R_QuickCamDist(thing->x, thing->y);
 
@@ -4493,6 +4531,11 @@ static void HWR_ProjectSprite(mobj_t *thing)
 
 	if (interp.spritexscale < 1 || interp.spriteyscale < 1)
 		return;
+
+	const boolean mirrored = thing->mirrored;
+	const boolean vflip = (thing->eflags & MFE_VERTICALFLIP);
+	const boolean hflip = (!(thing->frame & FF_HORIZONTALFLIP) != !mirrored);
+	const boolean papersprite = (thing->frame & FF_PAPERSPRITE);
 
 	this_scale = FIXED_TO_FLOAT(interp.scale);
 	spritexscale = FIXED_TO_FLOAT(interp.spritexscale);
@@ -4636,6 +4679,14 @@ static void HWR_ProjectSprite(mobj_t *thing)
 			}
 			else
 				pitchnroll += rollangle;
+
+			// this is kinda dumb lkmao, but try to mitigate shadows being weirdly offset on slopes
+			if (thing->type == MT_SHADOW)
+			{
+				sprinfo->available = true; // < lmao
+				sprinfo->pivot[(thing->frame & FF_FRAMEMASK)].x = spr_offset>>FRACBITS;
+				sprinfo->pivot[(thing->frame & FF_FRAMEMASK)].y = -8; // noones gonna replace shadow sprite anyways, right? this random value works, cant get any better otherwise this clips into the ground Zzz...
+			}
 
 			rollangle = R_GetRollAngle(pitchnroll);
 			rotsprite = Patch_GetRotatedSprite(sprframe, (thing->frame & FF_FRAMEMASK), rot, flip, false, sprinfo, rollangle);
@@ -5261,6 +5312,7 @@ void HWR_RenderViewpoint(gl_portal_t *rootportal, const float fpov, player_t *pl
 		{
 			HWR_RenderPortal(portal, rootportal, fpov, player, stencil_level);
 		}
+
 		HWR_SetPortalState(GLPORTAL_INSIDE); // when portal walls are encountered in following bsp traversal, nothing should be drawn
 	}
 	else

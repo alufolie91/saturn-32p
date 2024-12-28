@@ -142,6 +142,8 @@ boolean I_UseNativeKeyboard(void);
 boolean I_CheckNativeRes(void);
 
 #ifdef USE_FBO_OGL
+extern float InvSupersampleFactorX;
+extern float InvSupersampleFactorY;
 
 void RefreshOGLSDLSurface(void);
 void I_DownSample(void);

@@ -66,9 +66,6 @@ struct demovars_s {
 		DSM_WILLSAVE,
 		DSM_SAVED
 	} savemode;
-
-	boolean freecam;
-
 };
 
 extern struct demovars_s demo;
@@ -443,5 +440,7 @@ INT16 G_TOLFlag(INT32 pgametype);
 
 INT16 G_RandMap(INT16 tolflags, INT16 pprevmap, boolean ignorebuffer, UINT8 maphell, boolean callagainsoon, INT16 *extbuffer);
 void G_AddMapToBuffer(INT16 map);
+
+void G_FixCamera(UINT8 view);
 
 #endif

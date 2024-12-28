@@ -133,6 +133,7 @@ static void Impl_SetVsync(void);
 static INT32 desktopwidth = 0, desktopheight = 0;
 
 static void I_CheckDesktopRes(void);
+static void I_ResetFBOSurface(void);
 
 // synchronize page flipping with screen refresh
 consvar_t cv_vidwait = {"vid_wait", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Impl_SetVsync, 0, NULL, NULL, 0, 0, NULL};
@@ -224,6 +225,10 @@ static void Impl_SetWindowIcon(void);
 
 #ifdef USE_FBO_OGL
 boolean downsample = false;
+
+float InvSupersampleFactorX = 0.0;
+float InvSupersampleFactorY = 0.0;
+
 void RefreshOGLSDLSurface(void)
 {
 	if (rendermode == render_opengl)
@@ -751,7 +756,7 @@ void I_DownSample(void)
 	if (I_CheckNativeRes() && (downsample == true))
 	{
 		downsample = false;
-		RefreshOGLSDLSurface();
+		I_ResetFBOSurface();
 		return;
 	}
 
@@ -768,9 +773,16 @@ void I_DownSample(void)
 
 	if (needrefresh)
 	{
-		RefreshOGLSDLSurface();
+		I_ResetFBOSurface();
 		needrefresh = false;
 	}
+}
+
+static void I_ResetFBOSurface(void)
+{
+	InvSupersampleFactorX = (float)(desktopwidth) / vid.width;
+	InvSupersampleFactorY = (float)(desktopheight) / vid.height;
+	RefreshOGLSDLSurface();
 }
 #endif
 
@@ -1832,7 +1844,7 @@ static SDL_bool Impl_CreateContext(void)
 #ifdef _WIN32
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
 #else
-		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
 #endif
 
 		if (!renderer)
@@ -2262,14 +2274,22 @@ UINT32 I_GetRefreshRate(void)
 
 static void Impl_SetVsync(void)
 {
-#if SDL_VERSION_ATLEAST(2,0,18)
-	if (renderer)
-		SDL_RenderSetVSync(renderer, cv_vidwait.value);
+	if (renderer && rendermode == render_soft)
+	{
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+		SDL_RenderSetVSync(renderer, cv_vidwait.value ? 1 : 0);
 #endif
+	}
 #ifdef HWRENDER
 	if (!renderer && rendermode == render_opengl && sdlglcontext != NULL && SDL_GL_GetCurrentContext() == sdlglcontext)
 	{
-		SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
+		if (cv_vidwait.value)
+		{
+			if (SDL_GL_SetSwapInterval(-1) != 0) // try async vsync
+				SDL_GL_SetSwapInterval(1); // normal vsync
+		}
+		else
+			SDL_GL_SetSwapInterval(0);
 	}
 #endif
 }

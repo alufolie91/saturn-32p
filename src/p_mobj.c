@@ -1447,6 +1447,7 @@ void P_XYMovement(mobj_t *mo)
 				else
 					fx->eflags &= ~MFE_VERTICALFLIP;
 				fx->scale = mo->scale;
+				fx->lightlevel = 255;
 			}
 
 			if (mo->type == MT_ORBINAUT) // Orbinaut speed decreasing
@@ -1888,13 +1889,13 @@ boolean P_CheckDeathPitCollide(mobj_t *mo)
 	I_Assert(mo != NULL);
 	I_Assert(!P_MobjWasRemoved(mo));
 
-	INT32 special = GETSECSPECIAL(mo->subsector->sector->special, 1);
+	const INT32 secspecial = GETSECSPECIAL(mo->subsector->sector->special, 1);
 
 	if (((mo->z <= mo->subsector->sector->floorheight
 		&& !(mo->eflags & MFE_VERTICALFLIP) && (mo->subsector->sector->flags & SF_FLIPSPECIAL_FLOOR))
 	|| (mo->z + mo->height >= mo->subsector->sector->ceilingheight
 		&& (mo->eflags & MFE_VERTICALFLIP) && (mo->subsector->sector->flags & SF_FLIPSPECIAL_CEILING)))
-	&& (special == 6 || special == 7))
+	&& (secspecial == 6 || secspecial == 7))
 		return true;
 
 	return false;
@@ -2842,6 +2843,73 @@ static boolean P_SceneryZMovement(mobj_t *mo)
 	return true;
 }
 
+/*static void P_MobjCheckWaterVisual(mobj_t *mobj)
+{
+	fixed_t thingtop = mobj->z + mobj->height; // especially for players, infotable height does not neccessarily match actual height
+	sector_t *sector = mobj->subsector->sector;
+	ffloor_t *rover;
+
+	// Default if no water exists.
+	mobj->watertop = mobj->waterbottom = mobj->z - 1000*FRACUNIT;
+
+	// Reset water state.
+	mobj->eflags &= ~(MFE_UNDERWATER|MFE_TOUCHWATER|MFE_GOOWATER);
+
+	for (rover = sector->ffloors; rover; rover = rover->next)
+	{
+		fixed_t topheight, bottomheight;
+		if (!(rover->flags & FF_EXISTS) || !(rover->flags & FF_SWIMMABLE)
+			|| (((rover->flags & FF_BLOCKPLAYER) && mobj->player)
+			|| ((rover->flags & FF_BLOCKOTHERS) && !mobj->player)))
+			continue;
+
+		topheight = *rover->topheight;
+		bottomheight = *rover->bottomheight;
+
+		if (*rover->t_slope)
+			topheight = P_GetZAt(*rover->t_slope, mobj->x, mobj->y);
+
+		if (*rover->b_slope)
+			bottomheight = P_GetZAt(*rover->b_slope, mobj->x, mobj->y);
+
+		if (mobj->eflags & MFE_VERTICALFLIP)
+		{
+			if (topheight < (thingtop - FixedMul(mobj->info->height/2, mobj->scale))
+				|| bottomheight > thingtop)
+				continue;
+		}
+		else
+		{
+			if (topheight < mobj->z
+				|| bottomheight > (mobj->z + FixedMul(mobj->info->height/2, mobj->scale)))
+				continue;
+		}
+
+		// Set the watertop and waterbottom
+		mobj->watertop = topheight;
+		mobj->waterbottom = bottomheight;
+
+		// Just touching the water?
+		if (((mobj->eflags & MFE_VERTICALFLIP) && thingtop - FixedMul(mobj->info->height, mobj->scale) < bottomheight)
+			|| (!(mobj->eflags & MFE_VERTICALFLIP) && mobj->z + FixedMul(mobj->info->height, mobj->scale) > topheight))
+		{
+			mobj->eflags |= MFE_TOUCHWATER;
+			if (rover->flags & FF_GOOWATER && !(mobj->flags & MF_NOGRAVITY))
+				mobj->eflags |= MFE_GOOWATER;
+		}
+		// Actually in the water?
+		if (((mobj->eflags & MFE_VERTICALFLIP) && thingtop - FixedMul(mobj->info->height/2, mobj->scale) > bottomheight)
+			|| (!(mobj->eflags & MFE_VERTICALFLIP) && mobj->z + FixedMul(mobj->info->height/2, mobj->scale) < topheight))
+		{
+			mobj->eflags |= MFE_UNDERWATER;
+			if (rover->flags & FF_GOOWATER && !(mobj->flags & MF_NOGRAVITY))
+				mobj->eflags |= MFE_GOOWATER;
+		}
+	}
+
+	K_SpawnWaterRunParticles(mobj);
+}*/
+
 //
 // P_MobjCheckWater
 //
@@ -2929,6 +2997,9 @@ void P_MobjCheckWater(mobj_t *mobj)
 		// Can't drown.
 		p->powers[pw_underwater] = 0;
 	}
+
+	if (p)
+		K_SpawnWaterRunParticles(mobj);
 
 	// The rest of this code only executes on a water state change.
 	if (waterwasnotset || !!(mobj->eflags & MFE_UNDERWATER) == wasinwater)
@@ -7672,6 +7743,8 @@ void P_MobjThinker(mobj_t *mobj)
 				if (leveltime % 6 == 0)
 					S_StartSound(mobj, mobj->info->activesound);
 			}
+
+			//P_MobjCheckWaterVisual(mobj);
 			break;
 		}
 		case MT_JAWZ:
@@ -7732,6 +7805,7 @@ void P_MobjThinker(mobj_t *mobj)
 				&& GETSECSPECIAL(mobj->subsector->sector->special, 3) == 1))
 				K_DoPogoSpring(mobj, 0, 1);
 
+			//P_MobjCheckWaterVisual(mobj);
 			break;
 		}
 		case MT_JAWZ_DUD:
@@ -7773,6 +7847,7 @@ void P_MobjThinker(mobj_t *mobj)
 			break;
 		}
 		case MT_BANANA:
+			//P_MobjCheckWaterVisual(mobj);
 		case MT_EGGMANITEM:
 			mobj->friction = ORIG_FRICTION/4;
 			if (mobj->momx || mobj->momy)
@@ -7796,6 +7871,7 @@ void P_MobjThinker(mobj_t *mobj)
 			P_SpawnGhostMobj(mobj)->fuse = 3;
 			if (mobj->threshold > 0)
 				mobj->threshold--;
+			//P_MobjCheckWaterVisual(mobj);
 			break;
 		case MT_SINK:
 			if (mobj->momx || mobj->momy)
@@ -10693,6 +10769,18 @@ void P_SpawnPlayer(INT32 playernum)
 			P_SetScale(karmahitbox, mobj->scale);
 		}
 	}
+
+	// TODO: handle splitscreen
+	// Spectators can switch to freecam. This should be
+	// disabled when they enter the race, or when the level
+	// changes.
+	if (!demo.playback)
+	{
+		if (!p->spectator)
+		{
+			camera[playernum].freecam = false;
+		}
+	}
 }
 
 void P_AfterPlayerSpawn(INT32 playernum)
@@ -10735,15 +10823,18 @@ void P_AfterPlayerSpawn(INT32 playernum)
 
 	SV_SpawnPlayer(playernum, mobj->x, mobj->y, mobj->angle);
 
-	for (i = 0; i <= splitscreen; i++)
+	if (p->spectator == false)
 	{
-		if (!camera[i].chase)
-			continue;
+		for (i = 0; i <= splitscreen; i++)
+		{
+			if (!camera[i].chase)
+				continue;
 
-		if (displayplayers[i] != playernum)
-			continue;
+			if (displayplayers[i] != playernum)
+				continue;
 
-		P_ResetCamera(p, &camera[i]);
+			P_ResetCamera(p, &camera[i]);
+		}
 	}
 
 	if (CheckForReverseGravity)
@@ -12329,4 +12420,22 @@ void P_FlashPal(player_t *pl, UINT16 type, UINT16 duration)
 		return;
 	pl->flashcount = duration;
 	pl->flashpal = type;
+}
+
+fixed_t P_GetMobjZMovement(mobj_t *mo)
+{
+	pslope_t *slope = mo->standingslope;
+	angle_t angDiff;
+	fixed_t speed;
+
+	if (!P_IsObjectOnGround(mo))
+		return mo->momz;
+
+	if (!slope)
+		return 0;
+
+	angDiff = R_PointToAngle2(0, 0, mo->momx, mo->momy) - slope->xydirection;
+	speed = FixedHypot(mo->momx, mo->momy);
+
+	return P_ReturnThrustY(mo, slope->zangle, P_ReturnThrustX(mo, angDiff, speed));
 }

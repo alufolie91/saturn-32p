@@ -95,7 +95,7 @@ typedef struct
 	thinker_t **thinkers;
 } thinkerlist_t;
 
-//static boolean fromlapexec = false;
+static boolean fromlapexec = false;
 
 static void P_SearchForDisableLinedefs(void);
 static void P_SpawnScrollers(void);
@@ -1338,7 +1338,7 @@ boolean P_RunTriggerLinedef(line_t *triggerline, mobj_t *actor, sector_t *caller
 	fixed_t dist = P_AproxDistance(triggerline->dx, triggerline->dy)>>FRACBITS;
 	size_t i, linecnt, sectori;
 	INT16 specialtype = triggerline->special;
-	//fromlapexec = false;
+	fromlapexec = false;
 
 	/////////////////////////////////////////////////
 	// Distance-checking/sector trigger conditions //
@@ -1427,14 +1427,14 @@ boolean P_RunTriggerLinedef(line_t *triggerline, mobj_t *actor, sector_t *caller
 	}
 	else if (caller)
 	{
-		INT32 special = GETSECSPECIAL(caller->special, 2);
+		const INT32 secspecial = GETSECSPECIAL(caller->special, 2);
 
-		if (special == 6)
+		if (secspecial == 6)
 		{
 			if (!(ALL7EMERALDS(emeralds)))
 				return false;
 		}
-		else if (special == 7) // SRB2Kart: reusing for Race Lap executor
+		else if (secspecial == 7) // SRB2Kart: reusing for Race Lap executor
 		{
 			UINT8 lap;
 
@@ -1463,12 +1463,12 @@ boolean P_RunTriggerLinedef(line_t *triggerline, mobj_t *actor, sector_t *caller
 					return false;
 			}
 
-			//fromlapexec = true;
+			fromlapexec = true;
 		}
 		// If we were not triggered by a sector type especially for the purpose,
 		// a Linedef Executor linedef trigger is not handling sector triggers properly, return.
 
-		else if ((!special || special > 7) && (specialtype > 322))
+		else if ((!secspecial || secspecial > 7) && (specialtype > 322))
 		{
 			CONS_Alert(CONS_WARNING,
 				M_GetText("Linedef executor trigger isn't handling sector triggers properly!\nspecialtype = %d, if you are not a dev, report this warning instance\nalong with the wad that caused it!\n"),
@@ -2101,8 +2101,8 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 			if (keepmusic && (leveltime <= MUSICSTARTTIME)) //why check for starttime? cause encore music Zzz...
 				return;
 
-			//if (cv_ignoremusicchanges.value && (leveltime >= MUSICSTARTTIME) && !fromlapexec) // keep lap music intanct tho
-				//return;
+			if (cv_ignoremusicchanges.value && (leveltime >= MUSICSTARTTIME) && !fromlapexec) // keep lap music intanct tho
+				return;
 
 			// console player only unless NOCLIMB is set
 			if ((line->flags & ML_NOCLIMB) || (mo && mo->player && P_IsLocalPlayer(mo->player)))

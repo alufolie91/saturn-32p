@@ -263,21 +263,11 @@ sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec, INT32 *floorlightlevel,
 		mobj_t *pviewmobj = viewplayer->mo;
 		INT32 heightsec;
 		boolean underwater;
-		UINT8 i;
+		UINT8 i = R_GetViewNumber();
 
-		for (i = 0; i <= splitscreen; i++)
-		{
-			if (viewplayer != &players[displayplayers[i]])
-				continue;
-
-			if (!camera[i].chase)
-				continue;
-
+		if (camera[i].chase)
 			heightsec = R_PointInSubsector(camera[i].x, camera[i].y)->sector->heightsec;
-			break;
-		}
-
-		if (i > splitscreen && pviewmobj)
+		else if (i > splitscreen && viewmobj)
 			heightsec = R_PointInSubsector(pviewmobj->x, pviewmobj->y)->sector->heightsec;
 		else
 			return sec;
@@ -583,10 +573,10 @@ static void R_AddLine(seg_t *line)
 
 clippass:
 	g_walloffscreen = false;
+	R_ClipPassWallSegment(x1, x2 - 1, false);
+
 	if (g_walloffscreen)
 		R_ClipPassWallSegment(x1, x2 - 1, true);
-	else
-		R_ClipPassWallSegment(x1, x2 - 1, false);
 	return;
 
 clipsolid:

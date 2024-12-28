@@ -587,6 +587,19 @@ INT32 P_AddLevelFlat(const char *flatname, levelflat_t *levelflat)
 		// store the flat lump number
 		levelflat->lumpnum = R_GetFlatNumForName(flatname);
 
+		if (!havesnakerpad && memcmp(levelflat->name, "BOST", 4) == 0)
+		{
+			havesnakerpad = true;
+		}
+		if (!havepazrcst && memcmp(levelflat->name, "PAZRCST", 7) == 0)
+		{
+			havepazrcst = true;
+		}
+		if (!havefaytpad && memcmp(levelflat->name, "FSBOST", 6) == 0)
+		{
+			havefaytpad = true;
+		}
+
 #ifndef ZDEBUG
 		CONS_Debug(DBG_SETUP, "flat #%03d: %s\n", atoi(sizeu1(numlevelflats)), levelflat->name);
 #endif
@@ -680,6 +693,10 @@ static void P_LoadRawSectors(UINT8 *data)
 		I_Error("Ran out of memory while loading sectors\n");
 
 	numlevelflats = 0;
+
+	havesnakerpad = false;
+	havepazrcst = false;
+	havefaytpad = false;
 
 	// For each counted sector, copy the sector raw data from our cache pointer ms, to the global table pointer ss.
 	for (i = 0; i < numsectors; i++, ss++, ms++)
@@ -2424,6 +2441,8 @@ static void P_SetupCamera(UINT8 pnum, camera_t *cam)
 		cam->angle = FixedAngle((fixed_t)thing->angle << FRACBITS);
 		cam->subsector = R_PointInSubsectorFast(cam->x, cam->y); // make sure camera has a subsector set -- Monster Iestyn (12/11/18)
 	}
+
+	cam->chase = false; // tell camera to reset its position next tic
 }
 
 static void P_InitCamera(void)
@@ -2432,9 +2451,13 @@ static void P_InitCamera(void)
 
 	if (!dedicated)
 	{
-		if (!demo.freecam)
 			for (i = 0; i <= splitscreen; i++)
+			{
+				if (camera[i].freecam)
+					continue;
+
 				P_SetupCamera(displayplayers[i], &camera[i]);
+			}
 
 		// Though, I don't think anyone would care about cam_rotate being reset back to the only value that makes sense :P
 		for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
@@ -2458,6 +2481,7 @@ static void P_InitMinimapInfo(void)
 	INT32 lumpnum;
 	fixed_t a;
 	fixed_t b;
+
 	node_t *bsp = &nodes[numnodes-1];
 
 	minimapinfo.minimap_pic = NULL;
@@ -2733,7 +2757,7 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 	curmapvirt = vres_GetMap(lastloadedmaplumpnum);
 
 	R_ReInitColormaps(mapheaderinfo[gamemap-1]->palette,
-		(encoremode ? W_CheckNumForName(va("%sE", maplumpname)) : LUMPERROR));
+		W_CheckNumForName(va("%s%c", maplumpname, (encoremode ? 'E' : 'T'))));
 	CON_SetupBackColormap();
 
 	// SRB2 determines the sky texture to be used depending on the map header.
@@ -2947,6 +2971,9 @@ boolean P_SetupLevel(boolean skipprecip, boolean reloadinggamestate)
 
 	G_AddMapToBuffer(gamemap-1);
 
+	if (!reloadinggamestate)
+		K_LoadExtraVFX();
+
 	return true;
 }
 
@@ -3069,6 +3096,8 @@ UINT16 P_PartialAddWadFile(const char *wadfilename, boolean local)
 	if (!devparm && digmreplaces)
 		CONS_Printf(M_GetText("%s digital musics replaced\n"), sizeu1(digmreplaces));
 
+	R_LoadTexturesPwad(wadnum);
+
 	//
 	// search for sprite replacements
 	//
@@ -3129,7 +3158,8 @@ UINT16 P_PartialAddWadFile(const char *wadfilename, boolean local)
 
 // Only exists to make sure there's no way to overwrite partadd_stage externally
 // unless you really push yourself.
-SINT8 P_PartialAddGetStage(void) {
+SINT8 P_PartialAddGetStage(void)
+{
 	return partadd_stage;
 }
 
@@ -3151,26 +3181,26 @@ boolean P_MultiSetupWadFiles(boolean fullsetup)
 		ST_LoadGraphics();
 		ST_ReloadSkinFaceGraphics();
 
-		if (!partadd_important)
-			partadd_stage = -1; // everything done
-		else if (fullsetup)
+		if (fullsetup)
 			++partadd_stage; // run next stage too
 	}
 
 	if (partadd_stage == 1)
 	{
 		// Reload all textures, unconditionally for better or worse.
-		R_LoadTextures();
+		//R_LoadTextures();
 
-		if (fullsetup)
+		// Reload ANIMATED / ANIMDEFS
+		P_InitPicAnims();
+
+		if (!partadd_important)
+			partadd_stage = -1; // everything done
+		else if (fullsetup)
 			++partadd_stage;
 	}
 
 	if (partadd_stage == 2)
 	{
-		// Reload ANIMATED / ANIMDEFS
-		P_InitPicAnims();
-
 		// reload status bar (warning should have valid player!)
 		if (gamestate == GS_LEVEL)
 			ST_Start();

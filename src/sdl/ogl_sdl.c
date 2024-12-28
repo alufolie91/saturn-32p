@@ -196,8 +196,16 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 #endif
 	}
 
-	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
-
+	if (cv_vidwait.value)
+	{
+		if (SDL_GL_SetSwapInterval(-1) != 0) // try async vsync
+			SDL_GL_SetSwapInterval(1); // normal vsync
+	}
+	else
+		SDL_GL_SetSwapInterval(0);
+	
+	//SDL_GL_SetSwapInterval(cv_vidwait.value ? -1 : 0);
+	
 	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
 	if (screen_width != w || screen_height != h)
 	{
@@ -220,6 +228,11 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 		GL_Framebuffer_Enable();
 	else
 		GL_Framebuffer_Disable();
+
+	if (UseScreenFBO() && HWR_UseShader())
+	{
+		HWR_CompileShaders();
+	}
 #endif
 
 	if (!first_init)
@@ -248,7 +261,15 @@ void OglSdlFinishUpdate(boolean waitvbl)
 
 	if (oldwaitvbl != waitvbl)
 	{
-		SDL_GL_SetSwapInterval(waitvbl ? 1 : 0);
+		if (waitvbl)
+		{
+			if (SDL_GL_SetSwapInterval(-1) != 0) // try async vsync
+				SDL_GL_SetSwapInterval(1); // normal vsync
+		}
+		else
+			SDL_GL_SetSwapInterval(0);
+
+		//SDL_GL_SetSwapInterval(waitvbl ? -1 : 0);
 	}
 
 	oldwaitvbl = waitvbl;
@@ -260,10 +281,13 @@ void OglSdlFinishUpdate(boolean waitvbl)
 	if (usefbo)
 	{
 		GL_Framebuffer_Unbind();
+		fbo_shader = (HWR_UseShader() && !WipeInAction); // this looks awful with wipes
 	}
+	else
+		fbo_shader = false;
 #endif
 
-	GL_DrawScreenFinalTexture(HWD_SCREENTEXTURE_GENERIC2, sdlw, sdlh, HWR_ShouldUsePaletteRendering());
+	GL_DrawScreenFinalTexture(HWD_SCREENTEXTURE_GENERIC2, sdlw, sdlh, (HWR_ShouldUsePaletteRendering() || fbo_shader));
 
 #ifdef USE_FBO_OGL
 	if (usefbo)

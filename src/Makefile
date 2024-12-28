@@ -285,7 +285,7 @@ else
 endif
 else
 ifdef X86_64
-	ARCHOPTS?=-march=nocona
+	ARCHOPTS?=-march=native
 endif
 endif
 
@@ -433,7 +433,9 @@ else
 
 	# build a normal optimised version
 	WINDRESFLAGS = -DNDEBUG
-	CFLAGS+=-O3
+	CFLAGS+=-O3 -flto=auto
+	CPPFLAGS+=-O3 -flto=auto
+	#LDFLAGS+=
 endif
 	CFLAGS+=-g $(OPTS) $(ARCHOPTS) $(WINDRESFLAGS)
 
@@ -469,6 +471,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/comptime.o \
 		$(OBJDIR)/qs22j.o   \
 		$(OBJDIR)/string.o   \
+		$(OBJDIR)/d_async.o  \
 		$(OBJDIR)/d_main.o   \
 		$(OBJDIR)/d_protocol.o   \
 		$(OBJDIR)/d_clisrv.o \
