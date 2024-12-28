@@ -8651,7 +8651,7 @@ static int lua_enumlib_basic_fallback(lua_State* L)
 
 static int lua_enumlib_mariomode_get(lua_State *L)
 {
-	lua_pushboolean(L, mariomode != 0);
+	lua_pushboolean(L, false);
 	return 1;
 }
 
