@@ -3374,7 +3374,7 @@ static void P_NetArchiveMisc(savebuffer_t *save, boolean resending)
 
 FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(savebuffer_t *save, boolean reloading)
 {
-	UINT32 pig;
+	UINT32 pig = 0;
 	INT32 i;
 
 	if (READUINT32(save->p) != ARCHIVEBLOCK_MISC)
@@ -3401,8 +3401,6 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(savebuffer_t *save, bool
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-		//pig = 0;
-
 		if (!(i & 31))
 			pig = READUINT32(save->p);
 

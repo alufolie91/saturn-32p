@@ -5266,7 +5266,6 @@ static void SV_SendTics(void)
 
 		for (packnum = 0; packnum < 3; packnum++)
 		{
-
 			// assert supposedtics[n]>=nettics[n]
 			realfirsttic = supposedtics[n];
 			lasttictosend = maketic;
@@ -5357,7 +5356,7 @@ static void SV_SendTics(void)
 			}
 			packsize = bufpos - (UINT8 *)&(netbuffer->u);
 			if (packsize > 1024)
-				CONS_Alert(CONS_ERROR, "Servertics packet went beyond allocated packet size (%d/1024), and may have corrupted some memory...\n", packsize);
+				CONS_Alert(CONS_ERROR, "Servertics packet went beyond allocated packet size (%ld/1024), and may have corrupted some memory...\n", packsize);
 
 
 			HSendPacket(n, false, 0, packsize);

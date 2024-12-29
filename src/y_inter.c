@@ -453,7 +453,6 @@ void Y_IntermissionDrawer(void)
 			V_DrawString(x+36, 24, hilicol, "NAME");
 
 			V_DrawRightAlignedString(x+(BASEVIDWIDTH/2)+152, 24, hilicol, timeheader);
-
 		}
 
 		V_DrawCenteredString(x+6, 24, hilicol, "#");
