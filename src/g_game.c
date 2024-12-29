@@ -2605,21 +2605,9 @@ mapthing_t *G_FindRaceStart(INT32 playernum)
 				return playerstarts[i];
 		}
 
-		// SRB2Kart: We have solid players, so this behavior is less ideal.
-		// Don't bother checking to see if the player 1 start is open.
-		// Just spawn there.
-		//return playerstarts[0];
-
 		//this section courtesy of fickle - v1.1 battle royale
 		// screw collision chex
 		return playerstarts[pos % numcoopstarts];
-		/*
-		if (playernum == consoleplayer
-			|| (splitscreen && playernum == displayplayers[1])
-			|| (splitscreen > 1 && playernum == displayplayers[2])
-			|| (splitscreen > 2 && playernum == displayplayers[3]))
-			CONS_Alert(CONS_WARNING, M_GetText("Could not spawn at any Race starts!\n"));
-		return NULL;*/
 	}
 
 	if (playernum == consoleplayer
