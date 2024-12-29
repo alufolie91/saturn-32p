@@ -4587,7 +4587,7 @@ void P_PlayerThink(player_t *player)
 
 	for (UINT8 j = 0; j < MAXPLAYERS; j++)
 	{
-		if (!playeringame[j] && players[j].spectator)
+		if (!playeringame[j] || players[j].spectator)
 			continue;
 		pcount++;
 	}
