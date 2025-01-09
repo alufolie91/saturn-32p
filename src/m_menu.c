@@ -3313,19 +3313,34 @@ static void Newgametype_OnChange(void)
 			P_AllocMapHeader((INT16)(cv_nextmap.value-1));
 
 		if ((cv_newgametype.value == GT_RACE && !(mapheaderinfo[cv_nextmap.value-1]->typeoflevel & TOL_RACE)) || // SRB2kart
-			(cv_newgametype.value == GT_MATCH && !(mapheaderinfo[cv_nextmap.value-1]->typeoflevel & TOL_MATCH)))
+			((cv_newgametype.value == GT_MATCH || cv_newgametype.value == GT_TEAMMATCH) && !(mapheaderinfo[cv_nextmap.value-1]->typeoflevel & TOL_MATCH)))
 		{
 			INT32 value = 0;
 
 			switch (cv_newgametype.value)
 			{
+				case GT_COOP:
+					value = TOL_RACE; // SRB2kart
+					break;
+				case GT_COMPETITION:
+					value = TOL_COMPETITION;
+					break;
 				case GT_RACE:
 					value = TOL_RACE;
 					break;
 				case GT_MATCH:
+				case GT_TEAMMATCH:
 					value = TOL_MATCH;
 					break;
+				case GT_TAG:
+				case GT_HIDEANDSEEK:
+					value = TOL_TAG;
+					break;
+				case GT_CTF:
+					value = TOL_CTF;
+					break;
 			}
+
 			CV_SetValue(&cv_nextmap, M_FindFirstMap(value));
 		}
 	}
@@ -3370,12 +3385,10 @@ void PDistort_menu_Onchange(void)
 {
 	if (!cv_sloperoll.value)
 	{
-		OP_PlayerDistortMenu[sloperotate].status = IT_GRAYEDOUT;
 		OP_PlayerDistortMenu[sliptide].status = IT_GRAYEDOUT;
 	}
 	else
 	{
-		OP_PlayerDistortMenu[sloperotate].status = IT_STRING | IT_CVAR;
 		OP_PlayerDistortMenu[sliptide].status = IT_STRING | IT_CVAR;
 	}
 
@@ -3651,40 +3664,28 @@ boolean M_Responder(event_t *ev)
 				break;
 			case KEY_HAT1:
 				ch = KEY_UPARROW;
+				DPADUPSCROLL = true;
 				break;
 			case KEY_HAT1 + 1:
 				ch = KEY_DOWNARROW;
+				DPADDOWNSCROLL = true;
 				break;
 			case KEY_HAT1 + 2:
 				ch = KEY_LEFTARROW;
+				DPADLEFTSCROLL = true;
 				break;
 			case KEY_HAT1 + 3:
 				ch = KEY_RIGHTARROW;
+				DPADRIGHTSCROLL = true;
 				break;
 		}
 
 		if (menuactive)
 		{
-			switch (ev->data1) // if you pressed it set those to true
-			{
-				case KEY_HAT1:
-					DPADUPSCROLL = true;
-					break;
-				case KEY_HAT1 + 1:
-					DPADDOWNSCROLL = true;
-					break;
-				case KEY_HAT1 + 2:
-					DPADLEFTSCROLL = true;
-					break;
-				case KEY_HAT1 + 3:
-					DPADRIGHTSCROLL = true;
-					break;
-			}
-
 			if (currentMenu == &MISC_ChangeLevelDef || currentMenu == &MP_OfflineServerDef || currentMenu == &MP_ServerDef)
 			{
-				if (ev->data1 == gamecontrol[gc_fire][0]
-					|| ev->data1 == gamecontrol[gc_fire][1])
+				if (ch == gamecontrol[gc_fire][0]
+					|| ch == gamecontrol[gc_fire][1])
 				{
 					COM_ImmedExecute("add kartencore 1");
 				}
@@ -4360,10 +4361,12 @@ void M_StartControlPanel(void)
 
 	menuactive = true;
 
+	// reset those just in case the game missed the keyup event
 	DPADUPSCROLL = false;
 	DPADDOWNSCROLL = false;
 	DPADLEFTSCROLL = false;
 	DPADRIGHTSCROLL = false;
+	//
 
 	if (demo.playback)
 	{
@@ -4447,6 +4450,9 @@ void M_StartControlPanel(void)
 		{
 			MPauseMenu[mpause_switchmap].status = IT_STRING | IT_CALL;
 			MPauseMenu[mpause_addons].status = IT_STRING | IT_CALL;
+			
+			if (G_GametypeHasTeams())
+				MPauseMenu[mpause_scramble].status = IT_STRING | IT_SUBMENU;
 		}
 
 		if (server || (!cv_showlocalskinmenus.value))
@@ -4467,7 +4473,16 @@ void M_StartControlPanel(void)
 
 			if (netgame)
 			{
-				if (G_GametypeHasSpectators())
+				if (G_GametypeHasTeams())
+				{
+					MPauseMenu[mpause_switchteam].status = IT_STRING | IT_SUBMENU;
+					MPauseMenu[mpause_switchteam].alphaKey += ((splitscreen+1) * 8);
+					MPauseMenu[mpause_localskin].alphaKey += 8;
+					MPauseMenu[mpause_options].alphaKey += 8;
+					MPauseMenu[mpause_title].alphaKey += 8;
+					MPauseMenu[mpause_quit].alphaKey += 8;
+				}
+				else if (G_GametypeHasSpectators())
 				{
 					MPauseMenu[mpause_switchspectate].status = IT_STRING | IT_SUBMENU;
 					MPauseMenu[mpause_switchspectate].alphaKey += ((splitscreen+1) * 8);
@@ -4501,7 +4516,9 @@ void M_StartControlPanel(void)
 		{
 			MPauseMenu[mpause_psetup].status = IT_STRING | IT_CALL;
 
-			if (G_GametypeHasSpectators())
+			if (G_GametypeHasTeams())
+				MPauseMenu[mpause_switchteam].status = IT_STRING | IT_SUBMENU;
+			else if (G_GametypeHasSpectators())
 			{
 				if (!players[consoleplayer].spectator)
 					MPauseMenu[mpause_spectate].status = IT_STRING | IT_CALL;
@@ -4550,7 +4567,7 @@ void M_ClearMenus(boolean callexitmenufunc)
 	if (currentMenu->quitroutine && callexitmenufunc && !currentMenu->quitroutine())
 		return; // we can't quit this menu (also used to set parameter from the menu)
 
-// Save the config file. I'm sick of crashing the game later and losing all my changes!
+	// Save the config file. I'm sick of crashing the game later and losing all my changes!
 	COM_BufAddText(va("saveconfig \"%s\" -silent\n", configfile));
 
 	if (currentMenu == &MessageDef) // Oh sod off!
@@ -4941,33 +4958,6 @@ void M_DrawTextBoxFlags(INT32 x, INT32 y, INT32 width, INT32 boxlines, INT32 fla
 {
 	// Solid color textbox.
 	V_DrawFill(x+5, y+5, width*8+6, boxlines*8+6, 239|flags);
-}
-
-void M_DrawTextInput(INT32 x, INT32 y, textinput_t *input, INT32 flags)
-{
-	INT32 skullx = x;
-
-	V_DrawString(x, y, V_ALLOWLOWERCASE|flags, input->buffer);
-
-	// draw text cursor for name
-	if (input->length)
-		skullx = x+V_SubStringWidth(input->buffer, input->cursor, V_ALLOWLOWERCASE);
-
-	if (skullAnimCounter < 4) // blink cursor
-		V_DrawCharacter(skullx, y+3, '_'|flags, false);
-
-	// draw selection
-	if (input->select != input->cursor)
-	{
-		size_t start = min(input->select, input->cursor);
-		size_t end =   max(input->select, input->cursor);
-
-		size_t len = end - start;
-
-		INT32 startx = V_SubStringWidth(input->buffer, start, V_ALLOWLOWERCASE);
-
-		V_DrawFill(x+startx, y, V_SubStringWidth(input->buffer+start, len, V_ALLOWLOWERCASE), 8, 103|V_TRANSLUCENT|flags);
-	}
 }
 
 // horizontally centered text
@@ -5644,7 +5634,7 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt)
 			if (M_MapLocked(mapnum+1)) // not unlocked
 				return cv_showallmaps.value;
 
-			if (gt == GT_MATCH && (mapheaderinfo[mapnum]->typeoflevel & TOL_MATCH))
+			if ((gt == GT_MATCH || gt == GT_TEAMMATCH) && (mapheaderinfo[mapnum]->typeoflevel & TOL_MATCH))
 				return true;
 
 			if (gt == GT_RACE && (mapheaderinfo[mapnum]->typeoflevel & TOL_RACE))
@@ -9429,9 +9419,6 @@ static void M_Connect(INT32 choice)
 {
 	// do not call menuexitfunc
 	M_ClearMenus(false);
-
-	CV_Set(&cv_lastserver, I_GetNodeAddress(serverlist[choice-FIRSTSERVERLINE + serverlistpage * SERVERS_PER_PAGE].node));
-
 	COM_BufAddText(va("connect node %d\n", serverlist[choice-FIRSTSERVERLINE + serverlistpage * SERVERS_PER_PAGE].node));
 }
 
@@ -9559,16 +9546,17 @@ static void M_DrawConnectMenu(void)
 	                         highlightflags, va("%u of %d", serverlistpage+1, numPages));
 
 	// Did you change the Server Browser address? Have a little reminder.
-	#ifdef MASTERSERVER
+#ifdef MASTERSERVER
 	if (CV_IsSetToDefault(&cv_masterserver))
 		mservflags = mservflags|highlightflags|V_30TRANS;
 	else
 		mservflags = mservflags|warningflags;
+
 	V_DrawRightAlignedSmallString(BASEVIDWIDTH - currentMenu->x, currentMenu->y+3 + MP_ConnectMenu[mp_connect_refresh].alphaKey,
 	                         mservflags, va("MS: %s", cv_masterserver.string));
 
 	M_DrawServerCountAndHorizontalBar();
-	#endif
+#endif
 
 	// When switching pages, slide the old page and the
 	// new page across the screen
@@ -10153,7 +10141,8 @@ static void M_StartServerMenu(INT32 choice)
 // CONNECT VIA IP
 // ==============
 
-static char setupm_ip[28];
+#define SETUPM_IP_MAXSIZE ((28-1)*8)
+static char setupm_ip[64];
 static textinput_t setupm_input_ip;
 #endif
 
@@ -10161,8 +10150,8 @@ void M_Multiplayer(INT32 choice)
 {
 	(void)choice;
 #ifndef NONET
-	memset(setupm_ip, 0, 28);
-	M_TextInputInit(&setupm_input_ip, setupm_ip, 28);
+	memset(setupm_ip, 0, sizeof(setupm_ip));
+	M_TextInputInit(&setupm_input_ip, setupm_ip, sizeof(setupm_ip));
 #endif
 	M_SetupNextMenu(&MP_MainDef);
 }
@@ -10201,7 +10190,7 @@ Update the maxplayers label...
 	if (itemOn != 9)
 		V_DrawString(x+8,y+12, V_ALLOWLOWERCASE, setupm_ip);
 	else
-		M_DrawTextInput(x+8, y+12, &setupm_input_ip, 0);
+		M_DrawTextInputScroll(x+8, y+12, &setupm_input_ip, 0, SETUPM_IP_MAXSIZE);
 #endif
 
 	// character bar, ripped off the color bar :V
@@ -10358,7 +10347,6 @@ static void M_ConnectIP(INT32 choice)
 
 	M_ClearMenus(true);
 
-	CV_Set(&cv_lastserver,setupm_ip);
 	COM_BufAddText(va("connect \"%s\"\n", setupm_ip));
 
 	// A little "please wait" message.
