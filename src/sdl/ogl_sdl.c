@@ -46,6 +46,8 @@
 #include "../i_video.h"
 #include "../f_finale.h"
 
+#include "../f_finale.h"
+
 #ifdef DEBUG_TO_FILE
 #include <stdarg.h>
 #if defined (_WIN32) && !defined (__CYGWIN__)
@@ -284,11 +286,12 @@ void OglSdlFinishUpdate(boolean waitvbl)
 #else
 	if (!I_CheckNativeRes() || WipeInAction)
 #endif
-		GL_DrawScreenFinalTexture(HWD_SCREENTEXTURE_GENERIC2, realwidth, realheight, false);
+		HWR_DrawScreenFinalTexture(realwidth, realheight, false);
 
 #if defined (__unix__)
 #ifdef USE_FBO_OGL
-		xwaylandcrap = false;
+		if (loaded_config == true)
+			xwaylandcrap = false;
 #endif
 #endif
 }

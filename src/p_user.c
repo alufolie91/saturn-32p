@@ -72,7 +72,9 @@ void P_Thrust(mobj_t *mo, angle_t angle, fixed_t move)
 	angle >>= ANGLETOFINESHIFT;
 
 	mo->momx += FixedMul(move, FINECOSINE(angle));
-	mo->momy += FixedMul(move, FINESINE(angle));
+
+	if (!(twodlevel || (mo->flags2 & MF2_TWOD)))
+		mo->momy += FixedMul(move, FINESINE(angle));
 }
 
 
@@ -87,7 +89,9 @@ void P_InstaThrust(mobj_t *mo, angle_t angle, fixed_t move)
 	angle >>= ANGLETOFINESHIFT;
 
 	mo->momx = FixedMul(move, FINECOSINE(angle));
-	mo->momy = FixedMul(move,FINESINE(angle));
+
+	if (!(twodlevel || (mo->flags2 & MF2_TWOD)))
+		mo->momy = FixedMul(move,FINESINE(angle));
 }
 
 void P_InstaThrustEvenIn2D(mobj_t *mo, angle_t angle, fixed_t move)
@@ -447,6 +451,24 @@ void P_GivePlayerRings(player_t *player, INT32 num_rings)
 		player->health = 1;
 	}
 	//}
+
+	// Now extra life bonuses are handled here instead of in P_MovePlayer, since why not?
+	if (!ultimatemode && !modeattacking && !G_IsSpecialStage(gamemap) && G_GametypeUsesLives())
+	{
+		INT32 gainlives = 0;
+
+		while (player->xtralife < maxXtraLife && player->health > 100 * (player->xtralife+1))
+		{
+			++gainlives;
+			++player->xtralife;
+		}
+
+		if (gainlives)
+		{
+			P_GivePlayerLives(player, gainlives);
+			P_PlayLivesJingle(player);
+		}
+	}
 }
 
 //
@@ -494,6 +516,15 @@ void P_AddPlayerScore(player_t *player, UINT32 amount)
 		player->marescore += amount;
 	else
 		player->marescore = MAXSCORE;
+
+	// In team match, all awarded points are incremented to the team's running score.
+	if (gametype == GT_TEAMMATCH)
+	{
+		if (player->ctfteam == 1)
+			redscore += amount;
+		else if (player->ctfteam == 2)
+			bluescore += amount;
+	}
 }
 
 //
@@ -506,6 +537,8 @@ void P_PlayLivesJingle(player_t *player)
 
 	if (use1upSound)
 		S_StartSound(NULL, sfx_oneup);
+	else if (mariomode)
+		S_StartSound(NULL, sfx_marioa);
 	else
 	{
 		if (player)
@@ -537,7 +570,7 @@ void P_PlayRinglossSound(mobj_t *source, mobj_t *damager)
 			S_StartSound(NULL, sfx);
 		}
 		else
-			S_StartSound(source, sfx_khurt1 + key);
+			S_StartSound(source, (mariomode) ? sfx_mario8 : sfx_khurt1 + key);
 	}
 	else
 		S_StartSound(source, sfx_slip);
@@ -1712,6 +1745,58 @@ static void P_DoBubbleBreath(player_t *player)
 }
 
 //
+// P_DoPlayerHeadSigns
+//
+// Spawns "IT" and "GOT FLAG" signs for Tag and CTF respectively
+//
+static void P_DoPlayerHeadSigns(player_t *player)
+{
+	if (G_TagGametype())
+	{
+		// If you're "IT", show a big "IT" over your head for others to see.
+		if (player->pflags & PF_TAGIT)
+		{
+			if (!P_IsDisplayPlayer(player)) // Don't display it on your own view.
+			{
+				if (!(player->mo->eflags & MFE_VERTICALFLIP))
+					P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z + player->mo->height, MT_TAG);
+				else
+					P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z - mobjinfo[MT_TAG].height, MT_TAG)->eflags |= MFE_VERTICALFLIP;
+			}
+		}
+	}
+	else if (gametype == GT_CTF)
+	{
+		if (player->gotflag & (GF_REDFLAG|GF_BLUEFLAG)) // If you have the flag (duh).
+		{
+			// Spawn a got-flag message over the head of the player that
+			// has it (but not on your own screen if you have the flag).
+			if (splitscreen || player != &players[consoleplayer])
+			{
+				if (player->gotflag & GF_REDFLAG)
+				{
+					if (!(player->mo->eflags & MFE_VERTICALFLIP))
+						P_SpawnMobj(player->mo->x+player->mo->momx, player->mo->y+player->mo->momy,
+							player->mo->z+P_GetPlayerHeight(player)+FixedMul(16*FRACUNIT, player->mo->scale)+player->mo->momz, MT_GOTFLAG);
+					else
+						P_SpawnMobj(player->mo->x+player->mo->momx, player->mo->y+player->mo->momy,
+							player->mo->z+player->mo->height-P_GetPlayerHeight(player)-mobjinfo[MT_GOTFLAG].height-FixedMul(16*FRACUNIT, player->mo->scale)+player->mo->momz, MT_GOTFLAG)->eflags |= MFE_VERTICALFLIP;
+				}
+				if (player->gotflag & GF_BLUEFLAG)
+				{
+					if (!(player->mo->eflags & MFE_VERTICALFLIP))
+						P_SpawnMobj(player->mo->x+player->mo->momx, player->mo->y+player->mo->momy,
+							player->mo->z+P_GetPlayerHeight(player)+FixedMul(16*FRACUNIT, player->mo->scale)+player->mo->momz, MT_GOTFLAG2);
+					else
+						P_SpawnMobj(player->mo->x+player->mo->momx, player->mo->y+player->mo->momy,
+							player->mo->z+player->mo->height-P_GetPlayerHeight(player)-mobjinfo[MT_GOTFLAG2].height-FixedMul(16*FRACUNIT, player->mo->scale)+player->mo->momz, MT_GOTFLAG2)->eflags |= MFE_VERTICALFLIP;
+				}
+			}
+		}
+	}
+}
+
+//
 // P_DoJumpShield
 //
 // Jump Shield Activation
@@ -2145,6 +2230,38 @@ static void P_MovePlayer(player_t *player)
 	}
 	// note: don't unset stasis here
 
+	if (!player->spectator && G_TagGametype())
+	{
+		// If we have stasis already here, it's because it's forced on us
+		// by a linedef executor or what have you
+		boolean forcestasis = false;
+
+		//During hide time, taggers cannot move.
+		if (leveltime < hidetime * TICRATE)
+		{
+			if (player->pflags & PF_TAGIT)
+				forcestasis = true;
+		}
+		else if (gametype == GT_HIDEANDSEEK)
+		{
+			if (!(player->pflags & PF_TAGIT))
+			{
+				forcestasis = true;
+				if (player->pflags & PF_TAGGED) // Already hit.
+					player->powers[pw_flashing] = 5;
+			}
+		}
+
+		if (forcestasis)
+		{
+			player->pflags |= PF_FULLSTASIS;
+			// If you're in stasis in tag, you don't drown.
+			/*if (player->powers[pw_underwater] <= 12*TICRATE + 1)
+				P_RestoreMusic(player);*/
+			player->powers[pw_underwater] = player->powers[pw_spacetime] = 0;
+		}
+	}
+
 	if (player->spectator)
 	{
 		P_SpectatorMovement(player);
@@ -2210,6 +2327,9 @@ static void P_MovePlayer(player_t *player)
 
 		P_3dMovement(player);
 	}
+
+	if (maptol & TOL_2D)
+		runspd = FixedMul(runspd, 2*FRACUNIT/3);
 
 	/////////////////////////
 	// MOVEMENT ANIMATIONS //
@@ -2643,6 +2763,10 @@ boolean P_LookForEnemies(player_t *player)
 		if (P_AproxDistance(P_AproxDistance(player->mo->x-mo->x, player->mo->y-mo->y),
 			player->mo->z-mo->z) > FixedMul(RING_DIST, player->mo->scale))
 			continue; // out of range
+
+		if ((twodlevel || player->mo->flags2 & MF2_TWOD)
+		&& abs(player->mo->y-mo->y) > player->mo->radius)
+			continue; // not in your 2d plane
 
 		if (mo->type == MT_PLAYER) // Don't chase after other players!
 			continue;
@@ -3213,7 +3337,7 @@ void P_DemoCameraMovement(camera_t *cam)
 	democam.soundmobj = awayviewmobj_hack;
 
 	// update subsector to avoid crashes;
-	cam->subsector = R_PointInSubsectorFast(cam->x, cam->y);
+	cam->subsector = R_PointInSubsector(cam->x, cam->y);
 }
 
 void P_ResetCamera(player_t *player, camera_t *thiscam)
@@ -3244,17 +3368,230 @@ void P_ResetCamera(player_t *player, camera_t *thiscam)
 	thiscam->z = z;
 	thiscam->reset = true;
 
-	thiscam->angle = player->mo->angle;
-	thiscam->aiming = 0;
+	if (!(thiscam == &camera[0] && (cv_cam_still[0].value))
+		&& !(thiscam == &camera[1] && (cv_cam_still[1].value))
+		&& !(thiscam == &camera[2] && (cv_cam_still[2].value))
+		&& !(thiscam == &camera[3] && (cv_cam_still[3].value)))
+	{
+		thiscam->angle = player->mo->angle;
+		thiscam->aiming = 0;
+	}
+
 	thiscam->relativex = 0;
 
-	thiscam->subsector = R_PointInSubsectorFast(thiscam->x,thiscam->y);
+	thiscam->subsector = R_PointInSubsector(thiscam->x,thiscam->y);
 
 	thiscam->radius = 20*FRACUNIT;
 	thiscam->height = 16*FRACUNIT;
 
 	while (!P_MoveChaseCamera(player,thiscam,true) && ++tries < 2*TICRATE);
 }
+
+#ifndef NOCLIPCAM // Disable all z-clipping for noclip cam
+static boolean P_CheckNoclipCameraPosition(player_t *player, camera_t *thiscam, fixed_t x, fixed_t y, fixed_t z, boolean resetcalled)
+{
+	subsector_t *newsubsec;
+	boolean cameranoclip;
+	mobj_t *mo = player->mo;
+
+	cameranoclip = ((player->pflags & (PF_NOCLIP|PF_NIGHTSMODE))
+	|| (mo->flags & (MF_NOCLIP|MF_NOCLIPHEIGHT)) // Noclipping player camera noclips too!!
+	|| (leveltime < introtime)); // Kart intro cam
+
+	// move camera down to move under lower ceilings
+	newsubsec = R_IsPointInSubsector(((mo->x>>FRACBITS) + (thiscam->x>>FRACBITS))<<(FRACBITS-1), ((mo->y>>FRACBITS) + (thiscam->y>>FRACBITS))<<(FRACBITS-1));
+
+	if (!newsubsec)
+		newsubsec = thiscam->subsector;
+
+	if (newsubsec)
+	{
+		fixed_t myfloorz, myceilingz;
+		fixed_t midz = thiscam->z + (thiscam->z - mo->z)/2;
+		fixed_t midx = ((mo->x>>FRACBITS) + (thiscam->x>>FRACBITS))<<(FRACBITS-1);
+		fixed_t midy = ((mo->y>>FRACBITS) + (thiscam->y>>FRACBITS))<<(FRACBITS-1);
+
+		// Cameras use the heightsec's heights rather then the actual sector heights.
+		// If you can see through it, why not move the camera through it too?
+		if (newsubsec->sector->camsec >= 0)
+		{
+			myfloorz = sectors[newsubsec->sector->camsec].floorheight;
+			myceilingz = sectors[newsubsec->sector->camsec].ceilingheight;
+		}
+		else if (newsubsec->sector->heightsec >= 0)
+		{
+			myfloorz = sectors[newsubsec->sector->heightsec].floorheight;
+			myceilingz = sectors[newsubsec->sector->heightsec].ceilingheight;
+		}
+		else
+		{
+			myfloorz = P_CameraGetFloorZ(thiscam, newsubsec->sector, midx, midy, NULL);
+			myceilingz = P_CameraGetCeilingZ(thiscam, newsubsec->sector, midx, midy, NULL);
+		}
+
+		// Check list of fake floors and see if floorz/ceilingz need to be altered.
+		if (newsubsec->sector->ffloors)
+		{
+			ffloor_t *rover;
+			fixed_t delta1, delta2;
+			INT32 thingtop = midz + thiscam->height;
+
+			for (rover = newsubsec->sector->ffloors; rover; rover = rover->next)
+			{
+				fixed_t topheight, bottomheight;
+				if (!(rover->flags & FF_BLOCKOTHERS) || !(rover->flags & FF_EXISTS) || !(rover->flags & FF_RENDERALL) || GETSECSPECIAL(rover->master->frontsector->special, 4) == 12)
+					continue;
+
+				topheight = P_CameraGetFOFTopZ(thiscam, newsubsec->sector, rover, midx, midy, NULL);
+				bottomheight = P_CameraGetFOFBottomZ(thiscam, newsubsec->sector, rover, midx, midy, NULL);
+
+				delta1 = midz - (bottomheight
+					+ ((topheight - bottomheight)/2));
+				delta2 = thingtop - (bottomheight
+					+ ((topheight - bottomheight)/2));
+				if (topheight > myfloorz && abs(delta1) < abs(delta2))
+					myfloorz = topheight;
+				if (bottomheight < myceilingz && abs(delta1) >= abs(delta2))
+					myceilingz = bottomheight;
+			}
+		}
+
+		// Check polyobjects and see if floorz/ceilingz need to be altered
+		{
+			INT32 xl, xh, yl, yh, bx, by;
+			validcount++;
+
+			xl = (unsigned)(tmbbox[BOXLEFT] - bmaporgx)>>MAPBLOCKSHIFT;
+			xh = (unsigned)(tmbbox[BOXRIGHT] - bmaporgx)>>MAPBLOCKSHIFT;
+			yl = (unsigned)(tmbbox[BOXBOTTOM] - bmaporgy)>>MAPBLOCKSHIFT;
+			yh = (unsigned)(tmbbox[BOXTOP] - bmaporgy)>>MAPBLOCKSHIFT;
+
+			BMBOUNDFIX(xl, xh, yl, yh);
+
+			for (by = yl; by <= yh; by++)
+			{
+				for (bx = xl; bx <= xh; bx++)
+				{
+					INT32 offset;
+					polymaplink_t *plink; // haleyjd 02/22/06
+
+					if (bx < 0 || by < 0 || bx >= bmapwidth || by >= bmapheight)
+						continue;
+
+					offset = by*bmapwidth + bx;
+
+					// haleyjd 02/22/06: consider polyobject lines
+					plink = polyblocklinks[offset];
+
+					while (plink)
+					{
+						polyobj_t *po = plink->po;
+
+						if (po->validcount != validcount) // if polyobj hasn't been checked
+						{
+							sector_t *polysec;
+							fixed_t delta1, delta2, thingtop;
+							fixed_t polytop, polybottom;
+
+							po->validcount = validcount;
+
+							if (!P_PointInsidePolyobj(po, x, y) || !(po->flags & POF_SOLID))
+							{
+								plink = (polymaplink_t *)(plink->link.next);
+								continue;
+							}
+
+							// We're inside it! Yess...
+							polysec = po->lines[0]->backsector;
+
+							if (GETSECSPECIAL(polysec->special, 4) == 12)
+							{ // Camera noclip polyobj.
+								plink = (polymaplink_t *)(plink->link.next);
+								continue;
+							}
+
+							if (po->flags & POF_CLIPPLANES)
+							{
+								polytop = polysec->ceilingheight;
+								polybottom = polysec->floorheight;
+							}
+							else
+							{
+								polytop = INT32_MAX;
+								polybottom = INT32_MIN;
+							}
+
+							thingtop = midz + thiscam->height;
+							delta1 = midz - (polybottom + ((polytop - polybottom)/2));
+							delta2 = thingtop - (polybottom + ((polytop - polybottom)/2));
+
+							if (polytop > myfloorz && abs(delta1) < abs(delta2))
+								myfloorz = polytop;
+
+							if (polybottom < myceilingz && abs(delta1) >= abs(delta2))
+								myceilingz = polybottom;
+						}
+						plink = (polymaplink_t *)(plink->link.next);
+					}
+				}
+			}
+		}
+
+		// crushed camera
+		if (myceilingz <= myfloorz + thiscam->height && !resetcalled && !cameranoclip)
+		{
+			P_ResetCamera(player, thiscam);
+			return true;
+		}
+
+		// camera fit?
+		if (myceilingz != myfloorz
+			&& myceilingz - thiscam->height < z)
+		{
+			z = myceilingz - thiscam->height-FixedMul(11*FRACUNIT, mo->scale);
+			// is the camera fit is there own sector
+		}
+
+		// Make the camera a tad smarter with 3d floors
+		if (newsubsec->sector->ffloors && !cameranoclip)
+		{
+			ffloor_t *rover;
+
+			for (rover = newsubsec->sector->ffloors; rover; rover = rover->next)
+			{
+				fixed_t topheight, bottomheight;
+				if ((rover->flags & FF_BLOCKOTHERS) && (rover->flags & FF_RENDERALL) && (rover->flags & FF_EXISTS) && GETSECSPECIAL(rover->master->frontsector->special, 4) == 12)
+				{
+					topheight = P_CameraGetFOFTopZ(thiscam, newsubsec->sector, rover, midx, midy, NULL);
+					bottomheight = P_CameraGetFOFBottomZ(thiscam, newsubsec->sector, rover, midx, midy, NULL);
+
+					if (bottomheight - thiscam->height < z
+						&& midz < bottomheight)
+						z = bottomheight - thiscam->height-FixedMul(11*FRACUNIT, mo->scale);
+
+					else if (topheight + thiscam->height > z
+						&& midz > topheight)
+						z = topheight;
+
+					if ((mo->z >= topheight && midz < bottomheight)
+						|| ((mo->z < bottomheight && mo->z+mo->height < topheight) && midz >= topheight))
+					{
+						// Can't see
+						if (!resetcalled)
+							P_ResetCamera(player, thiscam);
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	if (thiscam->z < thiscam->floorz && !cameranoclip)
+		thiscam->z = thiscam->floorz;
+
+	return false;
+}
+#endif
 
 boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcalled)
 {
@@ -3269,10 +3606,6 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	UINT8 timeover;
 	mobj_t *mo;
 	fixed_t f1, f2;
-#ifndef NOCLIPCAM
-	boolean cameranoclip;
-	subsector_t *newsubsec;
-#endif
 
 	democam.soundmobj = NULL;	// reset this each frame, we don't want the game crashing for stupid reasons now do we
 
@@ -3330,12 +3663,6 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 
 	mo = player->mo;
 
-#ifndef NOCLIPCAM
-	cameranoclip = ((player->pflags & (PF_NOCLIP|PF_NIGHTSMODE))
-		|| (mo->flags & (MF_NOCLIP|MF_NOCLIPHEIGHT)) // Noclipping player camera noclips too!!
-		|| (leveltime < introtime)); // Kart intro cam
-#endif
-
 	if (player->pflags & PF_TIMEOVER) // 1 for momentum keep, 2 for turnaround
 		timeover = (player->kartstuff[k_timeovercam] > 2*TICRATE ? 2 : 1);
 	else
@@ -3361,7 +3688,10 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 			focusangle = mo->angle;
 		}
 
-		camrotate = cv_cam_rotate[num].value;
+		if (thiscam == &camera[num])
+			camrotate = cv_cam_rotate[num].value;
+		else
+			camrotate = 0;
 
 		if (leveltime < introtime) // Whoooshy camera!
 		{
@@ -3465,7 +3795,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	}
 
 	if (!resetcalled && (leveltime > starttime && timeover != 2)
-		&& (t_cam_rotate[num] != -42))
+		&& (thiscam == &camera[num] && t_cam_rotate[num] != -42))
 	{
 		angle = FixedAngle(camrotate*FRACUNIT);
 		thiscam->angle = angle;
@@ -3518,194 +3848,8 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 		z = mo->z + pviewheight + camheight;
 
 #ifndef NOCLIPCAM // Disable all z-clipping for noclip cam
-	// move camera down to move under lower ceilings
-	newsubsec = R_IsPointInSubsector(((mo->x>>FRACBITS) + (thiscam->x>>FRACBITS))<<(FRACBITS-1), ((mo->y>>FRACBITS) + (thiscam->y>>FRACBITS))<<(FRACBITS-1));
-
-	if (!newsubsec)
-		newsubsec = thiscam->subsector;
-
-	if (newsubsec)
-	{
-		fixed_t myfloorz, myceilingz;
-		fixed_t midz = thiscam->z + (thiscam->z - mo->z)/2;
-		fixed_t midx = ((mo->x>>FRACBITS) + (thiscam->x>>FRACBITS))<<(FRACBITS-1);
-		fixed_t midy = ((mo->y>>FRACBITS) + (thiscam->y>>FRACBITS))<<(FRACBITS-1);
-
-		// Cameras use the heightsec's heights rather then the actual sector heights.
-		// If you can see through it, why not move the camera through it too?
-		if (newsubsec->sector->camsec >= 0)
-		{
-			myfloorz = sectors[newsubsec->sector->camsec].floorheight;
-			myceilingz = sectors[newsubsec->sector->camsec].ceilingheight;
-		}
-		else if (newsubsec->sector->heightsec >= 0)
-		{
-			myfloorz = sectors[newsubsec->sector->heightsec].floorheight;
-			myceilingz = sectors[newsubsec->sector->heightsec].ceilingheight;
-		}
-		else
-		{
-			myfloorz = P_CameraGetFloorZ(thiscam, newsubsec->sector, midx, midy, NULL);
-			myceilingz = P_CameraGetCeilingZ(thiscam, newsubsec->sector, midx, midy, NULL);
-		}
-
-		// Check list of fake floors and see if floorz/ceilingz need to be altered.
-		if (newsubsec->sector->ffloors)
-		{
-			ffloor_t *rover;
-			fixed_t delta1, delta2;
-			INT32 thingtop = midz + thiscam->height;
-
-			for (rover = newsubsec->sector->ffloors; rover; rover = rover->next)
-			{
-				fixed_t topheight, bottomheight;
-				if (!(rover->flags & FF_BLOCKOTHERS) || !(rover->flags & FF_EXISTS) || !(rover->flags & FF_RENDERALL) || GETSECSPECIAL(rover->master->frontsector->special, 4) == 12)
-					continue;
-
-				topheight = P_CameraGetFOFTopZ(thiscam, newsubsec->sector, rover, midx, midy, NULL);
-				bottomheight = P_CameraGetFOFBottomZ(thiscam, newsubsec->sector, rover, midx, midy, NULL);
-
-				delta1 = midz - (bottomheight
-					+ ((topheight - bottomheight)/2));
-				delta2 = thingtop - (bottomheight
-					+ ((topheight - bottomheight)/2));
-				if (topheight > myfloorz && abs(delta1) < abs(delta2))
-					myfloorz = topheight;
-				if (bottomheight < myceilingz && abs(delta1) >= abs(delta2))
-					myceilingz = bottomheight;
-			}
-		}
-
-	// Check polyobjects and see if floorz/ceilingz need to be altered
-	{
-		INT32 xl, xh, yl, yh, bx, by;
-		validcount++;
-
-		xl = (unsigned)(tmbbox[BOXLEFT] - bmaporgx)>>MAPBLOCKSHIFT;
-		xh = (unsigned)(tmbbox[BOXRIGHT] - bmaporgx)>>MAPBLOCKSHIFT;
-		yl = (unsigned)(tmbbox[BOXBOTTOM] - bmaporgy)>>MAPBLOCKSHIFT;
-		yh = (unsigned)(tmbbox[BOXTOP] - bmaporgy)>>MAPBLOCKSHIFT;
-
-		BMBOUNDFIX(xl, xh, yl, yh);
-
-		for (by = yl; by <= yh; by++)
-			for (bx = xl; bx <= xh; bx++)
-			{
-				INT32 offset;
-				polymaplink_t *plink; // haleyjd 02/22/06
-
-				if (bx < 0 || by < 0 || bx >= bmapwidth || by >= bmapheight)
-					continue;
-
-				offset = by*bmapwidth + bx;
-
-				// haleyjd 02/22/06: consider polyobject lines
-				plink = polyblocklinks[offset];
-
-				while (plink)
-				{
-					polyobj_t *po = plink->po;
-
-					if (po->validcount != validcount) // if polyobj hasn't been checked
-					{
-						sector_t *polysec;
-						fixed_t delta1, delta2, thingtop;
-						fixed_t polytop, polybottom;
-
-						po->validcount = validcount;
-
-						if (!P_PointInsidePolyobj(po, x, y) || !(po->flags & POF_SOLID))
-						{
-							plink = (polymaplink_t *)(plink->link.next);
-							continue;
-						}
-
-						// We're inside it! Yess...
-						polysec = po->lines[0]->backsector;
-
-						if (GETSECSPECIAL(polysec->special, 4) == 12)
-						{ // Camera noclip polyobj.
-							plink = (polymaplink_t *)(plink->link.next);
-							continue;
-						}
-
-						if (po->flags & POF_CLIPPLANES)
-						{
-							polytop = polysec->ceilingheight;
-							polybottom = polysec->floorheight;
-						}
-						else
-						{
-							polytop = INT32_MAX;
-							polybottom = INT32_MIN;
-						}
-
-						thingtop = midz + thiscam->height;
-						delta1 = midz - (polybottom + ((polytop - polybottom)/2));
-						delta2 = thingtop - (polybottom + ((polytop - polybottom)/2));
-
-						if (polytop > myfloorz && abs(delta1) < abs(delta2))
-							myfloorz = polytop;
-
-						if (polybottom < myceilingz && abs(delta1) >= abs(delta2))
-							myceilingz = polybottom;
-					}
-					plink = (polymaplink_t *)(plink->link.next);
-				}
-			}
-	}
-
-		// crushed camera
-		if (myceilingz <= myfloorz + thiscam->height && !resetcalled && !cameranoclip)
-		{
-			P_ResetCamera(player, thiscam);
-			return true;
-		}
-
-		// camera fit?
-		if (myceilingz != myfloorz
-			&& myceilingz - thiscam->height < z)
-		{
-			z = myceilingz - thiscam->height-FixedMul(11*FRACUNIT, mo->scale);
-			// is the camera fit is there own sector
-		}
-
-		// Make the camera a tad smarter with 3d floors
-		if (newsubsec->sector->ffloors && !cameranoclip)
-		{
-			ffloor_t *rover;
-
-			for (rover = newsubsec->sector->ffloors; rover; rover = rover->next)
-			{
-				fixed_t topheight, bottomheight;
-				if ((rover->flags & FF_BLOCKOTHERS) && (rover->flags & FF_RENDERALL) && (rover->flags & FF_EXISTS) && GETSECSPECIAL(rover->master->frontsector->special, 4) == 12)
-				{
-					topheight = P_CameraGetFOFTopZ(thiscam, newsubsec->sector, rover, midx, midy, NULL);
-					bottomheight = P_CameraGetFOFBottomZ(thiscam, newsubsec->sector, rover, midx, midy, NULL);
-
-					if (bottomheight - thiscam->height < z
-						&& midz < bottomheight)
-						z = bottomheight - thiscam->height-FixedMul(11*FRACUNIT, mo->scale);
-
-					else if (topheight + thiscam->height > z
-						&& midz > topheight)
-						z = topheight;
-
-					if ((mo->z >= topheight && midz < bottomheight)
-						|| ((mo->z < bottomheight && mo->z+mo->height < topheight) && midz >= topheight))
-					{
-						// Can't see
-						if (!resetcalled)
-							P_ResetCamera(player, thiscam);
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	if (thiscam->z < thiscam->floorz && !cameranoclip)
-		thiscam->z = thiscam->floorz;
+	if (P_CheckNoclipCameraPosition(player, thiscam, x, y, z, resetcalled))
+		return true;
 #endif // NOCLIPCAM
 
 	// point viewed by the camera
@@ -3765,7 +3909,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	if (player->playerstate != PST_DEAD && !((player->pflags & PF_NIGHTSMODE) && player->exiting))
 		angle += (focusaiming < ANGLE_180 ? focusaiming/2 : InvAngle(InvAngle(focusaiming)/2)); // overcomplicated version of '((signed)focusaiming)/2;'
 
-	if (!camstill && !timeover) // Keep the view still...
+	if (twodlevel || (mo->flags2 & MF2_TWOD) || (!camstill && !timeover)) // Keep the view still...
 	{
 		G_ClipAimingPitch((INT32 *)&angle);
 
@@ -3831,7 +3975,63 @@ boolean P_SpectatorJoinGame(player_t *player)
 		if (P_IsLocalPlayer(player))
 			CONS_Printf(M_GetText("Server does not allow team change.\n"));
 	}
-	else // Joining in game from firing.
+	// Team changing in Team Match and CTF
+	// Pressing fire assigns you to a team that needs players if allowed.
+	// Partial code reproduction from p_tick.c autobalance code.
+	else if (G_GametypeHasTeams())
+	{
+		INT32 changeto = 0;
+		INT32 z, numplayersred = 0, numplayersblue = 0;
+
+		//find a team by num players, score, or random if all else fails.
+		for (z = 0; z < MAXPLAYERS; ++z)
+			if (playeringame[z])
+			{
+				if (players[z].ctfteam == 1)
+					++numplayersred;
+				else if (players[z].ctfteam == 2)
+					++numplayersblue;
+			}
+		// for z
+
+		if (numplayersblue > numplayersred)
+			changeto = 1;
+		else if (numplayersred > numplayersblue)
+			changeto = 2;
+		else if (bluescore > redscore)
+			changeto = 1;
+		else if (redscore > bluescore)
+			changeto = 2;
+		else
+			changeto = (P_RandomFixed() & 1) + 1;
+
+		if (player->mo)
+		{
+			P_RemoveMobj(player->mo);
+			player->mo = NULL;
+		}
+		player->spectator = false;
+		player->pflags &= ~PF_WANTSTOJOIN;
+		player->kartstuff[k_spectatewait] = 0;
+		player->ctfteam = changeto;
+		player->playerstate = PST_REBORN;
+
+		//center camera
+		P_ResetLocalCamAiming(player);
+
+		//Reset away view
+		if (P_IsLocalPlayer(player) && displayplayers[0] != consoleplayer)
+			displayplayers[0] = consoleplayer;
+
+		if (changeto == 1)
+			CONS_Printf(M_GetText("%s switched to the %c%s%c.\n"), player_names[player-players], '\x85', M_GetText("Red team"), '\x80');
+		else if (changeto == 2)
+			CONS_Printf(M_GetText("%s switched to the %c%s%c.\n"), player_names[player-players], '\x84', M_GetText("Blue team"), '\x80');
+
+		return true; // no more player->mo, cannot continue.
+	}
+	// Joining in game from firing.
+	else
 	{
 		if (player->mo)
 		{
@@ -4132,7 +4332,8 @@ void P_PlayerThink(player_t *player)
 	{
 		seenplayer = NULL;
 
-		if (cv_seenames.value && cv_allowseenames.value)
+		if (cv_seenames.value && cv_allowseenames.value &&
+			!(G_TagGametype() && (player->pflags & PF_TAGIT)))
 		{
 			mobj_t *mo = P_SpawnNameFinder(player->mo, MT_NAMECHECK);
 
@@ -4392,6 +4593,39 @@ void P_PlayerThink(player_t *player)
 	{
 		player->pflags ^= PF_WANTSTOJOIN;
 		player->powers[pw_flashing] = TICRATE/2 + 1;
+		/*if (P_SpectatorJoinGame(player))
+			return; // player->mo was removed.*/
+	}
+
+	// Even if not NiGHTS, pull in nearby objects when walking around as John Q. Elliot.
+	if (!objectplacing && !((netgame || multiplayer) && player->spectator)
+	&& maptol & TOL_NIGHTS && (!(player->pflags & PF_NIGHTSMODE) || player->powers[pw_nights_helper]))
+	{
+		thinker_t *th;
+		mobj_t *mo2;
+		fixed_t x = player->mo->x;
+		fixed_t y = player->mo->y;
+		fixed_t z = player->mo->z;
+
+		for (th = thinkercap.next; th != &thinkercap; th = th->next)
+		{
+			if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+				continue;
+
+			mo2 = (mobj_t *)th;
+
+			if (!(mo2->type == MT_NIGHTSWING || mo2->type == MT_RING || mo2->type == MT_COIN
+			   || mo2->type == MT_BLUEBALL))
+				continue;
+
+			if (P_AproxDistance(P_AproxDistance(mo2->x - x, mo2->y - y), mo2->z - z) > FixedMul(128*FRACUNIT, player->mo->scale))
+				continue;
+
+			// Yay! The thing's in reach! Pull it in!
+			mo2->flags |= MF_NOCLIP|MF_NOCLIPHEIGHT;
+			mo2->flags2 |= MF2_NIGHTSPULL;
+			P_SetTarget(&mo2->tracer, player->mo);
+		}
 	}
 
 	if (player->linktimer && !player->powers[pw_nights_linkfreeze])
@@ -4432,7 +4666,9 @@ void P_PlayerThink(player_t *player)
 
 	P_DoBubbleBreath(player); // Spawn Sonic's bubbles
 	P_CheckInvincibilityTimer(player); // Spawn Invincibility Sparkles
+	P_DoPlayerHeadSigns(player); // Spawn Tag/CTF signs over player's head
 
+#if 1
 	// "Blur" a bit when you have speed shoes and are going fast enough
 	if ((player->powers[pw_super] || player->powers[pw_sneakers]
 		|| player->kartstuff[k_driftboost] || player->kartstuff[k_sneakertimer] || player->kartstuff[k_startboost]) && !player->kartstuff[k_invincibilitytimer] // SRB2kart
@@ -4460,6 +4696,7 @@ void P_PlayerThink(player_t *player)
 			}
 		}
 	}
+#endif
 
 	// check for use
 	if (!(player->pflags & PF_NIGHTSMODE))
@@ -4668,7 +4905,8 @@ void P_PlayerAfterThink(player_t *player)
 		else if (cmd->forwardmove < 0 && player->mo->tracer->target->lastlook > player->mo->tracer->target->movecount)
 			player->mo->tracer->target->lastlook -= 2;
 
-		if (!(player->mo->tracer->target->flags & MF_SLIDEME)) // Noclimb on chain parameters gives this
+		if (!(player->mo->tracer->target->flags & MF_SLIDEME) // Noclimb on chain parameters gives this
+		&& !(twodlevel || player->mo->flags2 & MF2_TWOD)) // why on earth would you want to turn them in 2D mode?
 		{
 			player->mo->tracer->target->health += cmd->sidemove;
 			player->mo->angle += cmd->sidemove<<ANGLETOFINESHIFT; // 2048 --> ANGLE_MAX

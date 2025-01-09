@@ -717,9 +717,7 @@ const char *G_BuildMapName(INT32 map)
   */
 INT16 G_ClipAimingPitch(INT32 *aiming)
 {
-	INT32 limitangle;
-
-	limitangle = ANGLE_90 - 1;
+	static const INT32 limitangle = ANGLE_90 - 1;
 
 	if (*aiming > limitangle)
 		*aiming = limitangle;
@@ -731,10 +729,8 @@ INT16 G_ClipAimingPitch(INT32 *aiming)
 
 INT16 G_SoftwareClipAimingPitch(INT32 *aiming)
 {
-	INT32 limitangle;
-
 	// note: the current software mode implementation doesn't have true perspective
-	limitangle = ANGLE_90 - ANG10; // Some viewing fun, but not too far down...
+	static const INT32 limitangle = ANGLE_90 - ANG10; // Some viewing fun, but not too far down...
 
 	if (*aiming > limitangle)
 		*aiming = limitangle;
@@ -899,6 +895,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		thiscam = (player->bot == 2 ? &camera[0] : &camera[forplayer]);
 	else
 		thiscam = &camera[forplayer];
+
 	lang = localangle[forplayer];
 	laim = localaiming[forplayer];
 	th = turnheld[forplayer];
@@ -1224,9 +1221,6 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	{
 		displayplayers[0] = consoleplayer;
 		G_FixCamera(1);
-		// i dont like this lmao
-		if (cv_director.value)
-			CV_SetValue(&cv_director, 0);
 	}
 }
 
@@ -1562,8 +1556,8 @@ boolean G_Responder(event_t *ev)
 					COM_ImmedExecute("changeteam4 spectator");
 				}
 			}
-			if (ev->data1 == gamecontrol[gc_director][0]
-				|| ev->data1 == gamecontrol[gc_director][1])
+
+			if (ev->data1 == gamecontrol[gc_director][0] || ev->data1 == gamecontrol[gc_director][1])
 			{
 				K_ToggleDirector();
 			}
@@ -2349,6 +2343,9 @@ void G_PlayerReborn(INT32 player)
 	if (leveltime > (starttime + (TICRATE/2)) && !p->spectator)
 		p->kartstuff[k_respawn] = 48; // Respawn effect
 
+	if (gametype == GT_COOP)
+		P_FindEmerald(); // scan for emeralds to hunt for
+
 	// Reset Nights score and max link to 0 on death
 	p->maxlink = 0;
 
@@ -2419,9 +2416,19 @@ void G_SpawnPlayer(INT32 playernum, boolean starpost)
 		return;
 	}
 
+	// -- CTF --
+	// Order: CTF->DM->Coop
+	if (gametype == GT_CTF && players[playernum].ctfteam)
+	{
+		if (!(spawnpoint = G_FindCTFStart(playernum)) // find a CTF start
+		&& !(spawnpoint = G_FindMatchStart(playernum))) // find a DM start
+			spawnpoint = G_FindRaceStart(playernum); // fallback
+	}
+
 	// -- DM/Tag/CTF-spectator/etc --
 	// Order: DM->CTF->Coop
-	if (gametype == GT_MATCH && !(players[playernum].pflags & PF_TAGIT))
+	else if (gametype == GT_MATCH || gametype == GT_TEAMMATCH || gametype == GT_CTF
+	 || ((gametype == GT_TAG || gametype == GT_HIDEANDSEEK) && !(players[playernum].pflags & PF_TAGIT)))
 	{
 		if (!(spawnpoint = G_FindMatchStart(playernum)) // find a DM start
 		&& !(spawnpoint = G_FindCTFStart(playernum))) // find a CTF start
@@ -2741,6 +2748,14 @@ void G_ExitLevel(void)
 		gameaction = ga_completed;
 		lastdraw = true;
 
+		// If you want your teams scrambled on map change, start the process now.
+		// The teams will scramble at the start of the next round.
+		if (cv_scrambleonchange.value && G_GametypeHasTeams())
+		{
+			if (server)
+				CV_SetValue(&cv_teamscramble, cv_scrambleonchange.value);
+		}
+
 		if (netgame || multiplayer)
 			CON_LogMessage(M_GetText("The round has ended.\n"));
 
@@ -2784,6 +2799,29 @@ boolean G_IsSpecialStage(INT32 mapnum)
 {
 	(void)mapnum;
 	return false;
+}
+
+//
+// G_GametypeUsesLives
+//
+// Returns true if the current gametype uses
+// the lives system.  False otherwise.
+//
+boolean G_GametypeUsesLives(void)
+{
+	// SRB2kart NEEDS no lives
+	return false;
+}
+
+//
+// G_GametypeHasTeams
+//
+// Returns true if the current gametype uses
+// Red/Blue teams.  False otherwise.
+//
+boolean G_GametypeHasTeams(void)
+{
+	return (gametype == GT_TEAMMATCH || gametype == GT_CTF);
 }
 
 //
@@ -2903,6 +2941,16 @@ boolean G_RaceGametype(void)
 	return (gametype == GT_RACE);
 }
 
+//
+// G_TagGametype
+//
+// For Jazz's Tag/HnS modes that have a lot of special cases...
+// SRB2Kart: do we actually want to add Kart tag later? :V
+//
+boolean G_TagGametype(void)
+{
+	return (gametype == GT_TAG || gametype == GT_HIDEANDSEEK);
+}
 
 /** Get the typeoflevel flag needed to indicate support of a gametype.
   * In single-player, this always returns TOL_SP.
@@ -2913,8 +2961,14 @@ boolean G_RaceGametype(void)
 INT16 G_TOLFlag(INT32 pgametype)
 {
 	if (!multiplayer)                 return TOL_SP;
+	if (pgametype == GT_COOP)         return TOL_RACE; // SRB2kart
+	if (pgametype == GT_COMPETITION)  return TOL_COMPETITION;
 	if (pgametype == GT_RACE)         return TOL_RACE;
 	if (pgametype == GT_MATCH)        return TOL_MATCH;
+	if (pgametype == GT_TEAMMATCH)    return TOL_MATCH;
+	if (pgametype == GT_TAG)          return TOL_TAG;
+	if (pgametype == GT_HIDEANDSEEK)  return TOL_TAG;
+	if (pgametype == GT_CTF)          return TOL_CTF;
 
 	CONS_Alert(CONS_ERROR, M_GetText("Unknown gametype! %d\n"), pgametype);
 	return INT16_MAX;
@@ -3193,15 +3247,42 @@ static void G_DoCompleted(void)
 	if (nextmap >= 1100-1 && nextmap <= 1102-1 && G_RaceGametype())
 		nextmap = (INT16)(spstage_start-1);
 
+	if (gametype == GT_COOP && token)
+	{
+		token--;
+		gottoken = true;
+
+		if (!(emeralds & EMERALD1))
+			nextmap = (INT16)(sstage_start - 1); // Special Stage 1
+		else if (!(emeralds & EMERALD2))
+			nextmap = (INT16)(sstage_start); // Special Stage 2
+		else if (!(emeralds & EMERALD3))
+			nextmap = (INT16)(sstage_start + 1); // Special Stage 3
+		else if (!(emeralds & EMERALD4))
+			nextmap = (INT16)(sstage_start + 2); // Special Stage 4
+		else if (!(emeralds & EMERALD5))
+			nextmap = (INT16)(sstage_start + 3); // Special Stage 5
+		else if (!(emeralds & EMERALD6))
+			nextmap = (INT16)(sstage_start + 4); // Special Stage 6
+		else if (!(emeralds & EMERALD7))
+			nextmap = (INT16)(sstage_start + 5); // Special Stage 7
+		else
+			gottoken = false;
+	}
+
 	if (G_IsSpecialStage(gamemap) && !gottoken)
 		nextmap = lastmap; // Exiting from a special stage? Go back to the game. Tails 08-11-2001
 
 	automapactive = false;
 
-	if (cv_advancemap.value == 0) // Stay on same map.
-		nextmap = prevmap;
-	else if (cv_advancemap.value == 2) // Go to random map.
-		nextmap = G_RandMap(G_TOLFlag(gametype), prevmap, false, 0, false, NULL);
+	if (gametype != GT_COOP)
+	{
+		if (cv_advancemap.value == 0) // Stay on same map.
+			nextmap = prevmap;
+		else if (cv_advancemap.value == 2) // Go to random map.
+			nextmap = G_RandMap(G_TOLFlag(gametype), prevmap, false, 0, false, NULL);
+	}
+
 
 	// We are committed to this map now.
 	// We may as well allocate its header if it doesn't exist
@@ -3389,6 +3470,21 @@ void G_EndGame(void)
 		G_SaveDemo();
 	else if (demo.recording)
 		G_ResetDemoRecording();
+
+	// Only do evaluation and credits in coop games.
+	if (gametype == GT_COOP)
+	{
+		if (nextmap == 1102-1) // end game with credits
+		{
+			F_StartCredits();
+			return;
+		}
+		if (nextmap == 1101-1) // end game with evaluation
+		{
+			F_StartGameEvaluation();
+			return;
+		}
+	}
 
 	// 1100 or competitive multiplayer, so go back to title screen.
 	D_StartTitle();
@@ -4702,6 +4798,7 @@ void G_WriteDemoTiccmd(ticcmd_t *cmd, INT32 playernum)
 
 	if (!demobuf.p)
 		return;
+
 	ziptic_p = demobuf.p++; // the ziptic, written at the end of this function
 
 	if (cmd->forwardmove != oldcmd[playernum].forwardmove)
@@ -4830,10 +4927,14 @@ void G_GhostAddHit(INT32 playernum, mobj_t *victim)
 
 void G_WriteAllGhostTics(void)
 {
+	if (!demobuf.p)
+		return;
+
 	UINT8 *save_demo_p = demobuf.p;
 #define CHECKSPACE(num) if (demobuf.p+(num) > demoend) { demobuf.p = save_demo_p; G_CheckDemoStatus(); return; }
 
 	INT32 i, counter = leveltime;
+
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
 		if (!playeringame[i] || players[i].spectator)
@@ -4867,11 +4968,12 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 	UINT8 sprite;
 	UINT8 frame;
 
+	if (!demobuf.p)
+		return;
+
 	UINT8 *save_demo_p = demobuf.p;
 #define CHECKSPACE(num) if (demobuf.p+(num) > demoend) { demobuf.p = save_demo_p; G_CheckDemoStatus(); return; }
 
-	if (!demobuf.p)
-		return;
 	if (!(demoflags & DF_GHOST))
 		return; // No ghost data to write.
 
@@ -5064,6 +5166,9 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 
 void G_ConsAllGhostTics(void)
 {
+	if (!demobuf.p)
+		return;
+
 	UINT8 p = READUINT8(demobuf.p);
 
 	while (p != 0xFF)
@@ -5124,7 +5229,8 @@ void G_ConsGhostTic(INT32 playernum)
 		demobuf.p++;
 	if (ziptic & GZT_SPRITE)
 		demobuf.p++;
-	if(ziptic & GZT_NIGHTS) {
+	if (ziptic & GZT_NIGHTS)
+	{
 		if (!testmo || !testmo->player || !(testmo->player->pflags & PF_NIGHTSMODE) || !testmo->tracer)
 			nightsfail = true;
 		else
@@ -5965,8 +6071,25 @@ void G_BeginRecording(void)
 	UINT8 totalfiles;
 	UINT8 *m;
 
-	if (demobuf.p)
+	if (!cv_recordmultiplayerdemos.value)
+	{
+		G_ResetDemoRecording();
 		return;
+	}
+
+	if (demobuf.buffer == NULL)
+	{
+		CONS_Alert(CONS_ERROR, "No demo buffer allocated\n");
+		G_ResetDemoRecording();
+		return;
+	}
+
+	if (demobuf.p)
+	{
+		G_ResetDemoRecording();
+		return;
+	}
+
 	memset(name,0,sizeof(name));
 
 	demobuf.p = demobuf.buffer;
@@ -5976,7 +6099,7 @@ void G_BeginRecording(void)
 		demoflags |= DF_ENCORE;
 
 	if (!modeattacking && gL)	// Ghosts don't read luavars, and you shouldn't ever need to save Lua in replays, you doof!
-						// SERIOUSLY THOUGH WHY WOULD YOU LOAD HOSTMOD AND RECORD A GHOST WITH IT !????
+								// SERIOUSLY THOUGH WHY WOULD YOU LOAD HOSTMOD AND RECORD A GHOST WITH IT !????
 		demoflags |= DF_LUAVARS;
 
 	// Setup header.
@@ -6044,7 +6167,7 @@ void G_BeginRecording(void)
 		break;
 	}
 
-	WRITEUINT32(demobuf.p,P_GetInitSeed());
+	WRITEUINT32(demobuf.p, P_GetInitSeed());
 
 	// Reserved for extrainfo location from start of file
 	demoinfo_p = demobuf.p;
@@ -6121,8 +6244,20 @@ void G_BeginMetal(void)
 {
 	mobj_t *mo = players[consoleplayer].mo;
 
-	if (demobuf.p)
+	if (demobuf.buffer == NULL)
+	{
+		CONS_Alert(CONS_ERROR, "No metal demo buffer allocated\n");
+		metalrecording = false;
 		return;
+	}
+
+	if (demobuf.p)
+	{
+		Z_Free(demobuf.buffer);
+		demobuf.buffer = NULL;
+		metalrecording = false;
+		return;
+	}
 
 	demobuf.p = demobuf.buffer;
 
@@ -6149,7 +6284,10 @@ void G_WriteStanding(UINT8 ranking, char *name, INT32 skinnum, UINT8 color, UINT
 {
 	char temp[17];
 
-	if (demoinfo_p && *(UINT32 *)demoinfo_p == 0)
+	if (!demobuf.p)
+		return;
+
+	if (demoinfo_p && *(UINT32 *)demoinfo_p == 0 && demobuf.buffer != NULL)
 	{
 		WRITEUINT8(demobuf.p, DEMOMARKER); // add the demo end marker
 		*(UINT32 *)demoinfo_p = demobuf.p - demobuf.buffer;
@@ -7730,7 +7868,7 @@ void G_StopMetalDemo(void)
 ATTRNORETURN void FUNCNORETURN G_StopMetalRecording(void)
 {
 	boolean saved = false;
-	if (demobuf.p)
+	if (demobuf.p && demobuf.buffer != NULL)
 	{
 		UINT8 *p = demobuf.buffer+16; // checksum position
 #ifdef NOMD5
@@ -7887,6 +8025,14 @@ void G_SaveDemo(void)
 	if (!demobuf.p)
 	{
 		CONS_Alert(CONS_ERROR, "Failed to save Demo. No Demo pointer exists!\n");
+		// reset the demo buffer
+		G_ResetDemoRecording();
+		return;
+	}
+
+	if (demobuf.buffer == NULL)
+	{
+		CONS_Alert(CONS_ERROR, "Failed to save Demo. No Demo buffer allocated!\n");
 		// reset the demo buffer
 		G_ResetDemoRecording();
 		return;

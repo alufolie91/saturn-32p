@@ -1045,10 +1045,20 @@ static void SV_SendPlayerInfo(INT32 node)
 		//No, don't do that, you fuckface.
 		memset(netbuffer->u.playerinfo[i].address, 0, 4);
 
-		if (players[i].spectator)
-			netbuffer->u.playerinfo[i].team = 255;
+		if (G_GametypeHasTeams())
+		{
+			if (!players[i].ctfteam)
+				netbuffer->u.playerinfo[i].team = 255;
+			else
+				netbuffer->u.playerinfo[i].team = (UINT8)players[i].ctfteam;
+		}
 		else
-			netbuffer->u.playerinfo[i].team = 0;
+		{
+			if (players[i].spectator)
+				netbuffer->u.playerinfo[i].team = 255;
+			else
+				netbuffer->u.playerinfo[i].team = 0;
+		}
 
 		netbuffer->u.playerinfo[i].score = LONG(players[i].score);
 		netbuffer->u.playerinfo[i].timeinserver = SHORT((UINT16)(players[i].jointime / TICRATE));
@@ -1347,7 +1357,7 @@ static void CL_ReloadReceivedSavegame(void)
 
 	for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
 	{
-		camera[i].subsector = R_PointInSubsectorFast(camera[i].x, camera[i].y);
+		camera[i].subsector = R_PointInSubsector(camera[i].x, camera[i].y);
 	}
 
 	cl_redownloadinggamestate = false;
@@ -2456,9 +2466,10 @@ static void Command_connect(void)
 		return;
 	}
 
+	M_ClearMenus(true);
+
 	if (Playing() || demo.title)
 	{
-		M_ClearMenus(true);
 		if (demo.title)
 			G_CheckDemoStatus();
 
@@ -2517,6 +2528,8 @@ static void Command_connect(void)
 		else
 			CONS_Alert(CONS_ERROR, M_GetText("There is no network driver\n"));
 	}
+
+	CV_Set(&cv_lastserver, I_GetNodeAddress(servernode));
 
 	if (splitscreen != cv_splitplayers.value-1)
 	{
@@ -2588,6 +2601,9 @@ void CL_RemovePlayer(INT32 playernum, INT32 reason)
 
 	if (K_IsPlayerWanted(&players[playernum]))
 		K_CalculateBattleWanted();
+
+	if (gametype == GT_CTF)
+		P_PlayerFlagBurst(&players[playernum], false); // Don't take the flag with you!
 
 	// If in a special stage, redistribute the player's rings across
 	// the remaining players.

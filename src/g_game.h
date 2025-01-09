@@ -168,6 +168,8 @@ DECL_HUD_OFFSET(stat); // Stats
 #undef DECL_HUD_OFFSET_Y
 
 extern consvar_t cv_showinput;
+extern consvar_t cv_posanim;
+extern consvar_t cv_smallposnum;
 extern consvar_t cv_newspeedometer;
 
 extern consvar_t cv_saltyhop;
@@ -381,11 +383,14 @@ boolean G_DemoTitleResponder(event_t *ev);
 
 INT32 G_GetGametypeByName(const char *gametypestr);
 boolean G_IsSpecialStage(INT32 mapnum);
+boolean G_GametypeUsesLives(void);
+boolean G_GametypeHasTeams(void);
 boolean G_GametypeHasSpectators(void);
 boolean G_BattleGametype(void);
 UINT8 G_SometimesGetDifferentGametype(UINT8 prefgametype);
 UINT8 G_GetGametypeColor(INT16 gt);
 boolean G_RaceGametype(void);
+boolean G_TagGametype(void);
 void G_ExitLevel(void);
 void G_NextLevel(void);
 void G_Continue(void);
@@ -435,8 +440,6 @@ FUNCMATH INT32 G_TicsToMinutes(tic_t tics, boolean full);
 FUNCMATH INT32 G_TicsToSeconds(tic_t tics);
 FUNCMATH INT32 G_TicsToCentiseconds(tic_t tics);
 FUNCMATH INT32 G_TicsToMilliseconds(tic_t tics);
-
-boolean K_DirectorIsPlayerAlone(void); // idk where else to put this lol
 
 // Don't split up TOL handling
 INT16 G_TOLFlag(INT32 pgametype);

@@ -609,6 +609,43 @@ void S_StartSound(const void *origin, sfxenum_t sfx_id)
 	if (S_SoundDisabled())
 		return;
 
+	if (mariomode) // Sounds change in Mario mode!
+	{
+		switch (sfx_id)
+		{
+			case sfx_thok:
+				sfx_id = sfx_mario7;
+				break;
+			case sfx_pop:
+				sfx_id = sfx_mario5;
+				break;
+			case sfx_jump:
+				sfx_id = sfx_mario6;
+				break;
+			case sfx_shield:
+				sfx_id = sfx_mario3;
+				break;
+			case sfx_itemup:
+				sfx_id = sfx_mario4;
+				break;
+			default:
+				break;
+		}
+	}
+	if (maptol & TOL_XMAS) // Some sounds change for xmas
+	{
+		switch (sfx_id)
+		{
+		case sfx_ideya:
+		case sfx_nbmper:
+		case sfx_ncitem:
+		case sfx_ngdone:
+			++sfx_id;
+		default:
+			break;
+		}
+	}
+
 	// the volume is handled 8 bits
 	S_StartSoundAtVolume(origin, sfx_id, 255);
 }
@@ -829,6 +866,7 @@ void S_ClearSfx(void)
 
 static void S_StopChannel(INT32 cnum)
 {
+	INT32 i;
 	channel_t *c = &channels[cnum];
 
 	if (c->sfxinfo)
@@ -836,6 +874,12 @@ static void S_StopChannel(INT32 cnum)
 		// stop the sound playing
 		if (I_SoundIsPlaying(c->handle))
 			I_StopSound(c->handle);
+
+		// check to see
+		//  if other channels are playing the sound
+		for (i = 0; i < numofchannels; i++)
+			if (cnum != i && c->sfxinfo == channels[i].sfxinfo)
+				break;
 
 		// degrade usefulness of sound data
 		c->sfxinfo->usefulness--;
@@ -918,7 +962,7 @@ boolean S_AdjustSoundParams(const mobj_t *listener, const mobj_t *source, INT32 
 		INT64 x, y, yl, yh, xl, xh;
 		fixed_t newdist;
 
-		if (R_PointInSubsectorFast(listensource.x, listensource.y)->sector->ceilingpic == skyflatnum)
+		if (R_PointInSubsector(listensource.x, listensource.y)->sector->ceilingpic == skyflatnum)
 			approx_dist = 0;
 		else
 		{
@@ -931,7 +975,7 @@ boolean S_AdjustSoundParams(const mobj_t *listener, const mobj_t *source, INT32 
 			for (y = yl; y <= yh; y += FRACUNIT*64)
 				for (x = xl; x <= xh; x += FRACUNIT*64)
 				{
-					if (R_PointInSubsectorFast(x, y)->sector->ceilingpic == skyflatnum)
+					if (R_PointInSubsector(x, y)->sector->ceilingpic == skyflatnum)
 					{
 						// Found the outdoors!
 						newdist = S_CalculateSoundDistance(listensource.x, listensource.y, 0, x, y, 0);
@@ -1185,12 +1229,13 @@ ReadMusicDefFields (UINT16 wadnum, int line, char *stoken, musicdef_t **defp)
 	if (!stricmp(stoken, "lump"))
 	{
 		value = strtok(NULL, " ");
+
 		if (!value)
 		{
 			CONS_Alert(CONS_WARNING,
 					"MUSICDEF: Field '%s' is missing name. (file %s, line %d)\n",
 					stoken, wadfiles[wadnum]->filename, line);
-			return false;
+			goto skip_lump;
 		}
 		else
 		{
@@ -1211,6 +1256,10 @@ ReadMusicDefFields (UINT16 wadnum, int line, char *stoken, musicdef_t **defp)
 
 			(*defp) = def;
 		}
+
+skip_lump:
+			stoken = strtok(NULL, " ");
+			line++;
 	}
 	else
 	{
@@ -1227,7 +1276,7 @@ ReadMusicDefFields (UINT16 wadnum, int line, char *stoken, musicdef_t **defp)
 			CONS_Alert(CONS_WARNING,
 					"MUSICDEF: Field '%s' is missing value. (file %s, line %d)\n",
 					stoken, wadfiles[wadnum]->filename, line);
-			return false;
+			goto skip_field;
 		}
 		else
 		{
@@ -1279,6 +1328,10 @@ ReadMusicDefFields (UINT16 wadnum, int line, char *stoken, musicdef_t **defp)
 			else
 				CONS_Alert(CONS_WARNING, "MUSICDEF: Invalid field '%s'. (file %s, line %d)\n", stoken, wadfiles[wadnum]->filename, line);
 #undef ADDDEF
+
+skip_field:
+			stoken = strtok(NULL, "= ");
+			line++;
 		}
 	}
 
