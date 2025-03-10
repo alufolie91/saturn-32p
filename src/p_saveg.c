@@ -228,6 +228,7 @@ static void P_NetArchivePlayers(savebuffer_t *save)
 		WRITEUINT32(save->p, players[i].startedtime);
 		WRITEUINT32(save->p, players[i].finishedtime);
 		WRITEINT16(save->p, players[i].finishedrings);
+		WRITESINT8(save->p, players[i].interscore);
 		WRITEUINT32(save->p, players[i].marescore);
 		WRITEUINT32(save->p, players[i].lastmarescore);
 		WRITEUINT8(save->p, players[i].lastmare);
@@ -418,6 +419,7 @@ static void P_NetUnArchivePlayers(savebuffer_t *save)
 		players[i].startedtime = READUINT32(save->p);
 		players[i].finishedtime = READUINT32(save->p);
 		players[i].finishedrings = READINT16(save->p);
+		players[i].interscore = READSINT8(save->p);
 		players[i].marescore = READUINT32(save->p);
 		players[i].lastmarescore = READUINT32(save->p);
 		players[i].lastmare = READUINT8(save->p);

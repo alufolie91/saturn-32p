@@ -86,7 +86,7 @@ typedef union
 		INT32 numplayers; // Number of players being displayed
 		char levelstring[64]; // holds levelnames up to 64 characters
 		// SRB2kart
-		UINT8 increase[MAXPLAYERS]; // how much did the score increase by?
+		INT16 increase[MAXPLAYERS]; // how much did the score increase by?
 		UINT8 jitter[MAXPLAYERS]; // wiggle
 		UINT32 val[MAXPLAYERS]; // Gametype-specific value
 		UINT8 pos[MAXPLAYERS]; // player positions. used for ties
@@ -204,7 +204,7 @@ static void Y_CompareBattle(INT32 i)
 
 static void Y_CompareRank(INT32 i)
 {
-	UINT8 increase = ((data.match.increase[i] == UINT8_MAX) ? 0 : data.match.increase[i]);
+	INT16 increase = ((data.match.increase[i] == INT16_MAX) ? 0 : data.match.increase[i]);
 	if (!(data.match.val[data.match.numplayers] == UINT32_MAX || (players[i].score - increase) > data.match.val[data.match.numplayers]))
 		return;
 
@@ -270,12 +270,12 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 
 		if (!playeringame[i] || players[i].spectator)
 		{
-			data.match.increase[i] = UINT8_MAX;
+			data.match.increase[i] = INT16_MAX;
 			continue;
 		}
 
 		if (!rankingsmode)
-			data.match.increase[i] = UINT8_MAX;
+			data.match.increase[i] = INT16_MAX;
 
 		numplayersingame++;
 	}
@@ -310,9 +310,9 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 		else
 			data.match.pos[data.match.numplayers] = data.match.numplayers+1;
 
-		if (!rankingsmode && !(players[i].pflags & PF_TIMEOVER) && (data.match.pos[data.match.numplayers] < nump))
+		if (!rankingsmode && ((!(players[i].pflags & PF_TIMEOVER) && (data.match.pos[data.match.numplayers] < nump)) || players[i].interscore))
 		{
-			data.match.increase[i] = nump - data.match.pos[data.match.numplayers];
+			data.match.increase[i] = players[i].interscore ? players[i].interscore : nump - data.match.pos[data.match.numplayers];
 			players[i].score += data.match.increase[i];
 		}
 
@@ -567,12 +567,14 @@ void Y_IntermissionDrawer(void)
 
 				if (data.match.rankingsmode)
 				{
-					if (data.match.increase[data.match.num[i]] != UINT8_MAX)
+					if (data.match.increase[data.match.num[i]] != INT16_MAX)
 					{
+						// Checking player.interscore so when "negative increase" reaches 0, it keeps the -
+						char sign = players[data.match.num[i]].interscore < 0 ? '-' : '+';
 						if (data.match.increase[data.match.num[i]] > 9)
-							snprintf(strtime, sizeof strtime, "(+%02d)", data.match.increase[data.match.num[i]]);
+							snprintf(strtime, sizeof strtime, "(%c%02d)", sign, abs(data.match.increase[data.match.num[i]]));
 						else
-							snprintf(strtime, sizeof strtime, "(+  %d)", data.match.increase[data.match.num[i]]);
+							snprintf(strtime, sizeof strtime, "(%c  %d)", sign, abs(data.match.increase[data.match.num[i]]));
 
 						if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 							V_DrawRightAlignedThinString(x+83+gutter, y, V_6WIDTHSPACE, strtime);
@@ -762,12 +764,19 @@ void Y_Ticker(void)
 					{
 						if (data.match.num[q] == MAXPLAYERS
 						|| !data.match.increase[data.match.num[q]]
-						|| data.match.increase[data.match.num[q]] == UINT8_MAX)
+						|| data.match.increase[data.match.num[q]] == INT16_MAX)
 							continue;
 
 						r++;
 						data.match.jitter[data.match.num[q]] = 1;
-						if (--data.match.increase[data.match.num[q]])
+
+						// This is wordy... But allows negative "increase"
+						if (data.match.increase[data.match.num[q]] < 0)
+							++data.match.increase[data.match.num[q]];
+						else
+							--data.match.increase[data.match.num[q]];
+
+						if (data.match.increase[data.match.num[q]])
 							kaching = false;
 					}
 
