@@ -9529,8 +9529,10 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 			if (players[tab[i].num].spectator || !players[tab[i].num].mo)
 				continue; //ignore them.
 
-			if (netgame && tab[i].num != serverplayer) // don't draw it offline
-				HU_drawPing(x + ((i < 8) ? -17 : rightoffset + 11), y-4, playerpingtable[tab[i].num], 0);
+			if ((netgame && tab[i].num != serverplayer) || (cv_mindelay.value && P_IsLocalPlayer(&players[tab[i].num]))) // don't draw it offline
+			{
+				HU_drawPlayerPing(x + ((i < 8) ? -17 : rightoffset + 11), y-4, tab[i].num, 0);
+			}
 
 			STRBUFCPY(strtime, tab[i].name);
 
