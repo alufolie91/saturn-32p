@@ -5673,6 +5673,9 @@ void P_SetScale(mobj_t *mobj, fixed_t newscale)
 
 	oldscale = mobj->scale; //keep for adjusting stuff below
 
+	if (LUA_HookMobjScaleChange(mobj, newscale, oldscale) || P_MobjWasRemoved(mobj))
+		return;
+
 	mobj->scale = newscale;
 
 	mobj->radius = FixedMul(mobj->info->radius, newscale);

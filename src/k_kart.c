@@ -3219,6 +3219,9 @@ void K_StealBumper(player_t *player, player_t *victim, boolean force)
 	if (player->health <= 0 || victim->health <= 0)
 		return;
 
+	if (LUA_HookKartStealBumper(player, victim, &force))
+		return;
+
 	if (!force)
 	{
 		if (victim->kartstuff[k_bumper] <= 0) // || player->kartstuff[k_bumper] >= cv_kartbumpers.value+2
@@ -4487,7 +4490,18 @@ static void K_DoHyudoroSteal(player_t *player)
 	prandom = P_RandomFixed();
 	S_StartSound(player->mo, sfx_s3k92);
 
-	if (sink && numplayers > 0 && cv_kitchensink.value) // BEHOLD THE KITCHEN SINK
+	if (numplayers == 1) // With just 2 players, we just need to set the other player to be the one to steal from
+	{
+		stealplayer = playerswappable[numplayers-1];
+	}
+	else if (numplayers > 1) // We need to choose between the available candidates for the 2nd player
+	{
+		stealplayer = playerswappable[prandom%(numplayers-1)];
+	}
+
+	boolean force_sink = LUA_HookKartHyudoro(player, &stealplayer, sink);
+
+	if (force_sink || (sink && numplayers > 0 && cv_kitchensink.value)) // BEHOLD THE KITCHEN SINK
 	{
 		player->kartstuff[k_hyudorotimer] = hyudorotime;
 		player->kartstuff[k_stealingtimer] = stealtime;
@@ -4502,14 +4516,6 @@ static void K_DoHyudoroSteal(player_t *player)
 		player->kartstuff[k_hyudorotimer] = hyudorotime;
 		player->kartstuff[k_stealingtimer] = stealtime;
 		return;
-	}
-	else if (numplayers == 1) // With just 2 players, we just need to set the other player to be the one to steal from
-	{
-		stealplayer = playerswappable[numplayers-1];
-	}
-	else if (numplayers > 1) // We need to choose between the available candidates for the 2nd player
-	{
-		stealplayer = playerswappable[prandom%(numplayers-1)];
 	}
 
 	if (stealplayer > -1) // Now here's where we do the stealing, has to be done here because we still know the player we're stealing from
@@ -4534,6 +4540,9 @@ static void K_DoHyudoroSteal(player_t *player)
 void K_DoSneaker(player_t *player, INT32 type)
 {
 	const fixed_t intendedboost = K_GetSneakerBoostSpeed();
+
+	if (LUA_HookKartSneaker(player, type))
+		return;
 
 	if (!player->kartstuff[k_floorboost] || player->kartstuff[k_floorboost] == 3)
 	{
@@ -6738,351 +6747,357 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
 		}
 		else
 		{
-			switch (player->kartstuff[k_itemtype])
+			boolean force = false;
+			boolean override = ATTACK_IS_DOWN && LUA_HookPlayerItemUse(player, player->kartstuff[k_itemtype], HOLDING_ITEM, &force);
+
+			if (!override)
 			{
-				case KITEM_SNEAKER:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && onground && NO_HYUDORO)
-					{
-						K_DoSneaker(player, 1);
-						K_PlayBoostTaunt(player->mo);
-						player->kartstuff[k_itemamount]--;
-					}
-					break;
-				case KITEM_ROCKETSNEAKER:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && onground && NO_HYUDORO
-						&& player->kartstuff[k_rocketsneakertimer] == 0)
-					{
-						INT32 moloop;
-						mobj_t *mo = NULL;
-						mobj_t *prev = player->mo;
-
-						K_PlayBoostTaunt(player->mo);
-						//player->kartstuff[k_itemheld] = 1;
-						S_StartSound(player->mo, sfx_s3k3a);
-
-						//K_DoSneaker(player, 2);
-
-						player->kartstuff[k_rocketsneakertimer] = (itemtime*3);
-						player->kartstuff[k_itemamount]--;
-						K_UpdateHnextList(player, true);
-
-						for (moloop = 0; moloop < 2; moloop++)
+				switch (player->kartstuff[k_itemtype])
+				{
+					case KITEM_SNEAKER:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && (onground || force) && NO_HYUDORO)
 						{
-							mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_ROCKETSNEAKER);
-							K_MatchGenericExtraFlags(mo, player->mo);
-							mo->flags |= MF_NOCLIPTHING;
-							mo->angle = player->mo->angle;
-							mo->threshold = 10;
-							mo->movecount = moloop%2;
-							mo->movedir = mo->lastlook = moloop+1;
-							P_SetTarget(&mo->target, player->mo);
-							P_SetTarget(&mo->hprev, prev);
-							P_SetTarget(&prev->hnext, mo);
-							prev = mo;
+							K_DoSneaker(player, 1);
+							K_PlayBoostTaunt(player->mo);
+							player->kartstuff[k_itemamount]--;
 						}
-					}
-					break;
-				case KITEM_INVINCIBILITY:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO) // Doesn't hold your item slot hostage normally, so you're free to waste it if you have multiple
-					{
-						if (!player->kartstuff[k_invincibilitytimer])
+						break;
+					case KITEM_ROCKETSNEAKER:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && (onground || force) && NO_HYUDORO
+							&& player->kartstuff[k_rocketsneakertimer] == 0)
 						{
-							mobj_t *overlay = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_INVULNFLASH);
-							P_SetTarget(&overlay->target, player->mo);
-							overlay->destscale = player->mo->scale;
-							P_SetScale(overlay, player->mo->scale);
-						}
-						player->kartstuff[k_invincibilitytimer] = itemtime+(2*TICRATE); // 10 seconds
+							INT32 moloop;
+							mobj_t *mo = NULL;
+							mobj_t *prev = player->mo;
 
-						if (P_IsLocalPlayer(player) && cv_supermusic.value == 1 && cv_birdmusic.value)
-							S_ChangeMusicSpecial("kinvnc");
+							K_PlayBoostTaunt(player->mo);
+							//player->kartstuff[k_itemheld] = 1;
+							S_StartSound(player->mo, sfx_s3k3a);
 
-						P_RestoreMusic(player);
-						K_PlayPowerGloatSound(player->mo);
-						player->kartstuff[k_itemamount]--;
-					}
-					break;
-				case KITEM_BANANA:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						INT32 moloop;
-						mobj_t *mo;
-						mobj_t *prev = player->mo;
+							//K_DoSneaker(player, 2);
 
-						//K_PlayAttackTaunt(player->mo);
-						player->kartstuff[k_itemheld] = 1;
-						S_StartSound(player->mo, sfx_s254);
+							player->kartstuff[k_rocketsneakertimer] = (itemtime*3);
+							player->kartstuff[k_itemamount]--;
+							K_UpdateHnextList(player, true);
 
-						for (moloop = 0; moloop < player->kartstuff[k_itemamount]; moloop++)
-						{
-							mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_BANANA_SHIELD);
-							if (!mo)
+							for (moloop = 0; moloop < 2; moloop++)
 							{
-								player->kartstuff[k_itemamount] = moloop;
-								break;
+								mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_ROCKETSNEAKER);
+								K_MatchGenericExtraFlags(mo, player->mo);
+								mo->flags |= MF_NOCLIPTHING;
+								mo->angle = player->mo->angle;
+								mo->threshold = 10;
+								mo->movecount = moloop%2;
+								mo->movedir = mo->lastlook = moloop+1;
+								P_SetTarget(&mo->target, player->mo);
+								P_SetTarget(&mo->hprev, prev);
+								P_SetTarget(&prev->hnext, mo);
+								prev = mo;
 							}
-							mo->flags |= MF_NOCLIPTHING;
-							mo->threshold = 10;
-							mo->movecount = player->kartstuff[k_itemamount];
-							mo->movedir = moloop+1;
-							P_SetTarget(&mo->target, player->mo);
-							P_SetTarget(&mo->hprev, prev);
-							P_SetTarget(&prev->hnext, mo);
-							prev = mo;
 						}
-					}
-					else if (ATTACK_IS_DOWN && player->kartstuff[k_itemheld]) // Banana x3 thrown
-					{
-						K_ThrowKartItem(player, false, MT_BANANA, -1, 0);
-						K_PlayAttackTaunt(player->mo);
-						player->kartstuff[k_itemamount]--;
-						K_UpdateHnextList(player, false);
-					}
-					break;
-				case KITEM_EGGMAN:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						mobj_t *mo;
-						player->kartstuff[k_itemamount]--;
-						player->kartstuff[k_eggmanheld] = 1;
-						S_StartSound(player->mo, sfx_s254);
-						mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_EGGMANITEM_SHIELD);
-						if (mo)
+						break;
+					case KITEM_INVINCIBILITY:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO) // Doesn't hold your item slot hostage normally, so you're free to waste it if you have multiple
 						{
-							mo->flags |= MF_NOCLIPTHING;
-							mo->threshold = 10;
-							mo->movecount = 1;
-							mo->movedir = 1;
-							P_SetTarget(&mo->target, player->mo);
-							P_SetTarget(&player->mo->hnext, mo);
-						}
-					}
-					break;
-				case KITEM_ORBINAUT:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						angle_t newangle;
-						INT32 moloop;
-						mobj_t *mo = NULL;
-						mobj_t *prev = player->mo;
-
-						//K_PlayAttackTaunt(player->mo);
-						player->kartstuff[k_itemheld] = 1;
-						S_StartSound(player->mo, sfx_s3k3a);
-
-						for (moloop = 0; moloop < player->kartstuff[k_itemamount]; moloop++)
-						{
-							newangle = (player->mo->angle + ANGLE_157h) + FixedAngle(((360 / player->kartstuff[k_itemamount]) * moloop) << FRACBITS) + ANGLE_90;
-							mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_ORBINAUT_SHIELD);
-							if (!mo)
+							if (!player->kartstuff[k_invincibilitytimer])
 							{
-								player->kartstuff[k_itemamount] = moloop;
-								break;
+								mobj_t *overlay = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_INVULNFLASH);
+								P_SetTarget(&overlay->target, player->mo);
+								overlay->destscale = player->mo->scale;
+								P_SetScale(overlay, player->mo->scale);
 							}
-							mo->flags |= MF_NOCLIPTHING;
-							mo->angle = newangle;
-							mo->threshold = 10;
-							mo->movecount = player->kartstuff[k_itemamount];
-							mo->movedir = mo->lastlook = moloop+1;
-							mo->color = player->skincolor;
-							P_SetTarget(&mo->target, player->mo);
-							P_SetTarget(&mo->hprev, prev);
-							P_SetTarget(&prev->hnext, mo);
-							prev = mo;
-						}
-					}
-					else if (ATTACK_IS_DOWN && player->kartstuff[k_itemheld]) // Orbinaut x3 thrown
-					{
-						K_ThrowKartItem(player, true, MT_ORBINAUT, 1, 0);
-						K_PlayAttackTaunt(player->mo);
-						player->kartstuff[k_itemamount]--;
-						K_UpdateHnextList(player, false);
-					}
-					break;
-				case KITEM_JAWZ:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						angle_t newangle;
-						INT32 moloop;
-						mobj_t *mo = NULL;
-						mobj_t *prev = player->mo;
+							player->kartstuff[k_invincibilitytimer] = itemtime+(2*TICRATE); // 10 seconds
 
-						//K_PlayAttackTaunt(player->mo);
-						player->kartstuff[k_itemheld] = 1;
-						S_StartSound(player->mo, sfx_s3k3a);
+							if (P_IsLocalPlayer(player) && cv_supermusic.value == 1 && cv_birdmusic.value)
+								S_ChangeMusicSpecial("kinvnc");
 
-						for (moloop = 0; moloop < player->kartstuff[k_itemamount]; moloop++)
-						{
-							newangle = (player->mo->angle + ANGLE_157h) + FixedAngle(((360 / player->kartstuff[k_itemamount]) * moloop) << FRACBITS) + ANGLE_90;
-							mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_JAWZ_SHIELD);
-							if (!mo)
-							{
-								player->kartstuff[k_itemamount] = moloop;
-								break;
-							}
-							mo->flags |= MF_NOCLIPTHING;
-							mo->angle = newangle;
-							mo->threshold = 10;
-							mo->movecount = player->kartstuff[k_itemamount];
-							mo->movedir = mo->lastlook = moloop+1;
-							P_SetTarget(&mo->target, player->mo);
-							P_SetTarget(&mo->hprev, prev);
-							P_SetTarget(&prev->hnext, mo);
-							prev = mo;
-						}
-					}
-					else if (ATTACK_IS_DOWN && HOLDING_ITEM && player->kartstuff[k_itemheld]) // Jawz thrown
-					{
-						if (player->kartstuff[k_throwdir] == 1 || player->kartstuff[k_throwdir] == 0)
-							K_ThrowKartItem(player, true, MT_JAWZ, 1, 0);
-						else if (player->kartstuff[k_throwdir] == -1) // Throwing backward gives you a dud that doesn't home in
-							K_ThrowKartItem(player, true, MT_JAWZ_DUD, -1, 0);
-						K_PlayAttackTaunt(player->mo);
-						player->kartstuff[k_itemamount]--;
-						K_UpdateHnextList(player, false);
-					}
-					break;
-				case KITEM_MINE:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						mobj_t *mo;
-						player->kartstuff[k_itemheld] = 1;
-						S_StartSound(player->mo, sfx_s254);
-						mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_SSMINE_SHIELD);
-						if (mo)
-						{
-							mo->flags |= MF_NOCLIPTHING;
-							mo->threshold = 10;
-							mo->movecount = 1;
-							mo->movedir = 1;
-							P_SetTarget(&mo->target, player->mo);
-							P_SetTarget(&player->mo->hnext, mo);
-						}
-					}
-					else if (ATTACK_IS_DOWN && player->kartstuff[k_itemheld])
-					{
-						K_ThrowKartItem(player, false, MT_SSMINE, 1, 1);
-						K_PlayAttackTaunt(player->mo);
-						player->kartstuff[k_itemamount]--;
-						player->kartstuff[k_itemheld] = 0;
-						K_UpdateHnextList(player, true);
-					}
-					break;
-				case KITEM_BALLHOG:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						player->kartstuff[k_itemamount]--;
-						K_ThrowKartItem(player, true, MT_BALLHOG, 1, 0);
-						K_PlayAttackTaunt(player->mo);
-					}
-					break;
-				case KITEM_SPB:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						player->kartstuff[k_itemamount]--;
-						K_ThrowKartItem(player, true, MT_SPB, 1, 0);
-						K_PlayAttackTaunt(player->mo);
-					}
-					break;
-				case KITEM_GROW:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO
-						&& player->kartstuff[k_growshrinktimer] <= 0) // Grow holds the item box hostage
-					{
-						if (player->kartstuff[k_growshrinktimer] < 0) // If you're shrunk, then "grow" will just make you normal again.
-							K_RemoveGrowShrink(player);
-						else
-						{
-							K_PlayPowerGloatSound(player->mo);
-							player->mo->scalespeed = mapobjectscale/TICRATE;
-							player->mo->destscale = (3*mapobjectscale)/2;
-							if (cv_kartdebugshrink.value && !modeattacking && !player->bot)
-								player->mo->destscale = (6*player->mo->destscale)/8;
-							player->kartstuff[k_growshrinktimer] = itemtime+(4*TICRATE); // 12 seconds
-							if (P_IsLocalPlayer(player) && cv_growmusic.value == 1 && cv_birdmusic.value )
-								S_ChangeMusicSpecial("kgrow");
 							P_RestoreMusic(player);
-							S_StartSound(player->mo, sfx_kc5a);
+							K_PlayPowerGloatSound(player->mo);
+							player->kartstuff[k_itemamount]--;
 						}
-						player->kartstuff[k_itemamount]--;
-					}
-					break;
-				case KITEM_SHRINK:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						K_DoShrink(player);
-						player->kartstuff[k_itemamount]--;
-						K_PlayPowerGloatSound(player->mo);
-					}
-					break;
-				case KITEM_THUNDERSHIELD:
-					if (player->kartstuff[k_curshield] != 1)
-					{
-						mobj_t *shield = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_THUNDERSHIELD);
-						P_SetScale(shield, (shield->destscale = (5*shield->destscale)>>2));
-						P_SetTarget(&shield->target, player->mo);
-						S_StartSound(shield, sfx_s3k41);
-						player->kartstuff[k_curshield] = 1;
-					}
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						K_DoThunderShield(player);
-						player->kartstuff[k_itemamount]--;
-						K_PlayAttackTaunt(player->mo);
-					}
-					break;
-				case KITEM_HYUDORO:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						player->kartstuff[k_itemamount]--;
-						K_DoHyudoroSteal(player); // yes. yes they do.
-					}
-					break;
-				case KITEM_POGOSPRING:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && onground && NO_HYUDORO
-						&& !player->kartstuff[k_pogospring])
-					{
-						K_PlayBoostTaunt(player->mo);
-						K_DoPogoSpring(player->mo, 32<<FRACBITS, 2);
-						player->kartstuff[k_pogospring] = 1;
-						player->kartstuff[k_itemamount]--;
-					}
-					break;
-				case KITEM_KITCHENSINK:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
-					{
-						mobj_t *mo;
-						player->kartstuff[k_itemheld] = 1;
-						S_StartSound(player->mo, sfx_s254);
-						mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_SINK_SHIELD);
-						if (mo)
+						break;
+					case KITEM_BANANA:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
 						{
-							mo->flags |= MF_NOCLIPTHING;
-							mo->threshold = 10;
-							mo->movecount = 1;
-							mo->movedir = 1;
-							P_SetTarget(&mo->target, player->mo);
-							P_SetTarget(&player->mo->hnext, mo);
+							INT32 moloop;
+							mobj_t *mo;
+							mobj_t *prev = player->mo;
+
+							//K_PlayAttackTaunt(player->mo);
+							player->kartstuff[k_itemheld] = 1;
+							S_StartSound(player->mo, sfx_s254);
+
+							for (moloop = 0; moloop < player->kartstuff[k_itemamount]; moloop++)
+							{
+								mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_BANANA_SHIELD);
+								if (!mo)
+								{
+									player->kartstuff[k_itemamount] = moloop;
+									break;
+								}
+								mo->flags |= MF_NOCLIPTHING;
+								mo->threshold = 10;
+								mo->movecount = player->kartstuff[k_itemamount];
+								mo->movedir = moloop+1;
+								P_SetTarget(&mo->target, player->mo);
+								P_SetTarget(&mo->hprev, prev);
+								P_SetTarget(&prev->hnext, mo);
+								prev = mo;
+							}
 						}
-					}
-					else if (ATTACK_IS_DOWN && HOLDING_ITEM && player->kartstuff[k_itemheld]) // Sink thrown
-					{
-						K_ThrowKartItem(player, false, MT_SINK, 1, 2);
-						K_PlayAttackTaunt(player->mo);
-						player->kartstuff[k_itemamount]--;
-						player->kartstuff[k_itemheld] = 0;
-						K_UpdateHnextList(player, true);
-					}
-					break;
-				case KITEM_SAD:
-					if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO
-						&& !player->kartstuff[k_sadtimer])
-					{
-						player->kartstuff[k_sadtimer] = stealtime;
-						player->kartstuff[k_itemamount]--;
-					}
-					break;
-				default:
-					break;
+						else if (ATTACK_IS_DOWN && player->kartstuff[k_itemheld]) // Banana x3 thrown
+						{
+							K_ThrowKartItem(player, false, MT_BANANA, -1, 0);
+							K_PlayAttackTaunt(player->mo);
+							player->kartstuff[k_itemamount]--;
+							K_UpdateHnextList(player, false);
+						}
+						break;
+					case KITEM_EGGMAN:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							mobj_t *mo;
+							player->kartstuff[k_itemamount]--;
+							player->kartstuff[k_eggmanheld] = 1;
+							S_StartSound(player->mo, sfx_s254);
+							mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_EGGMANITEM_SHIELD);
+							if (mo)
+							{
+								mo->flags |= MF_NOCLIPTHING;
+								mo->threshold = 10;
+								mo->movecount = 1;
+								mo->movedir = 1;
+								P_SetTarget(&mo->target, player->mo);
+								P_SetTarget(&player->mo->hnext, mo);
+							}
+						}
+						break;
+					case KITEM_ORBINAUT:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							angle_t newangle;
+							INT32 moloop;
+							mobj_t *mo = NULL;
+							mobj_t *prev = player->mo;
+
+							//K_PlayAttackTaunt(player->mo);
+							player->kartstuff[k_itemheld] = 1;
+							S_StartSound(player->mo, sfx_s3k3a);
+
+							for (moloop = 0; moloop < player->kartstuff[k_itemamount]; moloop++)
+							{
+								newangle = (player->mo->angle + ANGLE_157h) + FixedAngle(((360 / player->kartstuff[k_itemamount]) * moloop) << FRACBITS) + ANGLE_90;
+								mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_ORBINAUT_SHIELD);
+								if (!mo)
+								{
+									player->kartstuff[k_itemamount] = moloop;
+									break;
+								}
+								mo->flags |= MF_NOCLIPTHING;
+								mo->angle = newangle;
+								mo->threshold = 10;
+								mo->movecount = player->kartstuff[k_itemamount];
+								mo->movedir = mo->lastlook = moloop+1;
+								mo->color = player->skincolor;
+								P_SetTarget(&mo->target, player->mo);
+								P_SetTarget(&mo->hprev, prev);
+								P_SetTarget(&prev->hnext, mo);
+								prev = mo;
+							}
+						}
+						else if (ATTACK_IS_DOWN && player->kartstuff[k_itemheld]) // Orbinaut x3 thrown
+						{
+							K_ThrowKartItem(player, true, MT_ORBINAUT, 1, 0);
+							K_PlayAttackTaunt(player->mo);
+							player->kartstuff[k_itemamount]--;
+							K_UpdateHnextList(player, false);
+						}
+						break;
+					case KITEM_JAWZ:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							angle_t newangle;
+							INT32 moloop;
+							mobj_t *mo = NULL;
+							mobj_t *prev = player->mo;
+
+							//K_PlayAttackTaunt(player->mo);
+							player->kartstuff[k_itemheld] = 1;
+							S_StartSound(player->mo, sfx_s3k3a);
+
+							for (moloop = 0; moloop < player->kartstuff[k_itemamount]; moloop++)
+							{
+								newangle = (player->mo->angle + ANGLE_157h) + FixedAngle(((360 / player->kartstuff[k_itemamount]) * moloop) << FRACBITS) + ANGLE_90;
+								mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_JAWZ_SHIELD);
+								if (!mo)
+								{
+									player->kartstuff[k_itemamount] = moloop;
+									break;
+								}
+								mo->flags |= MF_NOCLIPTHING;
+								mo->angle = newangle;
+								mo->threshold = 10;
+								mo->movecount = player->kartstuff[k_itemamount];
+								mo->movedir = mo->lastlook = moloop+1;
+								P_SetTarget(&mo->target, player->mo);
+								P_SetTarget(&mo->hprev, prev);
+								P_SetTarget(&prev->hnext, mo);
+								prev = mo;
+							}
+						}
+						else if (ATTACK_IS_DOWN && HOLDING_ITEM && player->kartstuff[k_itemheld]) // Jawz thrown
+						{
+							if (player->kartstuff[k_throwdir] == 1 || player->kartstuff[k_throwdir] == 0)
+								K_ThrowKartItem(player, true, MT_JAWZ, 1, 0);
+							else if (player->kartstuff[k_throwdir] == -1) // Throwing backward gives you a dud that doesn't home in
+								K_ThrowKartItem(player, true, MT_JAWZ_DUD, -1, 0);
+							K_PlayAttackTaunt(player->mo);
+							player->kartstuff[k_itemamount]--;
+							K_UpdateHnextList(player, false);
+						}
+						break;
+					case KITEM_MINE:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							mobj_t *mo;
+							player->kartstuff[k_itemheld] = 1;
+							S_StartSound(player->mo, sfx_s254);
+							mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_SSMINE_SHIELD);
+							if (mo)
+							{
+								mo->flags |= MF_NOCLIPTHING;
+								mo->threshold = 10;
+								mo->movecount = 1;
+								mo->movedir = 1;
+								P_SetTarget(&mo->target, player->mo);
+								P_SetTarget(&player->mo->hnext, mo);
+							}
+						}
+						else if (ATTACK_IS_DOWN && player->kartstuff[k_itemheld])
+						{
+							K_ThrowKartItem(player, false, MT_SSMINE, 1, 1);
+							K_PlayAttackTaunt(player->mo);
+							player->kartstuff[k_itemamount]--;
+							player->kartstuff[k_itemheld] = 0;
+							K_UpdateHnextList(player, true);
+						}
+						break;
+					case KITEM_BALLHOG:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							player->kartstuff[k_itemamount]--;
+							K_ThrowKartItem(player, true, MT_BALLHOG, 1, 0);
+							K_PlayAttackTaunt(player->mo);
+						}
+						break;
+					case KITEM_SPB:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							player->kartstuff[k_itemamount]--;
+							K_ThrowKartItem(player, true, MT_SPB, 1, 0);
+							K_PlayAttackTaunt(player->mo);
+						}
+						break;
+					case KITEM_GROW:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO
+							&& player->kartstuff[k_growshrinktimer] <= 0) // Grow holds the item box hostage
+						{
+							if (player->kartstuff[k_growshrinktimer] < 0) // If you're shrunk, then "grow" will just make you normal again.
+								K_RemoveGrowShrink(player);
+							else
+							{
+								K_PlayPowerGloatSound(player->mo);
+								player->mo->scalespeed = mapobjectscale/TICRATE;
+								player->mo->destscale = (3*mapobjectscale)/2;
+								if (cv_kartdebugshrink.value && !modeattacking && !player->bot)
+									player->mo->destscale = (6*player->mo->destscale)/8;
+								player->kartstuff[k_growshrinktimer] = itemtime+(4*TICRATE); // 12 seconds
+								if (P_IsLocalPlayer(player) && cv_growmusic.value == 1 && cv_birdmusic.value )
+									S_ChangeMusicSpecial("kgrow");
+								P_RestoreMusic(player);
+								S_StartSound(player->mo, sfx_kc5a);
+							}
+							player->kartstuff[k_itemamount]--;
+						}
+						break;
+					case KITEM_SHRINK:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							K_DoShrink(player);
+							player->kartstuff[k_itemamount]--;
+							K_PlayPowerGloatSound(player->mo);
+						}
+						break;
+					case KITEM_THUNDERSHIELD:
+						if (player->kartstuff[k_curshield] != 1)
+						{
+							mobj_t *shield = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_THUNDERSHIELD);
+							P_SetScale(shield, (shield->destscale = (5*shield->destscale)>>2));
+							P_SetTarget(&shield->target, player->mo);
+							S_StartSound(shield, sfx_s3k41);
+							player->kartstuff[k_curshield] = 1;
+						}
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							K_DoThunderShield(player);
+							player->kartstuff[k_itemamount]--;
+							K_PlayAttackTaunt(player->mo);
+						}
+						break;
+					case KITEM_HYUDORO:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							player->kartstuff[k_itemamount]--;
+							K_DoHyudoroSteal(player); // yes. yes they do.
+						}
+						break;
+					case KITEM_POGOSPRING:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && (onground || force) && NO_HYUDORO
+							&& !player->kartstuff[k_pogospring])
+						{
+							K_PlayBoostTaunt(player->mo);
+							K_DoPogoSpring(player->mo, 32<<FRACBITS, 2);
+							player->kartstuff[k_pogospring] = 1;
+							player->kartstuff[k_itemamount]--;
+						}
+						break;
+					case KITEM_KITCHENSINK:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO)
+						{
+							mobj_t *mo;
+							player->kartstuff[k_itemheld] = 1;
+							S_StartSound(player->mo, sfx_s254);
+							mo = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, MT_SINK_SHIELD);
+							if (mo)
+							{
+								mo->flags |= MF_NOCLIPTHING;
+								mo->threshold = 10;
+								mo->movecount = 1;
+								mo->movedir = 1;
+								P_SetTarget(&mo->target, player->mo);
+								P_SetTarget(&player->mo->hnext, mo);
+							}
+						}
+						else if (ATTACK_IS_DOWN && HOLDING_ITEM && player->kartstuff[k_itemheld]) // Sink thrown
+						{
+							K_ThrowKartItem(player, false, MT_SINK, 1, 2);
+							K_PlayAttackTaunt(player->mo);
+							player->kartstuff[k_itemamount]--;
+							player->kartstuff[k_itemheld] = 0;
+							K_UpdateHnextList(player, true);
+						}
+						break;
+					case KITEM_SAD:
+						if (ATTACK_IS_DOWN && !HOLDING_ITEM && NO_HYUDORO
+							&& !player->kartstuff[k_sadtimer])
+						{
+							player->kartstuff[k_sadtimer] = stealtime;
+							player->kartstuff[k_itemamount]--;
+						}
+						break;
+					default:
+						break;
+				}
 			}
 		}
 
