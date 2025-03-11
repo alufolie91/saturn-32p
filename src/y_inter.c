@@ -422,44 +422,66 @@ void Y_IntermissionDrawer(void)
 			timeheader = (intertype == int_race ? "TIME" : "SCORE");
 
 		// draw the level name
-		V_DrawCenteredString(-4 + x + BASEVIDWIDTH/2, 12, 0, data.match.levelstring);
-		V_DrawFill((x-3) - duptweak, 34, dupadjust-2, 1, 0);
+		if (LUA_HudEnabled(hud_intertitle))
+			V_DrawCenteredString(-4 + x + BASEVIDWIDTH/2, 12, 0, data.match.levelstring);
 
-		if (data.match.encore)
+		if (LUA_HudEnabled(hud_interborders))
+			V_DrawFill((x-3) - duptweak, 34, dupadjust-2, 1, 0);
+
+		if (LUA_HudEnabled(hud_intertitle) && data.match.encore)
 			V_DrawCenteredString(-4 + x + BASEVIDWIDTH/2, 12-8, hilicol, "ENCORE MODE");
 
 		if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 		{
-			V_DrawFill(x+101, 24, 1, 158, 0);
-			V_DrawFill(x+207, 24, 1, 158, 0);
-			V_DrawFill((x-3) - duptweak, 182, dupadjust-2, 1, 0);
+			if (LUA_HudEnabled(hud_interborders))
+			{
+				V_DrawFill(x+101, 24, 1, 158, 0);
+				V_DrawFill(x+207, 24, 1, 158, 0);
+				V_DrawFill((x-3) - duptweak, 182, dupadjust-2, 1, 0);
+			}
 
-			V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
+			if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscoretitle))
+				V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
+
 			y = 37;
 		}
 		else if (data.match.numplayers > NUMFORNEWCOLUMN)
 		{
-			V_DrawFill(x+156, 24, 1, 158, 0);
-			V_DrawFill((x-3) - duptweak, 182, dupadjust-2, 1, 0);
+			if (LUA_HudEnabled(hud_interborders))
+			{
+				V_DrawFill(x+156, 24, 1, 158, 0);
+				V_DrawFill((x-3) - duptweak, 182, dupadjust-2, 1, 0);
+			}
 
-			V_DrawCenteredString(x+6+(BASEVIDWIDTH/2), 24, hilicol, "#");
-			V_DrawString(x+36+(BASEVIDWIDTH/2), 24, hilicol, "NAME");
+			if (LUA_HudEnabled(hud_interlisting))
+			{
+				V_DrawCenteredString(x+6+(BASEVIDWIDTH/2), 24, hilicol, "#");
+				V_DrawString(x+36+(BASEVIDWIDTH/2), 24, hilicol, "NAME");
+			}
 
-			V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
+			if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscoretitle))
+				V_DrawRightAlignedString(x+152, 24, hilicol, timeheader);
 		}
 		else
 		{
-			V_DrawCenteredString(x+6, 24, hilicol, "#");
-			V_DrawString(x+36, 24, hilicol, "NAME");
+			if (LUA_HudEnabled(hud_interlisting))
+			{
+				V_DrawCenteredString(x+6, 24, hilicol, "#");
+				V_DrawString(x+36, 24, hilicol, "NAME");
+			}
 
-			V_DrawRightAlignedString(x+(BASEVIDWIDTH/2)+152, 24, hilicol, timeheader);
-
+			if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscoretitle))
+				V_DrawRightAlignedString(x+(BASEVIDWIDTH/2)+152, 24, hilicol, timeheader);
 		}
 
-		V_DrawCenteredString(x+6, 24, hilicol, "#");
-		V_DrawString(x+36, 24, hilicol, "NAME");
+		if (LUA_HudEnabled(hud_interlisting))
+		{
+			V_DrawCenteredString(x+6, 24, hilicol, "#");
+			V_DrawString(x+36, 24, hilicol, "NAME");
+		}
 
-		V_DrawRightAlignedString(x+(BASEVIDWIDTH/2)+152, 24, hilicol, timeheader);
+		if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscoretitle))
+			V_DrawRightAlignedString(x+(BASEVIDWIDTH/2)+152, 24, hilicol, timeheader);
 
 		for (i = 0; i < data.match.numplayers; i++)
 		{
@@ -471,77 +493,83 @@ void Y_IntermissionDrawer(void)
 				if (data.match.jitter[data.match.num[i]] > 0)
 					y--;
 
-				if (data.match.numplayers > NUMFORNEWCOLUMN*2)
-					V_DrawPingNum(x+6, y+2, 0, data.match.pos[i], NULL);
-				else
-					V_DrawCenteredString(x+6, y, 0, va("%d", data.match.pos[i]));
-
-				if (data.match.color[i]) // holy fuck this is beyond ass
+				if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interplayers))
 				{
-					UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
-
 					if (data.match.numplayers > NUMFORNEWCOLUMN*2)
-					{
-						if (!players[data.match.num[i]].skinlocal)
-						{
-							if (!players[data.match.num[i]].localskin)
-								if (cv_highresportrait.value)
-									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, facewantprefix[*data.match.character[i]], colormap);
-								else	
-									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
-							else
-								if (cv_highresportrait.value)
-									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
-								else
-									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
-						}
-						else
-						{
-							if (cv_highresportrait.value)
-								V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
-							else
-								V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
-						}
-					}
+						V_DrawPingNum(x+6, y+2, 0, data.match.pos[i], NULL);
 					else
+						V_DrawCenteredString(x+6, y, 0, va("%d", data.match.pos[i]));
+
+					if (data.match.color[i]) // holy fuck this is beyond ass
 					{
-						if (!players[data.match.num[i]].skinlocal)
+						UINT8 *colormap = R_GetTranslationColormap(*data.match.character[i], *data.match.color[i], GTC_CACHE);
+
+						if (data.match.numplayers > NUMFORNEWCOLUMN*2)
 						{
-							if (!players[data.match.num[i]].localskin)
-								if (cv_highresportrait.value)
-									V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[*data.match.character[i]], colormap);
-								else	
-									V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
-							else
-								if (cv_highresportrait.value)
-									V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+							if (!players[data.match.num[i]].skinlocal)
+							{
+								if (!players[data.match.num[i]].localskin)
+									if (cv_highresportrait.value)
+										V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, facewantprefix[*data.match.character[i]], colormap);
+									else
+										V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[*data.match.character[i]], colormap);
 								else
-									V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+									if (cv_highresportrait.value)
+										V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+									else
+										V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+							}
+							else
+							{
+								if (cv_highresportrait.value)
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+								else
+									V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+							}
 						}
 						else
 						{
-							if (cv_highresportrait.value)
-								V_DrawSmallMappedPatch(x+16, y-4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+							if (!players[data.match.num[i]].skinlocal)
+							{
+								if (!players[data.match.num[i]].localskin)
+									if (cv_highresportrait.value)
+										V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[*data.match.character[i]], colormap);
+									else
+										V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[*data.match.character[i]], colormap);
+								else
+									if (cv_highresportrait.value)
+										V_DrawSmallMappedPatch(x+16, y-4, 0, facewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+									else
+										V_DrawMappedPatch(x+16, y-4, 0, facerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+							}
 							else
-								V_DrawMappedPatch(x+16, y-4, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+							{
+								if (cv_highresportrait.value)
+									V_DrawSmallMappedPatch(x+16, y-4, 0, localfacewantprefix[players[data.match.num[i]].localskin - 1], colormap);
+								else
+									V_DrawMappedPatch(x+16, y-4, 0, localfacerankprefix[players[data.match.num[i]].localskin - 1], colormap);
+							}
 						}
 					}
-				}
 
-				if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN*2)
-				{
-					UINT8 cursorframe = (intertic / 4) % 8;
-					V_DrawScaledPatch(x+16, y-4, 0, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_CACHE));
+					if (data.match.num[i] == whiteplayer && data.match.numplayers <= NUMFORNEWCOLUMN*2)
+					{
+						UINT8 cursorframe = (intertic / 4) % 8;
+						V_DrawScaledPatch(x+16, y-4, 0, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_CACHE));
+					}
 				}
 
 				STRBUFCPY(strtime, data.match.name[i]);
 
-				if (data.match.numplayers > NUMFORNEWCOLUMN*2)
-					V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
-				else if (data.match.numplayers > NUMFORNEWCOLUMN)
-					V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
-				else
-					V_DrawString(x+36, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
+				if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interplayers))
+				{
+					if (data.match.numplayers > NUMFORNEWCOLUMN*2)
+						V_DrawThinString(x+18, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+					else if (data.match.numplayers > NUMFORNEWCOLUMN)
+						V_DrawThinString(x+36, y-1, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+					else
+						V_DrawString(x+36, y, ((data.match.num[i] == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
+				}
 
 				if (data.match.rankingsmode)
 				{
@@ -554,27 +582,36 @@ void Y_IntermissionDrawer(void)
 						else
 							snprintf(strtime, sizeof strtime, "(%c  %d)", sign, abs(data.match.increase[data.match.num[i]]));
 
-						if (data.match.numplayers > NUMFORNEWCOLUMN*2)
-							V_DrawRightAlignedThinString(x+83+gutter, y, V_6WIDTHSPACE, strtime);
-						else if (data.match.numplayers > NUMFORNEWCOLUMN)
-							V_DrawRightAlignedThinString(x+135+gutter, y-1, V_6WIDTHSPACE, strtime);
-						else
-							V_DrawRightAlignedString(x+120+gutter, y, 0, strtime);
+						if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
+						{
+							if (data.match.numplayers > NUMFORNEWCOLUMN*2)
+								V_DrawRightAlignedThinString(x+83+gutter, y, V_6WIDTHSPACE, strtime);
+							else if (data.match.numplayers > NUMFORNEWCOLUMN)
+								V_DrawRightAlignedThinString(x+135+gutter, y-1, V_6WIDTHSPACE, strtime);
+							else
+								V_DrawRightAlignedString(x+120+gutter, y, 0, strtime);
+						}
 					}
 
 					snprintf(strtime, sizeof strtime, "%d", data.match.val[i]);
 
-					if (data.match.numplayers > NUMFORNEWCOLUMN)
-						V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
-					else if (data.match.numplayers > NUMFORNEWCOLUMN)
-						V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, strtime);
-					else
-						V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
+					if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
+					{
+						if (data.match.numplayers > NUMFORNEWCOLUMN)
+							V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
+						else if (data.match.numplayers > NUMFORNEWCOLUMN)
+							V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, strtime);
+						else
+							V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
+					}
 				}
 				else
 				{
 					if (data.match.val[i] == (UINT32_MAX-1))
-						V_DrawRightAlignedThinString(x+(data.match.numplayers > NUMFORNEWCOLUMN*2 ? 100 : 152)+gutter, y, (data.match.numplayers > NUMFORNEWCOLUMN ? V_6WIDTHSPACE : 0), "NO CONTEST.");
+					{
+						if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
+							V_DrawRightAlignedThinString(x+(data.match.numplayers > NUMFORNEWCOLUMN*2 ? 100 : 152)+gutter, y, (data.match.numplayers > NUMFORNEWCOLUMN ? V_6WIDTHSPACE : 0), "NO CONTEST.");
+					}
 					else
 					{
 						if (intertype == int_race)
@@ -583,19 +620,25 @@ void Y_IntermissionDrawer(void)
 							G_TicsToSeconds(data.match.val[i]), G_TicsToCentiseconds(data.match.val[i]));
 							strtime[sizeof strtime - 1] = '\0';
 
-							if (data.match.numplayers > NUMFORNEWCOLUMN*2)
-								V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
-							else if (data.match.numplayers > NUMFORNEWCOLUMN)
-								V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, strtime);
-							else
-								V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
+							if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
+							{
+								if (data.match.numplayers > NUMFORNEWCOLUMN*2)
+									V_DrawRightAlignedThinString(x+100+gutter, y, V_6WIDTHSPACE, strtime);
+								else if (data.match.numplayers > NUMFORNEWCOLUMN)
+									V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, strtime);
+								else
+									V_DrawRightAlignedString(x+152+gutter, y, 0, strtime);
+							}
 						}
 						else
 						{
-							if (data.match.numplayers > NUMFORNEWCOLUMN)
-								V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, va("%i", data.match.val[i]));
-							else
-								V_DrawRightAlignedString(x+152+gutter, y, 0, va("%i", data.match.val[i]));
+							if (LUA_HudEnabled(hud_interlisting) && LUA_HudEnabled(hud_interscores))
+							{
+								if (data.match.numplayers > NUMFORNEWCOLUMN)
+									V_DrawRightAlignedThinString(x+152+gutter, y-1, V_6WIDTHSPACE, va("%i", data.match.val[i]));
+								else
+									V_DrawRightAlignedString(x+152+gutter, y, 0, va("%i", data.match.val[i]));
+							}
 						}
 					}
 				}
