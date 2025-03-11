@@ -109,6 +109,13 @@ static drawseg_xrange_item_t *drawsegs_xrange;
 static size_t drawsegs_xrange_size = 0;
 static INT32 drawsegs_xrange_count = 0;
 
+INT32 R_ThingLightLevel(mobj_t* thing)
+{
+	INT32 lightlevel = thing->lightlevel;
+
+	return lightlevel;
+}
+
 // ==========================================================================
 //
 // Sprite loading routines: support sprites in pwad, dehacked sprite renaming,
