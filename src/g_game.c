@@ -4045,6 +4045,8 @@ void G_InitNew(UINT8 pencoremode, const char *mapname, boolean resetplayer, bool
 			{
 				players[i].score = 0;
 			}
+
+			players[i].interpoints = 0;
 		}
 
 		// Reset unlockable triggers

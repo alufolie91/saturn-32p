@@ -136,6 +136,7 @@ static const udata_field_t player_fields[] = {
     FIELD(player_t, startedtime,      udatalib_getter_tic,         udatalib_setter_tic),
     FIELD(player_t, finishedtime,     udatalib_getter_tic,         udatalib_setter_tic),
     FIELD(player_t, finishedrings,    udatalib_getter_int16,       udatalib_setter_int16),
+    FIELD(player_t, interpoints,      udatalib_getter_int32,       udatalib_setter_int32),
     FIELD(player_t, marescore,        udatalib_getter_uint32,      udatalib_setter_uint32),
     FIELD(player_t, lastmarescore,    udatalib_getter_uint32,      udatalib_setter_uint32),
     FIELD(player_t, lastmare,         udatalib_getter_uint8,       udatalib_setter_uint8),
