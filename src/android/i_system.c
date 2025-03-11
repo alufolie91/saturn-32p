@@ -184,8 +184,6 @@ void I_OutputMsg(const char *fmt, ...)
 
 void I_StartupMouse(void){}
 
-void I_StartupMouse2(void){}
-
 void I_StartupKeyboard(void){}
 
 INT32 I_GetKey(void)
@@ -242,8 +240,6 @@ void I_GetJoystickEvents(void){}
 
 void I_GetJoystick2Events(void){}
 
-void I_GetMouseEvents(void){}
-
 char *I_GetEnv(const char *name)
 {
   LOGW("I_GetEnv() called?!");
@@ -270,27 +266,5 @@ char *I_ClipboardPaste(void)
 }
 
 void I_RegisterSysCommands(void) {}
-
-// This is identical to the SDL implementation.
-size_t I_GetRandomBytes(char *destination, size_t count)
-{
-  FILE *rndsource;
-  size_t actual_bytes;
-
-  if (!(rndsource = fopen("/dev/urandom", "r")))
-	  if (!(rndsource = fopen("/dev/random", "r")))
-		  actual_bytes = 0;
-
-  if (rndsource)
-  {
-	  actual_bytes = fread(destination, 1, count, rndsource);
-	  fclose(rndsource);
-  }
-
-  if (actual_bytes == 0)
-    I_OutputMsg("I_GetRandomBytes(): couldn't get any random bytes");
-
-  return actual_bytes;
-}
 
 #include "../sdl/dosstr.c"

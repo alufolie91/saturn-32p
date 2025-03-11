@@ -41,6 +41,15 @@ applications may follow different packet versions.
 #define BACKUPTICS 32
 #define TICQUEUE 512 // more than enough for most timeouts....
 #define MAXTEXTCMD 256
+
+// No. of tics your controls can be delayed by.
+
+// TODO: Instead of storing a ton of extra cmds for gentlemens' delay,
+// keep them in a linked-list, with timestamps to discard everything that's older than already sent.
+// That will support any amount of lag, and be less wasteful for clients who don't use it.
+// This just works as a quick implementation.
+#define MAXGENTLEMENDELAY TICRATE
+
 //
 // Packet structure
 //
@@ -412,6 +421,11 @@ extern UINT32 realpingtable[MAXPLAYERS];
 extern UINT32 playerpingtable[MAXPLAYERS];
 extern tic_t servermaxping;
 
+extern boolean server_lagless;
+extern tic_t simulated_lag;
+extern tic_t lowest_lag;
+extern consvar_t cv_mindelay, cv_lagless;
+
 extern consvar_t
 #ifdef VANILLAJOINNEXTROUND
 	cv_joinnextround,
@@ -475,7 +489,6 @@ extern UINT8 playernode[MAXPLAYERS];
 INT32 D_NumPlayers(void);
 
 void D_ResetTiccmds(void);
-ticcmd_t *D_LocalTiccmd(UINT8 ss);
 
 tic_t GetLag(INT32 node);
 //UINT8 GetFreeXCmdSize(UINT8 playerid);

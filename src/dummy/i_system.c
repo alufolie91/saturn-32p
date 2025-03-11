@@ -92,8 +92,6 @@ void I_OutputMsg(const char *error, ...)
 
 void I_StartupMouse(void){}
 
-void I_StartupMouse2(void){}
-
 void I_StartupKeyboard(void){}
 
 INT32 I_GetKey(void)
@@ -146,8 +144,6 @@ void I_GetJoystickEvents(void){}
 
 void I_GetJoystick2Events(void){}
 
-void I_GetMouseEvents(void){}
-
 char *I_GetEnv(const char *name)
 {
 	(void)name;
@@ -174,9 +170,5 @@ char *I_ClipboardPaste(void)
 
 void I_RegisterSysCommands(void) {}
 
-size_t I_GetRandomBytes(char *destination, size_t amount)
-{
-	return 0;
-}
 #include "../sdl/dosstr.c"
 

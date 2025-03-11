@@ -70,6 +70,7 @@
 #include "st_stuff.h"
 #include "i_sound.h"
 #include "k_kart.h" // SRB2kart
+#include "k_stats.h" // SRB2kart
 #include "d_player.h" // KITEM_ constants
 
 #include "i_joy.h" // for joystick menu controls
@@ -311,7 +312,7 @@ static void M_SetupMultiHandler(INT32 choice);
 // Split into multiple parts due to size
 // Controls
 menu_t OP_ControlsDef, OP_AllControlsDef;
-menu_t OP_MouseOptionsDef, OP_Mouse2OptionsDef;
+menu_t OP_MouseOptionsDef;
 menu_t OP_Joystick1Def, OP_Joystick2Def, OP_Joystick3Def, OP_Joystick4Def;
 menu_t OP_CustomCvarMenuDef;
 static void M_VideoModeMenu(INT32 choice);
@@ -473,6 +474,12 @@ static void Dummystaff_OnChange(void);
 
 // crap to force hud to show when in saturns hud options
 boolean forceshowhud = false;
+
+// smol text indicating if game is modified
+// so ppl dont wonder where their ra times went and stuff
+#define SHOWMODDEDGAME \
+	if (savemoddata) \
+		V_DrawThinString(0, 0, V_REDMAP|V_SNAPTOTOP|V_SNAPTOLEFT|V_TRANSLUCENT|V_ALLOWLOWERCASE, ("Modified Game"));
 
 // ==========================================================================
 // CONSOLE VARIABLES AND THEIR POSSIBLE VALUES GO HERE.
@@ -643,23 +650,23 @@ static menuitem_t MISC_ReplayOptionsMenu[] =
 static tic_t playback_last_menu_interaction_leveltime = 0;
 static menuitem_t PlaybackMenu[] =
 {
-	{IT_CALL   | IT_STRING, "M_PHIDE",  "Hide Menu (Esc)", M_SelectableClearMenus, 0},
+	{IT_CALL   | IT_STRING, "M_PHIDE",  "Hide Menu (Esc)", M_SelectableClearMenus,             0},
 
-	{IT_CALL   | IT_STRING, "M_PREW",   "Rewind ([)",        M_PlaybackRewind,      20},
-	{IT_CALL   | IT_STRING, "M_PPAUSE", "Pause (\\)",         M_PlaybackPause,       36},
-	{IT_CALL   | IT_STRING, "M_PFFWD",  "Fast-Forward (])",  M_PlaybackFastForward, 52},
-	{IT_CALL   | IT_STRING, "M_PSTEPB", "Backup Frame ([)",  M_PlaybackRewind,      20},
-	{IT_CALL   | IT_STRING, "M_PRESUM", "Resume",        M_PlaybackPause,       36},
-	{IT_CALL   | IT_STRING, "M_PFADV",  "Advance Frame (])", M_PlaybackAdvance,     52},
+	{IT_CALL   | IT_STRING, "M_PREW",   "Rewind ([)",        M_PlaybackRewind,                20},
+	{IT_CALL   | IT_STRING, "M_PPAUSE", "Pause (\\)",         M_PlaybackPause,                36},
+	{IT_CALL   | IT_STRING, "M_PFFWD",  "Fast-Forward (])",  M_PlaybackFastForward,           52},
+	{IT_CALL   | IT_STRING, "M_PSTEPB", "Backup Frame ([)",  M_PlaybackRewind,                20},
+	{IT_CALL   | IT_STRING, "M_PRESUM", "Resume",        M_PlaybackPause,                     36},
+	{IT_CALL   | IT_STRING, "M_PFADV",  "Advance Frame (])", M_PlaybackAdvance,               52},
 
-	{IT_ARROWS | IT_STRING, "M_PVIEWS", "View Count (- and =)",  M_PlaybackSetViews, 72},
-	{IT_ARROWS | IT_STRING, "M_PNVIEW", "Viewpoint (1)",   M_PlaybackAdjustView, 88},
-	{IT_ARROWS | IT_STRING, "M_PNVIEW", "Viewpoint 2 (2)", M_PlaybackAdjustView, 104},
-	{IT_ARROWS | IT_STRING, "M_PNVIEW", "Viewpoint 3 (3)", M_PlaybackAdjustView, 120},
-	{IT_ARROWS | IT_STRING, "M_PNVIEW", "Viewpoint 4 (4)", M_PlaybackAdjustView, 136},
+	{IT_ARROWS | IT_STRING, "M_PVIEWS", "View Count (- and =)",  M_PlaybackSetViews,          72},
+	{IT_ARROWS | IT_STRING, "M_PNVIEW", "Viewpoint (1)",   M_PlaybackAdjustView,              88},
+	{IT_ARROWS | IT_STRING, "M_PNVIEW", "Viewpoint 2 (2)", M_PlaybackAdjustView,             104},
+	{IT_ARROWS | IT_STRING, "M_PNVIEW", "Viewpoint 3 (3)", M_PlaybackAdjustView,             120},
+	{IT_ARROWS | IT_STRING, "M_PNVIEW", "Viewpoint 4 (4)", M_PlaybackAdjustView,             136},
 
 	{IT_CALL   | IT_STRING, "M_PVIEWS", "Toggle Free Camera (')",	M_PlaybackToggleFreecam, 156},
-	{IT_CALL   | IT_STRING, "M_PEXIT",  "Stop Playback",   M_PlaybackQuit, 172},
+	{IT_CALL   | IT_STRING, "M_PEXIT",  "Stop Playback",   M_PlaybackQuit,                   172},
 };
 typedef enum
 {
@@ -702,8 +709,8 @@ typedef enum
 // ---------------------
 static menuitem_t MPauseMenu[] =
 {
-	{IT_STRING | IT_CALL,     NULL, "Addons...",          M_Addons,                8},
-	{IT_STRING | IT_CALL,     NULL, "Add local skins...", M_LocalSkins,            16},
+	{IT_STRING | IT_CALL,     NULL, "Addons...",          M_Addons,               8},
+	{IT_STRING | IT_CALL,     NULL, "Add local skins...", M_LocalSkins,           16},
 	{IT_STRING | IT_SUBMENU,  NULL, "Scramble Teams...", &MISC_ScrambleTeamDef,  24},
 	{IT_STRING | IT_CALL,     NULL, "Switch Map..."    , M_MapChange,            32},
 
@@ -766,7 +773,7 @@ static menuitem_t SPauseMenu[] =
 	// Pandora's Box will be shifted up if both options are available
 	{IT_CALL | IT_STRING,    NULL, "Pandora's Box...",     M_PandorasBox,         16},
 	{IT_CALL | IT_STRING,    NULL, "Medal Hints...",       M_EmblemHints,         24},
-	//{IT_CALL | IT_STRING,    NULL, "Level Select...",      M_LoadGameLevelSelect, 32},
+	//{IT_CALL | IT_STRING,    NULL, "Level Select...",    M_LoadGameLevelSelect, 32},
 
 	{IT_CALL | IT_STRING,    NULL, "Continue",             M_SelectableClearMenus,48},
 	{IT_CALL | IT_STRING,    NULL, "Retry",                M_Retry,               56},
@@ -1034,13 +1041,13 @@ menuitem_t PlayerMenu[MAXSKINS];
 static menuitem_t MP_MainMenu[] =
 {
 	{IT_HEADER, NULL, "Players", NULL, 0},
-	{IT_STRING|IT_CVAR,      NULL, "Number of local players",     &cv_splitplayers, 10},
+	{IT_STRING|IT_CVAR,      NULL, "Number of local players",     &cv_splitplayers,            10},
 
-	{IT_STRING|IT_KEYHANDLER,NULL, "Player setup...",     M_SetupMultiHandler,18},
+	{IT_STRING|IT_KEYHANDLER,NULL, "Player setup...",     M_SetupMultiHandler,                 18},
 
 	{IT_HEADER, NULL, "Host a game", NULL, 100-24},
 #ifndef NONET
-	{IT_STRING|IT_CALL,       NULL, "Internet/LAN...",           M_PreStartServerMenu,        110-24},
+	{IT_STRING|IT_CALL,       NULL, "Internet/LAN...",           M_PreStartServerMenu,     110-24},
 #else
 	{IT_GRAYEDOUT,            NULL, "Internet/LAN...",           NULL,                     110-24},
 #endif
@@ -1049,11 +1056,11 @@ static menuitem_t MP_MainMenu[] =
 	{IT_HEADER, NULL, "Join a game", NULL, 132-24},
 #ifndef NONET
 #ifndef MASTERSERVER
-	{IT_GRAYEDOUT,       NULL, "Internet server browser...",NULL,   142-24},
+	{IT_GRAYEDOUT,       NULL, "Internet server browser...",NULL,                          142-24},
 #else
-	{IT_STRING|IT_CALL,       NULL, "Internet server browser...",M_PreConnectMenu,   142-24},
+	{IT_STRING|IT_CALL,       NULL, "Internet server browser...",M_PreConnectMenu,         142-24},
 #endif
-	{IT_STRING|IT_CALL, NULL, "Join last server",     M_ConnectLastServer,        150-24},
+	{IT_STRING|IT_CALL, NULL, "Join last server",     M_ConnectLastServer,                 150-24},
 	{IT_STRING|IT_KEYHANDLER, NULL, "Specify IPv4 address:",     M_HandleConnectIP,        158-24},
 #else
 	{IT_GRAYEDOUT,            NULL, "Internet server browser...",NULL,                     142-24},
@@ -1149,7 +1156,7 @@ static menuitem_t OP_MainMenu[] =
 
 	{IT_SUBMENU|IT_STRING,		NULL, "Saturn Options...",		&OP_SaturnDef,				135},
 
-	{IT_SUBMENU|IT_STRING,		NULL, "Bird...",					&OP_BirdDef,				145},
+	{IT_SUBMENU|IT_STRING,		NULL, "Bird...",				&OP_BirdDef,				145},
 	{IT_CALL|IT_STRING,			NULL, "Local Skin Options...",	M_LocalSkinMenu,			155},
 };
 
@@ -1158,13 +1165,13 @@ static menuitem_t OP_ControlsMenu[] =
 	{IT_CALL | IT_STRING, NULL, "Player 1 Controls...", M_Setup1PControlsMenu,  10},
 	{IT_CALL | IT_STRING, NULL, "Player 2 Controls...", M_Setup2PControlsMenu,  20},
 
-	{IT_CALL | IT_STRING, NULL, "Player 3 Controls...", &M_Setup3PControlsMenu,  30},
-	{IT_CALL | IT_STRING, NULL, "Player 4 Controls...", &M_Setup4PControlsMenu,  40},
+	{IT_CALL | IT_STRING, NULL, "Player 3 Controls...", &M_Setup3PControlsMenu, 30},
+	{IT_CALL | IT_STRING, NULL, "Player 4 Controls...", &M_Setup4PControlsMenu, 40},
 
-	{IT_SUBMENU | IT_STRING, NULL, "Mouse Options...", &OP_MouseOptionsDef,  60},
+	{IT_SUBMENU | IT_STRING, NULL, "Mouse Options...", &OP_MouseOptionsDef,     60},
 
-	{IT_STRING | IT_CVAR, NULL, "Controls per key",    &cv_controlperkey, 80},
-	{IT_STRING | IT_CVAR, NULL, "Digital turn easing", &cv_turnsmooth, 90},
+	{IT_STRING | IT_CVAR, NULL, "Controls per key",    &cv_controlperkey,       80},
+	{IT_STRING | IT_CVAR, NULL, "Digital turn easing", &cv_turnsmooth,          90},
 };
 
 static const char* OP_ControlsTooltips[] =
@@ -1196,7 +1203,7 @@ static menuitem_t OP_AllControlsMenu[] =
 	{IT_CONTROL, NULL, "Aim Backward",          M_ChangeControl, gc_aimbackward},
 	{IT_CONTROL, NULL, "Look Backward",         M_ChangeControl, gc_lookback   },
 
-	{IT_HEADER, NULL, "Miscelleanous Controls", NULL, 0},
+	{IT_HEADER, NULL, "Miscellaneous Controls", NULL, 0},
 	{IT_SPACE, NULL, NULL, NULL, 0},
 	{IT_CONTROL, NULL, "Chat",                  M_ChangeControl, gc_talkkey    },
 	//{IT_CONTROL, NULL, "Team Chat",           M_ChangeControl, gc_teamkey    },
@@ -1217,6 +1224,8 @@ static menuitem_t OP_AllControlsMenu[] =
 	{IT_CONTROL, NULL, "Sink",                  M_ChangeControl, gc_camsink    },
 	{IT_CONTROL, NULL, "Change Viewpoint",      M_ChangeControl, gc_viewpoint  },
 	{IT_CONTROL, NULL, "Reset Camera",          M_ChangeControl, gc_camreset   },
+	{IT_CONTROL, NULL, "Strafe Left",           M_ChangeControl, gc_strafeleft },
+	{IT_CONTROL, NULL, "Strafe Right",          M_ChangeControl, gc_straferight},
 	//{IT_CONTROL, NULL, "Toggle First-Person", M_ChangeControl, gc_camtoggle  },
 
 	{IT_HEADER, NULL, "Spectator Controls", NULL, 0},
@@ -1233,90 +1242,126 @@ static menuitem_t OP_AllControlsMenu[] =
 
 static menuitem_t OP_Joystick1Menu[] =
 {
-	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup1PJoystickMenu, 10},
-	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis[0]          , 20},
-	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis[0]         , 25},
-	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis[0]         , 30},
-	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis[0]        , 35},
-	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis[0]        , 40},
-	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis[0]         , 45},
-	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis[0]     , 50},
-	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis[0]         , 55},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis[0]      , 60},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis[0]      , 65},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis[0]      , 70},
-	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone[0]        , 75},
-	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone[0]        , 80},
+	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup1PJoystickMenu   , 0},
 
-	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[0]        , 90},
-	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[0]    , 95},
-	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[0]    , 100},
+	{IT_HEADER, NULL, "Gameplay Controls", NULL, 7},
+	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis[0]          , 15},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis[0]         , 20},
+	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis[0]         , 25},
+	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis[0]        , 30},
+	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis[0]        , 35},
+	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis[0]         , 40},
+	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis[0]     , 45},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis[0]      , 50},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis[0]      , 55},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis[0]      , 60},
+
+	{IT_HEADER, NULL, "Camera Controls", NULL, 67},
+	{IT_STRING | IT_CVAR,  NULL, "Look Up/Down"       , &cv_lookaxis[0]         , 75},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_camturnaxis[0]      , 80},
+	{IT_STRING | IT_CVAR,  NULL, "Strafe Left/Right"  , &cv_camstrafeaxis[0]    , 85},
+
+	{IT_HEADER, NULL, "Deadzones", NULL, 92},
+	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone[0]        , 100},
+	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone[0]        , 105},
+
+	{IT_HEADER, NULL, "Miscellaneous", NULL, 112},
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"      , &cv_rumble[0]       , 120},
+	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[0]   , 125},
+	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[0]   , 130},
 };
 
 static menuitem_t OP_Joystick2Menu[] =
 {
-	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup2PJoystickMenu, 10},
-	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis[1]         , 20},
-	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis[1]        , 25},
-	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis[1]        , 30},
-	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis[1]       , 35},
-	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis[1]       , 40},
-	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis[1]        , 45},
-	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis[1]    , 50},
-	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis[1]        , 55},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis[1]     , 60},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis[1]     , 65},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis[1]     , 70},
-	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone[1]       , 75},
-	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone[1]       , 80},
+	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup2PJoystickMenu   , 10},
 
-	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[1]        , 90},
-	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[1]    , 95},
-	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[1]    , 100},
+	{IT_HEADER, NULL, "Gameplay Controls", NULL, 7},
+	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis[1]          , 15},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis[1]         , 20},
+	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis[1]         , 25},
+	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis[1]        , 30},
+	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis[1]        , 35},
+	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis[1]         , 40},
+	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis[1]     , 45},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis[1]      , 50},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis[1]      , 55},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis[1]      , 60},
+
+	{IT_HEADER, NULL, "Camera Controls", NULL, 67},
+	{IT_STRING | IT_CVAR,  NULL, "Look Up/Down"       , &cv_lookaxis[1]         , 75},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_camturnaxis[1]      , 80},
+	{IT_STRING | IT_CVAR,  NULL, "Strafe Left/Right"  , &cv_camstrafeaxis[1]    , 85},
+
+	{IT_HEADER, NULL, "Deadzones", NULL, 92},
+	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone[1]        , 100},
+	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone[1]        , 105},
+
+	{IT_HEADER, NULL, "Miscellaneous", NULL, 112},
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"      , &cv_rumble[1]       , 120},
+	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[1]   , 125},
+	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[1]   , 130},
 };
 
 static menuitem_t OP_Joystick3Menu[] =
 {
-	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup3PJoystickMenu, 10},
-	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis[2]         , 20},
-	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis[2]        , 25},
-	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis[2]        , 30},
-	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis[2]       , 35},
-	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis[2]       , 40},
-	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis[2]        , 45},
-	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis[2]    , 50},
-	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis[2]        , 55},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis[2]     , 60},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis[2]     , 65},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis[2]     , 70},
-	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone[2]       , 75},
-	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone[2]       , 80},
+	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup3PJoystickMenu   , 10},
 
-	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[2]        , 90},
-	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[2]    , 95},
-	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[2]    , 100},
+	{IT_HEADER, NULL, "Gameplay Controls", NULL, 7},
+	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis[2]          , 15},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis[2]         , 20},
+	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis[2]         , 25},
+	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis[2]        , 30},
+	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis[2]        , 35},
+	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis[2]         , 40},
+	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis[2]     , 45},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis[2]      , 50},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis[2]      , 55},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis[2]      , 60},
+
+	{IT_HEADER, NULL, "Camera Controls", NULL, 67},
+	{IT_STRING | IT_CVAR,  NULL, "Look Up/Down"       , &cv_lookaxis[2]         , 75},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_camturnaxis[2]      , 80},
+	{IT_STRING | IT_CVAR,  NULL, "Strafe Left/Right"  , &cv_camstrafeaxis[2]    , 85},
+
+	{IT_HEADER, NULL, "Deadzones", NULL, 92},
+	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone[2]        , 100},
+	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone[2]        , 105},
+
+	{IT_HEADER, NULL, "Miscellaneous", NULL, 112},
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"      , &cv_rumble[2]       , 120},
+	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[2]   , 125},
+	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[2]   , 130},
 };
 
 static menuitem_t OP_Joystick4Menu[] =
 {
-	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup4PJoystickMenu, 10},
-	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis[3]         , 20},
-	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis[3]        , 25},
-	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis[3]        , 30},
-	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis[3]       , 35},
-	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis[3]       , 40},
-	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis[3]        , 45},
-	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis[3]    , 50},
-	{IT_STRING | IT_CVAR,  NULL, "Spec. Look Up/Down" , &cv_lookaxis[3]        , 55},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis[3]     , 60},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis[3]     , 65},
-	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis[3]     , 70},
-	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone[3]       , 75},
-	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone[3]       , 80},
+	{IT_STRING | IT_CALL,  NULL, "Select Gamepad..."  , M_Setup4PJoystickMenu   , 10},
 
-	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"  , &cv_rumble[3]        , 90},
-	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[3]    , 95},
-	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[3]    , 100},
+	{IT_HEADER, NULL, "Gameplay Controls", NULL, 7},
+	{IT_STRING | IT_CVAR,  NULL, "Aim Forward/Back"   , &cv_aimaxis[3]          , 15},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_turnaxis[3]         , 20},
+	{IT_STRING | IT_CVAR,  NULL, "Accelerate"         , &cv_moveaxis[3]         , 25},
+	{IT_STRING | IT_CVAR,  NULL, "Brake"              , &cv_brakeaxis[3]        , 30},
+	{IT_STRING | IT_CVAR,  NULL, "Drift"              , &cv_driftaxis[3]        , 35},
+	{IT_STRING | IT_CVAR,  NULL, "Use Item"           , &cv_fireaxis[3]         , 40},
+	{IT_STRING | IT_CVAR,  NULL, "Look Backward"      , &cv_lookbackaxis[3]     , 45},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 1"    , &cv_custom1axis[3]      , 50},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 2"    , &cv_custom2axis[3]      , 55},
+	{IT_STRING | IT_CVAR,  NULL, "Custom Button 3"    , &cv_custom3axis[3]      , 60},
+
+	{IT_HEADER, NULL, "Camera Controls", NULL, 67},
+	{IT_STRING | IT_CVAR,  NULL, "Look Up/Down"       , &cv_lookaxis[3]         , 75},
+	{IT_STRING | IT_CVAR,  NULL, "Turn Left/Right"    , &cv_camturnaxis[3]      , 80},
+	{IT_STRING | IT_CVAR,  NULL, "Strafe Left/Right"  , &cv_camstrafeaxis[3]    , 85},
+
+	{IT_HEADER, NULL, "Deadzones", NULL, 92},
+	{IT_STRING | IT_CVAR,  NULL, "X deadzone"         , &cv_xdeadzone[3]        , 100},
+	{IT_STRING | IT_CVAR,  NULL, "Y deadzone"         , &cv_ydeadzone[3]        , 105},
+
+	{IT_HEADER, NULL, "Miscellaneous", NULL, 112},
+	{IT_STRING | IT_CVAR,  NULL, "Controller Rumble"      , &cv_rumble[3]       , 120},
+	{IT_STRING | IT_CVAR,  NULL, "Set LED to skin color"  , &cv_gamepadled[3]   , 125},
+	{IT_STRING | IT_CVAR,  NULL, "Flash LED on powerups"  , &cv_ledpowerup[3]   , 130},
 };
 
 static menuitem_t OP_JoystickSetMenu[] =
@@ -1336,15 +1381,12 @@ static menuitem_t OP_MouseOptionsMenu[] =
 {
 	{IT_STRING | IT_CVAR, NULL, "Use Mouse",        &cv_usemouse,         10},
 
-
-	//{IT_STRING | IT_CVAR, NULL, "First-Person MouseLook", &cv_alwaysfreelook,   30},
-	//{IT_STRING | IT_CVAR, NULL, "Third-Person MouseLook", &cv_chasefreelook,   40},
-	{IT_STRING | IT_CVAR, NULL, "Mouse Turning",       &cv_mouseturn,        20},
+	{IT_STRING | IT_CVAR, NULL, "Mouse Turning",    &cv_mouseturn,        20},
 	{IT_STRING | IT_CVAR, NULL, "Invert Mouse",     &cv_invertmouse,      30},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
 	                      NULL, "Mouse X Speed",    &cv_mousesens,        40},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Mouse Y Speed",    &cv_mouseysens,        50},
+	                      NULL, "Mouse Y Speed",    &cv_mouseysens,       50},
 };
 
 static const char* OP_MouseTooltips[] =
@@ -1356,50 +1398,32 @@ static const char* OP_MouseTooltips[] =
 	"Mouse vertical sensitivity.",
 };
 
-/*static menuitem_t OP_Mouse2OptionsMenu[] =
-{
-	{IT_STRING | IT_CVAR, NULL, "Use Mouse 2",      &cv_usemouse2,        10},
-	{IT_STRING | IT_CVAR, NULL, "Second Mouse Serial Port",
-	                                                &cv_mouse2port,       20},
-	{IT_STRING | IT_CVAR, NULL, "First-Person MouseLook", &cv_alwaysfreelook2,  30},
-	{IT_STRING | IT_CVAR, NULL, "Third-Person MouseLook", &cv_chasefreelook2,  40},
-	{IT_STRING | IT_CVAR, NULL, "Mouse Move",       &cv_mousemove2,       50},
-	{IT_STRING | IT_CVAR, NULL, "Invert Mouse",     &cv_invertmouse2,     60},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Mouse X Speed",    &cv_mousesens2,       70},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Mouse Y Speed",    &cv_mouseysens2,      80},
-};*/
-
 static menuitem_t OP_VideoOptionsMenu[] =
 {
-	{IT_STRING | IT_CALL,	NULL,	"Set Resolution...",	M_VideoModeMenu,		  10},
+	{IT_STRING | IT_CALL,	NULL,	"Set Resolution...",		  M_VideoModeMenu,		  10},
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
-	{IT_STRING|IT_CVAR,		NULL,	"Fullscreen",			&cv_fullscreen,			  20},
+	{IT_STRING|IT_CVAR,		NULL,	"Fullscreen",				  &cv_fullscreen,		  20},
 #endif
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-							NULL,	"Brightness",			&cv_globalgamma,		  30},
+							NULL,	"Brightness",				  &cv_globalgamma,		  30},
 
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                        NULL, 	"Saturation",      		&cv_globalsaturation ,    40},
+	                        NULL, 	"Saturation",      			  &cv_globalsaturation ,  40},
 
-	{IT_SUBMENU|IT_STRING, NULL, "Advanced Color Settings...", &OP_ColorOptionsDef,   50},
+	{IT_SUBMENU|IT_STRING, NULL, 	"Advanced Color Settings...", &OP_ColorOptionsDef,    50},
 
-	{IT_STRING | IT_CVAR,  NULL, "Randomized Directional Light",&cv_randomdirlight,	  60},
+	{IT_STRING | IT_CVAR,	NULL,	"Draw Distance",			  &cv_drawdist,			  65},
+	{IT_STRING | IT_CVAR,	NULL,	"Weather Draw Distance",	  &cv_drawdist_precip,	  75},
 
-	{IT_STRING | IT_CVAR,	NULL,	"Draw Distance",		&cv_drawdist,			  75},
-	{IT_STRING | IT_CVAR,	NULL,	"Weather Draw Distance",&cv_drawdist_precip,	  85},
-
-	{IT_STRING | IT_CVAR,	NULL,	"Show FPS",				&cv_ticrate,			 105},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Sync",		&cv_vidwait,			 115},
-	{IT_STRING | IT_CVAR,   NULL,   "FPS Cap",              &cv_fpscap,              125},
-	{IT_STRING | IT_CVAR,   NULL,   "Drift spark pulse size",&cv_driftsparkpulse,    135},
-	{IT_STRING | IT_CVAR, 	NULL, 	"VHS effect", 			&cv_vhseffect, 		 	 145},
+	{IT_STRING | IT_CVAR,	NULL,	"Show FPS",					  &cv_ticrate,			  95},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Sync",			  &cv_vidwait,			 105},
+	{IT_STRING | IT_CVAR,   NULL,   "FPS Cap",              	  &cv_fpscap,            115},
+	{IT_STRING | IT_CVAR,   NULL,   "Drift spark pulse size",	  &cv_driftsparkpulse,   125},
+	{IT_STRING | IT_CVAR, 	NULL, 	"VHS effect", 				  &cv_vhseffect, 		 135},
 #ifdef HWRENDER
-	{IT_SUBMENU|IT_STRING,	NULL,	"OpenGL Options...",	&OP_OpenGLOptionsDef,	 155},
+	{IT_SUBMENU|IT_STRING,	NULL,	"OpenGL Options...",		  &OP_OpenGLOptionsDef,	 145},
 #endif
-	{IT_SUBMENU|IT_STRING,  NULL,   "Advanced Video Options...", &OP_ExpOptionsDef,    165},
-
+	{IT_SUBMENU|IT_STRING,  NULL,   "Advanced Video Options...",  &OP_ExpOptionsDef,     155},
 };
 
 static const char* OP_VideoTooltips[] =
@@ -1411,7 +1435,6 @@ static const char* OP_VideoTooltips[] =
 	"Gamma (brightness) of the game.",
 	"Saturation of the game.",
 	"Advanced color settings of the game.",
-	"Should the directional lightning be randomized each map?\nTakes effect on next map load.",
 	"How far away objects are drawn.",
 	"How far away weather is drawn.",
 	"Show current game framerate and select the style.",
@@ -1435,7 +1458,6 @@ enum
 	op_video_gamma,
 	op_video_sat,
 	op_video_color,
-	op_video_dirlight,
 	op_video_dd,
 	op_video_wdd,
 	op_video_fps,
@@ -1497,23 +1519,25 @@ static menuitem_t OP_ColorOptionsMenu[] =
 
 static menuitem_t OP_ExpOptionsMenu[] =
 {
-	{IT_HEADER, NULL, "Advanced Video Options", NULL, 10},
-	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",			&cv_maxinterpdist,		 	 30},
-	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 40},
+	{IT_HEADER, NULL, "Advanced Video Options", NULL, 15},
+	{IT_STRING|IT_CVAR,		NULL, "Interpolation Distance",			&cv_maxinterpdist,		 	 25},
+	{IT_STRING | IT_CVAR, 	NULL, "Weather Interpolation", 			&cv_precipinterp, 		 	 30},
 
-	{IT_STRING | IT_CVAR, 	NULL, "Scale Weather with Mobjscale", 	&cv_mobjscaleprecip, 		 60},
-	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 70},
+	{IT_STRING | IT_CVAR, 	NULL, "Scale Weather with Mobjscale", 	&cv_mobjscaleprecip, 		 40},
+	{IT_STRING | IT_CVAR, 	NULL, "Less Weather Effects", 			&cv_lessprecip, 		 	 45},
 
-	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 80},
+	{IT_STRING | IT_CVAR,  NULL, "Randomized Directional Light",	&cv_randomdirlight,	  		 55},
 
-	{IT_STRING | IT_CVAR,	NULL, "FPS counter sampling",			&cv_accuratefps,			 90},
+	{IT_STRING | IT_CVAR,	NULL, "Skyboxes",						&cv_skybox,				 	 65},
+
+	{IT_STRING | IT_CVAR,	NULL, "FPS counter sampling",			&cv_accuratefps,			 75},
 
 #ifdef HWRENDER
-	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_glscreentextures, 		 110},
+	{IT_STRING | IT_CVAR, 	NULL, "Screen Textures", 				&cv_glscreentextures, 		 85},
 #ifdef USE_FBO_OGL
-	{IT_STRING | IT_CVAR, 	NULL, "FBO Downsampling support", 		&cv_glframebuffer, 			 120},
+	{IT_STRING | IT_CVAR, 	NULL, "FBO Downsampling support", 		&cv_glframebuffer, 			 90},
 #endif
-	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_glpalettedepth, 		 140},
+	{IT_STRING | IT_CVAR, 	NULL, "Palette Depth", 					&cv_glpalettedepth, 		100},
 #endif
 };
 
@@ -1524,6 +1548,7 @@ static const char* OP_ExpTooltips[] =
 	"Should weather be interpolated? Weather should look about the\nsame but perform a bit better when disabled.",
 	"Should weather be scaled with Mapobjectscale?.",
 	"When weather is on this will cut the object amount used in half.",
+	"Should the directional lightning be randomized each map?\nTakes effect on next map load.",
 	"Toggle being able to see the sky.",
 	"Change the FPS counter sampling method\nInaccurate updates slower and might miss frame drops and such\nAccurate updates faster and is more accurate, but might be less readable", // how to ingles??
 #ifdef HWRENDER
@@ -1542,6 +1567,7 @@ enum
 	op_exp_precipinter,
 	op_exp_precipmoscale,
 	op_exp_lessprecip,
+	op_exp_dirlight,
 	op_exp_skybox,
 	op_exp_accuratefps,
 #ifdef HWRENDER
@@ -1751,36 +1777,39 @@ static menuitem_t OP_DataOptionsMenu[] =
 
 static menuitem_t OP_ScreenshotOptionsMenu[] =
 {
-	{IT_STRING|IT_CVAR, NULL, "Storage Location", &cv_screenshot_option, 10},
-	{IT_STRING|IT_CVAR|IT_CV_STRING, NULL, "Custom Folder", &cv_screenshot_folder, 20},
+	{IT_HEADER, NULL, "Screenshots (F8)", NULL, 5},
+	{IT_STRING|IT_CVAR, NULL, "Storage Location",  &cv_screenshot_option,          15},
+	{IT_STRING|IT_CVAR|IT_CV_STRING, NULL, "Custom Folder", &cv_screenshot_folder, 25},
+	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memory,                55},
+	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_level,                 65},
+	{IT_STRING|IT_CVAR, NULL, "Strategy",          &cv_zlib_strategy,              75},
+	{IT_STRING|IT_CVAR, NULL, "Window Size",       &cv_zlib_window_bits,           85},
 
-	{IT_HEADER, NULL, "Screenshots (F8)", NULL, 50},
-	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memory,      	 60},
-	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_level,       	 70},
-	{IT_STRING|IT_CVAR, NULL, "Strategy",          &cv_zlib_strategy,    	 80},
-	{IT_STRING|IT_CVAR, NULL, "Window Size",       &cv_zlib_window_bits, 	 90},
+	{IT_HEADER, NULL, "Movie Mode (F9)", NULL, 100},
+	{IT_STRING|IT_CVAR, NULL, "Storage Location",  &cv_movie_option,              110},
+	{IT_STRING|IT_CVAR|IT_CV_STRING, NULL, "Custom Folder", &cv_movie_folder, 	  120},
+	{IT_STRING|IT_CVAR, NULL, "Capture Mode",      &cv_moviemode,                 150},
 
-	{IT_HEADER, NULL, "Movie Mode (F9)", NULL, 105},
-	{IT_STRING|IT_CVAR, NULL, "Capture Mode",	   &cv_moviemode, 			115},
+	{IT_STRING|IT_CVAR, NULL, "Region Optimizing", &cv_gif_optimize,              160},
+	{IT_STRING|IT_CVAR, NULL, "Downscaling",       &cv_gif_downscale,             170},
 
-	{IT_STRING|IT_CVAR, NULL, "Region Optimizing", &cv_gif_optimize,  		125},
-	{IT_STRING|IT_CVAR, NULL, "Downscaling",       &cv_gif_downscale, 		135},
-
-	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memorya,      	125},
-	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_levela,       	135},
-	{IT_STRING|IT_CVAR, NULL, "Strategy",          &cv_zlib_strategya,    	145},
-	{IT_STRING|IT_CVAR, NULL, "Window Size",       &cv_zlib_window_bitsa, 	155},
+	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memorya,              160},
+	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_levela,               170},
+	{IT_STRING|IT_CVAR, NULL, "Strategy",          &cv_zlib_strategya,            180},
+	{IT_STRING|IT_CVAR, NULL, "Window Size",       &cv_zlib_window_bitsa,         190},
 };
 
 enum
 {
-	op_screenshot_folder = 1,
-	op_screenshot_capture = 8,
-	op_screenshot_gif_start = 9,
-	op_screenshot_gif_end = 10,
-	op_screenshot_apng_start = 11,
-	op_screenshot_apng_end = 14,
+	op_screenshot_folder = 2,
+	op_movie_folder = 9,
+	op_screenshot_capture = 10,
+	op_screenshot_gif_start = 11,
+	op_screenshot_gif_end = 12,
+	op_screenshot_apng_start = 13,
+	op_screenshot_apng_end = 16,
 };
+
 
 static menuitem_t OP_EraseDataMenu[] =
 {
@@ -1863,11 +1892,12 @@ static menuitem_t OP_CamOptionsMenu[] =
 
 	{IT_STRING | IT_CVAR, 		NULL, "Lagless Camera",   			&cv_laglesscam, 			 50},
 	{IT_STRING | IT_CVAR, 		NULL, "Camera Lookback Momentum",   &cv_lookbackmom, 			 60},
+	{IT_STRING | IT_CVAR, 		NULL, "Camera Vertical Look",       &cv_verticallook, 			 70},
 
-	{IT_STRING | IT_SUBMENU,	NULL, "Player 1 Camera options...",	&OP_Player1CamOptionsDef,	 80},
-	{IT_STRING | IT_SUBMENU,	NULL, "Player 2 Camera options...",	&OP_Player2CamOptionsDef,	 90},
-	{IT_STRING | IT_SUBMENU,	NULL, "Player 3 Camera options...",	&OP_Player3CamOptionsDef,	 100},
-	{IT_STRING | IT_SUBMENU,	NULL, "Player 4 Camera options...",	&OP_Player4CamOptionsDef,	 110},
+	{IT_STRING | IT_SUBMENU,	NULL, "Player 1 Camera options...",	&OP_Player1CamOptionsDef,	 90},
+	{IT_STRING | IT_SUBMENU,	NULL, "Player 2 Camera options...",	&OP_Player2CamOptionsDef,	 100},
+	{IT_STRING | IT_SUBMENU,	NULL, "Player 3 Camera options...",	&OP_Player3CamOptionsDef,	 110},
+	{IT_STRING | IT_SUBMENU,	NULL, "Player 4 Camera options...",	&OP_Player4CamOptionsDef,	 120},
 };
 
 static const char* OP_CamOptionsTooltips[] =
@@ -1876,6 +1906,7 @@ static const char* OP_CamOptionsTooltips[] =
 	"Player field of view.",
 	"Removes Camera Lag in netgames\nMay cause Camera stutters in poor net conditions.",
 	"Should looking back inherit the Players Momentum?\nEither inherit Player Momentum or double of it\nmay make looking back while boosting or going in high speed less jarring",
+	"Allows looking up/down by holding aim forward/backward while standing still.",
 	NULL,
 	NULL,
 	NULL,
@@ -2159,7 +2190,7 @@ static menuitem_t OP_MonitorToggleMenu[] =
 	{IT_KEYHANDLER | IT_NOTHING, NULL, "Jawz x2",				M_HandleMonitorToggles, KRITEM_DUALJAWZ},
 	{IT_KEYHANDLER | IT_NOTHING, NULL, "Ballhogs",				M_HandleMonitorToggles, KITEM_BALLHOG},
 	{IT_KEYHANDLER | IT_NOTHING, NULL, "Self-Propelled Bombs",	M_HandleMonitorToggles, KITEM_SPB},
-	{IT_KEYHANDLER | IT_NOTHING, NULL, "Invinciblity",			M_HandleMonitorToggles, KITEM_INVINCIBILITY},
+	{IT_KEYHANDLER | IT_NOTHING, NULL, "Invincibility",			M_HandleMonitorToggles, KITEM_INVINCIBILITY},
 	{IT_KEYHANDLER | IT_NOTHING, NULL, "Grow",					M_HandleMonitorToggles, KITEM_GROW},
 	{IT_KEYHANDLER | IT_NOTHING, NULL, "Shrink",				M_HandleMonitorToggles, KITEM_SHRINK},
 	{IT_KEYHANDLER | IT_NOTHING, NULL, "Thunder Shields",		M_HandleMonitorToggles, KITEM_THUNDERSHIELD},
@@ -2179,16 +2210,23 @@ static menuitem_t OP_SaturnMenu[] =
 
 	{IT_STRING | IT_CVAR, NULL, "Skin Select Spinning Speed",		 	&cv_skinselectspin, 	 	 20},
 
-	{IT_STRING | IT_CVAR, NULL, "Show Localskin Menus", 				&cv_showlocalskinmenus, 	 30},
-	{IT_STRING | IT_CVAR, NULL, "Uppercase Menu",						&cv_menucaps,   		     35},
+	{IT_STRING | IT_CVAR, NULL, "Colourized Speedlines", 				&cv_coloredspeedlines, 		 30},
+	{IT_STRING | IT_CVAR, NULL, "Colourized Sneakertrails", 			&cv_coloredsneakertrail, 	 35},
 
-	{IT_STRING | IT_CVAR, NULL, "Keyboard Layout",						&cv_keyboardlayout,   	   	 45},
+	{IT_STRING | IT_CVAR, NULL, "Bananadrag Jitter", 					&cv_bananajitter, 	 		 45},
 
-	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		   	 55},
+	{IT_STRING | IT_CVAR, NULL, "Midair Driftsparks", 					&cv_airsparks, 	 		 	 55},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Hud...", 					&OP_SaturnHudDef,		   	 65},
-	{IT_SUBMENU|IT_STRING,	NULL,	"Sprite Distortion...", 			&OP_PlayerDistortDef,	   	 70},
-	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,	   	 80}, // uwu
+	{IT_STRING | IT_CVAR, NULL, "Show Localskin Menus", 				&cv_showlocalskinmenus, 	 65},
+	{IT_STRING | IT_CVAR, NULL, "Uppercase Menu",						&cv_menucaps,   		     75},
+
+	{IT_STRING | IT_CVAR, NULL, "Keyboard Layout",						&cv_keyboardlayout,   	   	 80},
+
+	{IT_STRING | IT_CVAR, NULL, "Less Midnight Channel Flicker", 		&cv_lessflicker, 		   	 90},
+
+	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Hud...", 					&OP_SaturnHudDef,		   	100},
+	{IT_SUBMENU|IT_STRING,	NULL,	"Sprite Distortion...", 			&OP_PlayerDistortDef,	   	105},
+	{IT_SUBMENU|IT_STRING,	NULL,	"Saturn Credits", 					&OP_SaturnCreditsDef,	   	115}, // uwu
 };
 
 static const char* OP_SaturnTooltips[] =
@@ -2196,6 +2234,10 @@ static const char* OP_SaturnTooltips[] =
 	NULL,
 	"How long can the game wait before it kicks you out from the server\nconnecting screen.",
 	"How much speen do you want?",
+	"Colourize the speedlines in your skincolor if you go fast enough!",
+	"Colourize the sneaker flame trails in your skincolor!",
+	"Makes bananas and other items jump and jitter\nwhen dragged behind.",
+	"Keep your driftsparks going while in air.",
 	"Show Localskin Menus.",
 	"Force menu to only use uppercase.",
 	"Use your desired Keyboard Layout for Text Input\nthis is either the Default, Native or Azerty\nNative does not affect Gameplay only Text!",
@@ -2210,6 +2252,10 @@ enum
 	sm_header,
 	sm_waittime,
 	sm_skinselspeed,
+	sm_colorlines,
+	sm_colorflames,
+	sm_bananjumpy,
+	sm_airsparks,
 	sm_showlocalskin,
 	op_uppercase_menu,
 	sm_nativkey,
@@ -2225,13 +2271,16 @@ static menuitem_t OP_PlayerDistortMenu[] =
 
 	{IT_STRING | IT_CVAR, 	NULL, 	"Sprite Slope Rotation",       	  &cv_sloperoll, 	    15},
 	{IT_STRING | IT_CVAR, 	NULL, 	"Slope Rotation Distance",        &cv_sloperolldist,    30},
+
 	{IT_STRING | IT_CVAR, 	NULL, 	"Rotate Players when Sliptiding", &cv_sliptideroll, 	45},
 	{IT_STRING | IT_CVAR,	NULL,	"Rotate Sparks and Boost Trails", &cv_sparkroll,        60},
-	{IT_STRING | IT_CVAR,	NULL,	"Player Stretch Factor",	      &cv_gravstretch,      75},
-	{IT_STRING | IT_CVAR,	NULL,	"Squish Sound Effect",	      	  &cv_slamsound,        90},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Saltyhop", 					  &cv_saltyhop, 		105},
-	{IT_STRING | IT_CVAR,	NULL,	"Saltyhop Sound Effect",	      &cv_saltyhopsfx,      120},
-	{IT_STRING | IT_CVAR,	NULL,	"Saltyhop Squish",	      	  	  &cv_saltysquish,      135},
+	{IT_STRING | IT_CVAR,	NULL,	"Rotate Bananas on Throw", 		  &cv_bananthrowroll,   75},
+
+	{IT_STRING | IT_CVAR,	NULL,	"Player Stretch Factor",	      &cv_gravstretch,      90},
+	{IT_STRING | IT_CVAR,	NULL,	"Squish Sound Effect",	      	  &cv_slamsound,        105},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Saltyhop", 					  &cv_saltyhop, 		120},
+	{IT_STRING | IT_CVAR,	NULL,	"Saltyhop Sound Effect",	      &cv_saltyhopsfx,      135},
+	{IT_STRING | IT_CVAR,	NULL,	"Saltyhop Squish",	      	  	  &cv_saltysquish,      150},
 };
 
 static const char* OP_PlayerDistortTooltips[] =
@@ -2241,6 +2290,7 @@ static const char* OP_PlayerDistortTooltips[] =
 	"Distance object rotation should be visable.",
 	"Player rotation when sliptiding.",
 	"Rotation of a player's boost trails and drift sparks.",
+	"Should banans rotate when thrown?\nAnd should they stay rotated when on the ground?.",
 	"Player squash and stretch.",
 	"Player landing sound effect.",
 	"Kart hopping while drifting. This is purely visual.",
@@ -2255,6 +2305,7 @@ enum
 	slrotatedist,
 	sliptide,
 	sparkrotate,
+	bananrotat,
 	stretchyplayer,
 	squishsound,
 	salthmmm,
@@ -2269,34 +2320,39 @@ static menuitem_t OP_SaturnHudMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Speedometer Style",		 			&cv_newspeedometer, 	 	 10},
 	{IT_STRING | IT_CVAR, NULL, "Battle Speedometer",		 			&cv_battlespeedo, 	 	 	 15},
 
-	{IT_STRING | IT_CVAR, NULL, "Input Display outside of RA",		 	&cv_showinput, 	 			 20},
+	{IT_STRING | IT_CVAR, NULL, "Colourized HUD",						&cv_colorizedhud,		 	 25},
+	{IT_STRING | IT_CVAR, NULL, "Colourized Itembox",					&cv_colorizeditembox,		 30},
+	{IT_STRING | IT_CVAR, NULL, "Colourized HUD Color",					&cv_colorizedhudcolor,		 35},
 
-	{IT_STRING | IT_CVAR, NULL, "Flash Lap Times",		 				&cv_showlaptimes, 	 		 25},
+	{IT_STRING | IT_CVAR, NULL, "Input Display outside of RA",		 	&cv_showinput, 	 			 45},
 
-	{IT_STRING | IT_CVAR, NULL, "Stat Display",		 					&cv_showstats, 	 			 30},
+	{IT_STRING | IT_CVAR, NULL, "Stat Display",		 					&cv_showstats, 	 			 55},
 
-	{IT_STRING | IT_CVAR, NULL, "Higher Resolution Portraits",			&cv_highresportrait, 	 	 35},
+	{IT_STRING | IT_CVAR, NULL, "Higher Resolution Portraits",			&cv_highresportrait, 	 	 65},
 
-	{IT_STRING | IT_CVAR, NULL, "Colourized HUD",						&cv_colorizedhud,		 	 40},
-	{IT_STRING | IT_CVAR, NULL, "Colourized Itembox",					&cv_colorizeditembox,		 45},
-	{IT_STRING | IT_CVAR, NULL, "Colourized HUD Color",					&cv_colorizedhudcolor,		 50},
+	{IT_STRING | IT_CVAR, NULL, "Small Positionnumber",		 			&cv_smallposnum, 	 		 75},
+	{IT_STRING | IT_CVAR, NULL, "Positionnumber Animation", 			&cv_posanim, 			 	 80},
 
-	{IT_STRING | IT_CVAR, NULL, "Show Lap Emblem",		 				&cv_showlapemblem, 	 		 60},
-	{IT_STRING | IT_CVAR, NULL, "Show Cecho Messages", 					&cv_cechotoggle, 			 65},
+	{IT_STRING | IT_CVAR, NULL, "Flash Lap Times",		 				&cv_showlaptimes, 	 		 90},
 
-	{IT_STRING | IT_CVAR, NULL,	"Show Names on Minimap",   				&cv_showminimapnames, 		 70},
-	{IT_STRING | IT_CVAR, NULL,	"Small Minimap Players",   				&cv_minihead, 				 75},
+	{IT_STRING | IT_CVAR, NULL, "Multi-Item icons",		 			    &cv_multiitemicon, 	 		100},
+	{IT_STRING | IT_CVAR, NULL, "Item Amount Number",		 			&cv_huditemamount, 	 		105},
+	{IT_STRING | IT_CVAR, NULL, "Animated Roulette",		 			&cv_fancyroulette, 	 		110},
 
-	{IT_STRING | IT_CVAR, NULL,	"Show Director Prompt",   				&cv_showdirectorhud, 		 80},
+	{IT_STRING | IT_CVAR, NULL, "Show Lap Emblem",		 				&cv_showlapemblem, 	 		120},
+	{IT_STRING | IT_CVAR, NULL, "Show Cecho Messages", 					&cv_cechotoggle, 			125},
 
-	{IT_STRING | IT_CVAR, NULL, "Beta Intermissionscreen", 				&cv_betainterscreen, 		 90},
+	{IT_STRING | IT_CVAR, NULL,	"Show Names on Minimap",   				&cv_showminimapnames, 		135},
+	{IT_STRING | IT_CVAR, NULL,	"Small Minimap Players",   				&cv_minihead, 				140},
 
-	{IT_STRING | IT_CVAR, NULL, "Uncapped HUD", 						&cv_uncappedhud, 		    100},
+	{IT_STRING | IT_CVAR, NULL, "Beta Intermissionscreen", 				&cv_betainterscreen, 		150},
 
-	{IT_STRING | IT_SUBMENU, NULL, "Nametags...", 						&OP_NametagDef, 		   	110},
-	{IT_STRING | IT_SUBMENU, NULL, "Driftgauge...", 					&OP_DriftGaugeDef, 		   	115},
+	{IT_STRING | IT_CVAR, NULL,	"Show Director Prompt",   				&cv_showdirectorhud, 		160},
 
-	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		   	125},
+	{IT_STRING | IT_SUBMENU, NULL, "Nametags...", 						&OP_NametagDef, 		   	170},
+	{IT_STRING | IT_SUBMENU, NULL, "Driftgauge...", 					&OP_DriftGaugeDef, 		   	175},
+
+	{IT_SUBMENU|IT_STRING,	NULL,	"Hud Offsets...", 					&OP_HudOffsetDef,		   	185},
 };
 
 static const char* OP_SaturnHudTooltips[] =
@@ -2304,20 +2360,24 @@ static const char* OP_SaturnHudTooltips[] =
 	NULL,
 	"Change what style the speedometer is.",
 	"Draw the Speedometer in Battle.",
-	"Displays the input display outside of Record Attack. Also adjusts the\nposition scale to match.",
-	"Flash current Lap Time when doing a Lap on the Timer.",
-	"Enable the stat display.",
-	"Enable the use of the higher resolution want icons instead of rank\nfor some places.",
 	"Enable colourized hud.",
 	"Enable the colourized itembox when colourized hud is enabled.",
 	"The color to use instead of the player color when\ncolourized hud is enabled.",
+	"Displays the input display outside of Record Attack. Also adjusts the\nposition scale to match.",
+	"Enable the stat display.",
+	"Enable the use of the higher resolution want icons instead of rank\nfor some places.",
+	"Make the Postionnumber half the size.",
+	"Disable the animation of the Positionnumber\nwhen overtaking someone.",
+	"Flash current Lap Time when doing a Lap on the Timer.",
+	"Use extra graphics for multiple sneakers, bananas and jawz.",
+	"Change when the item amount is to be displayed\nMultiple will always display the number.\nwhen you have multiple of the same Item.\nAlways will always display the number regardless of Item amount.",
+	"Enables an animation while the roulette is active.",
 	"Show the big 'LAP' text on a lap change.",
 	"Show the big Cecho Messages.",
 	"Show player names on the minimap.",
 	"Minimize the player icons on the minimap.",
-	"Show the Director Toggle prompt when spectating.",
 	"Make the Intermission screen look like in beta versions of Kart!\nEither with background or just the rest.",
-	"Uncaps the HUD framerate, making it appear smoother.",
+	"Show the Director Toggle prompt when spectating.",
 	"Nametag Options.",
 	"Driftgauge Options.",
 	"Move position of HUD elements.",
@@ -2328,20 +2388,24 @@ enum
 	sh_header,
 	sh_speedometer,
 	sh_battlespeedo,
-	sh_input,
-	sh_laptime,
-	sh_statdisplay,
-	sh_highresport,
 	sh_colorhud,
 	sh_coloritem,
 	sh_colorhud_customcolor,
+	sh_input,
+	sh_statdisplay,
+	sh_highresport,
+	sh_smolpos,
+	sh_posanim,
+	sh_multicon,
+	sh_itamnum,
+	sh_laptime,
+	sh_fancy,
 	sh_lapemblem,
 	sh_cechotogle,
 	sh_mapname,
 	sh_smallmap,
-	sh_directorhud,
 	sh_betainter,
-	sh_uncappedhud,
+	sh_directorhud,
 	sh_nametagmen,
 	sh_driftgaugemen,
 	sh_hudoffsets,
@@ -2377,13 +2441,17 @@ static menuitem_t OP_HudOffsetMenu[] =
 	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  			&cv_mini_xoffset, 		120},
 	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	 		&cv_mini_yoffset,     	125},
 
-	{IT_HEADER, NULL, "Position / R.A. Wheel", NULL, 135},
+	{IT_HEADER, NULL, "Position Number", NULL, 135},
 	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_posi_xoffset, 		140},
 	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_posi_yoffset,     	145},
 
-	{IT_HEADER, NULL, "Stat Display", NULL, 155},
-	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_stat_xoffset, 		160},
-	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_stat_yoffset,     	165},
+	{IT_HEADER, NULL, "R.A. Wheel", NULL, 155},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_wheel_xoffset, 		160},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_wheel_yoffset,     	165},
+
+	{IT_HEADER, NULL, "Stat Display", NULL, 175},
+	{IT_STRING | IT_CVAR, 	NULL, 	"Horizontal Offset",  	  		&cv_stat_xoffset, 		180},
+	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_stat_yoffset,     	185},
 };
 
 static menuitem_t OP_SaturnCreditsMenu[] =
@@ -2499,10 +2567,8 @@ static menuitem_t OP_NametagMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Nametag Transparency", &cv_nametagtrans, 70},
 	{IT_STRING | IT_CVAR, NULL, "Nametag Score", &cv_nametagscore, 80},
 	{IT_STRING | IT_CVAR, NULL, "Nametag Restat", &cv_nametagrestat, 90},
-	{IT_STRING | IT_CVAR, NULL, "Nametag Hop", &cv_nametaghop, 100},
-	{IT_STRING | IT_CVAR, NULL, "Small Nametags", &cv_smallnametags, 110},
-	{IT_STRING | IT_CVAR, NULL, "Show Nametags after Race finish", &cv_shownametagfinish, 120},
-	{IT_STRING | IT_CVAR, NULL, "Show Nametags in Spectator Mode", &cv_shownametagspectator, 130},
+	{IT_STRING | IT_CVAR, NULL, "Small Nametags", &cv_smallnametags, 100},
+	{IT_STRING | IT_CVAR, NULL, "Show Nametags while Spectating", &cv_shownametagspectator, 110},
 	//{IT_STRING | IT_CVAR, NULL, "Nametag Scaling", &cv_nametagscaling, 70}
 };
 
@@ -2517,9 +2583,7 @@ static const char* OP_NametagTooltips[] =
 	"Transparency of nametags.",
 	"Show player score in nametag.",
 	"Show stats in nametags.",
-	"Enable Saltyhop support for nametags.",
 	"Alternative smaller nametags.",
-	"Show Nametags after Race finish.",
 	"Show Nametags when you are spectating.",
 };
 
@@ -2534,12 +2598,9 @@ enum
 	nt_nttrans,
 	nt_ntpscore,
 	nt_ntrestat,
-	nt_nthop,
 	nt_smol,
-	nt_finish,
 	nt_spec,
 };
-
 
 static menuitem_t OP_DriftGaugeMenu[] =
 {
@@ -3109,7 +3170,7 @@ menu_t OP_MonitorToggleDef =
 menu_t OP_OpenGLOptionsDef = DEFAULTSCROLLSTYLE("M_VIDEO", OP_OpenGLOptionsMenu, &OP_VideoOptionsDef, 30, 30);
 #endif
 
-menu_t OP_ExpOptionsDef = DEFAULTMENUSTYLE("M_VIDEO", OP_ExpOptionsMenu, &OP_VideoOptionsDef, 30, 30);
+menu_t OP_ExpOptionsDef = DEFAULTSCROLLSTYLE("M_VIDEO", OP_ExpOptionsMenu, &OP_VideoOptionsDef, 30, 25);
 
 menu_t OP_DataOptionsDef = DEFAULTMENUSTYLE("M_DATA", OP_DataOptionsMenu, &OP_MainDef, 60, 30);
 menu_t OP_ScreenshotOptionsDef = DEFAULTMENUSTYLE("M_SCSHOT", OP_ScreenshotOptionsMenu, &OP_DataOptionsDef, 30, 30);
@@ -3391,21 +3452,16 @@ void Addons_option_Onchange(void)
 		(cv_addons_option.value == 3 ? IT_CVAR|IT_STRING|IT_CV_STRING : IT_DISABLED);
 }
 
+void Moviemode_option_Onchange(void)
+{
+	OP_ScreenshotOptionsMenu[op_movie_folder].status =
+		(cv_movie_option.value == 3 ? IT_CVAR|IT_STRING|IT_CV_STRING : IT_DISABLED);
+}
+
 void PDistort_menu_Onchange(void)
 {
-	if (!cv_sloperoll.value)
-	{
-		OP_PlayerDistortMenu[sliptide].status = IT_GRAYEDOUT;
-	}
-	else
-	{
-		OP_PlayerDistortMenu[sliptide].status = IT_STRING | IT_CVAR;
-	}
-
-	if (cv_sloperoll.value) //enable/disable sloperotate distance
-		OP_PlayerDistortMenu[slrotatedist].status = IT_STRING | IT_CVAR;
-	else
-		OP_PlayerDistortMenu[slrotatedist].status = IT_GRAYEDOUT;
+	OP_PlayerDistortMenu[slrotatedist].status =
+		(cv_sloperoll.value) ? IT_STRING | IT_CVAR : IT_GRAYEDOUT;
 }
 
 void Bird_menu_Onchange(void)
@@ -3937,7 +3993,7 @@ boolean M_Responder(event_t *ev)
 		else
 		{
 			// dirty hack: for customising controls, I want only buttons/keys, not moves
-			if (ev->type == ev_mouse || ev->type == ev_mouse2 || ev->type == ev_joystick
+			if (ev->type == ev_mouse || ev->type == ev_joystick
 				|| ev->type == ev_joystick2 || ev->type == ev_joystick3 || ev->type == ev_joystick4)
 				return true;
 			if (routine)
@@ -4087,17 +4143,6 @@ boolean M_Responder(event_t *ev)
 
 			if (routine)
 			{
-				if (((currentMenu->menuitems[itemOn].status & IT_TYPE)==IT_CALL
-				 || (currentMenu->menuitems[itemOn].status & IT_TYPE)==IT_SUBMENU)
-                 && (currentMenu->menuitems[itemOn].status & IT_CALLTYPE))
-				{
-					if (((currentMenu->menuitems[itemOn].status & IT_CALLTYPE) & IT_CALL_NOTMODIFIED) && majormods)
-					{
-						S_StartSound(NULL, sfx_menu1);
-						M_StartMessage(M_GetText("This cannot be done with complex addons\nor in a cheated game.\n\n(Press a key)\n"), NULL, MM_NOTHING);
-						return true;
-					}
-				}
 				S_StartSound(NULL, sfx_menu1);
 				switch (currentMenu->menuitems[itemOn].status & IT_TYPE)
 				{
@@ -4336,10 +4381,11 @@ void M_Drawer(void)
 
 #ifdef HWRENDER
 				if (rendermode == render_opengl)
-				V_DrawThinString(0, 0, V_GREENMAP|V_SNAPTOTOP|V_SNAPTOLEFT|V_TRANSLUCENT|V_ALLOWLOWERCASE, ("Opengl"));
+					V_DrawThinString(0, 0, V_GREENMAP|V_SNAPTOTOP|V_SNAPTOLEFT|V_TRANSLUCENT|V_ALLOWLOWERCASE, ("Opengl"));
+				else
 #endif
 				if (rendermode == render_soft)
-				V_DrawThinString(0, 0, V_REDMAP|V_SNAPTOTOP|V_SNAPTOLEFT|V_TRANSLUCENT|V_ALLOWLOWERCASE, ("Software"));
+					V_DrawThinString(0, 0, V_REDMAP|V_SNAPTOTOP|V_SNAPTOLEFT|V_TRANSLUCENT|V_ALLOWLOWERCASE, ("Software"));
 			}
 		}
 	}
@@ -4766,13 +4812,13 @@ void M_Init(void)
 	}
 #endif
 
-	if (!xtra_speedo && !kartzspeedo && !achi_speedo) // why bother?
+	if (!xtra_speedo && !kartz_speedo && !achi_speedo) // why bother?
 		OP_SaturnHudMenu[sh_speedometer].status = IT_GRAYEDOUT;
 
-	//if (!xtra_speedo && kartzspeedo)
+	//if (!xtra_speedo && kartz_speedo)
 		//OP_SaturnMenu[sm_speedometer].text = "Speedometer (No Small)";
 
-	//if (xtra_speedo && !kartzspeedo)
+	//if (xtra_speedo && !kartz_speedo)
 		//OP_SaturnMenu[sm_speedometer].text = "Speedometer (No PMeter)";
 	// idk i dont wanna bother with this tbh lmao
 
@@ -4905,53 +4951,60 @@ static void M_DrawSlider(INT32 x, INT32 y, const consvar_t *cv, boolean ontop)
 	INT32 range;
 	patch_t *p;
 
-	for (i = 0; cv->PossibleValue[i+1].strvalue; i++);
-
 	x = BASEVIDWIDTH - x - SLIDER_WIDTH;
 
-	if (ontop)
-	{
-		V_DrawCharacter(x - 16 - (skullAnimCounter/5), y,
-			'\x1C' | highlightflags, false); // left arrow
-		V_DrawCharacter(x+(SLIDER_RANGE*8) + 8 + (skullAnimCounter/5), y,
-			'\x1D' | highlightflags, false); // right arrow
-	}
-
-	if ((range = atoi(cv->defaultvalue)) != cv->value)
-	{
-		range = ((range - cv->PossibleValue[0].value) * 100 /
-		(cv->PossibleValue[1].value - cv->PossibleValue[0].value));
-
-		if (range < 0)
-			range = 0;
-		if (range > 100)
-			range = 100;
-
-		// draw the default
-		p = W_CachePatchName("M_SLIDEC", PU_CACHE);
-		V_DrawScaledPatch(x - 4 + (((SLIDER_RANGE)*8 + 4)*range)/100, y, 0, p);
-	}
-
-	V_DrawScaledPatch(x - 8, y, 0, W_CachePatchName("M_SLIDEL", PU_CACHE));
+	p =  W_CachePatchName("M_SLIDEL", PU_CACHE);
+	V_DrawScaledPatch(x - 8, y, 0, p);
 
 	p =  W_CachePatchName("M_SLIDEM", PU_CACHE);
 	for (i = 0; i < SLIDER_RANGE; i++)
 		V_DrawScaledPatch (x+i*8, y, 0,p);
 
 	p = W_CachePatchName("M_SLIDER", PU_CACHE);
-	V_DrawScaledPatch(x+SLIDER_RANGE*8, y, 0, p);
-
-	range = ((cv->value - cv->PossibleValue[0].value) * 100 /
-	 (cv->PossibleValue[1].value - cv->PossibleValue[0].value));
-
-	if (range < 0)
-		range = 0;
-	if (range > 100)
-		range = 100;
+	V_DrawScaledPatch(x+i*8, y, 0, p);
 
 	// draw the slider cursor
 	p = W_CachePatchName("M_SLIDEC", PU_CACHE);
-	V_DrawScaledPatch(x - 4 + (((SLIDER_RANGE)*8 + 4)*range)/100, y, 0, p);
+
+	for (i = 0; cv->PossibleValue[i+1].strvalue; i++);
+
+	if (cv->flags & CV_FLOAT)
+		range = (INT32)(atof(cv->defaultvalue)*FRACUNIT);
+	else
+		range = atoi(cv->defaultvalue);
+
+	if (range != cv->value)
+	{
+		range = ((range - cv->PossibleValue[0].value) * 100 /
+		 (cv->PossibleValue[i].value - cv->PossibleValue[0].value));
+
+		if (range < 0)
+			range = 0;
+		else if (range > 100)
+			range = 100;
+
+		V_DrawMappedPatch(x - 4 + (((SLIDER_RANGE)*8 + 4)*range)/100, y, 0, p, yellowmap);
+	}
+
+	range = ((cv->value - cv->PossibleValue[0].value) * 100 /
+	 (cv->PossibleValue[i].value - cv->PossibleValue[0].value));
+
+	if (range < 0)
+		range = 0;
+	else if (range > 100)
+		range = 100;
+
+	V_DrawMappedPatch(x - 4 + (((SLIDER_RANGE)*8 + 4)*range)/100, y, 0, p, yellowmap);
+
+	if (ontop)
+	{
+		V_DrawCharacter(x - 16 - (skullAnimCounter/5), y,
+			'\x1C' | highlightflags, false);
+		V_DrawCharacter(x+(SLIDER_RANGE*8) + 8 + (skullAnimCounter/5), y,
+			'\x1D' | highlightflags, false);
+		V_DrawCenteredString(x + ((SLIDER_RANGE*8) + 8)/2, y, V_30TRANS,
+			(cv->flags & CV_FLOAT) ? va("%.2f", FIXED_TO_FLOAT(cv->value)) : va("%d", cv->value));
+	}
 }
 
 //
@@ -5251,7 +5304,6 @@ static void M_DrawGenericMenu(void)
 	DoToolTips(OP_ControlsDef, OP_ControlsTooltips);
 	DoToolTips(OP_MouseOptionsDef, OP_MouseTooltips);
 	DoToolTips(OP_VideoOptionsDef, OP_VideoTooltips);
-	DoToolTips(OP_ExpOptionsDef, OP_ExpTooltips);
 	DoToolTips(OP_SoundOptionsDef, OP_SoundTooltips);
 	DoToolTips(OP_SoundAdvancedDef, OP_SoundAdvancedTooltips);
 	DoToolTips(OP_ChatOptionsDef, OP_ChatOptionsTooltips);
@@ -5397,6 +5449,7 @@ static void M_DrawGenericScrollMenu(void)
 	// dumb hack
 	// tooltips
 	// same macro here
+	DoToolTips(OP_ExpOptionsDef, OP_ExpTooltips);
 #ifdef HWRENDER
 	DoToolTips(OP_OpenGLOptionsDef, OP_OpenGLTooltips);
 #endif
@@ -6179,8 +6232,8 @@ static boolean M_AddonsRefresh(void)
 		else if (majormods && !prevmajormods)
 		{
 			S_StartSound(NULL, sfx_s221);
-			message = va("%c%s\x80\nYou've loaded a gameplay-modifying addon.\n\nRecord Attack has been disabled, but you\ncan still play alone in local Multiplayer.\n\nIf you wish to play Record Attack mode, restart the game to disable loaded addons.\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), refreshdirname);
-			majormodtext = prevmajormods = majormods;
+			message = va("%c%s\x80\nYou've loaded a gameplay-modifying addon.\n\nRecord Attack data will be saved to seperate save.\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), refreshdirname);
+			prevmajormods = majormods;
 		}
 
 		if (message && (refreshdirmenu || majormodtext)) // special case for gameplay modify text
@@ -8589,9 +8642,28 @@ static void M_Credits(INT32 choice)
 // STATISTICS MENU
 // ===============
 
+static void M_DrawStatsMaps(void);
+static void M_DrawStatsPlaytime(void);
+static void M_DrawStatsExtra(void); // dunno how to name this one
+
 static INT32 statsLocation;
 static INT32 statsMax;
 static INT16 statsMapList[NUMMAPS+1];
+static UINT8 statsCurrentPage = 0;
+
+typedef struct statpage_s {
+	const char *title;
+	void (*drawer)(void);
+} statpage_t;
+
+static statpage_t statsPages[] = {
+	{ "Play Time Statistics", M_DrawStatsPlaytime, },
+	{ "Level Statistics", M_DrawStatsMaps, },
+	{ "Extra Statistics", M_DrawStatsExtra, },
+};
+
+#define LENSTATSPAGES (sizeof(statsPages)/sizeof(statsPages[0]))
+#define NUMSTATSPAGES (kartstats.vanilla ? 2 : LENSTATSPAGES)
 
 static void M_Statistics(INT32 choice)
 {
@@ -8618,6 +8690,7 @@ static void M_Statistics(INT32 choice)
 	statsMapList[j] = -1;
 	statsMax = j - 11 + numextraemblems;
 	statsLocation = 0;
+	statsCurrentPage = 0;
 
 	if (statsMax < 0)
 		statsMax = 0;
@@ -8625,12 +8698,46 @@ static void M_Statistics(INT32 choice)
 	M_SetupNextMenu(&SP_LevelStatsDef);
 }
 
-static void M_DrawStatsMaps(int location)
+static void M_DrawStatsMaps(void)
 {
-	INT32 y = 80, i = -1;
+	char beststr[40];
+	tic_t besttime = 0;
+	INT32 mapsunfinished = 0;
+
+	int location = statsLocation;
+	INT32 y = 62, i = -1, j;
 	INT16 mnum;
 	extraemblem_t *exemblem;
 	boolean dotopname = true, dobottomarrow = (location < statsMax);
+
+	SHOWMODDEDGAME
+
+	for (j = 0; j < NUMMAPS; j++)
+	{
+		if (!mapheaderinfo[j] || !(mapheaderinfo[j]->menuflags & LF2_RECORDATTACK))
+			continue;
+
+		if (!mainrecords[j] || mainrecords[j]->time <= 0)
+		{
+			mapsunfinished++;
+			continue;
+		}
+
+		besttime += mainrecords[j]->time;
+	}
+
+	V_DrawString(20, 42, highlightflags|MENUCAPS, "Combined time records:");
+
+	sprintf(beststr, "%i:%02i:%02i.%02i", G_TicsToHours(besttime), G_TicsToMinutes(besttime, false), G_TicsToSeconds(besttime), G_TicsToCentiseconds(besttime));
+	V_DrawRightAlignedString(BASEVIDWIDTH-16, 42, (mapsunfinished ? warningflags : 0), beststr);
+
+	if (mapsunfinished)
+		V_DrawRightAlignedString(BASEVIDWIDTH-16, 50, warningflags|MENUCAPS, va("(%d unfinished)", mapsunfinished));
+	else
+		V_DrawRightAlignedString(BASEVIDWIDTH-16, 50, recommendedflags|MENUCAPS, "(complete)");
+
+	V_DrawString(32, 50, MENUCAPS, va("x %d/%d", M_CountEmblems(), numemblems+numextraemblems));
+	V_DrawSmallScaledPatch(20, 50, 0, W_CachePatchName("GOTITA", PU_STATIC));
 
 	if (location)
 		V_DrawCharacter(10, y-(skullAnimCounter/5),
@@ -8720,53 +8827,78 @@ bottomarrow:
 			'\x1B' | highlightflags, false); // down arrow
 }
 
-static void M_DrawLevelStats(void)
-{
-	char beststr[40];
-
-	tic_t besttime = 0;
-
-	INT32 i;
-	INT32 mapsunfinished = 0;
-
-	M_DrawMenuTitle();
-
-	V_DrawString(20, 24, highlightflags|MENUCAPS, "Total Play Time:");
-	V_DrawCenteredString(BASEVIDWIDTH/2, 32, MENUCAPS, va("%i hours, %i minutes, %i seconds",
-	                         G_TicsToHours(totalplaytime),
-	                         G_TicsToMinutes(totalplaytime, false),
-	                         G_TicsToSeconds(totalplaytime)));
-	V_DrawString(20, 42, highlightflags|MENUCAPS, "Total Matches:");
-	V_DrawRightAlignedString(BASEVIDWIDTH-16, 42, MENUCAPS, va("%i played", matchesplayed));
-
-	for (i = 0; i < NUMMAPS; i++)
-	{
-		if (!mapheaderinfo[i] || !(mapheaderinfo[i]->menuflags & LF2_RECORDATTACK))
-			continue;
-
-		if (!mainrecords[i] || mainrecords[i]->time <= 0)
-		{
-			mapsunfinished++;
-			continue;
-		}
-
-		besttime += mainrecords[i]->time;
+#define DRAWTIMESTAT(y, title, field) { \
+		char timebuf[80]; \
+		V_DrawString(20, (y), highlightflags|MENUCAPS, title); \
+		tic_t timeval = kartstats.field; \
+		snprintf(timebuf, 80, "%02i:%02i:%02i", G_TicsToHours(timeval), G_TicsToMinutes(timeval, false), G_TicsToSeconds(timeval)); \
+		V_DrawRightAlignedString(BASEVIDWIDTH-16, (y), MENUCAPS, timebuf); \
 	}
 
-	V_DrawString(20, 62, highlightflags|MENUCAPS, "Combined time records:");
+#define DRAWAMOUNTSTAT(y, title, field) { \
+		V_DrawString(20, (y), highlightflags|MENUCAPS, title); \
+		unsigned amountval = kartstats.field; \
+		V_DrawRightAlignedString(BASEVIDWIDTH-16, (y), MENUCAPS, va("%u", amountval)); \
+	}
 
-	sprintf(beststr, "%i:%02i:%02i.%02i", G_TicsToHours(besttime), G_TicsToMinutes(besttime, false), G_TicsToSeconds(besttime), G_TicsToCentiseconds(besttime));
-	V_DrawRightAlignedString(BASEVIDWIDTH-16, 62, (mapsunfinished ? warningflags : 0), beststr);
+static void M_DrawStatsPlaytime(void)
+{
+	V_DrawString(20, 42, highlightflags|MENUCAPS, "Total Play Time:");
+	V_DrawCenteredString(BASEVIDWIDTH/2, 52, MENUCAPS, va("%i hours, %i minutes, %i seconds",
+	                         G_TicsToHours(kartstats.totalplaytime),
+	                         G_TicsToMinutes(kartstats.totalplaytime, false),
+	                         G_TicsToSeconds(kartstats.totalplaytime)));
+	V_DrawString(20, 62, highlightflags|MENUCAPS, "Total Matches:");
+	V_DrawRightAlignedString(BASEVIDWIDTH-16, 62, MENUCAPS, va("%i played", kartstats.matchesplayed));
 
-	if (mapsunfinished)
-		V_DrawRightAlignedString(BASEVIDWIDTH-16, 70, warningflags|MENUCAPS, va("(%d unfinished)", mapsunfinished));
-	else
-		V_DrawRightAlignedString(BASEVIDWIDTH-16, 70, recommendedflags|MENUCAPS, "(complete)");
+	// Nothing else to draw
+	if (kartstats.vanilla)
+		return;
 
-	V_DrawString(32, 70, MENUCAPS, va("x %d/%d", M_CountEmblems(), numemblems+numextraemblems));
-	V_DrawSmallScaledPatch(20, 70, 0, W_CachePatchName("GOTITA", PU_STATIC));
+	SHOWMODDEDGAME
 
-	M_DrawStatsMaps(statsLocation);
+	DRAWTIMESTAT(82, "RA Play Time:", raplaytime);
+	DRAWTIMESTAT(92, "Online Play Time:", onlineplaytime);
+	DRAWTIMESTAT(102, "Race Play Time:", raceplaytime);
+	DRAWTIMESTAT(112, "Battle Play Time:", battleplaytime);
+}
+
+// Note: only available with non-vanilla stats loaded, so it doesn't check for that
+static void M_DrawStatsExtra(void)
+{
+	SHOWMODDEDGAME
+
+	DRAWTIMESTAT(42, "Time being SPB target:", spbtargettime);
+	DRAWTIMESTAT(52, "Time spent in spinout:", spinouttime);
+
+	DRAWAMOUNTSTAT(72, "Total wins:", totalwins);
+	DRAWAMOUNTSTAT(82, "Total podium (2nd/3rd place):", totalpodium);
+
+	DRAWAMOUNTSTAT(102, "Hits landed:", hits);
+	DRAWAMOUNTSTAT(112, "Self-hits landed:", selfhits);
+
+	DRAWAMOUNTSTAT(132, "Sinks landed:", sinks);
+	DRAWAMOUNTSTAT(142, "Times hit by sink:", sinked);
+
+	DRAWAMOUNTSTAT(162, "Total respawns:", respawns);
+}
+
+#undef DRAWAMOUNTSTAT
+#undef DRAWTIMESTAT
+
+static void M_DrawLevelStats(void)
+{
+	M_DrawMenuTitle();
+
+	V_DrawCenteredString(BASEVIDWIDTH/2, 28, highlightflags|MENUCAPS, statsPages[statsCurrentPage].title);
+
+	INT32 w = V_StringWidth(statsPages[statsCurrentPage].title, highlightflags|MENUCAPS);
+	V_DrawCharacter(BASEVIDWIDTH/2 - w/2 - 10 - (skullAnimCounter/5), 28,
+			'\x1C' | highlightflags, false); // left arrow
+	V_DrawCharacter(BASEVIDWIDTH/2 + w/2 + 2 + (skullAnimCounter/5), 28,
+			'\x1D' | highlightflags, false); // right arrow
+
+	statsPages[statsCurrentPage].drawer();
 }
 
 // Handle statistics.
@@ -8777,23 +8909,46 @@ static void M_HandleLevelStats(INT32 choice)
 	switch (choice)
 	{
 		case KEY_DOWNARROW:
+			if (statsCurrentPage != 1) // Must be on level stats page
+				break;
 			S_StartSound(NULL, sfx_menu1);
 			if (statsLocation < statsMax)
 				++statsLocation;
 			break;
 
 		case KEY_UPARROW:
+			if (statsCurrentPage != 1) // Must be on level stats page
+				break;
 			S_StartSound(NULL, sfx_menu1);
 			if (statsLocation)
 				--statsLocation;
 			break;
 
+		case KEY_RIGHTARROW:
+			S_StartSound(NULL, sfx_menu1);
+			statsCurrentPage++;
+			if (statsCurrentPage >= NUMSTATSPAGES)
+				statsCurrentPage = 0;
+			break;
+
+		case KEY_LEFTARROW:
+			S_StartSound(NULL, sfx_menu1);
+			if (statsCurrentPage == 0)
+				statsCurrentPage = NUMSTATSPAGES-1;
+			else
+				--statsCurrentPage;
+			break;
+
 		case KEY_PGDN:
+			if (statsCurrentPage != 1) // Must be on level stats page
+				break;
 			S_StartSound(NULL, sfx_menu1);
 			statsLocation += (statsLocation+13 >= statsMax) ? statsMax-statsLocation : 13;
 			break;
 
 		case KEY_PGUP:
+			if (statsCurrentPage != 1) // Must be on level stats page
+				break;
 			S_StartSound(NULL, sfx_menu1);
 			statsLocation -= (statsLocation < 13) ? statsLocation : 13;
 			break;
@@ -8833,6 +8988,8 @@ void M_DrawTimeAttackMenu(void)
 	// Sadly we can't just use generic mode menus because we need some extra hacks
 	x = currentMenu->x;
 	y = currentMenu->y;
+
+	SHOWMODDEDGAME
 
 	// Character face!
 	if (W_CheckNumForName(skins[cv_chooseskin.value-1].facewant) != LUMPERROR)
@@ -10411,8 +10568,9 @@ static void M_HandleConnectIP(INT32 choice)
 
 		default:
 			// Rudimentary number and period enforcing - also allows letters so hostnames can be used instead
-			if ((choice >= '-' && choice <= ':') || (choice >= 'A' && choice <= 'Z') || (choice >= 'a' && choice <= 'z')
-				|| (choice >= 199 && choice <= 211 && choice != 202 && choice != 206)) //numpad too!
+			// ctrl-v allows to bypass that anyway, so we just remove that for now to allow stuff like shift+insert
+			/*if ((choice >= '-' && choice <= ':') || (choice >= 'A' && choice <= 'Z') || (choice >= 'a' && choice <= 'z')
+				|| (choice >= 199 && choice <= 211 && choice != 202 && choice != 206))*/ //numpad too!
 			{
 				if (M_TextInputHandle(&setupm_input_ip, choice))
 					S_StartSound(NULL,sfx_menu1); // Tails
@@ -11719,8 +11877,7 @@ static void M_EraseDataResponse(INT32 ch)
 	if (erasecontext == 2)
 	{
 		// SRB2Kart: This actually needs to be done FIRST, so that you don't immediately regain playtime/matches secrets
-		totalplaytime = 0;
-		matchesplayed = 0;
+		K_EraseStats();
 		F_StartIntro();
 	}
 	if (erasecontext != 1)
@@ -12045,7 +12202,7 @@ static void M_Setup1PControlsMenu(INT32 choice)
 	OP_AllControlsMenu[19].status = IT_CONTROL; // GIF
 	OP_AllControlsMenu[20].status = IT_CONTROL; // System Menu
 	OP_AllControlsMenu[21].status = IT_CONTROL; // Console
-	OP_AllControlsMenu[35].status = IT_CONTROL; // Director
+	OP_AllControlsMenu[37].status = IT_CONTROL; // Director
 
 	M_SetupNextMenu(&OP_AllControlsDef);
 }
@@ -12068,7 +12225,7 @@ static void M_Setup2PControlsMenu(INT32 choice)
 	OP_AllControlsMenu[19].status = IT_GRAYEDOUT2; // GIF
 	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // System Menu
 	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Console
-	OP_AllControlsMenu[35].status = IT_GRAYEDOUT2; // Director
+	OP_AllControlsMenu[37].status = IT_GRAYEDOUT2; // Director
 
 	M_SetupNextMenu(&OP_AllControlsDef);
 }
@@ -12091,7 +12248,7 @@ static void M_Setup3PControlsMenu(INT32 choice)
 	OP_AllControlsMenu[19].status = IT_GRAYEDOUT2; // GIF
 	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // System Menu
 	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Console
-	OP_AllControlsMenu[35].status = IT_GRAYEDOUT2; // Director
+	OP_AllControlsMenu[37].status = IT_GRAYEDOUT2; // Director
 
 	M_SetupNextMenu(&OP_AllControlsDef);
 }
@@ -12114,7 +12271,7 @@ static void M_Setup4PControlsMenu(INT32 choice)
 	OP_AllControlsMenu[19].status = IT_GRAYEDOUT2; // GIF
 	OP_AllControlsMenu[20].status = IT_GRAYEDOUT2; // System Menu
 	OP_AllControlsMenu[21].status = IT_GRAYEDOUT2; // Console
-	OP_AllControlsMenu[35].status = IT_GRAYEDOUT2; // Director
+	OP_AllControlsMenu[37].status = IT_GRAYEDOUT2; // Director
 
 	M_SetupNextMenu(&OP_AllControlsDef);
 }
@@ -12239,7 +12396,6 @@ static void M_ChangecontrolResponse(event_t *ev)
 		{
 			// ignore mouse/joy movements, just get buttons
 			case ev_mouse:
-			case ev_mouse2:
 			case ev_joystick:
 			case ev_joystick2:
 			case ev_joystick3:
@@ -12272,8 +12428,6 @@ static void M_ChangecontrolResponse(event_t *ev)
 				setupcontrols[control][found] = ch-KEY_MOUSE1+KEY_DBLMOUSE1;
 			else if (ch >= KEY_JOY1 && ch <= KEY_JOY1+JOYBUTTONS)
 				setupcontrols[control][found] = ch-KEY_JOY1+KEY_DBLJOY1;
-			else if (ch >= KEY_2MOUSE1 && ch <= KEY_2MOUSE1+MOUSEBUTTONS)
-				setupcontrols[control][found] = ch-KEY_2MOUSE1+KEY_DBL2MOUSE1;
 			else if (ch >= KEY_2JOY1 && ch <= KEY_2JOY1+JOYBUTTONS)
 				setupcontrols[control][found] = ch-KEY_2JOY1+KEY_DBL2JOY1;
 			else if (ch >= KEY_3JOY1 && ch <= KEY_3JOY1+JOYBUTTONS)
@@ -12370,55 +12524,26 @@ static void M_ResetControlsResponse(INT32 ch)
 	G_Controldefault(setupcontrolplayer);
 
 	// Setup gamepad option defaults (yucky)
-	switch (setupcontrolplayer)
+	for (UINT8 j = 0; j < MAXSPLITSCREENPLAYERS; j++)
 	{
-		case 4:
-			CV_StealthSet(&cv_usejoystick[3],	cv_usejoystick[3].defaultvalue);
-			CV_StealthSet(&cv_turnaxis[3],		cv_turnaxis[3].defaultvalue);
-			CV_StealthSet(&cv_moveaxis[3],		cv_moveaxis[3].defaultvalue);
-			CV_StealthSet(&cv_brakeaxis[3],		cv_brakeaxis[3].defaultvalue);
-			CV_StealthSet(&cv_aimaxis[3],		cv_aimaxis[3].defaultvalue);
-			CV_StealthSet(&cv_lookaxis[3],		cv_lookaxis[3].defaultvalue);
-			CV_StealthSet(&cv_fireaxis[3],		cv_fireaxis[3].defaultvalue);
-			CV_StealthSet(&cv_driftaxis[3],		cv_driftaxis[3].defaultvalue);
-			CV_StealthSet(&cv_lookbackaxis[3],	cv_lookbackaxis[3].defaultvalue);
-			break;
-		case 3:
-			CV_StealthSet(&cv_usejoystick[2],	cv_usejoystick[2].defaultvalue);
-			CV_StealthSet(&cv_turnaxis[2],		cv_turnaxis[2].defaultvalue);
-			CV_StealthSet(&cv_moveaxis[2],		cv_moveaxis[2].defaultvalue);
-			CV_StealthSet(&cv_brakeaxis[2],		cv_brakeaxis[2].defaultvalue);
-			CV_StealthSet(&cv_aimaxis[2],		cv_aimaxis[2].defaultvalue);
-			CV_StealthSet(&cv_lookaxis[2],		cv_lookaxis[2].defaultvalue);
-			CV_StealthSet(&cv_fireaxis[2],		cv_fireaxis[2].defaultvalue);
-			CV_StealthSet(&cv_driftaxis[2],		cv_driftaxis[2].defaultvalue);
-			CV_StealthSet(&cv_lookbackaxis[2],	cv_lookbackaxis[2].defaultvalue);
-			break;
-		case 2:
-			CV_StealthSet(&cv_usejoystick[1],	cv_usejoystick[1].defaultvalue);
-			CV_StealthSet(&cv_turnaxis[1],		cv_turnaxis[1].defaultvalue);
-			CV_StealthSet(&cv_moveaxis[1],		cv_moveaxis[1].defaultvalue);
-			CV_StealthSet(&cv_brakeaxis[1],		cv_brakeaxis[1].defaultvalue);
-			CV_StealthSet(&cv_aimaxis[1],		cv_aimaxis[1].defaultvalue);
-			CV_StealthSet(&cv_lookaxis[1],		cv_lookaxis[1].defaultvalue);
-			CV_StealthSet(&cv_fireaxis[1],		cv_fireaxis[1].defaultvalue);
-			CV_StealthSet(&cv_driftaxis[1],		cv_driftaxis[1].defaultvalue);
-			CV_StealthSet(&cv_lookbackaxis[1],	cv_lookbackaxis[1].defaultvalue);
-			break;
-		case 1:
-		default:
-			CV_StealthSet(&cv_usejoystick[0],	cv_usejoystick[0].defaultvalue);
-			CV_StealthSet(&cv_turnaxis[0],		cv_turnaxis[0].defaultvalue);
-			CV_StealthSet(&cv_moveaxis[0],		cv_moveaxis[0].defaultvalue);
-			CV_StealthSet(&cv_brakeaxis[0],		cv_brakeaxis[0].defaultvalue);
-			CV_StealthSet(&cv_aimaxis[0],		cv_aimaxis[0].defaultvalue);
-			CV_StealthSet(&cv_lookaxis[0],		cv_lookaxis[0].defaultvalue);
-			CV_StealthSet(&cv_fireaxis[0],		cv_fireaxis[0].defaultvalue);
-			CV_StealthSet(&cv_driftaxis[0],		cv_driftaxis[0].defaultvalue);
-			CV_StealthSet(&cv_lookbackaxis[0],	cv_lookbackaxis[0].defaultvalue);
-			break;
-	}
+		if (setupcontrolplayer != j)
+			continue;
 
+		CV_StealthSet(&cv_usejoystick[j],	cv_usejoystick[j].defaultvalue);
+		CV_StealthSet(&cv_turnaxis[j],		cv_turnaxis[j].defaultvalue);
+		CV_StealthSet(&cv_camturnaxis[j],	cv_camturnaxis[j].defaultvalue);
+		CV_StealthSet(&cv_camstrafeaxis[j],	cv_camstrafeaxis[j].defaultvalue);
+		CV_StealthSet(&cv_moveaxis[j],		cv_moveaxis[j].defaultvalue);
+		CV_StealthSet(&cv_brakeaxis[j],		cv_brakeaxis[j].defaultvalue);
+		CV_StealthSet(&cv_aimaxis[j],		cv_aimaxis[j].defaultvalue);
+		CV_StealthSet(&cv_lookaxis[j],		cv_lookaxis[j].defaultvalue);
+		CV_StealthSet(&cv_fireaxis[j],		cv_fireaxis[j].defaultvalue);
+		CV_StealthSet(&cv_driftaxis[j],		cv_driftaxis[j].defaultvalue);
+		CV_StealthSet(&cv_lookbackaxis[j],	cv_lookbackaxis[j].defaultvalue);
+		CV_StealthSet(&cv_custom1axis[j],	cv_custom1axis[j].defaultvalue);
+		CV_StealthSet(&cv_custom2axis[j],	cv_custom2axis[j].defaultvalue);
+		CV_StealthSet(&cv_custom3axis[j],	cv_custom3axis[j].defaultvalue);
+	}
 	S_StartSound(NULL, sfx_s224);
 }
 

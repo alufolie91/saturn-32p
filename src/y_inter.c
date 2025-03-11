@@ -322,7 +322,7 @@ static void Y_AnimatedVoteScreenCheck(void)
 		strncpy(tmpPrefix, luaVoteScreen, 4);
 	else
 	{
-		if(G_BattleGametype())
+		if (G_BattleGametype())
 			strcpy(tmpPrefix, "BTLS");
 	}
 
@@ -336,7 +336,7 @@ static void Y_AnimatedVoteScreenCheck(void)
 	currentAnimFrame = 0;
 
 	INT32 i = 1;
-	while(!stopSearching)
+	while (!stopSearching)
 	{
 		boolean normalLumpExists = W_LumpExists(va("%sC%d", tmpPrefix, i));
 		boolean wideLumpExists = W_LumpExists(va("%sW%d", tmpPrefix, i));
@@ -637,8 +637,7 @@ void Y_IntermissionDrawer(void)
 		else
 			string = va("%s starts in %d", cv_advancemap.string, tickdown);
 
-		V_DrawCenteredString(BASEVIDWIDTH/2, 188, hilicol,
-			string);
+		V_DrawCenteredString(BASEVIDWIDTH/2, 188, hilicol, string);
 	}
 
 	if ((demo.recording || demo.savemode == DSM_SAVED) && !demo.playback)
@@ -689,7 +688,7 @@ void Y_Ticker(void)
 
 		if (demo.savemode == DSM_WILLSAVE || demo.savemode == DSM_WILLAUTOSAVE)
 			G_SaveDemo();
-		else
+		else if (demo.savemode != DSM_TITLEENTRY)
 			G_ResetDemoRecording();
 	}
 
@@ -697,7 +696,7 @@ void Y_Ticker(void)
 	if (paused || P_AutoPause())
 		return;
 
-	LUA_HookVoid(HOOK(IntermissionThinker));
+	LUA_HOOK(IntermissionThinker);
 
 	intertic++;
 
@@ -917,7 +916,7 @@ void Y_StartIntermission(void)
 		}
 		case int_race: // (time-only race)
 		{
-			if (!majormods && !multiplayer && !demo.playback) // remove this once we have a proper time attack screen
+			if (!multiplayer && !demo.playback) // remove this once we have a proper time attack screen
 			{
 				// Update visitation flags
 				mapvisited[gamemap-1] |= MV_BEATEN;
@@ -993,23 +992,15 @@ static void Y_UnloadData(void)
 //
 // Draw animated patch based on frame counter on vote screen
 //
-static inline void Y_DrawAnimatedVoteScreenPatch(boolean widePatch)
+static void Y_DrawAnimatedVoteScreenPatch(boolean widePatch)
 {
 	char tempAnimPrefix[7];
-	(widePatch) ? strcpy(tempAnimPrefix, animWidePrefix) : strcpy(tempAnimPrefix, animPrefix);
-	INT32 tempFoundAnimVoteFrames = (widePatch) ? foundAnimVoteWideFrames : foundAnimVoteFrames;
+	widePatch ? strcpy(tempAnimPrefix, animWidePrefix) : strcpy(tempAnimPrefix, animPrefix);
+	const INT32 tempFoundAnimVoteFrames = widePatch ? foundAnimVoteWideFrames : foundAnimVoteFrames;
 
 	// Just in case someone provides LESS widescreen frames than normal frames or vice versa, reset the frame counter to 0
-	if (widePatch)
-	{
-		if (currentAnimFrame > foundAnimVoteWideFrames-1)
-			currentAnimFrame = 0;
-	}
-	else
-	{
-		if (currentAnimFrame > foundAnimVoteFrames-1)
-			currentAnimFrame = 0;
-	}
+	if (currentAnimFrame > tempFoundAnimVoteFrames - 1)
+		currentAnimFrame = 0;
 
 	patch_t *background = W_CachePatchName(va("%s%d", tempAnimPrefix, currentAnimFrame + 1), PU_CACHE);
 	V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(background->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
@@ -1018,6 +1009,34 @@ static inline void Y_DrawAnimatedVoteScreenPatch(boolean widePatch)
 
 	if (renderisnewtic && votetic % 2 == 0 && !paused)
 		currentAnimFrame = (currentAnimFrame + 1 > tempFoundAnimVoteFrames - 1) ? 0 : currentAnimFrame + 1;
+}
+
+static void Y_DrawVoteScreenPatch(void)
+{
+	const boolean widescreen = (vid.width / vid.dupx > 320);
+	const boolean animvote = (foundAnimVoteWideFrames || foundAnimVoteFrames);
+
+	if (animvote)
+	{
+		Y_DrawAnimatedVoteScreenPatch((foundAnimVoteWideFrames && widescreen));
+		return;
+	}
+
+	patch_t *votebg = bgpatch; // non widescreen patch
+
+	UINT8 prefgametype = (votelevels[0][1] & ~0x80);
+	const boolean widebgreplaced = (prefgametype == GT_MATCH) ? widebattlereplaced : wideracereplaced;
+	const boolean bgreplaced = (prefgametype == GT_MATCH) ? battlereplaced : racereplaced;
+
+	if ((widescreen && (widebgreplaced || !bgreplaced))
+	|| (!widescreen && (widebgreplaced && !bgreplaced)))
+	{
+		votebg = widebgpatch;
+	}
+
+	V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(votebg->width)/2),
+					  (vid.height / vid.dupy) - SHORT(votebg->height),
+					  V_SNAPTOTOP|V_SNAPTOLEFT, votebg);
 }
 
 //
@@ -1086,24 +1105,8 @@ void Y_VoteDrawer(void)
 
 	V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31);
 
-	if (widebgpatch && vid.width / vid.dupx > 320)
-	{
-		if (foundAnimVoteWideFrames == 0)
-			V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(widebgpatch->width)/2),
-								(vid.height / vid.dupy) - SHORT(widebgpatch->height),
-								V_SNAPTOTOP|V_SNAPTOLEFT, widebgpatch);
-		else
-			Y_DrawAnimatedVoteScreenPatch(true);
-	}
-	else
-	{
-		if (foundAnimVoteFrames == 0)
-			V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(bgpatch->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
-								(vid.height / vid.dupy) - SHORT(bgpatch->height),
-								V_SNAPTOTOP|V_SNAPTOLEFT, bgpatch);
-		else
-			Y_DrawAnimatedVoteScreenPatch(false);
-	}
+	// decides which votebg to draw and draws it
+	Y_DrawVoteScreenPatch();
 
 	rowval = (votemax*3)+((votemax > 1) ? (votemax - 1) : 0);
 	for (i = 0; i < (rowval+1); i++) // First, we need to figure out the height of this thing...

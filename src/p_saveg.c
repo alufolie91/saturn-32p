@@ -1921,7 +1921,7 @@ mobj_t *P_FindNewPosition(UINT32 oldposition)
 		if (mobj->mobjnum == oldposition)
 			return mobj;
 	}
-	CONS_Debug(DBG_GAMELOGIC, "mobj not found\n");
+	CONS_Debug(DBG_GAMELOGIC, "mobj %d not found\n", oldposition);
 	return NULL;
 }
 
@@ -2176,16 +2176,18 @@ static void LoadMobjThinker(savebuffer_t *save, actionf_p1 thinker)
 	mobj->mirrored = 0;
 
 	// Sprite Rendering stuff
-	mobj->spritexoffset = 0;
-	mobj->spriteyoffset = 0;
-	mobj->spritexscale = FRACUNIT;
-	mobj->spriteyscale = FRACUNIT;
-	mobj->realxscale = FRACUNIT;
-	mobj->realyscale = FRACUNIT;
+	mobj->blendmode = AST_TRANSLUCENT;
+	mobj->spritexoffset = mobj->realxoffset = 0;
+	mobj->spriteyoffset = mobj->realxoffset = 0;
+	mobj->spritexscale = mobj->realxscale = FRACUNIT;
+	mobj->spriteyscale = mobj->realyscale = FRACUNIT;
 	mobj->stretchslam = 0;
 
 	// Timer for slam sound effect
 	mobj->slamsoundtimer = 0;
+
+	// extra mobjlightlevel
+	mobj->lightlevel = 0;
 
 	//}
 
@@ -3390,7 +3392,7 @@ FUNCINLINE static ATTRINLINE boolean P_NetUnArchiveMisc(savebuffer_t *save, bool
 	// tell the sound code to reset the music since we're skipping what
 	// normally sets this flag
 	if (!reloading)
-		mapmusflags |= MUSIC_RELOADRESET;
+		mapmusic.flags |= MUSIC_RELOADRESET;
 
 	G_SetGamestate(READINT16(save->p));
 
@@ -3500,7 +3502,7 @@ void P_SaveNetGame(savebuffer_t *save, boolean resending)
 {
 	thinker_t *th;
 	mobj_t *mobj;
-	INT32 i = 1; // don't start from 0, it'd be confused with a blank pointer otherwise
+	UINT32 i = 1; // don't start from 0, it'd be confused with a blank pointer otherwise
 
 	CV_SaveNetVars(&save->p, false);
 	P_NetArchiveMisc(save, resending);

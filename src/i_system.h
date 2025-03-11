@@ -45,10 +45,6 @@ extern boolean g_in_exiting_signal_handler;
 */
 size_t I_GetFreeMem(size_t *total);
 
-/**	\brief	Fills a buffer with random data, returns amount of data obtained.
-  */
-size_t I_GetRandomBytes(char *destination, size_t count);
-
 /**	\brief	Returns precise time value for performance measurement. The precise
             time should be a monotonically increasing counter, and will wrap.
 			precise_t is internally represented as an unsigned integer and
@@ -230,6 +226,8 @@ void I_InitJoystick4(void);
 */
 INT32 I_NumJoys(void);
 
+extern INT32 numcontrollers;
+
 /**	\brief	The *I_GetJoyName function
 
 	\param	joyindex	which joystick
@@ -238,8 +236,8 @@ INT32 I_NumJoys(void);
 */
 const char *I_GetJoyName(INT32 joyindex);
 
-void I_GamepadRumble(INT32 device_id, UINT16 low_strength, UINT16 high_strength, UINT32 duration);
-void I_SetGamepadIndicatorColor(INT32 device_id, UINT8 red, UINT8 green, UINT8 blue);
+void I_GamepadRumble(INT32 playernum, UINT16 low_strength, UINT16 high_strength, UINT32 duration);
+void I_SetGamepadIndicatorColor(INT32 playernum, UINT8 red, UINT8 green, UINT8 blue);
 
 #ifndef NOMUMBLE
 #include "p_mobj.h" // mobj_t
@@ -252,10 +250,6 @@ void I_UpdateMumble(const mobj_t *mobj, const listener_t listener);
 /**	\brief Startup the first mouse
 */
 void I_StartupMouse(void);
-
-/**	\brief Startup the second mouse
-*/
-void I_StartupMouse2(void);
 
 /**	\brief  setup timer irq and user timer routine.
 */
@@ -318,10 +312,6 @@ const char *I_LocateWad(void);
 /**	\brief Joystick events
 */
 void I_GetJoystickEvents(UINT8 index);
-
-/**	\brief Mouses events
-*/
-void I_GetMouseEvents(void);
 
 char *I_GetEnv(const char *name);
 

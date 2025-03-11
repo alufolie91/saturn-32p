@@ -52,6 +52,7 @@
 #include "md5.h" // demo checksums
 #include "k_director.h" // SRB2kart
 #include "k_kart.h" // SRB2kart
+#include "k_stats.h" // SRB2kart
 #include "r_fps.h" // frame interpolation/uncapped
 
 #ifdef HAVE_DISCORDRPC
@@ -84,10 +85,7 @@ static void G_DoStartVote(void);
 
 static void G_ResetDemoPlayback(char *pdemoname);
 
-char   mapmusname[7]; // Music name
-UINT16 mapmusflags; // Track and reset bit
-UINT32 mapmusposition; // Position to jump to
-UINT32 mapmusresume;
+music_t mapmusic;
 
 INT16 gamemap = 1;
 INT16 maptol;
@@ -175,8 +173,6 @@ INT32 tokenbits; // Used for setting token bits
 // Old Special Stage
 INT32 sstimer; // Time allotted in the special stage
 
-tic_t totalplaytime;
-UINT32 matchesplayed; // SRB2Kart
 boolean gamedataloaded = false;
 
 // Time attack data for levels
@@ -330,8 +326,6 @@ static struct {
 // There is no conflict here.
 demoghost *ghosts = NULL;
 
-boolean precache = true; // if true, load all graphics at start
-
 INT16 prevmap, nextmap;
 
 static CV_PossibleValue_t recordmultiplayerdemos_cons_t[] = {{0, "Disabled"}, {1, "Manual Save"}, {2, "Auto Save"}, {0, NULL}};
@@ -394,20 +388,9 @@ static CV_PossibleValue_t powermusic_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "SFX
 consvar_t cv_growmusic  = {"growmusic",  "On", CV_SAVE, powermusic_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_supermusic = {"supermusic", "On", CV_SAVE, powermusic_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-/*consvar_t cv_crosshair = {"crosshair", "Off", CV_SAVE, crosshair_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_crosshair2 = {"crosshair2", "Off", CV_SAVE, crosshair_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_crosshair3 = {"crosshair3", "Off", CV_SAVE, crosshair_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_crosshair4 = {"crosshair4", "Off", CV_SAVE, crosshair_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};*/
 consvar_t cv_invertmouse = {"invertmouse", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_invertmouse2 = {"invertmouse2", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-/*consvar_t cv_alwaysfreelook = {"alwaysmlook", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_alwaysfreelook2 = {"alwaysmlook2", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_chasefreelook = {"chasemlook", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_chasefreelook2 = {"chasemlook2", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_mousemove = {"mousemove", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_mousemove2 = {"mousemove2", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};*/
+//consvar_t cv_mousemove = {"mousemove", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-//static CV_PossibleValue_t crosshair_cons_t[] = {{0, "Off"}, {1, "Cross"}, {2, "Angle"}, {3, "Point"}, {0, NULL}};
 static CV_PossibleValue_t joyaxis_cons_t[] = {{0, "None"},
 {1, "Left X"}, {2, "Left Y"}, {-1, "Left X-"}, {-2, "Left Y-"},
 #if JOYAXISSET > 1
@@ -438,6 +421,20 @@ consvar_t cv_moveaxis[MAXSPLITSCREENPLAYERS] = {
 	{"joyaxis2_move", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
 	{"joyaxis3_move", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
 	{"joyaxis4_move", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL}
+};
+
+consvar_t cv_camstrafeaxis[MAXSPLITSCREENPLAYERS] = {
+	{"joyaxis_camstrafe", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
+	{"joyaxis2_camstrafe", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
+	{"joyaxis3_camstrafe", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
+	{"joyaxis4_camstrafe", "None", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL}
+};
+
+consvar_t cv_camturnaxis[MAXSPLITSCREENPLAYERS] = {
+	{"joyaxis_camturn", "Left X", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
+	{"joyaxis2_camturn", "Left X", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
+	{"joyaxis3_camturn", "Left X", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
+	{"joyaxis4_camturn", "Left X", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL}
 };
 
 consvar_t cv_brakeaxis[MAXSPLITSCREENPLAYERS] = {
@@ -519,26 +516,6 @@ consvar_t cv_ydeadzone[MAXSPLITSCREENPLAYERS] = {
 
 static CV_PossibleValue_t driftsparkpulse_t[] = {{0, "MIN"}, {FRACUNIT*3, "MAX"}, {0, NULL}};
 consvar_t cv_driftsparkpulse = {"driftsparkpulse", "1.4", CV_FLOAT | CV_SAVE, driftsparkpulse_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-static CV_PossibleValue_t stretchfactor_t[] = {
-	{0, "Off"}, {FRACUNIT/8, "0.125"}, {FRACUNIT/4, "0.250"},
-	{3*FRACUNIT/8, "0.375"}, {FRACUNIT/2, "0.500"}, {5*FRACUNIT/8, "0.625"},
-	{3*FRACUNIT/4, "0.750"}, {7*FRACUNIT/8, "0.875"}, {FRACUNIT, "Max"}, {0, NULL}};
-consvar_t cv_gravstretch = {"gravstretch", "0", CV_SAVE, stretchfactor_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-static CV_PossibleValue_t slamsound_t[] = {{0, "Off"}, {1, "On"}, {0, NULL}};
-consvar_t cv_slamsound = {"slamsound", "1", CV_SAVE, slamsound_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-static CV_PossibleValue_t sloperolldist_cons_t[] = {
-	/*{256, "256"},*/	{512, "512"},	{768, "768"},
-	{1024, "1024"},	{1536, "1536"},	{2048, "2048"},
-	{3072, "3072"},	{4096, "4096"},	{6144, "6144"},
-	{8192, "8192"},	{0, "Infinite"},	{0, NULL}};
-consvar_t cv_sloperolldist = {"sloperolldist", "Infinite", CV_SAVE, sloperolldist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-static CV_PossibleValue_t sloperoll_cons_t[] = {{0, "Off"}, {1, "Players"}, {2, "Everything"}, {0, NULL}};
-consvar_t cv_sloperoll = {"sloperoll", "Off", CV_SAVE|CV_CALL, sloperoll_cons_t, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sparkroll = {"sparkroll", "Off", CV_SAVE|CV_CALL, CV_OnOff, PDistort_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_sliptideroll = {"sliptideroll", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -629,6 +606,36 @@ tic_t G_GetBestTime(INT16 map)
 	return mainrecords[map-1]->time;
 }
 
+// kinda hacky way to do this, but this sets the game to use a seperate savefile if you have addons loaded
+static void G_SetSaveGameModified(void)
+{
+	size_t filenamelen;
+
+	if (savemoddata)
+		return;
+
+	// save vanilla data just to be sure
+	G_SaveGameData(true);
+
+	savemoddata = true;
+
+	strlcpy(gamedatafilename, "modkartdata.dat", sizeof (gamedatafilename));
+	strlwr(gamedatafilename);
+
+	// Also save a time attack folder
+	filenamelen = strlen(gamedatafilename)-4;  // Strip off the extension
+	filenamelen = min(filenamelen, sizeof (timeattackfolder));
+	memcpy(timeattackfolder, gamedatafilename, filenamelen);
+	timeattackfolder[min(filenamelen, sizeof (timeattackfolder) - 1)] = '\0';
+
+	strcpy(savegamename, timeattackfolder);
+	strlcat(savegamename, "%u.ssg", sizeof(savegamename));
+	// can't use sprintf since there is %u in savegamename
+	strcatbf(savegamename, srb2home, PATHSEP);
+
+	G_LoadGameData();
+}
+
 // for consistency among messages: this modifies the game and removes savemoddata.
 void G_SetGameModified(boolean silent, boolean major)
 {
@@ -643,8 +650,11 @@ void G_SetGameModified(boolean silent, boolean major)
 	//savemoddata = false; -- there is literally no reason to do this anymore.
 	majormods = true;
 
+	// should this only be done when you load a "major" gameplay modifieng addon?
+	G_SetSaveGameModified();
+
 	if (!silent)
-		CONS_Alert(CONS_NOTICE, M_GetText("Game must be restarted to play Record Attack.\n"));
+		CONS_Alert(CONS_NOTICE, M_GetText("Record Attack data will be saved to seperate save.\n"));
 
 	// If in record attack recording, cancel it.
 	if (modeattacking)
@@ -747,6 +757,12 @@ INT32 JoyAxis(axis_input_e axissel, UINT8 player)
 			break;
 		case AXISMOVE:
 			axisval = cv_moveaxis[player-1].value;
+			break;
+		case AXISCAMTURN:
+			axisval = cv_camturnaxis[player-1].value;
+			break;
+		case AXISCAMSTRAFE:
+			axisval = cv_camstrafeaxis[player-1].value;
 			break;
 		case AXISBRAKE:
 			axisval = cv_brakeaxis[player-1].value;
@@ -915,12 +931,11 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	INT32 laim, th, tspeed, forward, side, axis;
 
 	// these ones used for multiple conditions
-	boolean turnleft, turnright, mouseaiming;
-	boolean invertmouse, usejoystick, kbl, rd;
+	boolean turnleft, turnright;
+	boolean usejoystick, rd;
 	angle_t lang;
 
 	static INT32 turnheld[MAXSPLITSCREENPLAYERS]; // for accelerative turning
-	static boolean keyboard_look[MAXSPLITSCREENPLAYERS]; // true if lookup/down using keyboard
 	static boolean resetdown[MAXSPLITSCREENPLAYERS]; // don't cam reset every frame
 
 	if (demo.playback)
@@ -932,38 +947,28 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	camera_t *thiscam = &camera[forplayer];
 	const boolean freecam = camera[forplayer].freecam;
 
-	const boolean lookaxis = cv_lookaxis[forplayer].value;
 	const boolean analogjoystickmove = cv_usejoystick[forplayer].value && !Joystick[forplayer].bGamepadStyle;
 	const boolean gamepadjoystickmove = cv_usejoystick[forplayer].value && Joystick[forplayer].bGamepadStyle;
 
 	lang = localangle[forplayer];
 	laim = localaiming[forplayer];
 	th = turnheld[forplayer];
-	kbl = keyboard_look[forplayer];
 	rd = resetdown[forplayer];
 
 	switch (ssplayer)
 	{
 		case 2:
 			G_CopyTiccmd(cmd, I_BaseTiccmd2(), 1);
-			mouseaiming = player->spectator;
-			invertmouse = cv_invertmouse2.value;
 			break;
 		case 3:
 			G_CopyTiccmd(cmd, I_BaseTiccmd3(), 1);
-			mouseaiming = false;
-			invertmouse = false;
 			break;
 		case 4:
 			G_CopyTiccmd(cmd, I_BaseTiccmd4(), 1);
-			mouseaiming = false;
-			invertmouse = false;
 			break;
 		case 1:
 		default:
 			G_CopyTiccmd(cmd, I_BaseTiccmd(), 1); // empty, or external driver
-			mouseaiming = player->spectator;
-			invertmouse = cv_invertmouse.value;
 			break;
 	}
 
@@ -980,6 +985,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	// dumbass thing so we can use a few buttons but dont accidentally drive away
 	if (player->spectator || freecam)
 	{
+		cmd->angleturn = (INT16)(lang >> 16);
 		G_BuildLocalTiccmd(cmd, ssplayer, freecam);
 
 		// let lua override everything
@@ -1046,7 +1052,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		side += ((axis * sidemove[0]) >> 10);
 	}
 
-	if (player->spectator || cv_mouseturn.value)
+	if (cv_mouseturn.value)
 	{
 		//THIS WORKS WTF????????
 		cmd->angleturn = (INT16)(cmd->angleturn - ((mousex*(encoremode ? -1 : 1)*8)));
@@ -1135,54 +1141,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	else
 		rd = false;
 
-	// spectator aiming shit, ahhhh...
-	{
-		INT32 player_invert = invertmouse ? -1 : 1;
-		INT32 screen_invert =
-			(player->mo && (player->mo->eflags & MFE_VERTICALFLIP)
-			 && (!thiscam->chase || player->pflags & PF_FLIPCAM)) // because chasecam's not inverted
-			 ? -1 : 1; // set to -1 or 1 to multiply
-
-		// mouse look stuff (mouse look is not the same as mouse aim)
-		if (mouseaiming && player->spectator)
-		{
-			kbl = false;
-
-			// looking up/down
-			laim += (mlooky<<19)*player_invert*screen_invert;
-		}
-
-		axis = JoyAxis(AXISLOOK, ssplayer);
-		if (analogjoystickmove && axis != 0 && lookaxis && player->spectator)
-			laim += (axis<<16) * screen_invert;
-
-		// spring back if not using keyboard neither mouselookin'
-		if (!kbl && !lookaxis && !mouseaiming)
-			laim = 0;
-
-		if (player->spectator)
-		{
-			if (InputDown(gc_lookup, ssplayer) || (gamepadjoystickmove && axis < 0))
-			{
-				laim += KB_LOOKSPEED * screen_invert;
-				kbl = true;
-			}
-			else if (InputDown(gc_lookdown, ssplayer) || (gamepadjoystickmove && axis > 0))
-			{
-				laim -= KB_LOOKSPEED * screen_invert;
-				kbl = true;
-			}
-		}
-
-		if (InputDown(gc_centerview, ssplayer)) // No need to put a spectator limit on this one though :V
-			laim = 0;
-
-		// accept no mlook for network games
-		if (!cv_allowmlook.value)
-			laim = 0;
-
-		cmd->aiming = G_ClipAimingPitch(&laim);
-	}
+	cmd->aiming = G_ClipAimingPitch(&laim);
 
 	mousex = mousey = mlooky = 0;
 
@@ -1234,7 +1193,6 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	{
 		localangle[forplayer] = lang;
 		localaiming[forplayer] = laim;
-		keyboard_look[forplayer] = kbl;
 		turnheld[forplayer] = th;
 		resetdown[forplayer] = rd;
 		axis = JoyAxis(AXISLOOKBACK, ssplayer);
@@ -1272,7 +1230,7 @@ static void G_DoLoadLevel(boolean resetplayer)
 
 	// Saturn Music Feature stuffs
 	S_ResetKeepAndSpecialMus();
-	S_CheckMap();
+	S_KeepMusic();
 
 	// Make sure objectplace is OFF when you first start the level!
 	OP_ResetObjectplace();
@@ -1335,17 +1293,18 @@ static void G_DoLoadLevel(boolean resetplayer)
 		joy4xmove[i] = joy4ymove[i] = 0;
 	}
 	mousex = mousey = 0;
-	mouse2x = mouse2y = 0;
 
 	// clear hud messages remains (usually from game startup)
 	CON_ClearHUD();
+
+	server_lagless = cv_lagless.value;
 
 	G_ResetAllDeviceRumbles();
 }
 
 static INT32 pausedelay = 0;
-static INT32 camtoggledelay, camtoggledelay2, camtoggledelay3, camtoggledelay4 = 0;
-static INT32 spectatedelay, spectatedelay2, spectatedelay3, spectatedelay4 = 0;
+static INT32 camtoggledelay[MAXSPLITSCREENPLAYERS] = {0,0,0,0};
+static INT32 spectatedelay[MAXSPLITSCREENPLAYERS] = {0,0,0,0};
 
 //
 // G_Responder
@@ -1526,72 +1485,72 @@ boolean G_Responder(event_t *ev)
 			if (ev->data1 == gamecontrol[gc_camtoggle][0]
 				|| ev->data1 == gamecontrol[gc_camtoggle][1])
 			{
-				if (!camtoggledelay)
+				if (!camtoggledelay[0])
 				{
-					camtoggledelay = NEWTICRATE / 7;
+					camtoggledelay[0] = NEWTICRATE / 7;
 					CV_SetValue(&cv_chasecam[0], cv_chasecam[0].value ? 0 : 1);
 				}
 			}
 			if (ev->data1 == gamecontrolbis[gc_camtoggle][0]
 				|| ev->data1 == gamecontrolbis[gc_camtoggle][1])
 			{
-				if (!camtoggledelay2)
+				if (!camtoggledelay[1])
 				{
-					camtoggledelay2 = NEWTICRATE / 7;
+					camtoggledelay[1] = NEWTICRATE / 7;
 					CV_SetValue(&cv_chasecam[1], cv_chasecam[1].value ? 0 : 1);
 				}
 			}
 			if (ev->data1 == gamecontrol3[gc_camtoggle][0]
 				|| ev->data1 == gamecontrol3[gc_camtoggle][1])
 			{
-				if (!camtoggledelay3)
+				if (!camtoggledelay[2])
 				{
-					camtoggledelay3 = NEWTICRATE / 7;
+					camtoggledelay[2] = NEWTICRATE / 7;
 					CV_SetValue(&cv_chasecam[2], cv_chasecam[2].value ? 0 : 1);
 				}
 			}
 			if (ev->data1 == gamecontrol4[gc_camtoggle][0]
 				|| ev->data1 == gamecontrol4[gc_camtoggle][1])
 			{
-				if (!camtoggledelay4)
+				if (!camtoggledelay[3])
 				{
-					camtoggledelay4 = NEWTICRATE / 7;
+					camtoggledelay[3] = NEWTICRATE / 7;
 					CV_SetValue(&cv_chasecam[3], cv_chasecam[3].value ? 0 : 1);
 				}
 			}
 			if (ev->data1 == gamecontrol[gc_spectate][0]
 				|| ev->data1 == gamecontrol[gc_spectate][1])
 			{
-				if (!spectatedelay)
+				if (!spectatedelay[0])
 				{
-					spectatedelay = NEWTICRATE / 7;
+					spectatedelay[0] = NEWTICRATE / 7;
 					COM_ImmedExecute("changeteam spectator");
 				}
 			}
 			if (ev->data1 == gamecontrolbis[gc_spectate][0]
 				|| ev->data1 == gamecontrolbis[gc_spectate][1])
 			{
-				if (!spectatedelay2)
+				if (!spectatedelay[1])
 				{
-					spectatedelay2 = NEWTICRATE / 7;
+					spectatedelay[1] = NEWTICRATE / 7;
 					COM_ImmedExecute("changeteam2 spectator");
 				}
 			}
 			if (ev->data1 == gamecontrol3[gc_spectate][0]
 				|| ev->data1 == gamecontrol3[gc_spectate][1])
 			{
-				if (!spectatedelay3)
+				if (!spectatedelay[2])
 				{
-					spectatedelay3 = NEWTICRATE / 7;
+					spectatedelay[2] = NEWTICRATE / 7;
 					COM_ImmedExecute("changeteam3 spectator");
 				}
 			}
 			if (ev->data1 == gamecontrol4[gc_spectate][0]
 				|| ev->data1 == gamecontrol4[gc_spectate][1])
 			{
-				if (!spectatedelay4)
+				if (!spectatedelay[3])
 				{
-					spectatedelay4 = NEWTICRATE / 7;
+					spectatedelay[3] = NEWTICRATE / 7;
 					COM_ImmedExecute("changeteam4 spectator");
 				}
 			}
@@ -1758,7 +1717,8 @@ void G_FixCamera(UINT8 view)
 
 	// The order of displayplayers can change, which would
 	// invalidate localangle.
-	localangle[view - 1] = (angle_t)(player->cmd.angleturn << 16);
+	if (!P_MobjWasRemoved(player->mo))
+		localangle[view - 1] = player->mo->angle;
 
 	P_ResetCamera(player, &camera[view - 1]);
 
@@ -1815,7 +1775,14 @@ void G_ResetView(UINT8 viewnum, INT32 playernum, boolean onlyactive)
 		(*displayplayerp) = playernumd;
 
 		/* If a viewpoint changes, reset the camera to clear uninitialized memory. */
-		G_FixCamera(viewd);
+		if (viewnum > splits)
+		{
+			G_FixCamera(viewd);
+		}
+		else if ((*displayplayerp) != olddisplayplayer)
+		{
+			G_FixCamera(viewnum);
+		}
 	}
 
 	if (demo.playback && viewnum == 1)
@@ -2042,23 +2009,14 @@ void G_Ticker(boolean run)
 		if (pausedelay)
 			pausedelay--;
 
-		if (camtoggledelay)
-			camtoggledelay--;
-		if (camtoggledelay2)
-			camtoggledelay2--;
-		if (camtoggledelay3)
-			camtoggledelay3--;
-		if (camtoggledelay4)
-			camtoggledelay4--;
+		for (UINT8 j = 0; j < MAXSPLITSCREENPLAYERS;j++)
+		{
+			if (camtoggledelay[j])
+				camtoggledelay[j]--;
 
-		if (spectatedelay)
-			spectatedelay--;
-		if (spectatedelay2)
-			spectatedelay2--;
-		if (spectatedelay3)
-			spectatedelay3--;
-		if (spectatedelay4)
-			spectatedelay4--;
+			if (spectatedelay[j])
+				spectatedelay[j]--;
+		}
 
 		if (gametic % NAMECHANGERATE == 0)
 		{
@@ -2100,7 +2058,7 @@ static inline void G_PlayerFinishLevel(INT32 player)
 	{
 		if (legitimateexit && !demo.playback && !mapreset) // (yes you're allowed to unlock stuff this way when the game is modified)
 		{
-			matchesplayed++;
+			kartstats.matchesplayed++;
 			if (M_UpdateUnlockablesAndExtraEmblems(true))
 				S_StartSound(NULL, sfx_ncitem);
 			G_SaveGameData(true);
@@ -2355,13 +2313,9 @@ void G_PlayerReborn(INT32 player)
 
 	if (p-players == consoleplayer)
 	{
-		if (mapmusflags & MUSIC_RELOADRESET)
+		if (mapmusic.flags & MUSIC_RELOADRESET)
 		{
-			strncpy(mapmusname, mapheaderinfo[gamemap-1]->musname, 7);
-			mapmusname[6] = 0;
-			mapmusflags = (mapheaderinfo[gamemap-1]->mustrack & MUSIC_TRACKMASK);
-			mapmusposition = mapheaderinfo[gamemap-1]->muspos;
-			mapmusresume = 0;
+			S_HandleReloadResetMusic();
 			songcredit = true;
 		}
 	}
@@ -2779,6 +2733,9 @@ void G_DoReborn(INT32 playernum)
 		G_SpawnPlayer(playernum, starpost);
 		if (oldmo)
 			G_ChangePlayerReferences(oldmo, players[playernum].mo);
+
+		if (!demo.playback && playernum == consoleplayer)
+			kartstats.respawns++;
 	}
 }
 
@@ -3208,6 +3165,8 @@ static void G_DoCompleted(void)
 	if (metalrecording)
 		G_StopMetalRecording();
 
+	K_StatRound();
+
 	for (i = 0; i < MAXPLAYERS; i++)
 		if (playeringame[i])
 		{
@@ -3577,8 +3536,7 @@ void G_LoadGameData(void)
 	// to new gamedata
 	G_ClearRecords(); // main and nights records
 	M_ClearSecrets(); // emblems, unlocks, maps visited, etc
-	totalplaytime = 0; // total play time (separate from all)
-	matchesplayed = 0; // SRB2Kart: matches played & finished
+	K_EraseStats(); // stats
 
 	if (M_CheckParm("-nodata"))
 		return; // Don't load.
@@ -3607,8 +3565,8 @@ void G_LoadGameData(void)
 		I_Error("Game data is from another version of SRB2.\nDelete %s(maybe in %s) and try again.", gamedatafilename, gdfolder);
 	}
 
-	totalplaytime = READUINT32(save.p);
-	matchesplayed = READUINT32(save.p);
+	// well no clue but dont think it would like reading garbage from vanilla files
+	K_ReadStats(&save, !savemoddata);
 
 	modded = READUINT8(save.p);
 
@@ -3701,6 +3659,7 @@ void G_SaveGameData(boolean force)
 	INT32 i, j;
 	UINT8 btemp;
 	savebuffer_t save;
+	(void)force;
 
 	if (!gamedataloaded)
 		return; // If never loaded (-nodata), don't save
@@ -3712,18 +3671,10 @@ void G_SaveGameData(boolean force)
 		return;
 	}
 
-	if (majormods && !force)
-	{
-		free(save.buffer);
-		save.p = save.buffer = NULL;
-		return;
-	}
-
 	// Version test
 	WRITEUINT32(save.p, 0xFCAFE211);
 
-	WRITEUINT32(save.p, totalplaytime);
-	WRITEUINT32(save.p, matchesplayed);
+	K_WriteStats(&save, !savemoddata);
 
 	btemp = (UINT8)(savemoddata); // what used to be here was profoundly dunderheaded
 	WRITEUINT8(save.p, btemp);
@@ -4125,7 +4076,7 @@ void G_InitNew(UINT8 pencoremode, const char *mapname, boolean resetplayer, bool
 	globalweather = mapheaderinfo[gamemap-1]->weather;
 
 	// Don't carry over custom music change to another map.
-	mapmusflags |= MUSIC_RELOADRESET;
+	mapmusic.flags |= MUSIC_RELOADRESET;
 
 	automapactive = false;
 	imcontinuing = false;
@@ -4605,7 +4556,7 @@ void G_ReadDemoExtraData(void)
 		if (extradata & DXD_RESPAWN)
 		{
 			if (players[p].mo)
-				P_DamageMobj(players[p].mo, NULL, NULL, 10000); // Is this how this should work..?
+				P_DamageMobj(players[p].mo, NULL, NULL, DMG_INSTAKILL); // Is this how this should work..?
 		}
 		if (extradata & DXD_SKIN)
 		{
@@ -4671,7 +4622,7 @@ void G_ReadDemoExtraData(void)
 				{
 					players[p].spectator = true;
 					if (players[p].mo)
-						P_DamageMobj(players[p].mo, NULL, NULL, 10000);
+						P_DamageMobj(players[p].mo, NULL, NULL, DMG_INSTAKILL);
 					else
 						players[p].playerstate = PST_REBORN;
 				}
@@ -4698,18 +4649,23 @@ void G_ReadDemoExtraData(void)
 	while (p != DW_END)
 	{
 		UINT32 rng;
+		UINT32 checkrng;
 
 		switch (p)
 		{
 		case DW_RNG:
 			rng = READUINT32(demobuf.p);
-			if (P_GetRandSeed() != rng)
+			checkrng = P_GetRandSeed();
+			if (checkrng != rng)
 			{
-				P_SetRandSeed(rng);
-
 				if (demosynced)
-					CONS_Alert(CONS_WARNING, M_GetText("Demo playback has desynced!\n"));
+				{
+					CONS_Alert(CONS_WARNING, M_GetText("Demo playback has desynced (RNG)!\n"));
+					CONS_Printf("expected rng %d got %d\n", rng, checkrng);
+				}
 				demosynced = false;
+
+				P_SetRandSeed(rng);
 			}
 		}
 
@@ -4975,7 +4931,7 @@ void G_GhostAddHit(INT32 playernum, mobj_t *victim)
 	ghostext[playernum].flags |= EZT_HIT;
 	ghostext[playernum].hits++;
 	ghostext[playernum].hitlist = Z_Realloc(ghostext[playernum].hitlist, ghostext[playernum].hits * sizeof(mobj_t *), PU_LEVEL, NULL);
-	ghostext[playernum].hitlist[ghostext[playernum].hits-1] = victim;
+	P_SetTarget(ghostext[playernum].hitlist + (ghostext[playernum].hits-1), victim);
 }
 
 void G_WriteAllGhostTics(void)
@@ -4986,6 +4942,7 @@ void G_WriteAllGhostTics(void)
 	UINT8 *save_demo_p = demobuf.p;
 #define CHECKSPACE(num) if (demobuf.p+(num) > demoend) { demobuf.p = save_demo_p; G_CheckDemoStatus(); return; }
 
+	boolean toobig = false;
 	INT32 i, counter = leveltime;
 
 	for (i = 0; i < MAXPLAYERS; i++)
@@ -4998,17 +4955,31 @@ void G_WriteAllGhostTics(void)
 
 		counter++;
 
-		if (counter % cv_netdemosyncquality.value != 0) // Only write 1 in this many ghost datas per tic to cut down on multiplayer replay size.
+		if (multiplayer && ((counter % cv_netdemosyncquality.value) != 0)) // Only write 1 in this many ghost datas per tic to cut down on multiplayer replay size.
 			continue;
 
 		CHECKSPACE(1);
 
 		WRITEUINT8(demobuf.p, i);
 		G_WriteGhostTic(players[i].mo, i);
+
+		// attention here for the ticcmd size!
+		// latest demos with mouse aiming byte in ticcmd
+		if (demobuf.p >= demoend - (13 + 9 + 9))
+		{
+			toobig = true;
+			break;
+		}
 	}
 
 	CHECKSPACE(1);
 	WRITEUINT8(demobuf.p, 0xFF);
+
+	if (toobig)
+	{
+		G_CheckDemoStatus(); // no more space
+		return;
+	}
 
 #undef CHECKSPACE
 }
@@ -5184,6 +5155,7 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 				WRITEFIXED(demobuf.p,mo->y);
 				WRITEFIXED(demobuf.p,mo->z);
 				WRITEANGLE(demobuf.p,mo->angle);
+				P_SetTarget(ghostext[playernum].hitlist+i, NULL);
 			}
 			Z_Free(ghostext[playernum].hitlist);
 			ghostext[playernum].hits = 0;
@@ -5206,23 +5178,17 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 	}
 
 	*ziptic_p = ziptic;
-
-	// attention here for the ticcmd size!
-	// latest demos with mouse aiming byte in ticcmd
-	if (demobuf.p >= demoend - (13 + 9))
-	{
-		G_CheckDemoStatus(); // no more space
-		return;
-	}
 #undef CHECKSPACE
 }
 
 void G_ConsAllGhostTics(void)
 {
-	if (!demobuf.p)
+	UINT8 p;
+
+	if (!demobuf.p || !demo.deferstart)
 		return;
 
-	UINT8 p = READUINT8(demobuf.p);
+	p = READUINT8(demobuf.p);
 
 	while (p != 0xFF)
 	{
@@ -5248,8 +5214,6 @@ void G_ConsGhostTic(INT32 playernum)
 	fixed_t syncleeway;
 	boolean nightsfail = false;
 
-	if (!demobuf.p || !demo.deferstart)
-		return;
 	if (!(demoflags & DF_GHOST))
 		return; // No ghost data to use.
 
@@ -5332,7 +5296,10 @@ void G_ConsGhostTic(INT32 playernum)
 				if (mobj && mobj->health != health) // Wasn't damaged?! This is desync! Fix it!
 				{
 					if (demosynced)
-						CONS_Alert(CONS_WARNING, M_GetText("Demo playback has desynced!\n"));
+					{
+						CONS_Alert(CONS_WARNING, M_GetText("Demo playback has desynced (health)!\n"));
+						CONS_Printf("expected health %d got %d\n", health, mobj->health);
+					}
 					demosynced = false;
 					P_DamageMobj(mobj, players[0].mo, players[0].mo, 1);
 				}
@@ -5365,7 +5332,7 @@ void G_ConsGhostTic(INT32 playernum)
 			if (ghostext[playernum].desyncframes >= 2)
 			{
 				if (demosynced)
-					CONS_Alert(CONS_WARNING, M_GetText("Demo playback has desynced!\n"));
+					CONS_Alert(CONS_WARNING, "Demo playback has desynced (player %s)!\n", player_names[playernum]);
 				demosynced = false;
 
 				P_UnsetThingPosition(testmo);
@@ -5395,7 +5362,11 @@ void G_ConsGhostTic(INT32 playernum)
 		)
 		{
 			if (demosynced)
-				CONS_Alert(CONS_WARNING, M_GetText("Demo playback has desynced!\n"));
+			{
+				CONS_Alert(CONS_WARNING, "Demo playback has desynced (item/bumpers)!(player %s)!\n", player_names[playernum]);
+				CONS_Printf("expected item type %d got %d\n", ghostext[playernum].kartitem, players[playernum].kartstuff[k_itemtype]);
+				CONS_Printf("expected item amount %d got %d\n", ghostext[playernum].kartamount, players[playernum].kartstuff[k_itemamount]);
+			}
 			demosynced = false;
 
 			players[playernum].kartstuff[k_itemtype] = ghostext[playernum].kartitem;
@@ -6084,7 +6055,7 @@ void G_RecordDemo(const char *name)
 
 		maxsize = cv_maxdemosize.value*1024*1024;
 
-		demobuf.buffer = Z_Malloc(maxsize, PU_STATIC, NULL);
+		demobuf.buffer = Z_Malloc(maxsize + 100*1024, PU_STATIC, NULL);
 		demoend = demobuf.buffer + maxsize;
 
 		if (demobuf.buffer)
@@ -6102,7 +6073,7 @@ void G_RecordMetal(void)
 		Z_Free(demobuf.buffer);
 	demobuf.p = NULL;
 	metalrecording = false;
-	demobuf.buffer = Z_Malloc(maxsize, PU_STATIC, NULL);
+	demobuf.buffer = Z_Malloc(maxsize + 100*1024, PU_STATIC, NULL);
 	demoend = demobuf.buffer + maxsize;
 
 	if (demobuf.buffer)
@@ -7905,7 +7876,6 @@ void G_DoneLevelLoad(void)
 // Stops metal sonic's demo. Separate from other functions because metal + replays can coexist
 void G_StopMetalDemo(void)
 {
-
 	// Metal Sonic finishing doesn't end the game, dammit.
 	Z_Free(metalbuffer);
 	metalbuffer = NULL;
@@ -8239,33 +8209,4 @@ void G_ClearRetryFlag(void)
 boolean G_GetRetryFlag(void)
 {
 	return retrying;
-}
-
-// Time utility functions
-INT32 G_TicsToHours(tic_t tics)
-{
-	return tics/(3600*TICRATE);
-}
-
-INT32 G_TicsToMinutes(tic_t tics, boolean full)
-{
-	if (full)
-		return tics/(60*TICRATE);
-	else
-		return tics/(60*TICRATE)%60;
-}
-
-INT32 G_TicsToSeconds(tic_t tics)
-{
-	return (tics/TICRATE)%60;
-}
-
-INT32 G_TicsToCentiseconds(tic_t tics)
-{
-	return (INT32)((tics%TICRATE) * (100.00f/TICRATE));
-}
-
-INT32 G_TicsToMilliseconds(tic_t tics)
-{
-	return (INT32)((tics%TICRATE) * (1000.00f/TICRATE));
 }

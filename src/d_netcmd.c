@@ -209,13 +209,6 @@ void SendWeaponPref3(void);
 void SendWeaponPref4(void);
 
 static CV_PossibleValue_t usemouse_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Force"}, {0, NULL}};
-#if defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)
-static CV_PossibleValue_t mouse2port_cons_t[] = {{0, "/dev/gpmdata"}, {1, "/dev/ttyS0"},
-	{2, "/dev/ttyS1"}, {3, "/dev/ttyS2"}, {4, "/dev/ttyS3"}, {0, NULL}};
-#else
-static CV_PossibleValue_t mouse2port_cons_t[] = {{1, "COM1"}, {2, "COM2"}, {3, "COM3"}, {4, "COM4"},
-	{0, NULL}};
-#endif
 
 #ifdef LJOYSTICK
 static CV_PossibleValue_t joyport_cons_t[] = {{1, "/dev/js0"}, {2, "/dev/js1"}, {3, "/dev/js2"},
@@ -298,12 +291,14 @@ consvar_t cv_skipmapcheck = {"skipmapcheck", "Off", CV_SAVE, CV_OnOff, NULL, 0, 
 INT32 cv_debug;
 
 consvar_t cv_usemouse = {"use_mouse", "Off", CV_SAVE|CV_CALL,usemouse_cons_t, I_StartupMouse, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_usemouse2 = {"use_mouse2", "Off", CV_SAVE|CV_CALL,usemouse_cons_t, I_StartupMouse2, 0, NULL, NULL, 0, 0, NULL};
+
 //WTF
 consvar_t cv_mouseturn = {"mouseturn", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // Lagless camera! Yay!
 consvar_t cv_laglesscam = {"laglesscamera", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_verticallook = {"verticallook", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 #if defined(HAVE_SDL) || defined(_WINDOWS) //joystick 1 and 2
 consvar_t cv_usejoystick[MAXSPLITSCREENPLAYERS] = {
@@ -330,12 +325,6 @@ consvar_t cv_joyscale[2] = { //Alam: Dummy for save
 	{"joyscale", "1", CV_SAVE|CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL},
 	{"joyscale", "1", CV_SAVE|CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL}
 };
-#endif
-#if defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)
-consvar_t cv_mouse2port = {"mouse2port", "/dev/gpmdata", CV_SAVE, mouse2port_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_mouse2opt = {"mouse2opt", "0", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
-#else
-consvar_t cv_mouse2port = {"mouse2port", "COM2", CV_SAVE, mouse2port_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
 
 consvar_t cv_matchboxes = {"matchboxes", "Normal", CV_NETVAR|CV_CHEAT|CV_NOSHOWHELP, matchboxes_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -404,18 +393,18 @@ static CV_PossibleValue_t kartvoices_cons_t[] = {{0, "Never"}, {1, "Tasteful"}, 
 consvar_t cv_kartvoices = {"kartvoices", "Tasteful", CV_SAVE, kartvoices_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_karthitemdialog = {"karthitemdialog", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_karteliminatelast = {"karteliminatelast", "Yes", CV_NETVAR|CV_CHEAT|CV_CALL|CV_NOSHOWHELP, CV_YesNo, KartEliminateLast_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_karteliminatelast = {"karteliminatelast", "Yes", CV_NETVAR|CV_CHEAT|CV_CALL, CV_YesNo, KartEliminateLast_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t kartdebugitem_cons_t[] = {{-1, "MIN"}, {NUMKARTITEMS-1, "MAX"}, {0, NULL}};
-consvar_t cv_kartdebugitem = {"kartdebugitem", "0", CV_NETVAR|CV_CHEAT|CV_NOSHOWHELP, kartdebugitem_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugitem = {"kartdebugitem", "0", CV_NETVAR|CV_CHEAT, kartdebugitem_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 static CV_PossibleValue_t kartdebugamount_cons_t[] = {{1, "MIN"}, {255, "MAX"}, {0, NULL}};
-consvar_t cv_kartdebugamount = {"kartdebugamount", "1", CV_NETVAR|CV_CHEAT|CV_NOSHOWHELP, kartdebugamount_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_kartdebugshrink = {"kartdebugshrink", "Off", CV_NETVAR|CV_CHEAT|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_kartdebugdistribution = {"kartdebugdistribution", "Off", CV_NETVAR|CV_CHEAT|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_kartdebughuddrop = {"kartdebughuddrop", "Off", CV_NETVAR|CV_CHEAT|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugamount = {"kartdebugamount", "1", CV_NETVAR|CV_CHEAT, kartdebugamount_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugshrink = {"kartdebugshrink", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugdistribution = {"kartdebugdistribution", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebughuddrop = {"kartdebughuddrop", "Off", CV_NETVAR|CV_CHEAT, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_kartdebugcheckpoint = {"kartdebugcheckpoint", "Off", CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_kartdebugnodes = {"kartdebugnodes", "Off", CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugcheckpoint = {"kartdebugcheckpoint", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_kartdebugnodes = {"kartdebugnodes", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_kartdebugcolorize = {"kartdebugcolorize", "Off", CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t votetime_cons_t[] = {{1, "MIN"}, {3600, "MAX"}, {0, NULL}};
@@ -669,7 +658,6 @@ void D_RegisterServerCommands(void)
 	COM_AddCommand("addfilelocal", Command_Addfilelocal);
 	COM_AddCommand("addfile", Command_Addfile);
 	COM_AddCommand("addskins", Command_Addskins);
-	COM_AddCommand("localskin", Command_GLocalSkin);
 	COM_AddCommand("listwad", Command_ListWADS_f);
 	COM_AddCommand("listmapthings", Command_ListDoomednums_f);
 	COM_AddCommand("listunusedsprites", Command_ListUnusedSprites_f);
@@ -735,7 +723,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_competitionboxes);
 	CV_RegisterVar(&cv_matchboxes);
 
-	K_RegisterKartStuff(); // SRB2kart
+	K_RegisterServerKartStuff(); // SRB2kart
 
 	CV_RegisterVar(&cv_ringslinger);
 
@@ -808,8 +796,6 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_maxdemosize);
 	CV_RegisterVar(&cv_demochangemap);
 
-	CV_RegisterVar(&cv_keyboardlayout);
-
 #ifndef NOBLUAJIT
 	CV_RegisterVar(&cv_luajit);
 #endif
@@ -871,9 +857,15 @@ void D_RegisterClientCommands(void)
 	COM_AddCommand("stopmovie", Command_StopMovie_f);
 	COM_AddCommand("minigen", M_MinimapGenerate);
 
+	COM_AddCommand("localskin", Command_GLocalSkin);
+
+	K_RegisterClientKartStuff(); // SRB2kart
+
 	CV_RegisterVar(&cv_screenshot_option);
 	CV_RegisterVar(&cv_screenshot_folder);
 	CV_RegisterVar(&cv_moviemode);
+	CV_RegisterVar(&cv_movie_option);
+	CV_RegisterVar(&cv_movie_folder);
 	// PNG variables
 	CV_RegisterVar(&cv_zlib_level);
 	CV_RegisterVar(&cv_zlib_memory);
@@ -919,9 +911,13 @@ void D_RegisterClientCommands(void)
 #ifdef SEENAMES
 	CV_RegisterVar(&cv_seenames);
 #endif
+
 	CV_RegisterVar(&cv_rollingdemos);
+
 	CV_RegisterVar(&cv_netstat);
 	CV_RegisterVar(&cv_netticbuffer);
+	CV_RegisterVar(&cv_mindelay);
+	CV_RegisterVar(&cv_lagless);
 
 #ifdef NETGAME_DEVMODE
 	CV_RegisterVar(&cv_fishcake);
@@ -935,6 +931,8 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_pingstyle);
 
 	CV_RegisterVar(&cv_cechotoggle);
+
+	CV_RegisterVar(&cv_keyboardlayout);
 
 	// time attack ghost options are also saved to config
 	CV_RegisterVar(&cv_ghost_besttime);
@@ -976,14 +974,6 @@ void D_RegisterClientCommands(void)
 
 	CV_RegisterVar(&cv_showlocalskinmenus);
 
-	//CV_RegisterVar(&cv_crosshair);
-	//CV_RegisterVar(&cv_crosshair2);
-	//CV_RegisterVar(&cv_crosshair3);
-	//CV_RegisterVar(&cv_crosshair4);
-	//CV_RegisterVar(&cv_alwaysfreelook);
-	//CV_RegisterVar(&cv_alwaysfreelook2);
-	//CV_RegisterVar(&cv_chasefreelook);
-	//CV_RegisterVar(&cv_chasefreelook2);
 	CV_RegisterVar(&cv_replaysearchrate);
 	CV_RegisterVar(&cv_showfocuslost);
 	CV_RegisterVar(&cv_pauseifunfocused);
@@ -993,6 +983,8 @@ void D_RegisterClientCommands(void)
 	{
 		CV_RegisterVar(&cv_turnaxis[i]);
 		CV_RegisterVar(&cv_moveaxis[i]);
+		CV_RegisterVar(&cv_camturnaxis[i]);
+		CV_RegisterVar(&cv_camstrafeaxis[i]);
 		CV_RegisterVar(&cv_brakeaxis[i]);
 		CV_RegisterVar(&cv_aimaxis[i]);
 		CV_RegisterVar(&cv_lookaxis[i]);
@@ -1014,12 +1006,6 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_addons_search_type);
 	CV_RegisterVar(&cv_addons_search_case);
 
-	// WARNING: the order is important when initialising mouse2
-	// we need the mouse2port
-	CV_RegisterVar(&cv_mouse2port);
-#if defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)
-	CV_RegisterVar(&cv_mouse2opt);
-#endif
 	CV_RegisterVar(&cv_controlperkey);
 	CV_RegisterVar(&cv_turnsmooth);
 
@@ -1031,15 +1017,10 @@ void D_RegisterClientCommands(void)
 	}
 
 	CV_RegisterVar(&cv_usemouse);
-	CV_RegisterVar(&cv_usemouse2);
 	CV_RegisterVar(&cv_invertmouse);
-	CV_RegisterVar(&cv_invertmouse2);
 	CV_RegisterVar(&cv_mousesens);
-	CV_RegisterVar(&cv_mousesens2);
 	CV_RegisterVar(&cv_mouseysens);
-	CV_RegisterVar(&cv_mouseysens2);
 	//CV_RegisterVar(&cv_mousemove);
-	//CV_RegisterVar(&cv_mousemove2);
 
 	for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
 	{
@@ -1096,6 +1077,8 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_betainterscreen);
 
 	CV_RegisterVar(&cv_laglesscam);
+
+	CV_RegisterVar(&cv_verticallook);
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
@@ -2462,8 +2445,6 @@ static void Command_StopMovie_f(void)
 
 INT32 mapchangepending = 0;
 
-tic_t driftsparkGrowTimer[MAXPLAYERS];
-
 /** Runs a map change.
   * The supplied data are assumed to be good. If provided by a user, they will
   * have already been checked in Command_Map_f().
@@ -2496,9 +2477,6 @@ void D_MapChange(INT32 mapnum, INT32 newgametype, boolean pencoremode, boolean r
 
 	CONS_Debug(DBG_GAMELOGIC, "Map change: mapnum=%d gametype=%d encoremode=%d resetplayers=%d delay=%d skipprecutscene=%d\n",
 	           mapnum, newgametype, pencoremode, resetplayers, delay, skipprecutscene);
-
-	// just gonna hack in a timer reset here...
-	memset(driftsparkGrowTimer, 0, sizeof(driftsparkGrowTimer));
 
 	if (netgame || multiplayer)
 		FLS = false;
@@ -2716,6 +2694,8 @@ static void Command_Map_f(void)
 		return;
 	}
 
+	M_ClearMenus(true);
+
 	last_map_cmd = I_GetTime();
 
 	size_t first_option;
@@ -2908,6 +2888,7 @@ static void Command_Map_f(void)
 	}
 
 	fromlevelselect = false;
+
 	D_MapChange(newmapnum, newgametype, newencoremode, newresetplayers, 0, false, false);
 
 	Z_Free(realmapname);
@@ -2981,9 +2962,6 @@ static void Got_Mapcmd(UINT8 **cp, INT32 playernum)
 		CON_LogMessage(M_GetText("Speeding off to level...\n"));
 	}
 
-	if (demo.playback && !demo.timing)
-		precache = false;
-
 	if (resetplayer)
 	{
 		if (!FLS || (netgame || multiplayer))
@@ -2999,8 +2977,7 @@ static void Got_Mapcmd(UINT8 **cp, INT32 playernum)
 	demo.savemode = (cv_recordmultiplayerdemos.value == 2) ? DSM_WILLAUTOSAVE : DSM_NOTSAVING;
 	demo.savebutton = 0;
 	G_InitNew(pencoremode, mapname, resetplayer, skipprecutscene);
-	if (demo.playback && !demo.timing)
-		precache = true;
+
 	if (demo.timing)
 		G_DoneLevelLoad();
 
@@ -3191,7 +3168,7 @@ static void Got_Respawn(UINT8 **cp, INT32 playernum)
 		return;
 
 	if (players[respawnplayer].mo)
-		P_DamageMobj(players[respawnplayer].mo, NULL, NULL, 10000);
+		P_DamageMobj(players[respawnplayer].mo, NULL, NULL, DMG_INSTAKILL);
 	demo_extradata[playernum] |= DXD_RESPAWN;
 }
 
@@ -3893,7 +3870,7 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 	if (!players[playernum].spectator)
 	{
 		if (players[playernum].mo)
-			P_DamageMobj(players[playernum].mo, NULL, NULL, 10000);
+			P_DamageMobj(players[playernum].mo, NULL, NULL, DMG_INSTAKILL);
 		else
 			players[playernum].playerstate = PST_REBORN;
 	}
@@ -5822,12 +5799,8 @@ static void Fishcake_OnChange(void)
   */
 static void Command_Isgamemodified_f(void)
 {
-	if (majormods)
-		CONS_Printf("The game has been modified with major addons, so you cannot play Record Attack.\n");
-	else if (savemoddata)
-		CONS_Printf("The game has been modified with an addon with its own save data, so you can play Record Attack and earn medals.\n");
-	else if (modifiedgame)
-		CONS_Printf("The game has been modified with only minor addons. You can play Record Attack, earn medals and unlock extras.\n");
+	if (majormods || modifiedgame)
+		CONS_Printf("The game has been modified, Record Attack data will be saved to a seperate savegame.\n");
 	else
 		CONS_Printf("The game has not been modified. You can play Record Attack, earn medals and unlock extras.\n");
 }

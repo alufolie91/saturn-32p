@@ -29,6 +29,9 @@ extern fixed_t centerxfrac, centeryfrac;
 extern fixed_t projection, projectiony;
 extern fixed_t fovtan; // field of view
 
+#define MINFOV 5
+#define MAXFOV 179
+
 extern size_t validcount, linecount, loopcount, framecount;
 
 // The fraction of a tic being drawn (for interpolation between two tics)
@@ -126,50 +129,6 @@ angle_t R_PlayerSliptideAngle(player_t *player);
 fixed_t R_ScaleFromGlobalAngle(angle_t visangle);
 
 //
-// R_IsPointInSector
-//
-FUNCINLINE static ATTRINLINE boolean R_IsPointInSector(sector_t *sector, fixed_t x, fixed_t y)
-{
-	size_t i;
-	size_t passes = 0;
-
-	for (i = 0; i < sector->linecount; i++)
-	{
-		line_t *line = sector->lines[i];
-		vertex_t *v1, *v2;
-
-		if (line->frontsector == line->backsector)
-			continue;
-
-		v1 = line->v1;
-		v2 = line->v2;
-
-		// make sure v1 is below v2
-		if (v1->y > v2->y)
-		{
-			vertex_t *tmp = v1;
-			v1 = v2;
-			v2 = tmp;
-		}
-		else if (v1->y == v2->y) // horizontal line, we can't match this
-			continue;
-
-		if (v1->y < y && y <= v2->y)
-		{
-			// if the y axis in inside the line, find the point where we intersect on the x axis...
-			fixed_t vx = v1->x + (INT64)(v2->x - v1->x) * (y - v1->y) / (v2->y - v1->y);
-
-			// ...and if that point is to the left of the point, count it as inside.
-			if (vx < x)
-				passes++;
-		}
-	}
-
-	// and odd number of passes means we're inside the polygon.
-	return (boolean)(passes % 2);
-}
-
-//
 // R_PointInSubsector
 //
 FUNCINLINE static ATTRINLINE subsector_t *R_PointInSubsector(fixed_t x, fixed_t y)
@@ -181,7 +140,6 @@ FUNCINLINE static ATTRINLINE subsector_t *R_PointInSubsector(fixed_t x, fixed_t 
 
 	return &subsectors[nodenum & ~NF_SUBSECTOR];
 }
-
 
 //
 // R_IsPointInSubsector, same as above but returns 0 if not in subsector
@@ -198,8 +156,7 @@ FUNCINLINE static ATTRINLINE subsector_t *R_IsPointInSubsector(fixed_t x, fixed_
 	while (!(nodenum & NF_SUBSECTOR))
 	{
 		node = &nodes[nodenum];
-		//side = R_PointOnSide(x, y, node);
-		side = R_PointOnSideFast(x, y, node); // this is fine since R_IsPointInSubsector is only used for precip spawn unless you disable noclipcam lol
+		side = R_PointOnSide(x, y, node);
 		nodenum = node->children[side];
 	}
 
@@ -241,6 +198,7 @@ extern ps_metric_t ps_numpolyobjects;
 // REFRESH - the actual rendering functions.
 //
 
+extern consvar_t cv_precachetextures;
 extern consvar_t cv_showhud, cv_translucenthud, cv_uncappedhud;
 extern consvar_t cv_homremoval;
 extern consvar_t cv_chasecam[MAXSPLITSCREENPLAYERS];
@@ -249,7 +207,7 @@ extern consvar_t cv_shadow, cv_shadowoffs;
 extern consvar_t cv_ffloorclip, cv_spriteclip;
 extern consvar_t cv_translucency;
 extern consvar_t cv_drawdist, cv_drawdist_precip, cv_lessprecip, cv_mobjscaleprecip;
-extern consvar_t cv_fov;
+extern consvar_t cv_fov, cv_fovchange;
 extern consvar_t cv_skybox;
 extern consvar_t cv_tailspickup;
 extern consvar_t cv_maxinterpdist;
@@ -271,6 +229,7 @@ void R_SetViewSize(void);
 // do it (sometimes explicitly called)
 void R_ExecuteSetViewSize(void);
 
+fixed_t R_GetPlayerFov(player_t *player);
 void R_SkyboxFrame(int s);
 void R_SetupFrame(int s, boolean skybox);
 
