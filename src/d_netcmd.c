@@ -3686,11 +3686,11 @@ static void Command_ServerTeamChange_f(void)
 		return;
 	}
 
-	NetPacket.packet.playernum = nametonum(COM_Argv(1));
+	NetPacket.packet.playernum = atoi(COM_Argv(1));
 
-	if (NetPacket.packet.playernum == -1 || !playeringame[NetPacket.packet.playernum])
+	if (!playeringame[NetPacket.packet.playernum])
 	{
-		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
+		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %d!\n"), NetPacket.packet.playernum);
 		return;
 	}
 
@@ -4206,16 +4206,13 @@ static void Command_Verify_f(void)
 
 	if (COM_Argc() != 2)
 	{
-		CONS_Printf(M_GetText("promote <playername/playernum>: give admin privileges to a player\n"));
+		CONS_Printf(M_GetText("promote <node>: give admin privileges to a node\n"));
 		return;
 	}
 
-	playernum = nametonum(COM_Argv(1));
-	if (playernum == -1)
-	{
-		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
-		return;
-	}
+	strlcpy(buf, COM_Argv(1), sizeof (buf));
+
+	playernum = atoi(buf);
 
 	temp = buf;
 
@@ -4265,16 +4262,13 @@ static void Command_RemoveAdmin_f(void)
 
 	if (COM_Argc() != 2)
 	{
-		CONS_Printf(M_GetText("demote <playernum>: remove admin privileges from a player\n"));
+		CONS_Printf(M_GetText("demote <node>: remove admin privileges from a node\n"));
 		return;
 	}
 
-	playernum = nametonum(COM_Argv(1));
-	if (playernum == -1)
-	{
-		CONS_Alert(CONS_NOTICE, M_GetText("There is no player %s!\n"), COM_Argv(1));
-		return;
-	}
+	strlcpy(buf, COM_Argv(1), sizeof(buf));
+
+	playernum = atoi(buf);
 
 	temp = buf;
 

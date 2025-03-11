@@ -6214,7 +6214,6 @@ static boolean M_AddonsRefresh(void)
 	if ((refreshdirmenu & REFRESHDIR_ADDFILE) || (majormods && !prevmajormods))
 	{
 		char *message = NULL;
-		boolean majormodtext = false;
 
 		if (refreshdirmenu & REFRESHDIR_NOTLOADED)
 		{
@@ -6236,7 +6235,7 @@ static boolean M_AddonsRefresh(void)
 			prevmajormods = majormods;
 		}
 
-		if (message && (refreshdirmenu || majormodtext)) // special case for gameplay modify text
+		if (message)
 		{
 			M_StartMessage(message,M_AddonsClearName,MM_EVENTHANDLER);
 			return true;
