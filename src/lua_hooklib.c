@@ -1163,7 +1163,7 @@ typedef struct {
 	boolean force_sink;
 } KartHyudoro_State;
 
-void res_karthyudoro(Hook_State *hook)
+static void res_karthyudoro(Hook_State *hook)
 {
 	KartHyudoro_State *state = (KartHyudoro_State*)hook->userdata;
 
