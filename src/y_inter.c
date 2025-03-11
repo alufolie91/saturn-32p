@@ -310,9 +310,9 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 		else
 			data.match.pos[data.match.numplayers] = data.match.numplayers+1;
 
-		if (!rankingsmode && ((!(players[i].pflags & PF_TIMEOVER) && (data.match.pos[data.match.numplayers] < nump)) || players[i].interscore))
+		if (!rankingsmode && ((!(players[i].pflags & PF_TIMEOVER) && (data.match.pos[data.match.numplayers] < nump)) || players[i].interpoints))
 		{
-			data.match.increase[i] = players[i].interscore ? players[i].interscore : nump - data.match.pos[data.match.numplayers];
+			data.match.increase[i] = players[i].interpoints ? players[i].interpoints : nump - data.match.pos[data.match.numplayers];
 			players[i].score += data.match.increase[i];
 		}
 
@@ -569,8 +569,8 @@ void Y_IntermissionDrawer(void)
 				{
 					if (data.match.increase[data.match.num[i]] != INT16_MAX)
 					{
-						// Checking player.interscore so when "negative increase" reaches 0, it keeps the -
-						char sign = players[data.match.num[i]].interscore < 0 ? '-' : '+';
+						// Checking player.interpoints so when "negative increase" reaches 0, it keeps the -
+						char sign = players[data.match.num[i]].interpoints < 0 ? '-' : '+';
 						if (data.match.increase[data.match.num[i]] > 9)
 							snprintf(strtime, sizeof strtime, "(%c%02d)", sign, abs(data.match.increase[data.match.num[i]]));
 						else
