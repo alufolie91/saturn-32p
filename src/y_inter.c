@@ -86,7 +86,7 @@ typedef union
 		INT32 numplayers; // Number of players being displayed
 		char levelstring[64]; // holds levelnames up to 64 characters
 		// SRB2kart
-		INT16 increase[MAXPLAYERS]; // how much did the score increase by?
+		INT32 increase[MAXPLAYERS]; // how much did the score increase by?
 		UINT8 jitter[MAXPLAYERS]; // wiggle
 		UINT32 val[MAXPLAYERS]; // Gametype-specific value
 		UINT8 pos[MAXPLAYERS]; // player positions. used for ties
@@ -204,7 +204,7 @@ static void Y_CompareBattle(INT32 i)
 
 static void Y_CompareRank(INT32 i)
 {
-	INT16 increase = ((data.match.increase[i] == INT16_MAX) ? 0 : data.match.increase[i]);
+	INT32 increase = ((data.match.increase[i] == INT32_MAX) ? 0 : data.match.increase[i]);
 	if (!(data.match.val[data.match.numplayers] == UINT32_MAX || (players[i].score - increase) > data.match.val[data.match.numplayers]))
 		return;
 
@@ -270,12 +270,12 @@ static void Y_CalculateMatchData(UINT8 rankingsmode, void (*comparison)(INT32))
 
 		if (!playeringame[i] || players[i].spectator)
 		{
-			data.match.increase[i] = INT16_MAX;
+			data.match.increase[i] = INT32_MAX;
 			continue;
 		}
 
 		if (!rankingsmode)
-			data.match.increase[i] = INT16_MAX;
+			data.match.increase[i] = INT32_MAX;
 
 		numplayersingame++;
 	}
@@ -567,7 +567,7 @@ void Y_IntermissionDrawer(void)
 
 				if (data.match.rankingsmode)
 				{
-					if (data.match.increase[data.match.num[i]] != INT16_MAX)
+					if (data.match.increase[data.match.num[i]] != INT32_MAX)
 					{
 						// Checking player.interpoints so when "negative increase" reaches 0, it keeps the -
 						char sign = players[data.match.num[i]].interpoints < 0 ? '-' : '+';
@@ -764,7 +764,7 @@ void Y_Ticker(void)
 					{
 						if (data.match.num[q] == MAXPLAYERS
 						|| !data.match.increase[data.match.num[q]]
-						|| data.match.increase[data.match.num[q]] == INT16_MAX)
+						|| data.match.increase[data.match.num[q]] == INT32_MAX)
 							continue;
 
 						r++;
