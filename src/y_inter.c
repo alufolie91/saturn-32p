@@ -770,14 +770,22 @@ void Y_Ticker(void)
 						r++;
 						data.match.jitter[data.match.num[q]] = 1;
 
-						// This is wordy... But allows negative "increase"
-						if (data.match.increase[data.match.num[q]] < 0)
-							++data.match.increase[data.match.num[q]];
-						else
-							--data.match.increase[data.match.num[q]];
+						INT32 diff = 1;
+						INT32 increase = data.match.increase[data.match.num[q]];
 
-						if (data.match.increase[data.match.num[q]])
+						if (increase > 25)
+							diff = increase/10;
+
+						// This is wordy... But allows negative "increase"
+						if (increase < 0)
+							increase += diff;
+						else
+							increase -= diff;
+
+						if (increase)
 							kaching = false;
+
+						data.match.increase[data.match.num[q]] = increase;
 					}
 
 					if (r)
