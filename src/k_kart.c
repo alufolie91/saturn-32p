@@ -9410,20 +9410,23 @@ static boolean K_drawKartPositionFaces(void)
 //
 // HU_DrawTabRankings -- moved here to take advantage of kart stuff!
 //
-void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, INT32 whiteplayer, INT32 hilicol)
+void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, INT32 hilicol)
 {
 	INT32 i, rightoffset = 240;
 	const UINT8 *colormap;
 	INT32 dupadjust = (vid.width/vid.dupx), duptweak = (dupadjust - BASEVIDWIDTH)/2;
+	boolean manyplayers = (scorelines > 16); // battleroyale: these adjustments to show more players courtesy of fickle from v1.1 battleroyale
+
+	boolean (*_isHighlightedPlayer)(const player_t *) = (demo.playback ? P_IsDisplayPlayer : P_IsLocalPlayer);
 
 	//this function is designed for 9 or less score lines only
 	//I_Assert(scorelines <= 9); -- not today bitch, kart fixed it up
 
-	if (scorelines > 16)
+	V_DrawFill(1-duptweak, 26, dupadjust-2, 1, 0); // Draw a horizontal line because it looks nice!
+
+	if (scorelines > 8)
 	{
-		//battleroyale: these adjustments to show more players courtesy of fickle from v1.1 battleroyale
-		V_DrawFill(1-duptweak, 26, dupadjust-2, 1, 0); // Draw a horizontal line because it looks nice!
-		if (scorelines > 8)
+		if (manyplayers)
 		{
 			V_DrawFill(105, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
 			V_DrawFill(211, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
@@ -9431,60 +9434,76 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 			rightoffset = (BASEVIDWIDTH/3) - 4 - x;
 			x += 2;
 		}
-
-		for (i = 0; i < scorelines; i++)
+		else
 		{
-			char strtime[MAXPLAYERNAME+1];
-
-			if (players[tab[i].num].spectator || !players[tab[i].num].mo)
-				continue; //ignore them.
-
-		if ((netgame && tab[i].num != serverplayer) || (cv_mindelay.value && P_IsLocalPlayer(&players[tab[i].num])))
-		{
-			HU_drawPlayerPing(x + ((i < 8) ? -17 : rightoffset + 11), y-4, tab[i].num, 0);
+			V_DrawFill(160, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
+			rightoffset = (BASEVIDWIDTH/2) - 4 - x;
 		}
-			STRBUFCPY(strtime, tab[i].name);
+	}
 
-			if (scorelines > 8)
-				V_DrawThinString(x + 12, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+	for (i = 0; i < scorelines; i++)
+	{
+		char strtime[MAXPLAYERNAME+1];
+		const UINT8 pnum = tab[i].num;
+		player_t *player = &players[pnum];
+
+		if (player->spectator || !player->mo)
+			continue; // ignore them.
+
+		const boolean whiteplayer = _isHighlightedPlayer(player);
+		const INT32 philicol = (whiteplayer ? V_SkinColorToHighlightcolor(player->skincolor) : 0);
+
+		if ((netgame && pnum != serverplayer) || (cv_mindelay.value && P_IsLocalPlayer(player)))
+		{
+			HU_drawPlayerPing(x + ((i < 8) ? -17 : rightoffset + 11), y-4, pnum, 0);
+		}
+
+		STRBUFCPY(strtime, tab[i].name);
+
+		if (scorelines > 8)
+		{
+			if (manyplayers)
+				V_DrawThinString(x + 12, y, philicol|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
 			else
-				V_DrawString(x + 20, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
+				V_DrawThinString(x + 20, y, philicol|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
+		}
+		else
+			V_DrawString(x + 20, y, philicol|V_ALLOWLOWERCASE, strtime);
 
-			if (players[tab[i].num].mo->color)
+		if (player->mo->color)
+		{
+			if (player->mo->colorized)
+				colormap = R_GetTranslationColormap(TC_RAINBOW, player->mo->color, GTC_CACHE);
+			else
+				colormap = R_GetTranslationColormap(player->skin, player->mo->color, GTC_CACHE);
+
+			if (manyplayers)
 			{
-				colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
-				if (players[tab[i].num].mo->colorized)
-					colormap = R_GetTranslationColormap(TC_RAINBOW, players[tab[i].num].mo->color, GTC_CACHE);
+				if (cv_highresportrait.value)
+					V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, R_GetSkinFaceWant(player), colormap);
 				else
-					colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
-
-				player_t *p;
-				p = &players[tab[i].num];
-
-				if (scorelines > 8)
-				{
-					if (cv_highresportrait.value)
-						V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, R_GetSkinFaceWant(p), colormap);
-					else
-						V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, R_GetSkinFaceRank(p), colormap);
-				}
-				else
-				{
-					if (cv_highresportrait.value)
-						V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(p), colormap);
-					else
-						V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
-				}
+					V_DrawFixedPatch((x+1)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, R_GetSkinFaceRank(player), colormap);
 			}
-
-			if (scorelines <= 8 && tab[i].num == whiteplayer)
-				V_DrawScaledPatch(x, y-4, 0, kp_facehighlight[(leveltime / 4) % 8]);
-
-			if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] <= 0)
-				V_DrawScaledPatch(x-4, y-7, 0, kp_ranknobumpers);
 			else
 			{
-				INT32 pos = players[tab[i].num].kartstuff[k_position];
+				if (cv_highresportrait.value)
+					V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(player), colormap);
+				else
+					V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(player), colormap);
+			}
+		}
+
+		if (!manyplayers && whiteplayer)
+			V_DrawScaledPatch(x, y-4, 0, kp_facehighlight[(leveltime / 4) % 8]);
+
+		if (G_BattleGametype() && player->kartstuff[k_bumper] <= 0)
+			V_DrawScaledPatch(x-4, y-7, 0, kp_ranknobumpers);
+		else
+		{
+			INT32 pos = player->kartstuff[k_position];
+
+			if (manyplayers)
+			{
 				if (scorelines > 8)
 					V_DrawPingNum(x, y+2, 0, pos, NULL);
 				else if (pos < 0 || pos > 16)
@@ -9492,127 +9511,55 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 				else
 					V_DrawScaledPatch(x-5, y+6, 0, kp_facenum[pos]);
 			}
-
-			if (G_RaceGametype())
+			else
 			{
+				if (pos < 0 || pos > MAXPLAYERS)
+					pos = 0;
+
+				V_DrawScaledPatch(x-5, y+6, 0, kp_facenum[pos]); // Draws the little number over the face
+			}
+		}
+
+		if (G_RaceGametype())
+		{
 #define timestring(time) va("%i'%02i\"%02i", G_TicsToMinutes(time, true), G_TicsToSeconds(time), G_TicsToCentiseconds(time))
-				if (scorelines > 8)
-				{
-					if (players[tab[i].num].exiting)
-						V_DrawRightAlignedThinString(x+rightoffset, y-1, hilicol|V_6WIDTHSPACE, timestring(players[tab[i].num].realtime));
-					else if (players[tab[i].num].pflags & PF_TIMEOVER)
-						V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, "NO CONTEST.");
-					else if (circuitmap)
-						V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, va("Lap %d", tab[i].count));
-				}
-				else
-				{
-					if (players[tab[i].num].exiting)
-						V_DrawRightAlignedString(x+rightoffset, y, hilicol, timestring(players[tab[i].num].realtime));
-					else if (players[tab[i].num].pflags & PF_TIMEOVER)
-						V_DrawRightAlignedThinString(x+rightoffset, y-1, 0, "NO CONTEST.");
-					else if (circuitmap)
-						V_DrawRightAlignedString(x+rightoffset, y, 0, va("Lap %d", tab[i].count));
-				}
-#undef timestring
+			if (scorelines > 8)
+			{
+				if (player->exiting)
+					V_DrawRightAlignedThinString(x+rightoffset, y-1, hilicol|V_6WIDTHSPACE, timestring(player->realtime));
+				else if (player->pflags & PF_TIMEOVER)
+					V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, "NO CONTEST.");
+				else if (circuitmap)
+					V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, va("Lap %d", tab[i].count));
 			}
 			else
-				V_DrawRightAlignedString(x+rightoffset, y, 0, va("%u", tab[i].count));
+			{
+				if (player->exiting)
+					V_DrawRightAlignedString(x+rightoffset, y, hilicol, timestring(player->realtime));
+				else if (player->pflags & PF_TIMEOVER)
+					V_DrawRightAlignedThinString(x+rightoffset, y-1, 0, "NO CONTEST.");
+				else if (circuitmap)
+					V_DrawRightAlignedString(x+rightoffset, y, 0, va("Lap %d", tab[i].count));
+			}
+#undef timestring
+		}
+		else
+			V_DrawRightAlignedString(x+rightoffset, y, 0, va("%u", tab[i].count));
 
-			y += (scorelines > 8) ? 10 : 18;
+		if (manyplayers)
+		{
+			y += 10;
+
 			if (i == 13 || i == 27)
 			{
 				y = 29;
 				x += (BASEVIDWIDTH/3);
 			}
 		}
-	}
-	else
-	{
-		V_DrawFill(1-duptweak, 26, dupadjust-2, 1, 0); // Draw a horizontal line because it looks nice!
-		if (scorelines > 8)
+		else
 		{
-			V_DrawFill(160, 26, 1, 147, 0); // Draw a vertical line to separate the two sides.
-			V_DrawFill(1-duptweak, 173, dupadjust-2, 1, 0); // And a horizontal line near the bottom.
-			rightoffset = (BASEVIDWIDTH/2) - 4 - x;
-		}
-
-		for (i = 0; i < scorelines; i++)
-		{
-			char strtime[MAXPLAYERNAME+1];
-
-			if (players[tab[i].num].spectator || !players[tab[i].num].mo)
-				continue; //ignore them.
-
-			if ((netgame && tab[i].num != serverplayer) || (cv_mindelay.value && P_IsLocalPlayer(&players[tab[i].num]))) // don't draw it offline
-			{
-				HU_drawPlayerPing(x + ((i < 8) ? -17 : rightoffset + 11), y-4, tab[i].num, 0);
-			}
-
-			STRBUFCPY(strtime, tab[i].name);
-
-			if (scorelines > 8)
-				V_DrawThinString(x + 20, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE|V_6WIDTHSPACE, strtime);
-			else
-				V_DrawString(x + 20, y, ((tab[i].num == whiteplayer) ? hilicol : 0)|V_ALLOWLOWERCASE, strtime);
-
-			if (players[tab[i].num].mo->color)
-			{
-				colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
-				if (players[tab[i].num].mo->colorized)
-					colormap = R_GetTranslationColormap(TC_RAINBOW, players[tab[i].num].mo->color, GTC_CACHE);
-				else
-					colormap = R_GetTranslationColormap(players[tab[i].num].skin, players[tab[i].num].mo->color, GTC_CACHE);
-
-				player_t *p;
-				p = &players[tab[i].num];
-				if (cv_highresportrait.value)
-					V_DrawSmallMappedPatch(x, y-4, 0, R_GetSkinFaceWant(p), colormap);
-				else
-					V_DrawMappedPatch(x, y-4, 0, R_GetSkinFaceRank(p), colormap);
-			}
-
-			if (tab[i].num == whiteplayer)
-				V_DrawScaledPatch(x, y-4, 0, kp_facehighlight[(leveltime / 4) % 8]);
-
-			if (G_BattleGametype() && players[tab[i].num].kartstuff[k_bumper] <= 0)
-				V_DrawScaledPatch(x-4, y-7, 0, kp_ranknobumpers);
-			else
-			{
-				INT32 pos = players[tab[i].num].kartstuff[k_position];
-				if (pos < 0 || pos > MAXPLAYERS)
-					pos = 0;
-
-				V_DrawScaledPatch(x-5, y+6, 0, kp_facenum[pos]); // Draws the little number over the face
-			}
-
-			if (G_RaceGametype())
-			{
-#define timestring(time) va("%i'%02i\"%02i", G_TicsToMinutes(time, true), G_TicsToSeconds(time), G_TicsToCentiseconds(time))
-				if (scorelines > 8)
-				{
-					if (players[tab[i].num].exiting)
-						V_DrawRightAlignedThinString(x+rightoffset, y-1, hilicol|V_6WIDTHSPACE, timestring(players[tab[i].num].realtime));
-					else if (players[tab[i].num].pflags & PF_TIMEOVER)
-						V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, "NO CONTEST.");
-					else if (circuitmap)
-						V_DrawRightAlignedThinString(x+rightoffset, y-1, V_6WIDTHSPACE, va("Lap %d", tab[i].count));
-				}
-				else
-				{
-					if (players[tab[i].num].exiting)
-						V_DrawRightAlignedString(x+rightoffset, y, hilicol, timestring(players[tab[i].num].realtime));
-					else if (players[tab[i].num].pflags & PF_TIMEOVER)
-						V_DrawRightAlignedThinString(x+rightoffset, y-1, 0, "NO CONTEST.");
-					else if (circuitmap)
-						V_DrawRightAlignedString(x+rightoffset, y, 0, va("Lap %d", tab[i].count));
-				}
-#undef timestring
-			}
-			else
-				V_DrawRightAlignedString(x+rightoffset, y, 0, va("%u", tab[i].count));
-
 			y += 18;
+
 			if (i == 7)
 			{
 				y = 33;

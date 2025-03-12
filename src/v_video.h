@@ -266,6 +266,8 @@ INT32 V_ThinSubStringWidth(const char *string, INT32 length, INT32 option);
 INT32 V_SubStringLengthToFit(const char *string, INT32 width, INT32 option);
 
 char V_GetSkincolorChar(INT32 color);
+INT32 V_SkinColorToHighlightcolor(skincolors_t color);
+
 // this is pretty dumb, but has to be done like this, otherwise the fps counter just disappears sometimes for no reason lol
 FUNCINLINE static ATTRINLINE INT32 V_LocalTransFlag(void)
 {

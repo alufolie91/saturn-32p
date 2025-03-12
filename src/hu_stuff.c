@@ -2600,7 +2600,7 @@ void HU_drawPlayerPing(INT32 x, INT32 y, INT32 pnum, INT32 flags)
 //
 // HU_DrawSpectatorTicker
 //
-static inline void HU_DrawSpectatorTicker(void)
+static void HU_DrawSpectatorTicker(void)
 {
 	INT32 i;
 	INT32 length = 0, height = 174;
@@ -2608,89 +2608,89 @@ static inline void HU_DrawSpectatorTicker(void)
 	INT32 dupadjust = (vid.width/vid.dupx), duptweak = (dupadjust - BASEVIDWIDTH)/2;
 
 	for (i = 0; i < MAXPLAYERS; i++)
-		if (playeringame[i] && players[i].spectator)
-			totallength += (signed)strlen(player_names[i]) * 8 + 16;
+	{
+		if (!playeringame[i] || !players[i].spectator)
+			continue;
+
+		totallength += (signed)strlen(player_names[i]) * 8 + 16;
+	}
 
 	length -= (leveltime % (totallength + dupadjust+8));
 	length += dupadjust;
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-		if (playeringame[i] && players[i].spectator)
+		if (!playeringame[i] || !players[i].spectator)
+			continue;
+
+		char *pos;
+		char initial[MAXPLAYERNAME+1];
+		char current[MAXPLAYERNAME+1];
+		INT32 len;
+
+		len = ((signed)strlen(player_names[i]) * 8 + 16);
+
+		strcpy(initial, player_names[i]);
+		pos = initial;
+
+		if (length >= -len)
 		{
-			char *pos;
-			char initial[MAXPLAYERNAME+1];
-			char current[MAXPLAYERNAME+1];
-			INT32 len;
-
-			len = ((signed)strlen(player_names[i]) * 8 + 16);
-
-			strcpy(initial, player_names[i]);
-			pos = initial;
-
-			if (length >= -len)
+			if (length < -8)
 			{
-				if (length < -8)
-				{
-					UINT8 eatenchars = (UINT8)(abs(length) / 8);
+				UINT8 eatenchars = (UINT8)(abs(length) / 8);
 
-					if (eatenchars <= strlen(initial))
-					{
-						// Eat one letter off the left side,
-						// then compensate the drawing position.
-						pos += eatenchars;
-						strcpy(current, pos);
-						templength = ((length + 8) % 8);
-					}
-					else
-					{
-						strcpy(current, " ");
-						templength = length;
-					}
+				if (eatenchars <= strlen(initial))
+				{
+					// Eat one letter off the left side,
+					// then compensate the drawing position.
+					pos += eatenchars;
+					strcpy(current, pos);
+					templength = ((length + 8) % 8);
 				}
 				else
 				{
-					strcpy(current, initial);
+					strcpy(current, " ");
 					templength = length;
 				}
-
-				V_DrawString(templength - duptweak, height, V_TRANSLUCENT|V_ALLOWLOWERCASE, current);
 			}
-
-			if (cv_showspecstuff.value)
+			else
 			{
-				if (players[i].mo)
-				{
-					player_t *p;
-					p = &players[i];
-
-					if (players[i].mo->color)
-					{
-						const UINT8 *colormap;
-						if (players[i].mo->colorized)
-							colormap = R_GetTranslationColormap(TC_RAINBOW, players[i].mo->color, GTC_CACHE);
-						else
-							colormap = R_GetTranslationColormap(players[i].skin, players[i].mo->color, GTC_CACHE);
-
-						if (cv_highresportrait.value)
-							V_DrawSmallMappedPatch((templength - duptweak), height+10, V_TRANSLUCENT, R_GetSkinFaceWant(p), colormap);
-						else	
-							V_DrawMappedPatch((templength - duptweak), height+10, V_TRANSLUCENT, R_GetSkinFaceRank(p), colormap);
-					}
-				}
-
-				if ((netgame && i != serverplayer) || (cv_mindelay.value && P_IsLocalPlayer(&players[i])))
-				{
-					HU_drawPlayerPing((templength - duptweak)+8, height-20, i, V_TRANSLUCENT);
-				}
+				strcpy(current, initial);
+				templength = length;
 			}
 
-			if ((length += len) >= dupadjust+8)
-				break;
+			V_DrawString(templength - duptweak, height, V_TRANSLUCENT|V_ALLOWLOWERCASE, current);
 		}
+
+		if (cv_showspecstuff.value)
+		{
+			player_t *player = &players[i];
+
+			if (player->mo && player->mo->color)
+			{
+				const UINT8 *colormap = NULL;
+
+				if (player->mo->colorized)
+					colormap = R_GetTranslationColormap(TC_RAINBOW, player->mo->color, GTC_CACHE);
+				else
+					colormap = R_GetTranslationColormap(player->skin, player->mo->color, GTC_CACHE);
+
+				if (cv_highresportrait.value)
+					V_DrawSmallMappedPatch((templength - duptweak), height+10, V_TRANSLUCENT, R_GetSkinFaceWant(player), colormap);
+				else
+					V_DrawMappedPatch((templength - duptweak), height+10, V_TRANSLUCENT, R_GetSkinFaceRank(player), colormap);
+			}
+
+			if ((netgame && i != serverplayer) || (cv_mindelay.value && P_IsLocalPlayer(player)))
+			{
+				HU_drawPlayerPing((templength - duptweak)+8, height-20, i, V_TRANSLUCENT);
+			}
+		}
+
+		if ((length += len) >= dupadjust+8)
+			break;
 	}
 }
-
 
 //
 // HU_DrawRankings
@@ -2701,7 +2701,6 @@ static void HU_DrawRankings(void)
 	playersort_t tab[MAXPLAYERS];
 	INT32 i, j, scorelines, hilicol, numplayersingame = 0;
 	boolean completed[MAXPLAYERS];
-	UINT32 whiteplayer = MAXPLAYERS;
 
 	if (!automapactive)
 		V_DrawFadeScreen(0xFF00, 16); // A little more readable, and prevents cheating the fades under other circumstances.
@@ -2794,11 +2793,6 @@ static void HU_DrawRankings(void)
 		V_DrawCenteredString(256, 16, hilicol, cv_kartspeed.string);
 	}
 
-	// When you play, you quickly see your score because your name is displayed in white.
-	// When playing back a demo, you quickly see who's the view.
-	if (!splitscreen)
-		whiteplayer = demo.playback ? displayplayers[0] : consoleplayer;
-
 	scorelines = 0;
 	memset(completed, 0, sizeof (completed));
 	memset(tab, 0, sizeof (playersort_t)*MAXPLAYERS);
@@ -2854,7 +2848,7 @@ static void HU_DrawRankings(void)
 #endif*/
 	}
 
-	HU_DrawTabRankings(((scorelines > 8) ? 6 : 40), (scorelines > 8) ? 29 : 33, tab, scorelines, whiteplayer, hilicol);
+	HU_DrawTabRankings(((scorelines > 8) ? 6 : 40), (scorelines > 8) ? 29 : 33, tab, scorelines, hilicol);
 
 	// draw spectators in a ticker across the bottom
 	if (netgame && G_GametypeHasSpectators())
