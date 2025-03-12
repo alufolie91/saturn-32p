@@ -9453,10 +9453,12 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 		const boolean whiteplayer = _isHighlightedPlayer(player);
 		const INT32 philicol = (whiteplayer ? V_SkinColorToHighlightcolor(player->skincolor) : 0);
 
+		//FIXME: man does someone wanna fix the crappy ping display? lmao
+		/*
 		if ((netgame && pnum != serverplayer) || (cv_mindelay.value && P_IsLocalPlayer(player)))
 		{
 			HU_drawPlayerPing(x + ((i < 8) ? -17 : rightoffset + 11), y-4, pnum, 0);
-		}
+		}*/
 
 		STRBUFCPY(strtime, tab[i].name);
 
