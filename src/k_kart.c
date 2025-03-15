@@ -12,6 +12,7 @@
 #include "d_player.h"
 #include "hu_stuff.h"
 #include "g_game.h"
+#include "i_joy.h"
 #include "m_fixed.h"
 #include "m_random.h"
 #include "m_menu.h" // ffdhidshfuisduifigergho9igj89dgodhfih AAAAAAAAAA
@@ -90,7 +91,8 @@ consvar_t cv_airsparks = {"airdriftsparks", "Off", CV_SAVE, CV_OnOff, NULL, 0, N
 
 //extra hud things
 consvar_t cv_showstats = {"showstats", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_showinput = {"showinput", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t inputdisplay_cons_t[] = {{0, "Off"}, {1, "Wheel"}, {2, "Stick"}, {0, NULL}};
+consvar_t cv_showinput = {"showinput", "Off", CV_SAVE, inputdisplay_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_showlaptimes = {"showlaptimes", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_posanim = {"postitionanimation", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -8592,7 +8594,7 @@ static void K_drawKartStats(void)
 	if (!splitscreen)
 	{
 		// Skin name
-		V_DrawSmallString(x+20, y+12, flags|V_ALLOWLOWERCASE, va("%c%s", V_GetSkincolorChar(stplyr->skincolor), fakeskin->realname));
+		V_DrawSmallString(x+20, y+12, flags|V_ALLOWLOWERCASE|V_SkinColorToHighlightcolor(stplyr->skincolor), fakeskin->realname);
 
 		// Icon and stats
 		if (cv_highresportrait.value)
@@ -10516,8 +10518,7 @@ static void K_drawKartMinimapHead(mobj_t *mo, INT32 x, INT32 y, INT32 flags)
 
 	if (cv_showminimapnames.value && mo->player && !(modeattacking || gamestate == GS_TIMEATTACK))
 	{
-		const char *player_name = va("%c%s", (mo->color) ? V_GetSkincolorChar(mo->color) : 0, player_names[mo->player - players]);
-		V_DrawCenteredSmallStringAtFixed(amxpos + (4*FRACUNIT), amypos - (3*FRACUNIT), V_ALLOWLOWERCASE|flags, player_name);
+		V_DrawCenteredSmallStringAtFixed(amxpos + (4*FRACUNIT), amypos - (3*FRACUNIT), V_ALLOWLOWERCASE|flags|V_SkinColorToHighlightcolor(mo->color), player_names[mo->player - players]);
 	}
 
 	// thx wanted reticle for having weird offsets very cool
@@ -11043,7 +11044,7 @@ static void K_drawInput(void)
 #define BUTTH 11
 
 #define drawbutt(xoffs, butt, symb)\
-	if (stplyr->cmd.buttons & butt)\
+	if (cmd->buttons & butt)\
 	{\
 		offs = 2*FRACUNIT;\
 		col = accent1;\
@@ -11069,43 +11070,104 @@ static void K_drawInput(void)
 
 	y -= FRACUNIT;
 
-	if (!cmd->driftturn) // no turn
-		target = 0;
-	else // turning of multiple strengths!
+	if (cv_showinput.value == 2)
 	{
-		target = ((abs(cmd->driftturn) - 1)/125)+1;
-		if (target > 4)
-			target = 4;
-		if (cmd->driftturn < 0)
-			target = -target;
+		INT32 joyx, joyxoffs, joyy, joyyoffs, axis;
+		joyxoffs = -8, joyyoffs = -24;
+		joyx = x>>FRACBITS, joyy = y>>FRACBITS;
+
+		// O backing
+		V_DrawFill(joyx+joyxoffs, joyy+joyyoffs-1, 16, 16, splitflags|accent2);
+		V_DrawFill(joyx+joyxoffs, joyy+joyyoffs+15, 16, 1, splitflags|31);
+
+		// time for pain and suffering
+		// kart does not have anything we can get analogue joystick y axis values from
+		// during normal gameplay, so replicate shit here
+		INT32 hudforward = 0; // for the stick input display :chaosleep:
+		const boolean analogjoystickmove = cv_usejoystick[stplyrnum].value && !Joystick[stplyrnum].bGamepadStyle;
+		const boolean gamepadjoystickmove = cv_usejoystick[stplyrnum].value && Joystick[stplyrnum].bGamepadStyle;
+		const UINT8 ssplayer = stplyrnum+1;
+
+		axis = JoyAxis(AXISAIM, ssplayer);
+
+		if (analogjoystickmove && axis != 0)
+		{
+			// JOYAXISRANGE is supposed to be 1023 (divide by 1024)
+			hudforward -= ((axis * KART_FULLTURN) / (JOYAXISRANGE-1));
+		}
+		else
+		{
+			if (InputDown(gc_aimforward, ssplayer) || (gamepadjoystickmove && axis < 0))
+			{
+				hudforward += KART_FULLTURN;
+			}
+			if (InputDown(gc_aimbackward, ssplayer) || (gamepadjoystickmove && axis > 0))
+			{
+				hudforward-= KART_FULLTURN;
+			}
+		}
+
+		hudforward = CLAMP(hudforward, -KART_FULLTURN, KART_FULLTURN);
+
+		if (cmd->driftturn || hudforward)
+		{
+			INT16 turning = encoremode ? -cmd->driftturn : cmd->driftturn;
+			// joystick hole
+			V_DrawFill(joyx+joyxoffs+5, joyy+joyyoffs+4, 6, 6, splitflags|accent1);
+			// joystick top and back
+			V_DrawFill(joyx+joyxoffs+3-turning/80,
+				joyy+joyyoffs+2-hudforward/80,
+				10, 10, splitflags|31);
+			V_DrawFill(joyx+joyxoffs+3-turning/64,
+				joyy+joyyoffs+1-hudforward/64,
+				10, 10, splitflags|accent1);
+		}
+		else
+		{
+			V_DrawFill(joyx+joyxoffs+3, joyy+joyyoffs+11, 10, 1, splitflags|accent2);
+			V_DrawFill(joyx+joyxoffs+3,
+				joyy+joyyoffs+1,
+				10, 10,splitflags|accent1);
+		}
 	}
-
-	if (pn != target)
-	{
-		if (abs(pn - target) == 1)
-			pn = target;
-		else if (pn < target)
-			pn += 2;
-		else //if (pn > target)
-			pn -= 2;
-	}
-
-	if (pn < 0)
-	{
-		splitflags |= V_FLIP; // right turn
-		x -= FRACUNIT;
-	}
-
-	target = abs(pn);
-	if (target > 4)
-		target = 4;
-
-	if (!K_GetHudColor())
-		V_DrawFixedPatch(x, y, FRACUNIT, splitflags, kp_inputwheel[target], NULL);
 	else
 	{
-		UINT8 *colormap;
-		colormap = R_GetTranslationColormap(0, K_GetHudColor(), GTC_CACHE);
+		UINT8 *colormap = NULL;
+
+		if (!cmd->driftturn) // no turn
+			target = 0;
+		else // turning of multiple strengths!
+		{
+			target = ((abs(cmd->driftturn) - 1)/125)+1;
+			if (target > 4)
+				target = 4;
+			if (cmd->driftturn < 0)
+				target = -target;
+		}
+
+		if (pn != target)
+		{
+			if (abs(pn - target) == 1)
+				pn = target;
+			else if (pn < target)
+				pn += 2;
+			else //if (pn > target)
+				pn -= 2;
+		}
+
+		if (pn < 0)
+		{
+			splitflags |= V_FLIP; // right turn
+			x -= FRACUNIT;
+		}
+
+		target = abs(pn);
+		if (target > 4)
+			target = 4;
+
+		if (K_GetHudColor())
+			colormap = R_GetTranslationColormap(0, K_GetHudColor(), GTC_CACHE);
+
 		V_DrawFixedPatch(x, y, FRACUNIT, splitflags, kp_inputwheel[target], colormap);
 	}
 }
