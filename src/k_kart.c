@@ -3584,8 +3584,13 @@ static void K_SpawnDriftSparks(player_t *player)
 	if (leveltime % 2 == 1)
 		return;
 
-	if (!cv_airsparks.value && !P_IsObjectOnGround(player->mo))
+	if (cv_airsparks.value)
+		goto skipground;
+
+	if (!P_IsObjectOnGround(player->mo))
 		return;
+
+skipground: // idk im sleepy
 
 	if (!player->kartstuff[k_drift] || player->kartstuff[k_driftcharge] < K_GetKartDriftSparkValue(player))
 		return;
@@ -3595,8 +3600,12 @@ static void K_SpawnDriftSparks(player_t *player)
 	for (i = 0; i < 2; i++)
 	{
 		fixed_t driftExtraScale = 0;
-		newx = player->mo->x + P_ReturnThrustX(player->mo, travelangle + ((i&1) ? -1 : 1)*ANGLE_135, FixedMul(32*FRACUNIT, player->mo->scale));
-		newy = player->mo->y + P_ReturnThrustY(player->mo, travelangle + ((i&1) ? -1 : 1)*ANGLE_135, FixedMul(32*FRACUNIT, player->mo->scale));
+
+		angle_t thrustangle = (travelangle + ((i&1) ? -1 : 1)*ANGLE_135);
+		fixed_t smolscale = FixedMul(32*FRACUNIT, player->mo->scale);
+
+		newx = player->mo->x + P_ReturnThrustX(player->mo, thrustangle, smolscale);
+		newy = player->mo->y + P_ReturnThrustY(player->mo, thrustangle, smolscale);
 		spark = P_SpawnMobj(newx, newy, player->mo->z, MT_DRIFTSPARK);
 
 		P_SetTarget(&spark->target, player->mo);
@@ -3605,7 +3614,7 @@ static void K_SpawnDriftSparks(player_t *player)
 		// scale increase while driftspark level gained timer is running
 		driftExtraScale = FixedDiv(player->driftsparkGrowTimer, DRIFTSPARKGROWTICS);
 		spark->destscale = FixedMul(player->mo->scale, FRACUNIT + FixedMul(driftExtraScale, cv_driftsparkpulse.value));
-		P_SetScale(spark, FixedMul(player->mo->scale, FRACUNIT + FixedMul(driftExtraScale, cv_driftsparkpulse.value)));
+		P_SetScale(spark, spark->destscale); // why not use what we calculated above?
 
 		spark->momx = player->mo->momx/2;
 		spark->momy = player->mo->momy/2;
@@ -3669,8 +3678,11 @@ static void K_SpawnAIZDust(player_t *player)
 	//S_StartSound(player->mo, sfx_s3k47);
 
 	{
-		newx = player->mo->x + P_ReturnThrustX(player->mo, travelangle - (player->kartstuff[k_aizdriftstrat]*ANGLE_45), FixedMul(24*FRACUNIT, player->mo->scale));
-		newy = player->mo->y + P_ReturnThrustY(player->mo, travelangle - (player->kartstuff[k_aizdriftstrat]*ANGLE_45), FixedMul(24*FRACUNIT, player->mo->scale));
+		angle_t thrustangle = (travelangle - (player->kartstuff[k_aizdriftstrat]*ANGLE_45));
+		fixed_t smolscale = FixedMul(24*FRACUNIT, player->mo->scale);
+
+		newx = player->mo->x + P_ReturnThrustX(player->mo, thrustangle, smolscale);
+		newy = player->mo->y + P_ReturnThrustY(player->mo, thrustangle, smolscale);
 		spark = P_SpawnMobj(newx, newy, player->mo->z, MT_AIZDRIFTSTRAT);
 
 		spark->angle = travelangle+(player->kartstuff[k_aizdriftstrat]*ANGLE_90);
@@ -3809,13 +3821,14 @@ static void K_QuiteSaltyHop(player_t *p)
 
 		if (p->mo->salty_zoffset <= 0)
 		{
-			if (!(p->mo->eflags & MFE_JUSTHITFLOOR) && P_IsObjectOnGround(p->mo) && cv_saltyhopsfx.value)
+			if (cv_saltyhopsfx.value && !(p->mo->eflags & MFE_JUSTHITFLOOR) && P_IsObjectOnGround(p->mo))
 				S_StartSound(p->mo, sfx_s268);
 			p->mo->salty_jump = false;
 			p->mo->salty_zoffset = 0;
 			p->mo->salty_momz = 0;
 			// shlamma damma
-			p->mo->stretchslam += cv_saltysquish.value ? (8*mos) : 0;
+			if (cv_saltysquish.value)
+				p->mo->stretchslam += 8*mos;
 		}
 		else if (p->mo->salty_zoffset >= 0 && cv_saltysquish.value)
 		{
@@ -3826,10 +3839,13 @@ static void K_QuiteSaltyHop(player_t *p)
 
 		p->mo->spriteyoffset = p->mo->salty_zoffset;
 
-		if (S_SoundPlaying(p->mo, sfx_screec))
-			S_StopSoundByID(p->mo, sfx_screec);
-		if (S_SoundPlaying(p->mo, sfx_drift))
-			S_StopSoundByID(p->mo, sfx_drift);
+		if (cv_saltyhopsfx.value)
+		{
+			if (S_SoundPlaying(p->mo, sfx_screec))
+				S_StopSoundByID(p->mo, sfx_screec);
+			if (S_SoundPlaying(p->mo, sfx_drift))
+				S_StopSoundByID(p->mo, sfx_drift);
+		}
 	}
 	else if (p->mo->salty_tapping && P_IsObjectOnGround(p->mo) && !p->kartstuff[k_spinouttimer] && !p->kartstuff[k_squishedtimer])
 	{
@@ -3841,25 +3857,58 @@ static void K_QuiteSaltyHop(player_t *p)
 	}
 }
 
+boolean K_CheckSlopeRollDist(mobj_t *mobj)
+{
+	const boolean usedistance = cv_sloperolldist.value && !splitscreen;
+
+	// always roll from any distance
+	if (!usedistance)
+		return true;
+
+	const fixed_t rolldist = cv_sloperolldist.value * mapobjectscale;
+	const fixed_t m_dist = (R_QuickCamDist(mobj->x, mobj->y)*FRACUNIT);
+
+	return (m_dist <= rolldist);
+}
+
+// checks if slope rotation should be applied
+boolean K_ShouldSlopeRoll(mobj_t *mobj)
+{
+	if (!cv_sloperoll.value || (!mobj->player && cv_sloperoll.value != 2)) // not a player and sloperoll not set to "Everything"
+		return false;
+
+	// seeing a character rotate mid-hop looks really janky
+	if (mobj->player && mobj->player->mo->salty_jump)
+		return false;
+
+	return K_CheckSlopeRollDist(mobj);
+}
+
 #define SLOPEROLL_DIV 3
 void K_RollMobjBySlopes(mobj_t* mo, pslope_t *slope)
 {
+	// save one P_MobjWasRemoved check for dedis lel
+	if (rendermode == render_none)
+		return;
+
 	if (P_MobjWasRemoved(mo))
 		return;
 
 	I_Assert(mo->subsector != NULL);
 	I_Assert(mo->subsector->sector != NULL);
 
+	if (!K_ShouldSlopeRoll(mo))
+	{
+		mo->pitch_sprite = mo->roll_sprite = 0;
+		mo->sloperoll = mo->slopepitch = 0;
+		return;
+	}
+
 	// lifted from hw_md2
 	if (slope)
 	{
 		angle_t an;
 		const boolean flip = (mo->eflags & MFE_VERTICALFLIP);
-		const boolean usedistance = cv_sloperolldist.value && !splitscreen;
-		const fixed_t rolldist = cv_sloperolldist.value * mapobjectscale;
-		const fixed_t m_dist = usedistance ? R_PointToDist(mo->x, mo->y) : 0;
-		const boolean usepitchnroll = (!usedistance || (m_dist <= rolldist));
-
 		fixed_t tempz = slope->normal.z;
 		fixed_t tempy = slope->normal.y;
 		fixed_t tempx = slope->normal.x;
@@ -3868,29 +3917,14 @@ void K_RollMobjBySlopes(mobj_t* mo, pslope_t *slope)
 		// admittedly this is a very hacky way to do the pitch and roll easing
 
 		// pitch
-		if (usepitchnroll)
-		{
-			an = (INT32)((angle_t)tempangle - mo->pitch_sprite) / SLOPEROLL_DIV;
-
-			mo->pitch_sprite = an ? mo->pitch_sprite + an : (angle_t)tempangle;
-		}
-		else
-			mo->pitch_sprite = 0;
-
+		an = (INT32)((angle_t)tempangle - mo->pitch_sprite) / SLOPEROLL_DIV;
+		mo->pitch_sprite = an ? mo->pitch_sprite + an : (angle_t)tempangle;
 		mo->slopepitch = flip ? InvAngle(mo->pitch_sprite) : mo->pitch_sprite;
 
 		// roll
-		tempangle = (R_PointToAngle2(0, 0, tempz, tempy));
-
-		if (usepitchnroll)
-		{
-			an = (INT32)((angle_t)tempangle - mo->roll_sprite) / SLOPEROLL_DIV;
-
-			mo->roll_sprite = an ? mo->roll_sprite + an : (angle_t)tempangle;
-		}
-		else
-			mo->roll_sprite = 0;
-
+		tempangle = R_PointToAngle2(0, 0, tempz, tempy);
+		an = (INT32)((angle_t)tempangle - mo->roll_sprite) / SLOPEROLL_DIV;
+		mo->roll_sprite = an ? mo->roll_sprite + an : (angle_t)tempangle;
 		mo->sloperoll = flip ? InvAngle(mo->roll_sprite) : mo->roll_sprite;
 	}
 	else if (P_IsObjectOnGround(mo))
@@ -3930,14 +3964,19 @@ void K_SpawnBoostTrail(player_t *player)
 
 	for (i = 0; i < 2; i++)
 	{
-		newx = player->mo->x + P_ReturnThrustX(player->mo, travelangle + ((i&1) ? -1 : 1)*ANGLE_135, FixedMul(24*FRACUNIT, player->mo->scale));
-		newy = player->mo->y + P_ReturnThrustY(player->mo, travelangle + ((i&1) ? -1 : 1)*ANGLE_135, FixedMul(24*FRACUNIT, player->mo->scale));
+		angle_t thrustangle = (travelangle + ((i&1) ? -1 : 1)*ANGLE_135);
+		fixed_t smolscale = FixedMul(24*FRACUNIT, player->mo->scale);
+
+		newx = player->mo->x + P_ReturnThrustX(player->mo, thrustangle, smolscale);
+		newy = player->mo->y + P_ReturnThrustY(player->mo, thrustangle, smolscale);
+
 		if (player->mo->standingslope)
 		{
 			ground = P_GetZAt(player->mo->standingslope, newx, newy);
 			if (player->mo->eflags & MFE_VERTICALFLIP)
 				ground -= FixedMul(mobjinfo[MT_SNEAKERTRAIL].height, player->mo->scale);
 		}
+
 		flame = P_SpawnMobj(newx, newy, ground, MT_SNEAKERTRAIL);
 
 		P_SetTarget(&flame->target, player->mo);
@@ -4267,13 +4306,13 @@ static mobj_t *K_ThrowKartItem(player_t *player, boolean missile, mobjtype_t map
 				if (mo->eflags & MFE_UNDERWATER)
 					mo->momz = (117 * mo->momz) / 200;
 
-				if (cv_sloperoll.value == 2 && cv_bananthrowroll.value && mapthing == MT_BANANA)
+				if (cv_bananthrowroll.value && (mapthing == MT_BANANA))
 				{
 					//mo->angle = FixedAngle(M_RandomRange(-180, 180) << FRACBITS);
-					if (cv_bananthrowroll.value == 1)
-						mo->sloperoll = FixedAngle(M_RandomRange(-180, 180) << FRACBITS); // im lazy but this makes sure the banan goes back to upright when it lands lmao
+					if (cv_bananthrowroll.value == 1 && K_CheckSlopeRollDist(mo))
+						mo->sloperoll = (angle_t)FixedAngle(M_RandomRange(-180, 180) << FRACBITS); // im lazy but this makes sure the banan goes back to upright when it lands lmao
 					else if (cv_bananthrowroll.value == 2)
-						mo->rollangle = FixedAngle(M_RandomRange(-180, 180) << FRACBITS);
+						mo->rollangle = (angle_t)FixedAngle(M_RandomRange(-180, 180) << FRACBITS);
 				}
 			}
 
@@ -5355,7 +5394,7 @@ static void K_MoveHeldObjects(player_t *player)
 					if (R_PointToDist2(cur->x, cur->y, targx, targy) > 768*FRACUNIT)
 						P_MoveOrigin(cur, targx, targy, cur->z);
 
-					if (cv_sloperoll.value == 2 && P_IsObjectOnGround(cur))
+					if (P_IsObjectOnGround(cur) && K_ShouldSlopeRoll(cur))
 					{
 						K_CalculateBananaSlope(cur, cur->x, cur->y, cur->z,
 											   cur->radius, cur->height, (cur->eflags & MFE_VERTICALFLIP), false);
@@ -6376,59 +6415,68 @@ static void K_KartDrift(player_t *player, boolean onground)
 	}
 
 	// Incease/decrease the drift value to continue drifting in that direction
-	if (player->kartstuff[k_spinouttimer] == 0 && player->kartstuff[k_jmp] == 1 && onground && player->kartstuff[k_drift] != 0)
+	if (player->kartstuff[k_spinouttimer] == 0 && player->kartstuff[k_jmp] == 1 && player->kartstuff[k_drift] != 0)
 	{
 		fixed_t driftadditive = 24;
 
-		if (player->kartstuff[k_drift] >= 1) // Drifting to the left
+		// well this is kinda dumb but we cannot modify a drift in midair so
+		if (onground)
 		{
-			player->kartstuff[k_drift]++;
-			if (player->kartstuff[k_drift] > 5)
-				player->kartstuff[k_drift] = 5;
+			if (player->kartstuff[k_drift] >= 1) // Drifting to the left
+			{
+				player->kartstuff[k_drift]++;
+				if (player->kartstuff[k_drift] > 5)
+					player->kartstuff[k_drift] = 5;
 
-			if (player->cmd.driftturn > 0) // Inward
-				driftadditive += abs(player->cmd.driftturn)/100;
-			if (player->cmd.driftturn < 0) // Outward
-				driftadditive -= abs(player->cmd.driftturn)/75;
+				if (player->cmd.driftturn > 0) // Inward
+					driftadditive += abs(player->cmd.driftturn)/100;
+				if (player->cmd.driftturn < 0) // Outward
+					driftadditive -= abs(player->cmd.driftturn)/75;
+			}
+			else if (player->kartstuff[k_drift] <= -1) // Drifting to the right
+			{
+				player->kartstuff[k_drift]--;
+				if (player->kartstuff[k_drift] < -5)
+					player->kartstuff[k_drift] = -5;
+
+				if (player->cmd.driftturn < 0) // Inward
+					driftadditive += abs(player->cmd.driftturn)/100;
+				if (player->cmd.driftturn > 0) // Outward
+					driftadditive -= abs(player->cmd.driftturn)/75;
+			}
+
+			// Disable drift-sparks until you're going fast enough
+			if (player->kartstuff[k_getsparks] == 0 || (player->kartstuff[k_offroad] && !player->kartstuff[k_invincibilitytimer] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_sneakertimer]))
+				driftadditive = 0;
+			if (player->speed > minspeed*2)
+				player->kartstuff[k_getsparks] = 1;
+
+			// Sound whenever you get a different tier of sparks
+			if ((player->kartstuff[k_driftcharge] < dsone && player->kartstuff[k_driftcharge]+driftadditive >= dsone)
+				|| (player->kartstuff[k_driftcharge] < dstwo && player->kartstuff[k_driftcharge]+driftadditive >= dstwo)
+				|| (player->kartstuff[k_driftcharge] < dsthree && player->kartstuff[k_driftcharge]+driftadditive >= dsthree))
+			{
+				//S_StartSound(player->mo, sfx_s3ka2);
+				if (P_IsLocalPlayer(player)) // UGHGHGH...
+					S_StartSoundAtVolume(player->mo, sfx_s3ka2, 192); // Ugh...
+
+				player->driftsparkGrowTimer = DRIFTSPARKGROWTICS;
+			}
 		}
-		else if (player->kartstuff[k_drift] <= -1) // Drifting to the right
+		else
 		{
-			player->kartstuff[k_drift]--;
-			if (player->kartstuff[k_drift] < -5)
-				player->kartstuff[k_drift] = -5;
-
-			if (player->cmd.driftturn < 0) // Inward
-				driftadditive += abs(player->cmd.driftturn)/100;
-			if (player->cmd.driftturn > 0) // Outward
-				driftadditive -= abs(player->cmd.driftturn)/75;
-		}
-
-		// Disable drift-sparks until you're going fast enough
-		if (player->kartstuff[k_getsparks] == 0 || (player->kartstuff[k_offroad] && !player->kartstuff[k_invincibilitytimer] && !player->kartstuff[k_hyudorotimer] && !player->kartstuff[k_sneakertimer]))
 			driftadditive = 0;
-		if (player->speed > minspeed*2)
-			player->kartstuff[k_getsparks] = 1;
-
-		// Sound whenever you get a different tier of sparks
-		if ((player->kartstuff[k_driftcharge] < dsone && player->kartstuff[k_driftcharge]+driftadditive >= dsone)
-			|| (player->kartstuff[k_driftcharge] < dstwo && player->kartstuff[k_driftcharge]+driftadditive >= dstwo)
-			|| (player->kartstuff[k_driftcharge] < dsthree && player->kartstuff[k_driftcharge]+driftadditive >= dsthree))
-		{
-			//S_StartSound(player->mo, sfx_s3ka2);
-			if (P_IsLocalPlayer(player)) // UGHGHGH...
-				S_StartSoundAtVolume(player->mo, sfx_s3ka2, 192); // Ugh...
-
-			player->driftsparkGrowTimer = DRIFTSPARKGROWTICS;
 		}
 
-
-		// moved this below sounds to help with scaling
 		// This spawns the drift sparks
 		if (player->kartstuff[k_driftcharge] + driftadditive >= dsone)
 			K_SpawnDriftSparks(player);
 
-		player->kartstuff[k_driftcharge] += driftadditive;
-		player->kartstuff[k_driftend] = 0;
+		if (onground)
+		{
+			player->kartstuff[k_driftcharge] += driftadditive;
+			player->kartstuff[k_driftend] = 0;
+		}
 	}
 
 	if (player->driftsparkGrowTimer)
@@ -7235,17 +7283,9 @@ void K_MoveKartPlayer(player_t *player, boolean onground)
 			player->sliproll -= (4*ANG1);
 	}
 
+	// funneh Saturn sprite stuff
 	K_StretchPlayerGravity(player);
-
-	if (cv_sloperoll.value && !player->mo->salty_jump) // seeing a character rotate mid-hop looks really janky
-	{
-		K_RollMobjBySlopes(player->mo, player->mo->standingslope);
-	}
-	else
-	{
-		player->mo->sloperoll = 0;
-		player->mo->slopepitch = 0;
-	}
+	K_RollMobjBySlopes(player->mo, player->mo->standingslope);
 
 	// Quick Turning
 	// You can't turn your kart when you're not moving.
@@ -11113,27 +11153,35 @@ static void K_drawInput(void)
 		// kart does not have anything we can get analogue joystick y axis values from
 		// during normal gameplay, so replicate shit here
 		INT32 hudforward = 0; // for the stick input display :chaosleep:
-		const boolean analogjoystickmove = cv_usejoystick[stplyrnum].value && !Joystick[stplyrnum].bGamepadStyle;
-		const boolean gamepadjoystickmove = cv_usejoystick[stplyrnum].value && Joystick[stplyrnum].bGamepadStyle;
-		const UINT8 ssplayer = stplyrnum+1;
 
-		axis = JoyAxis(AXISAIM, ssplayer);
-
-		if (analogjoystickmove && axis != 0)
+		if (!demo.playback)
 		{
-			// JOYAXISRANGE is supposed to be 1023 (divide by 1024)
-			hudforward -= ((axis * KART_FULLTURN) / (JOYAXISRANGE-1));
+			const boolean analogjoystickmove = cv_usejoystick[stplyrnum].value && !Joystick[stplyrnum].bGamepadStyle;
+			const boolean gamepadjoystickmove = cv_usejoystick[stplyrnum].value && Joystick[stplyrnum].bGamepadStyle;
+			const UINT8 ssplayer = stplyrnum+1;
+
+			axis = JoyAxis(AXISAIM, ssplayer);
+
+			if (analogjoystickmove && axis != 0)
+			{
+				// JOYAXISRANGE is supposed to be 1023 (divide by 1024)
+				hudforward -= ((axis * KART_FULLTURN) / (JOYAXISRANGE-1));
+			}
+			else
+			{
+				if (InputDown(gc_aimforward, ssplayer) || (gamepadjoystickmove && axis < 0))
+				{
+					hudforward += KART_FULLTURN;
+				}
+				if (InputDown(gc_aimbackward, ssplayer) || (gamepadjoystickmove && axis > 0))
+				{
+					hudforward-= KART_FULLTURN;
+				}
+			}
 		}
-		else
+		else // this is horrid but we cant get actual input in replays so uhh
 		{
-			if (InputDown(gc_aimforward, ssplayer) || (gamepadjoystickmove && axis < 0))
-			{
-				hudforward += KART_FULLTURN;
-			}
-			if (InputDown(gc_aimbackward, ssplayer) || (gamepadjoystickmove && axis > 0))
-			{
-				hudforward-= KART_FULLTURN;
-			}
+			hudforward = stplyr->kartstuff[k_throwdir] * KART_FULLTURN;
 		}
 
 		hudforward = CLAMP(hudforward, -KART_FULLTURN, KART_FULLTURN);

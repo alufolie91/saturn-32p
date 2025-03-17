@@ -424,7 +424,7 @@ static void Y_PlayerStandingsDrawer(y_data_t *standings, INT32 x, INT32 hilicol)
 
 		if (pnum == MAXPLAYERS)
 			;
-		else if (!playeringame[pnum] || player->spectator == true)
+		else if (!playeringame[pnum] || player->spectator)
 			standings->num[i] = MAXPLAYERS; // this should be the only field setting in this function
 		else
 		{
