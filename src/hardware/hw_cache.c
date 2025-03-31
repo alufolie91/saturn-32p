@@ -412,16 +412,6 @@ static void HWR_GenerateTexture(INT32 texnum, GLMapTexture_t *gltex, boolean noe
 // patch may be NULL if glMipmap has been initialised already and makebitmap is false
 void HWR_MakePatch (patch_t *patch, GLPatch_t *glPatch, GLMipmap_t *glMipmap, boolean makebitmap)
 {
-	if (glMipmap == NULL)
-		return;
-
-	if (patch == NULL || glPatch == NULL)
-	{
-		Z_Free(glMipmap->data);
-		glMipmap->data = NULL;
-		return;
-	}
-
 	// don't do it twice (like a cache)
 	if (glMipmap->width == 0)
 	{
@@ -1005,8 +995,7 @@ void HWR_GetMappedPatch(GLPatch_t *glPatch, const UINT8 *colormap)
 {
 	GLMipmap_t *glMipmap, *newMipmap;
 
-	// Blatant hack for encore colormapping aside...
-	if (colormap == colormaps || colormap == NULL || colormap == (const UINT8*)(COLORMAP_REMAPOFFSET))
+	if (colormap == colormaps || colormap == NULL)
 	{
 		// Load the default (green) color in doom cache (temporary?) AND hardware cache
 		HWR_GetPatch(glPatch);

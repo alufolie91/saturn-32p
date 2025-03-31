@@ -1020,12 +1020,9 @@ static void Got_Saycmd(UINT8 **p, INT32 playernum)
 			player_names[playernum]);
 		if (server)
 		{
-			UINT8 buf[2];
-
-			buf[0] = (UINT8)playernum;
-			buf[1] = KICK_MSG_CON_FAIL;
-			SendNetXCmd(XD_KICK, &buf, 2);
+			SendKick(playernum, KICK_MSG_CON_FAIL);
 		}
+
 		return;
 	}
 
@@ -1040,11 +1037,7 @@ static void Got_Saycmd(UINT8 **p, INT32 playernum)
 				CONS_Alert(CONS_WARNING, M_GetText("Illegal say command received from %s containing invalid characters\n"), player_names[playernum]);
 				if (server)
 				{
-					char buf[2];
-
-					buf[0] = (char)playernum;
-					buf[1] = KICK_MSG_CON_FAIL;
-					SendNetXCmd(XD_KICK, &buf, 2);
+					SendKick(playernum, KICK_MSG_CON_FAIL);
 				}
 				return;
 			}
@@ -2455,7 +2448,7 @@ Ping_gfx_num (int lag)
 }
 
 static int
-Ping_gfx_color (int lag)
+Ping_gfx_color (UINT32 lag)
 {
 	if (lag < 2)
 		return SKINCOLOR_JAWZ;
@@ -2465,8 +2458,17 @@ Ping_gfx_color (int lag)
 		return SKINCOLOR_GOLD;
 	else if (lag < 10)
 		return SKINCOLOR_RED;
+	else if (lag < servermaxping)
+	{
+		if (hu_tick & 2)
+			return SKINCOLOR_GREEN;
+		else if (hu_tick & 4)
+			return SKINCOLOR_YELLOW;
+		else
+			return SKINCOLOR_BLUEBERRY;
+	}
 	else
-		return SKINCOLOR_WHITE; // SKINCOLOR_MAGENTA
+		return SKINCOLOR_WHITE; // to make the flashing work
 }
 
 static const UINT8 *

@@ -91,7 +91,7 @@ consvar_t cv_airsparks = {"airdriftsparks", "Off", CV_SAVE, CV_OnOff, NULL, 0, N
 
 //extra hud things
 consvar_t cv_showstats = {"showstats", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-static CV_PossibleValue_t inputdisplay_cons_t[] = {{0, "Off"}, {1, "Wheel"}, {2, "Stick"}, {0, NULL}};
+CV_PossibleValue_t inputdisplay_cons_t[NUMINPUTDISPLAYSTUFF];
 consvar_t cv_showinput = {"showinput", "Off", CV_SAVE, inputdisplay_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_showlaptimes = {"showlaptimes", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -117,14 +117,11 @@ CV_PossibleValue_t speedo_cons_t[NUMSPEEDOSTUFF];
 consvar_t cv_newspeedometer = {"newspeedometer", "Default", CV_SAVE, speedo_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_battlespeedo = {"battlespeedo", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}; // toggle for showing the speedometer in battlemode
 
-consvar_t cv_blendeffects = {"testblendeffects", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_playerblendeffects = {"playerblendeffects", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // funn-E streeetch
-static CV_PossibleValue_t stretchfactor_t[] = {
-	{0, "Off"}, {FRACUNIT/4, "0.250"},
-	{3*FRACUNIT/8, "0.375"}, {FRACUNIT/2, "0.500"}, {5*FRACUNIT/8, "0.625"},
-	{3*FRACUNIT/4, "0.750"}, {7*FRACUNIT/8, "0.875"}, {FRACUNIT, "Max"}, {0, NULL}};
-consvar_t cv_gravstretch = {"gravstretch", "0", CV_SAVE, stretchfactor_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t stretchfactor_t[] = {{0, "MIN"}, {FRACUNIT, "MAX"}, {0, NULL}};
+consvar_t cv_gravstretch = {"gravstretch", "MIN", CV_SAVE|CV_FLOAT, stretchfactor_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t slamsound_t[] = {{0, "Off"}, {1, "On"}, {0, NULL}};
 consvar_t cv_slamsound = {"slamsound", "1", CV_SAVE, slamsound_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -147,34 +144,34 @@ static void saltyhop_onchange(void);
 consvar_t cv_saltyhop = {"hardcodehop", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, saltyhop_onchange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_saltyhopsfx = {"hardcodehopsfx", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_saltysquish = {"hardcodehopsquish", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t saltyheight_t[] = {{FRACUNIT/4, "MIN"}, {2*FRACUNIT, "MAX"}, {0, NULL}};
+consvar_t cv_saltyheight = {"hardcodehopheight", "1", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, saltyheight_t, saltyhop_onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_saltyroll = {"hardcodehoproll", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static void saltyhop_onchange(void)
 {
-	// reset everything when toggling saltyhop off
-	if (!cv_saltyhop.value)
+	// reset everything when toggling saltyhop
+	if (gamestate != GS_LEVEL)
+		return;
+
+	for (INT32 i = 0; i < MAXPLAYERS; i++)
 	{
-		if (gamestate != GS_LEVEL)
-			return;
+		player_t *player = &players[i];
 
-		for (INT32 i = 0; i < MAXPLAYERS; i++)
-		{
-			player_t *player = &players[i];
+		if (!player || !playeringame[i] || P_MobjWasRemoved(player->mo))
+			continue;
 
-			if (!playeringame[i] || P_MobjWasRemoved(player->mo))
-				continue;
+		player->mo->salty_jump = false;
+		player->mo->salty_zoffset = 0;
+		player->mo->salty_momz = 0;
 
-			player->mo->salty_jump = false;
-			player->mo->salty_zoffset = 0;
-			player->mo->salty_momz = 0;
-
-			player->mo->salty_ready = false;
-			player->mo->salty_tapping = false;
-			player->mo->init_salty = false;
-		}
+		player->mo->salty_ready = false;
+		player->mo->salty_tapping = false;
+		player->mo->init_salty = false;
 	}
 }
 
-//Colourized HUD
+// Colourized HUD
 consvar_t cv_colorizedhud = {"colorizedhud", "Off", CV_SAVE|CV_CALL, CV_OnOff, SaturnHud_menu_Onchange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_colorizeditembox = {"colorizeditembox", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -184,7 +181,7 @@ consvar_t cv_colorizedhudcolor = {"colorizedhudcolor", "Skin Color", CV_SAVE, Hu
 // driftgauge stuffs
 static CV_PossibleValue_t driftgaugeoffset_cons_t[] = {
 	{-FRACUNIT*128, "MIN"}, {FRACUNIT*128, "MAX"}, {0, NULL}};
-CV_PossibleValue_t driftgaugestyle_cons_t[NUMSPEEDOSTUFF];
+CV_PossibleValue_t driftgaugestyle_cons_t[NUMDGAUGESTUFF];
 
 consvar_t cv_driftgauge = {"kartdriftgauge", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_driftgaugeofs = {"kartdriftgaugeoffset", "-20", CV_FLOAT|CV_SAVE, driftgaugeoffset_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -218,6 +215,7 @@ consvar_t cv_smallnametags = {"kartnametagsmall", "Off", CV_SAVE, nametagsize_co
 consvar_t cv_nametagscore = {"kartnametagscore", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_shownametagspectator = {"kartshownametagspectator", "No", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+static boolean K_SpeedLinesShouldBlend(player_t *player);
 
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
 // gamespeed is cc (0 for easy, 1 for normal, 2 for hard)
@@ -1065,7 +1063,31 @@ boolean K_UseColorHud(void)
 	return (cv_colorizedhud.value && clr_hud);
 }
 
-extern consvar_t cv_blendeffects;
+enum
+{
+	SPEEDO_VANILLA,
+	SPEEDO_EXTRA,
+	SPEEDO_ACHII,
+	SPEEDO_PMETER,
+	SPEEDO_PMETERSMOL,
+	SPEEDO_EXTRA3,
+};
+
+static UINT8 K_GetSpeedometerStyle(void)
+{
+	if (cv_newspeedometer.value == 2 && xtra_speedo)
+		return SPEEDO_EXTRA;
+	else if (cv_newspeedometer.value == 3 && achi_speedo)
+		return SPEEDO_ACHII;
+	else if (cv_newspeedometer.value == 4 && kartz_speedo)
+		return SPEEDO_PMETER;
+	else if (cv_newspeedometer.value == 5 && kartz_speedo_smol)
+		return SPEEDO_PMETERSMOL;
+	else if (cv_newspeedometer.value == 6 && xtra_speedo3)
+		return SPEEDO_EXTRA3;
+	else
+		return SPEEDO_VANILLA;
+}
 
 //}
 
@@ -1197,7 +1219,7 @@ void K_RegisterClientKartStuff(void)
 
 	CV_RegisterVar(&cv_stagetitle);
 
-	CV_RegisterVar(&cv_blendeffects);
+	CV_RegisterVar(&cv_playerblendeffects);
 
 	// Colourized HUD
 	CV_RegisterVar(&cv_colorizedhud);
@@ -1234,6 +1256,9 @@ void K_RegisterClientKartStuff(void)
 	CV_RegisterVar(&cv_saltyhop);
 	CV_RegisterVar(&cv_saltyhopsfx);
 	CV_RegisterVar(&cv_saltysquish);
+	CV_RegisterVar(&cv_saltyheight);
+	CV_RegisterVar(&cv_saltyroll);
+
 	CV_RegisterVar(&cv_slamsound);
 
 	CV_RegisterVar(&cv_lessflicker);
@@ -2001,7 +2026,7 @@ void K_KartBouncing(mobj_t *mobj1, mobj_t *mobj2, boolean bounce, boolean solid)
 	else
 		fx->eflags &= ~MFE_VERTICALFLIP;
 
-	if (cv_blendeffects.value)
+	if (cv_playerblendeffects.value)
 		fx->blendmode = AST_ADD;
 
 	P_SetScale(fx, mobj1->scale);
@@ -2801,14 +2826,19 @@ void K_SpawnBattlePoints(player_t *source, player_t *victim, UINT8 amount)
 	if (!source || !source->mo)
 		return;
 
-	if (amount == 1)
-		st = S_BATTLEPOINT1A;
-	else if (amount == 2)
-		st = S_BATTLEPOINT2A;
-	else if (amount == 3)
-		st = S_BATTLEPOINT3A;
-	else
-		return; // NO STATE!
+	switch (amount)
+	{
+		case 1:
+			st = S_BATTLEPOINT1A;
+			break;
+		case 2:
+			st = S_BATTLEPOINT2A;
+			break;
+		case 3:
+			st = S_BATTLEPOINT3A;
+		default:
+			return; // NO STATE!
+	}
 
 	pt = P_SpawnMobj(source->mo->x, source->mo->y, source->mo->z, MT_BATTLEPOINT);
 	P_SetTarget(&pt->target, source->mo);
@@ -3650,7 +3680,7 @@ skipground: // idk im sleepy
 				P_SetMobjState(spark, S_DRIFTSPARK_A1);
 		}
 
-		if (cv_blendeffects.value)
+		if (cv_playerblendeffects.value && player->kartstuff[k_sneakertimer])
 			spark->blendmode = AST_ADD;
 
 		K_MatchGenericExtraFlags(spark, player->mo);
@@ -3837,7 +3867,7 @@ static void K_QuiteSaltyHop(player_t *p)
 			p->mo->spritexscale -= (mos/8);
 		}
 
-		p->mo->spriteyoffset = p->mo->salty_zoffset;
+		p->mo->spriteyoffset = FixedMul(p->mo->salty_zoffset, cv_saltyheight.value);
 
 		if (cv_saltyhopsfx.value)
 		{
@@ -3878,7 +3908,7 @@ boolean K_ShouldSlopeRoll(mobj_t *mobj)
 		return false;
 
 	// seeing a character rotate mid-hop looks really janky
-	if (mobj->player && mobj->player->mo->salty_jump)
+	if (!cv_saltyroll.value && mobj->player && mobj->player->mo->salty_jump)
 		return false;
 
 	return K_CheckSlopeRollDist(mobj);
@@ -3988,7 +4018,7 @@ void K_SpawnBoostTrail(player_t *player)
 		{
 			flame->colorized = true;
 			flame->color = player->skincolor;
-			if (cv_blendeffects.value)
+			if (cv_playerblendeffects.value)
 				flame->blendmode = AST_ADD;
 		}
 
@@ -4042,7 +4072,7 @@ void K_SpawnSparkleTrail(mobj_t *mo)
 		P_SetScale(sparkle, mo->scale);
 		sparkle->color = mo->color;
 
-		if (mo->player && cv_blendeffects.value)
+		if (cv_playerblendeffects.value && mo->player && K_SpeedLinesShouldBlend(mo->player))
 			sparkle->blendmode = AST_ADD;
 	}
 
@@ -5802,7 +5832,7 @@ static boolean K_SpeedLinesShouldBlend(player_t *player)
 {
 	fixed_t percentspeed = 0;
 
-	if (!cv_blendeffects.value)
+	if (!cv_playerblendeffects.value)
 		return false;
 
 	if (!player->mo)
@@ -7769,6 +7799,7 @@ static patch_t *kp_itembgclr[4];
 
 //Kartz speedo
 static patch_t *kp_kartzspeedo[25];
+static patch_t *kp_kartzspeedo_smol[25];
 
 static patch_t *kp_startcountdown[16];
 static patch_t *kp_racefinish[6];
@@ -7854,6 +7885,10 @@ static patch_t *skp_speedpatchesachi[5];
 static patch_t *skp_smallstickerachiclr;
 static patch_t *skp_speedpatchesachiclr[5];
 
+static patch_t *joybacking;
+static patch_t *joyknob;
+static patch_t *joyshadow;
+
 void K_LoadKartHUDGraphics(void)
 {
 	INT32 i, j;
@@ -7923,27 +7958,28 @@ void K_LoadKartHUDGraphics(void)
 		kp_itembgclr[3] = 				W_CachePatchName("K_ISBCD", PU_HUDGFX);
 		kp_itemmulstickerclr[1] = 		W_CachePatchName("K_ISMULC", PU_HUDGFX);
 		kp_itemmulstickerclr[0] = 		W_CachePatchName("K_ITMULC", PU_HUDGFX);
+	}
 
-		if (big_lap_color){
-			kp_lapstickerbigclr = 		W_CachePatchName("K_SCLAPB", PU_HUDGFX);
-			kp_lapstickerbig2clr = 		W_CachePatchName("K_SCLA2B", PU_HUDGFX);
-		}
+	if (big_lap_color)
+	{
+		kp_lapstickerbigclr = 		W_CachePatchName("K_SCLAPB", PU_HUDGFX);
+		kp_lapstickerbig2clr = 		W_CachePatchName("K_SCLA2B", PU_HUDGFX);
+	}
 
-		if (xtra_speedo && xtra_speedo_clr)
-			skp_smallstickerclr = 	  	W_CachePatchName("SC_SMSTC", PU_HUDGFX);
+	if (xtra_speedo && xtra_speedo_clr)
+		skp_smallstickerclr = 	  	W_CachePatchName("SC_SMSTC", PU_HUDGFX);
 
-		if (xtra_speedo3 && xtra_speedo_clr3) // 80x11 patch scaled to size
-			skp_smallstickerclr3 = 	  	W_CachePatchName("SC_SM3TC", PU_HUDGFX);
+	if (xtra_speedo3 && xtra_speedo_clr3) // 80x11 patch scaled to size
+		skp_smallstickerclr3 = 	  	W_CachePatchName("SC_SM3TC", PU_HUDGFX);
 
-		if (achi_speedo && achi_speedo_clr)
-		{
-			skp_smallstickerachiclr = 	  W_CachePatchName("SC_AMSTC", PU_HUDGFX);
-			skp_speedpatchesachiclr[0] = W_CachePatchName("K_TRNULL", PU_HUDGFX); // lolxd
-			skp_speedpatchesachiclr[1] = W_CachePatchName("SC_AKMH",  PU_HUDGFX);
-			skp_speedpatchesachiclr[2] = W_CachePatchName("SC_AMPH",  PU_HUDGFX);
-			skp_speedpatchesachiclr[3] = W_CachePatchName("SC_AFRAC", PU_HUDGFX);
-			skp_speedpatchesachiclr[4] = W_CachePatchName("SC_APERC", PU_HUDGFX);
-		}
+	if (achi_speedo && achi_speedo_clr)
+	{
+		skp_smallstickerachiclr    = W_CachePatchName("SC_AMSTC", PU_HUDGFX);
+		skp_speedpatchesachiclr[0] = W_CachePatchName("K_TRNULL", PU_HUDGFX); // lolxd
+		skp_speedpatchesachiclr[1] = W_CachePatchName("SC_AKMH",  PU_HUDGFX);
+		skp_speedpatchesachiclr[2] = W_CachePatchName("SC_AMPH",  PU_HUDGFX);
+		skp_speedpatchesachiclr[3] = W_CachePatchName("SC_AFRAC", PU_HUDGFX);
+		skp_speedpatchesachiclr[4] = W_CachePatchName("SC_APERC", PU_HUDGFX);
 	}
 
 	// KartZ speedo
@@ -7963,6 +7999,22 @@ void K_LoadKartHUDGraphics(void)
 		}
 	}
 
+	if (kartz_speedo_smol)
+	{
+		const char* patchNames[] = {
+			"K_KZSS1", "K_KZSS2", "K_KZSS3", "K_KZSS4", "K_KZSS5",
+			"K_KZSS6", "K_KZSS7", "K_KZSS8", "K_KZSS9", "K_KZSS10",
+			"K_KZSS11", "K_KZSS12", "K_KZSS13", "K_KZSS14", "K_KZSS15",
+			"K_KZSS16", "K_KZSS17", "K_KZSS18", "K_KZSS19", "K_KZSS20",
+			"K_KZSS21", "K_KZSS22", "K_KZSS23", "K_KZSS24", "K_KZSS25"
+		};
+
+		for (size_t m = 0; m < sizeof(patchNames) / sizeof(patchNames[0]); ++m)
+		{
+			kp_kartzspeedo_smol[m] = W_CachePatchName(patchNames[m], PU_HUDGFX);
+		}
+	}
+
 	// Nametags
 	if (nametaggfx)
 	{
@@ -7976,8 +8028,19 @@ void K_LoadKartHUDGraphics(void)
 	{
 		driftgauge =  W_CachePatchName("K_DGAU", PU_HUDGFX);
 		driftgaugecolor =  W_CachePatchName("K_DCAU", PU_HUDGFX);
+	}
+
+	if (driftgaugegfx_clr)
+	{
 		driftgaugesmall =  W_CachePatchName("K_DGSU", PU_HUDGFX);
 		driftgaugesmallcolor =  W_CachePatchName("K_DCSU", PU_HUDGFX);
+	}
+
+	if (joystickicon)
+	{
+		joybacking = W_CachePatchName("JOYBCK", PU_HUDGFX);
+		joyknob = W_CachePatchName("JOYKNB", PU_HUDGFX);
+		joyshadow = W_CachePatchName("JOYSHD", PU_HUDGFX);
 	}
 
 	// Starting countdown
@@ -8568,7 +8631,9 @@ static void K_drawKartStats(void)
 	//Internal offset for speedometer
 	if (cv_kartspeedometer.value)
 	{
-		if ((cv_newspeedometer.value == 2 && xtra_speedo) || (cv_newspeedometer.value == 3 && achi_speedo) || (cv_newspeedometer.value == 5 && xtra_speedo3))
+		const UINT8 speedostyle = K_GetSpeedometerStyle();
+
+		if ((speedostyle == SPEEDO_EXTRA) || (speedostyle == SPEEDO_ACHII) || (speedostyle == SPEEDO_EXTRA3))
 			spdoffset = -10;
 		else
 			spdoffset = -14;
@@ -8683,8 +8748,7 @@ static void K_drawKartItem(void)
 
 	if (stplyr->kartstuff[k_itemroulette])
 	{
-		if (K_GetHudColor())
-			localcolor = K_GetHudColor();
+		localcolor = K_GetHudColor();
 
 		switch((stplyr->kartstuff[k_itemroulette] % (14*3)) / 3)
 		{
@@ -9461,7 +9525,7 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 {
 	INT32 i, rightoffset = 240;
 	const UINT8 *colormap;
-	INT32 dupadjust = (vid.width/vid.dupx), duptweak = (dupadjust - BASEVIDWIDTH)/2;
+	INT32 dupadjust = cv_betainterscreen.value ? 314 : (vid.width/vid.dupx), duptweak = cv_betainterscreen.value ? -3 : (dupadjust - BASEVIDWIDTH)/2;
 	boolean manyplayers = (scorelines > 16); // battleroyale: these adjustments to show more players courtesy of fickle from v1.1 battleroyale
 
 	boolean (*_isHighlightedPlayer)(const player_t *) = (demo.playback ? P_IsDisplayPlayer : P_IsLocalPlayer);
@@ -9683,7 +9747,7 @@ static void K_drawKartSpeedometer(void)
 	INT32 splitflags = K_calcSplitFlags(V_SNAPTOBOTTOM|V_SNAPTOLEFT);
 
 	// man.
-	const boolean useoldspeedo = ((cv_newspeedometer.value == 1) || (cv_newspeedometer.value == 2 && !xtra_speedo) || (cv_newspeedometer.value == 3 && !achi_speedo) || (cv_newspeedometer.value == 4 && !kartz_speedo) || (cv_newspeedometer.value == 5 && !xtra_speedo3));
+	const UINT8 speedostyle = K_GetSpeedometerStyle();
 
 	switch (cv_kartspeedometer.value)
 	{
@@ -9704,7 +9768,7 @@ static void K_drawKartSpeedometer(void)
 			break;
 	}
 
-	if (useoldspeedo)
+	if (speedostyle == SPEEDO_VANILLA)
 	{
 		const char *metric = "";
 
@@ -9732,7 +9796,7 @@ static void K_drawKartSpeedometer(void)
 
 		V_DrawKartString(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, metric);
 	}
-	else if (cv_newspeedometer.value == 2 && xtra_speedo) // why bother if we dont?
+	else if (speedostyle == SPEEDO_EXTRA) // why bother if we dont?
 	{
 		if (K_UseColorHud() && xtra_speedo_clr) //Colourized hud
 		{
@@ -9745,7 +9809,7 @@ static void K_drawKartSpeedometer(void)
 		V_DrawRankNum(SPDM_X + 26, SPDM_Y + 4, V_HUDTRANS|splitflags, convSpeed, 3, NULL);
 		V_DrawScaledPatch(SPDM_X + 31, SPDM_Y + 4, V_HUDTRANS|splitflags, skp_speedpatches[cv_kartspeedometer.value]);
 	}
-	else if (cv_newspeedometer.value == 3 && achi_speedo) // why bother if we dont?
+	else if (speedostyle == SPEEDO_ACHII) // why bother if we dont?
 	{
 		if (K_UseColorHud() && achi_speedo_clr) //Colourized hud
 		{
@@ -9761,7 +9825,7 @@ static void K_drawKartSpeedometer(void)
 			V_DrawScaledPatch(SPDM_X + 31, SPDM_Y + 4, V_HUDTRANS|splitflags, skp_speedpatchesachi[cv_kartspeedometer.value]);
 		}
 		}
-	else if (cv_newspeedometer.value == 5 && xtra_speedo3) // why bother if we dont?
+	else if (speedostyle == SPEEDO_EXTRA3) // why bother if we dont?
 	{
 		if (K_UseColorHud() && xtra_speedo_clr3) //Colourized hud
 		{
@@ -9776,7 +9840,7 @@ static void K_drawKartSpeedometer(void)
 	}
 	// Kart Z speedo bullshit...
 	// Draw the Speed counter.
-	else if (cv_newspeedometer.value == 4 && kartz_speedo)
+	else if ((speedostyle == SPEEDO_PMETER) || (speedostyle == SPEEDO_PMETERSMOL))
 	{
 		fixed_t fuspeed = 0;
 		INT32 spdpatch = 0;
@@ -9801,7 +9865,14 @@ static void K_drawKartSpeedometer(void)
 		else if (((fuspeed < 57 && fuspeed > 54) || (fuspeed < 60 && fuspeed > 56) || (fuspeed > 59)) && !(leveltime & 4))
 			spdpatch = 23;
 
-		V_DrawScaledPatch(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, kp_kartzspeedo[spdpatch]);
+		patch_t *patch = NULL;
+
+		if (speedostyle == SPEEDO_PMETER)
+			patch = kp_kartzspeedo[spdpatch];
+		else if (speedostyle == SPEEDO_PMETERSMOL)
+			patch = kp_kartzspeedo_smol[spdpatch];
+
+		V_DrawScaledPatch(SPDM_X, SPDM_Y, V_HUDTRANS|splitflags, patch);
 	}
 }
 
@@ -9821,7 +9892,9 @@ static void K_drawKartBumpersOrKarma(void)
 
 	if (cv_battlespeedo.value && !splitscreen)
 	{
-		if ((cv_newspeedometer.value == 2 && xtra_speedo) || (cv_newspeedometer.value == 3 && achi_speedo) || (cv_newspeedometer.value == 5 && xtra_speedo3))
+		const UINT8 speedostyle = K_GetSpeedometerStyle();
+
+		if ((speedostyle == SPEEDO_EXTRA) || (speedostyle == SPEEDO_ACHII) || (speedostyle == SPEEDO_EXTRA3))
 			fy += 5;
 		else
 			fy += 7;
@@ -11084,19 +11157,24 @@ static void K_drawKartFirstPerson(void)
 // doesn't need to ever support 4p
 static void K_drawInput(void)
 {
-	if (!cv_showinput.value && !modeattacking) // dont bother
-		return;
-
 	static INT32 pn = 0;
-	INT32 target = 0, splitflags = (V_SNAPTOBOTTOM|V_SNAPTORIGHT|V_HUDTRANS);
-	INT32 x = (BASEVIDWIDTH - 32 + cv_wheel_xoffset.value)*FRACUNIT, y = (BASEVIDHEIGHT - 24 + cv_wheel_yoffset.value)*FRACUNIT;
 	INT32 offs, col;
-	const INT32 accent1 = splitflags|colortranslations[K_GetHudColor()][5];
-	const INT32 accent2 = splitflags|colortranslations[K_GetHudColor()][9];
-	ticcmd_t *cmd = &stplyr->cmd;
+
+	if (!cv_showinput.value) // dont bother
+		return;
 
 	if (timeinmap <= 105)
 		return;
+
+	INT32 target = 0, splitflags = (V_SNAPTOBOTTOM|V_SNAPTORIGHT|V_HUDTRANS);
+	INT32 x = (BASEVIDWIDTH - 32 + cv_wheel_xoffset.value)*FRACUNIT, y = (BASEVIDHEIGHT - 24 + cv_wheel_yoffset.value)*FRACUNIT;
+
+	const UINT8 hudcolor = K_GetHudColor();
+	const INT32 accent1 = splitflags|colortranslations[hudcolor][5];
+	const INT32 accent2 = splitflags|colortranslations[hudcolor][9];
+	const UINT8 *hudcolormap = R_GetTranslationColormap(0, hudcolor, GTC_CACHE);
+
+	ticcmd_t *cmd = &stplyr->cmd;
 
 	if (timeinmap < 113)
 	{
@@ -11139,22 +11217,37 @@ static void K_drawInput(void)
 
 	y -= FRACUNIT;
 
-	if (cv_showinput.value == 2)
+	if (cv_showinput.value == 2 || cv_showinput.value == 3)
 	{
 		INT32 joyx, joyxoffs, joyy, joyyoffs, axis;
 		joyxoffs = -8, joyyoffs = -24;
 		joyx = x>>FRACBITS, joyy = y>>FRACBITS;
+		UINT8 *shadowcolormap = NULL;
+		const boolean usejoysprite = (cv_showinput.value == 3 && joystickicon);
 
 		// O backing
-		V_DrawFill(joyx+joyxoffs, joyy+joyyoffs-1, 16, 16, splitflags|accent2);
-		V_DrawFill(joyx+joyxoffs, joyy+joyyoffs+15, 16, 1, splitflags|31);
+		if (usejoysprite)
+		{
+			shadowcolormap = R_GetTranslationColormap(0, SKINCOLOR_BLACK, GTC_CACHE);
+			V_DrawMappedPatch(joyx+joyxoffs, joyy+joyyoffs-1, splitflags, joybacking, hudcolormap);
+		}
+		else
+		{
+			V_DrawFill(joyx+joyxoffs, joyy+joyyoffs-1, 16, 16, splitflags|accent2);
+			V_DrawFill(joyx+joyxoffs, joyy+joyyoffs+15, 16, 1, splitflags|31);
+		}
 
 		// time for pain and suffering
 		// kart does not have anything we can get analogue joystick y axis values from
 		// during normal gameplay, so replicate shit here
 		INT32 hudforward = 0; // for the stick input display :chaosleep:
 
-		if (!demo.playback)
+		// this is horrid but we cant get actual input in replays so uhh
+		if (demo.playback || !P_IsLocalPlayer(stplyr)) // yeah...........
+		{
+			hudforward = stplyr->kartstuff[k_throwdir] * KART_FULLTURN;
+		}
+		else
 		{
 			const boolean analogjoystickmove = cv_usejoystick[stplyrnum].value && !Joystick[stplyrnum].bGamepadStyle;
 			const boolean gamepadjoystickmove = cv_usejoystick[stplyrnum].value && Joystick[stplyrnum].bGamepadStyle;
@@ -11179,38 +11272,43 @@ static void K_drawInput(void)
 				}
 			}
 		}
-		else // this is horrid but we cant get actual input in replays so uhh
-		{
-			hudforward = stplyr->kartstuff[k_throwdir] * KART_FULLTURN;
-		}
 
 		hudforward = CLAMP(hudforward, -KART_FULLTURN, KART_FULLTURN);
 
 		if (cmd->driftturn || hudforward)
 		{
 			INT16 turning = encoremode ? -cmd->driftturn : cmd->driftturn;
-			// joystick hole
-			V_DrawFill(joyx+joyxoffs+5, joyy+joyyoffs+4, 6, 6, splitflags|accent1);
-			// joystick top and back
-			V_DrawFill(joyx+joyxoffs+3-turning/80,
-				joyy+joyyoffs+2-hudforward/80,
-				10, 10, splitflags|31);
-			V_DrawFill(joyx+joyxoffs+3-turning/64,
-				joyy+joyyoffs+1-hudforward/64,
-				10, 10, splitflags|accent1);
+
+			if (usejoysprite)
+			{
+				V_DrawMappedPatch(joyx+joyxoffs+3-turning/80, joyy+joyyoffs+2-hudforward/80, splitflags, joyknob, shadowcolormap);
+				V_DrawMappedPatch(joyx+joyxoffs+3-turning/64, joyy+joyyoffs+1-hudforward/64, splitflags, joyknob, hudcolormap);
+			}
+			else
+			{
+				// joystick hole
+				V_DrawFill(joyx+joyxoffs+5, joyy+joyyoffs+4, 6, 6, splitflags|accent1);
+				// joystick top and back
+				V_DrawFill(joyx+joyxoffs+3-turning/80, joyy+joyyoffs+2-hudforward/80, 10, 10, splitflags|31);
+				V_DrawFill(joyx+joyxoffs+3-turning/64, joyy+joyyoffs+1-hudforward/64, 10, 10, splitflags|accent1);
+			}
 		}
 		else
 		{
-			V_DrawFill(joyx+joyxoffs+3, joyy+joyyoffs+11, 10, 1, splitflags|accent2);
-			V_DrawFill(joyx+joyxoffs+3,
-				joyy+joyyoffs+1,
-				10, 10,splitflags|accent1);
+			if (usejoysprite)
+			{
+				V_DrawMappedPatch(joyx+joyxoffs+3, joyy+joyyoffs+8, splitflags, joyshadow, shadowcolormap);
+				V_DrawMappedPatch(joyx+joyxoffs+3, joyy+joyyoffs+1, splitflags, joyknob, hudcolormap);
+			}
+			else
+			{
+				V_DrawFill(joyx+joyxoffs+3, joyy+joyyoffs+11, 10, 1, splitflags|accent2);
+				V_DrawFill(joyx+joyxoffs+3, joyy+joyyoffs+1, 10, 10,splitflags|accent1);
+			}
 		}
 	}
 	else
 	{
-		UINT8 *colormap = NULL;
-
 		if (!cmd->driftturn) // no turn
 			target = 0;
 		else // turning of multiple strengths!
@@ -11242,10 +11340,7 @@ static void K_drawInput(void)
 		if (target > 4)
 			target = 4;
 
-		if (K_GetHudColor())
-			colormap = R_GetTranslationColormap(0, K_GetHudColor(), GTC_CACHE);
-
-		V_DrawFixedPatch(x, y, FRACUNIT, splitflags, kp_inputwheel[target], colormap);
+		V_DrawFixedPatch(x, y, FRACUNIT, splitflags, kp_inputwheel[target], hudcolormap);
 	}
 }
 

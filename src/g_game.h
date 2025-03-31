@@ -171,8 +171,10 @@ extern consvar_t cv_smallposnum;
 extern consvar_t cv_newspeedometer;
 
 extern consvar_t cv_saltyhop;
+extern consvar_t cv_saltyheight;
 extern consvar_t cv_saltyhopsfx;
 extern consvar_t cv_saltysquish;
+extern consvar_t cv_saltyroll;
 
 extern consvar_t cv_driftsparkpulse;
 extern consvar_t cv_gravstretch;
@@ -182,6 +184,8 @@ extern consvar_t cv_slamsound;
 extern consvar_t cv_sloperolldist;
 extern consvar_t cv_sparkroll;
 extern consvar_t cv_spinoutroll;
+
+extern consvar_t cv_playerblendeffects;
 
 extern consvar_t cv_cechotoggle;
 

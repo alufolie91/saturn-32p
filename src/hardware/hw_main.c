@@ -4430,7 +4430,7 @@ static void HWR_DrawModels(void)
 static void HWR_AddSprites(sector_t *sec)
 {
 	mobj_t *thing;
-	fixed_t limit_dist;
+	INT32 limit_dist;
 
 	// BSP is traversed by subsector.
 	// A sector might have been split into several
@@ -4446,12 +4446,12 @@ static void HWR_AddSprites(sector_t *sec)
 	{
 		// Use the smaller setting
 		if (cv_drawdist.value)
-			limit_dist = min((fixed_t)current_bsp_culling_distance, (fixed_t)(cv_drawdist.value) * mapobjectscale);
+			limit_dist = min(current_bsp_culling_distance/mapobjectscale, cv_drawdist.value);
 		else
-			limit_dist = (fixed_t)current_bsp_culling_distance;
+			limit_dist = current_bsp_culling_distance/mapobjectscale;
 	}
 	else
-		limit_dist = (fixed_t)(cv_drawdist.value) * mapobjectscale;
+		limit_dist = cv_drawdist.value;
 
 	// Handle all things in sector.
 	for (thing = sec->thinglist; thing; thing = thing->snext)
@@ -5502,6 +5502,9 @@ static void HWR_RenderFrame(player_t *player, boolean skybox)
 		}
 	}
 
+	// check for new console commands.
+	NetUpdate();
+
 	// Clear view, set viewport (glViewport), set perspective...
 	HWR_ClearView();
 
@@ -5534,6 +5537,9 @@ static void HWR_RenderFrame(player_t *player, boolean skybox)
 	// Run post processor effects
 	if (!skybox)
 		HWR_DoPostProcessor(player);
+
+	// Check for new console commands.
+	NetUpdate();
 
 	// added by Hurdler for correct splitscreen
 	// moved here by hurdler so it works with the new near clipping plane

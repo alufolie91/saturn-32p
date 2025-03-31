@@ -142,7 +142,7 @@ static tic_t maketic;
 
 static INT16 consistancy[TICQUEUE];
 
-static UINT8 player_joining = false;
+
 UINT8 hu_redownloadinggamestate = 0;
 static UINT8 gamestate_resend_counter[MAXNETNODES];
 
@@ -209,6 +209,14 @@ consvar_t cv_playbackspeed = {"playbackspeed", "1", 0, playbackspeed_cons_t, NUL
 consvar_t cv_httpsource = {"http_source", "", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_kicktime = {"kicktime", "10", CV_SAVE, CV_Unsigned, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static boolean UseLocalDelay(void)
+{
+	if (dedicated || (server && server_lagless && !cv_mindelay.value))
+		return false;
+
+	return (cv_mindelay.value || (server && !server_lagless));
+}
 
 static inline void *G_DcpyTiccmd(void* dest, const ticcmd_t* src, const size_t n)
 {
@@ -464,11 +472,7 @@ static void ExtraDataTicker(void)
 					{
 						if (server)
 						{
-							UINT8 buf[3];
-
-							buf[0] = (UINT8)i;
-							buf[1] = KICK_MSG_CON_FAIL;
-							SendNetXCmd(XD_KICK, &buf, 2);
+							SendKick(i, KICK_MSG_CON_FAIL);
 							DEBFILE(va("player %d kicked [gametic=%u] reason as follows:\n", i, gametic));
 						}
 						CONS_Alert(CONS_WARNING, M_GetText("Got unknown net command [%s]=%d (max %d)\n"), sizeu1(curpos - bufferstart), *curpos, bufferstart[0]);
@@ -519,6 +523,15 @@ void D_ResetTiccmds(void)
 {
 	return &localcmds[ss][0];
 }*/
+
+void SendKick(UINT8 playernum, UINT8 msg)
+{
+	UINT8 buf[2];
+
+	buf[0] = playernum;
+	buf[1] = msg;
+	SendNetXCmd(XD_KICK, &buf, 2);
+}
 
 // -----------------------------------------------------------------
 // end of extra data function
@@ -3751,11 +3764,7 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 		CONS_Alert(CONS_WARNING, M_GetText("Illegal add player command received from %s\n"), player_names[playernum]);
 		if (server)
 		{
-			UINT8 buf[2];
-
-			buf[0] = (UINT8)playernum;
-			buf[1] = KICK_MSG_CON_FAIL;
-			SendNetXCmd(XD_KICK, &buf, 2);
+			SendKick(playernum, KICK_MSG_CON_FAIL);
 		}
 		return;
 	}
@@ -3839,11 +3848,7 @@ static void Got_RemovePlayer(UINT8 **p, INT32 playernum)
 		CONS_Alert(CONS_WARNING, M_GetText("Illegal remove player command received from %s\n"), player_names[playernum]);
 		if (server)
 		{
-			UINT8 buf[2];
-
-			buf[0] = (UINT8)playernum;
-			buf[1] = KICK_MSG_CON_FAIL;
-			SendNetXCmd(XD_KICK, &buf, 2);
+			SendKick(playernum, KICK_MSG_CON_FAIL);
 		}
 		return;
 	}
@@ -3942,14 +3947,10 @@ void CL_AddSplitscreenPlayer(void)
 
 void CL_RemoveSplitscreenPlayer(UINT8 p)
 {
-	UINT8 buf[2];
-
 	if (cl_mode != CL_CONNECTED)
 		return;
 
-	buf[0] = p;
-	buf[1] = KICK_MSG_PLAYER_QUIT;
-	SendNetXCmd(XD_KICK, &buf, 2);
+	SendKick(p, KICK_MSG_PLAYER_QUIT);
 }
 
 // is there a game running
@@ -4182,7 +4183,6 @@ static void HandleConnect(SINT8 node)
 				DEBFILE("send savegame\n");
 			}
 			SV_AddWaitingPlayers();
-			player_joining = true;
 		}
 #else
 #ifndef NONET
@@ -4540,13 +4540,8 @@ static boolean CheckForSpeedHacks(UINT8 p)
 		|| netcmds[maketic%TICQUEUE][p].sidemove > MAXPLMOVE || netcmds[maketic%TICQUEUE][p].sidemove < -MAXPLMOVE
 		|| netcmds[maketic%TICQUEUE][p].driftturn > KART_FULLTURN || netcmds[maketic%TICQUEUE][p].driftturn < -KART_FULLTURN)
 	{
-		char buf[2];
 		CONS_Alert(CONS_WARNING, M_GetText("Illegal movement value received from node %d\n"), playernode[p]);
-		//D_Clearticcmd(k);
-
-		buf[0] = (char)p;
-		buf[1] = KICK_MSG_CON_FAIL;
-		SendNetXCmd(XD_KICK, &buf, 2);
+		SendKick(p, KICK_MSG_CON_FAIL);
 		return true;
 	}
 
@@ -4715,11 +4710,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 				}
 				else
 				{
-					UINT8 buf[3];
-
-					buf[0] = (UINT8)netconsole;
-					buf[1] = KICK_MSG_CON_FAIL;
-					SendNetXCmd(XD_KICK, &buf, 2);
+					SendKick(netconsole, KICK_MSG_CON_FAIL);
 					DEBFILE(va("player %d kicked (synch failure) [%u] %d!=%d\n",
 						netconsole, realstart, consistancy[realstart%TICQUEUE],
 						SHORT(netbuffer->u.clientpak.consistancy)));
@@ -4827,13 +4818,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 			nodewaiting[node] = 0;
 			if (netconsole != -1 && playeringame[netconsole])
 			{
-				UINT8 buf[2];
-				buf[0] = (UINT8)netconsole;
-				if (netbuffer->packettype == PT_NODETIMEOUT)
-					buf[1] = KICK_MSG_TIMEOUT;
-				else
-					buf[1] = KICK_MSG_PLAYER_QUIT;
-				SendNetXCmd(XD_KICK, &buf, 2);
+				SendKick(netconsole, (netbuffer->packettype == PT_NODETIMEOUT) ? KICK_MSG_TIMEOUT : KICK_MSG_PLAYER_QUIT);
 			}
 			Net_CloseConnection(node);
 			nodeingame[node] = false;
@@ -4855,10 +4840,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 
 				if (server)
 				{
-					UINT8 buf[2];
-					buf[0] = (UINT8)node;
-					buf[1] = KICK_MSG_CON_FAIL;
-					SendNetXCmd(XD_KICK, &buf, 2);
+					SendKick(node, KICK_MSG_CON_FAIL);
 				}
 
 				break;
@@ -4922,10 +4904,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 
 				if (server)
 				{
-					char buf[2];
-					buf[0] = (char)node;
-					buf[1] = KICK_MSG_CON_FAIL;
-					SendNetXCmd(XD_KICK, &buf, 2);
+					SendKick(node, KICK_MSG_CON_FAIL);
 				}
 
 				break;
@@ -4953,10 +4932,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 
 				if (server)
 				{
-					UINT8 buf[2];
-					buf[0] = (UINT8)node;
-					buf[1] = KICK_MSG_CON_FAIL;
-					SendNetXCmd(XD_KICK, &buf, 2);
+					SendKick(node, KICK_MSG_CON_FAIL);
 				}
 
 				break;
@@ -4981,8 +4957,6 @@ static void HandlePacketFromPlayer(SINT8 node)
 static void GetPackets(void)
 {
 	SINT8 node; // The packet sender
-
-	player_joining = false;
 
 	while (HGetPacket())
 	{
@@ -5245,7 +5219,7 @@ static void CL_SendClientCmd(void)
 	{
 		UINT8 lagDelay = 0;
 
-		if (lowest_lag > 0)
+		if (UseLocalDelay() && (lowest_lag > 0))
 		{
 			// Gentlemens' ping.
 			lagDelay = min(lowest_lag, MAXGENTLEMENDELAY);
@@ -5492,9 +5466,12 @@ static inline void CreateNewLocalCMD(UINT8 p, INT32 realtics)
 {
 	INT32 i;
 
-	for (i = MAXGENTLEMENDELAY-1; i > 0; i--)
+	if (UseLocalDelay())
 	{
-		G_MoveTiccmd(&localcmds[p][i], &localcmds[p][i-1], 1);
+		for (i = MAXGENTLEMENDELAY-1; i > 0; i--)
+		{
+			G_MoveTiccmd(&localcmds[p][i], &localcmds[p][i-1], 1);
+		}
 	}
 
 	G_BuildTiccmd(&localcmds[p][0], realtics, p+1);
@@ -5631,21 +5608,12 @@ boolean TryRunTics(tic_t realtics)
 	}
 #endif
 
-	if (neededtic > gametic)
-	{
-		hu_stopped = false;
-	}
-
-	if (player_joining)
-	{
-		hu_stopped = true;
-		return false;
-	}
-
 	ticking = neededtic > gametic;
 
 	if (ticking)
 	{
+		hu_stopped = false;
+
 		// run the count * tics
 		while (neededtic > gametic)
 		{
@@ -5674,8 +5642,7 @@ boolean TryRunTics(tic_t realtics)
 	}
 	else
 	{
-		if (realtics)
-			hu_stopped = true;
+		hu_stopped = true;
 	}
 
 	return ticking;
@@ -5747,8 +5714,6 @@ static inline void PingUpdate(void)
 			UINT8 minimumkicklevel = (nonlaggers > 0) ? PINGKICK_LIMIT : PINGKICK_TICQUEUE;
 			for (i = 0; i < MAXPLAYERS; i++)
 			{
-				char buf[2];
-
 				if (!playeringame[i] || pingkick[i] < minimumkicklevel)
 					continue;
 
@@ -5760,10 +5725,7 @@ static inline void PingUpdate(void)
 				}
 
 				pingtimeout[i] = 0;
-
-				buf[0] = (char)i;
-				buf[1] = KICK_MSG_PING_HIGH;
-				SendNetXCmd(XD_KICK, &buf, 2);
+				SendKick(i, KICK_MSG_PING_HIGH);
 			}
 		}
 	}
@@ -5805,7 +5767,8 @@ static void UpdatePingTable(void)
 
 	if (server)
 	{
-		if (Playing() && !(gametime % 8)) // Value chosen based on _my vibes man_
+		//if (Playing() && !(gametime % 8)) // Value chosen based on _my vibes man_ << dont do this for v8 atleast, this is placeboeing ppl to hell and back
+		if (Playing() && !(gametime % 35))	// update once per second.
 			PingUpdate();
 
 		fastest = 0;
@@ -5817,7 +5780,7 @@ static void UpdatePingTable(void)
 			{
 				realpingtable[i] += GetLag(playernode[i]);
 
-				if (!server_lagless && !players[i].spectator)
+				if (UseLocalDelay() && !server_lagless && !players[i].spectator)
 				{
 					lag = playerpingtable[i];
 					if (! fastest || lag < fastest)
@@ -5826,30 +5789,40 @@ static void UpdatePingTable(void)
 			}
 		}
 
-		if (server_lagless)
-			lowest_lag = 0;
+		if (UseLocalDelay())
+		{
+			if (server_lagless)
+				lowest_lag = 0;
+			else
+				lowest_lag = fastest;
+
+			// Don't gentleman below your mindelay
+			if (lowest_lag < (tic_t)cv_mindelay.value)
+				lowest_lag = (tic_t)cv_mindelay.value;
+
+			simulated_lag = lowest_lag;
+		}
 		else
-			lowest_lag = fastest;
-
-		// Don't gentleman below your mindelay
-		if (lowest_lag < (tic_t)cv_mindelay.value)
-			lowest_lag = (tic_t)cv_mindelay.value;
-
-		simulated_lag = lowest_lag;
+			lowest_lag = simulated_lag = 0;
 
 		pingmeasurecount++;
 	}
 	else // We're a client, handle mindelay on the way out.
 	{
-		// Previously (neededtic - gametic) - WRONG VALUE!
-		// Pretty sure that's measuring jitter, not RTT.
-		// Stable connections would be punished by adding their mindelay to network delay!
-		tic_t mydelay = playerpingtable[consoleplayer];
-
-		if (mydelay < (tic_t)cv_mindelay.value)
+		if (UseLocalDelay())
 		{
-			lowest_lag = ((tic_t)cv_mindelay.value - mydelay);
-			simulated_lag = (tic_t)cv_mindelay.value;
+			// Previously (neededtic - gametic) - WRONG VALUE!
+			// Pretty sure that's measuring jitter, not RTT.
+			// Stable connections would be punished by adding their mindelay to network delay!
+			tic_t mydelay = playerpingtable[consoleplayer];
+
+			if (mydelay < (tic_t)cv_mindelay.value)
+			{
+				lowest_lag = ((tic_t)cv_mindelay.value - mydelay);
+				simulated_lag = (tic_t)cv_mindelay.value;
+			}
+			else
+				lowest_lag = simulated_lag = 0;
 		}
 		else
 			lowest_lag = simulated_lag = 0;
