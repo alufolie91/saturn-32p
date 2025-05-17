@@ -22,7 +22,6 @@
 #define SCREENVERTS 10
 
 boolean GL_Init(void);
-void GL_FinishUpdate(INT32 waitvbl);
 void SetupGLInfo(void);
 
 void GL_SetSpecialState(hwdspecialstate_t IdState, INT32 Value);
@@ -40,6 +39,7 @@ void GL_DrawModelEx(model_t *model, INT32 frameIndex, float duration, float tics
 
 void GL_RenderSkyDome(gl_sky_t *sky);
 
+void GL_UpdateTexture(GLMipmap_t *pTexInfo);
 void GL_SetTexture(GLMipmap_t *pTexInfo);
 void GL_DeleteTexture(GLMipmap_t *pTexInfo);
 

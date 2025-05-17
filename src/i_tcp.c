@@ -49,34 +49,28 @@
 #ifdef NONET
 #undef HAVE_MINIUPNPC
 #else
-#ifdef USE_WINSOCK1
-#include <winsock.h>
-#elif !defined (SCOUW2) && !defined (SCOUW7) && !defined (__OS2__)
-#ifndef USE_WINSOCK
-#include <arpa/inet.h>
-#endif //normal BSD API
-
-#ifndef USE_WINSOCK
-#ifdef __APPLE_CC__
-#ifndef _BSD_SOCKLEN_T_
-#define _BSD_SOCKLEN_T_
-#endif //_BSD_SOCKLEN_T_
-#endif //__APPLE_CC__
-#include <sys/socket.h>
-#include <netinet/in.h>
-#endif //normal BSD API
-
-#ifndef USE_WINSOCK
-#include <netdb.h>
-#include <sys/ioctl.h>
-#endif //normal BSD API
-
-#include <errno.h>
 #include <time.h>
+#ifdef USE_WINSOCK1
+	#include <winsock.h>
+#else
+	#ifndef USE_WINSOCK
+		#include <arpa/inet.h>
+		#ifdef __APPLE_CC__
+			#ifndef _BSD_SOCKLEN_T_
+				#define _BSD_SOCKLEN_T_
+			#endif //_BSD_SOCKLEN_T_
+		#endif //__APPLE_CC__
+		#include <sys/socket.h>
+		#include <netinet/in.h>
+		#include <netdb.h>
+		#include <sys/ioctl.h>
+	#endif //normal BSD API
 
-#if defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)
-	#include <sys/time.h>
-#endif // UNIXCOMMON
+	#include <errno.h>
+
+	#if defined (__unix__) || defined (__APPLE__) || defined (UNIXCOMMON)
+		#include <sys/time.h>
+	#endif // UNIXCOMMON
 #endif // !NONET
 
 #ifdef USE_WINSOCK
@@ -123,7 +117,7 @@
 	#ifndef STATUS_INVALID_PARAMETER
 	#define STATUS_INVALID_PARAMETER 0xC000000D
 	#endif
-#endif
+#endif // USE_WINSOCK
 
 typedef union
 {
@@ -168,7 +162,6 @@ static UINT8 UPNP_support = TRUE;
 #endif
 
 #include "i_addrinfo.h"
-
 #define DEFAULTPORT "5029"
 
 #if defined (USE_WINSOCK) && !defined (NONET)
@@ -599,6 +592,7 @@ void Command_Numnodes(void)
 #endif
 
 #ifndef NONET
+#ifdef HOLEPUNCH
 /* not one of the reserved "local" addresses */
 static boolean
 is_external_address (UINT32 p)
@@ -624,7 +618,6 @@ is_external_address (UINT32 p)
 	}
 }
 
-#ifdef HOLEPUNCH
 static boolean hole_punch(ssize_t c)
 {
 
@@ -650,7 +643,7 @@ static boolean hole_punch(ssize_t c)
 	}
 
 }
-#endif
+#endif //ifdef HOLEPUNCH
 
 // Returns true if a packet was received from a new node, false in all other cases
 static boolean SOCK_Get(void)

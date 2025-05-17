@@ -443,7 +443,6 @@ char configfile[MAX_WADPATH];
 // ==========================================================================
 //                          CONFIGURATION
 // ==========================================================================
-static boolean gameconfig_loaded = false; // true once config.cfg loaded AND executed
 
 /** Saves a player's config, possibly to a particular file.
   *
@@ -548,10 +547,6 @@ void M_FirstLoadConfig(void)
 	// don't filter anymore vars and don't let this convsvar be changed
 	COM_BufInsertText(va("%s \"%d\"\n", cv_execversion.name, EXECVERSION));
 	CV_ToggleExecVersion(false);
-
-	// make sure I_Quit() will write back the correct config
-	// (do not write back the config if it crash before)
-	gameconfig_loaded = true;
 }
 
 /** Saves the game configuration.
@@ -565,7 +560,7 @@ void M_SaveConfig(const char *filename)
 	char backupfile[MAX_WADPATH+4];
 
 	// make sure not to write back the config until it's been correctly loaded
-	if (!gameconfig_loaded)
+	if (!loaded_config)
 		return;
 
 	// Create backup of the config file
@@ -1582,9 +1577,9 @@ boolean M_ScreenshotResponder(event_t *ev)
 	if (ch >= KEY_MOUSE1 && menuactive) // If it's not a keyboard key, then don't allow it in the menus!
 		return false;
 
-	if (ch == KEY_F8 || ch == gamecontrol[gc_screenshot][0] || ch == gamecontrol[gc_screenshot][1]) // remappable F8
+	if (ch == KEY_F8 || ch == gamecontrol[0][gc_screenshot][0] || ch == gamecontrol[0][gc_screenshot][1]) // remappable F8
 		M_ScreenShot();
-	else if (ch == KEY_F9 || ch == gamecontrol[gc_recordgif][0] || ch == gamecontrol[gc_recordgif][1]) // remappable F9
+	else if (ch == KEY_F9 || ch == gamecontrol[0][gc_recordgif][0] || ch == gamecontrol[0][gc_recordgif][1]) // remappable F9
 		((moviemode) ? M_StopMovie : M_StartMovie)();
 	else
 		return false;
@@ -1667,7 +1662,6 @@ failure:
 	}
 #endif //#ifdef USE_PNG
 }
-
 
 // ==========================================================================
 //                       TRANSLATION FUNCTIONS

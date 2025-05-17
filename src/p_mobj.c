@@ -502,12 +502,12 @@ static fixed_t HighestOnLine(fixed_t radius, fixed_t x, fixed_t y, line_t *line,
 	/*CONS_Printf("BEFORE: v1 = %f %f %f\n",
 				FIXED_TO_FLOAT(v1.x),
 				FIXED_TO_FLOAT(v1.y),
-				FIXED_TO_FLOAT(P_GetZAt(slope, v1.x, v1.y))
+				FIXED_TO_FLOAT(P_GetSlopeZAt(slope, v1.x, v1.y))
 				);
 	CONS_Printf("        v2 = %f %f %f\n",
 				FIXED_TO_FLOAT(v2.x),
 				FIXED_TO_FLOAT(v2.y),
-				FIXED_TO_FLOAT(P_GetZAt(slope, v2.x, v2.y))
+				FIXED_TO_FLOAT(P_GetSlopeZAt(slope, v2.x, v2.y))
 				);*/
 
 	if (abs(v1.x-x) > radius) {
@@ -565,24 +565,24 @@ static fixed_t HighestOnLine(fixed_t radius, fixed_t x, fixed_t y, line_t *line,
 	/*CONS_Printf("AFTER:  v1 = %f %f %f\n",
 				FIXED_TO_FLOAT(v1.x),
 				FIXED_TO_FLOAT(v1.y),
-				FIXED_TO_FLOAT(P_GetZAt(slope, v1.x, v1.y))
+				FIXED_TO_FLOAT(P_GetSlopeZAt(slope, v1.x, v1.y))
 				);
 	CONS_Printf("        v2 = %f %f %f\n",
 				FIXED_TO_FLOAT(v2.x),
 				FIXED_TO_FLOAT(v2.y),
-				FIXED_TO_FLOAT(P_GetZAt(slope, v2.x, v2.y))
+				FIXED_TO_FLOAT(P_GetSlopeZAt(slope, v2.x, v2.y))
 				);*/
 
 	// Return the higher of the two points
 	if (actuallylowest)
 		return min(
-			P_GetZAt(slope, v1.x, v1.y),
-			P_GetZAt(slope, v2.x, v2.y)
+			P_GetSlopeZAt(slope, v1.x, v1.y),
+			P_GetSlopeZAt(slope, v2.x, v2.y)
 		);
 	else
 		return max(
-			P_GetZAt(slope, v1.x, v1.y),
-			P_GetZAt(slope, v2.x, v2.y)
+			P_GetSlopeZAt(slope, v1.x, v1.y),
+			P_GetSlopeZAt(slope, v2.x, v2.y)
 		);
 }
 
@@ -618,7 +618,7 @@ fixed_t P_MobjFloorZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed_t
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
 		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
-			return P_GetZAt(slope, testx, testy);
+			return P_GetSlopeZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
 		if (perfect)
@@ -657,7 +657,7 @@ fixed_t P_MobjFloorZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed_t
 		// If we're just testing for base sector location (no collision line), just go for the center's spot...
 		// It'll get fixed when we test for collision anyway, and the final result can't be lower than this
 		if (line == NULL)
-			return P_GetZAt(slope, x, y);
+			return P_GetSlopeZAt(slope, x, y);
 
 		return HighestOnLine(mobj->radius, x, y, line, slope, lowest);
 	}
@@ -697,7 +697,7 @@ fixed_t P_MobjCeilingZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
 		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
-			return P_GetZAt(slope, testx, testy);
+			return P_GetSlopeZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
 		if (perfect)
@@ -736,7 +736,7 @@ fixed_t P_MobjCeilingZ(mobj_t *mobj, sector_t *sector, sector_t *boundsec, fixed
 		// If we're just testing for base sector location (no collision line), just go for the center's spot...
 		// It'll get fixed when we test for collision anyway, and the final result can't be lower than this
 		if (line == NULL)
-			return P_GetZAt(slope, x, y);
+			return P_GetSlopeZAt(slope, x, y);
 
 		return HighestOnLine(mobj->radius, x, y, line, slope, lowest);
 	}
@@ -777,7 +777,7 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
 		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
-			return P_GetZAt(slope, testx, testy);
+			return P_GetSlopeZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
 		if (perfect)
@@ -816,7 +816,7 @@ fixed_t P_CameraFloorZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, fix
 		// If we're just testing for base sector location (no collision line), just go for the center's spot...
 		// It'll get fixed when we test for collision anyway, and the final result can't be lower than this
 		if (line == NULL)
-			return P_GetZAt(slope, x, y);
+			return P_GetSlopeZAt(slope, x, y);
 
 		return HighestOnLine(mobj->radius, x, y, line, slope, lowest);
 	}
@@ -856,7 +856,7 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 
 		// If the highest point is in the sector, then we have it easy! Just get the Z at that point
 		if (R_PointInSubsector(testx, testy)->sector == (boundsec ? boundsec : sector))
-			return P_GetZAt(slope, testx, testy);
+			return P_GetSlopeZAt(slope, testx, testy);
 
 		// If boundsec is set, we're looking for specials. In that case, iterate over every line in this sector to find the TRUE highest/lowest point
 		if (perfect)
@@ -895,7 +895,7 @@ fixed_t P_CameraCeilingZ(camera_t *mobj, sector_t *sector, sector_t *boundsec, f
 		// If we're just testing for base sector location (no collision line), just go for the center's spot...
 		// It'll get fixed when we test for collision anyway, and the final result can't be lower than this
 		if (line == NULL)
-			return P_GetZAt(slope, x, y);
+			return P_GetSlopeZAt(slope, x, y);
 
 		return HighestOnLine(mobj->radius, x, y, line, slope, lowest);
 	}
@@ -1918,9 +1918,7 @@ boolean P_CheckSolidLava(mobj_t *mo, ffloor_t *rover)
 	I_Assert(mo != NULL);
 	I_Assert(!P_MobjWasRemoved(mo));
 
-	fixed_t topheight =
-		*rover->t_slope ? P_GetZAt(*rover->t_slope, mo->x, mo->y) :
-		*rover->topheight;
+	fixed_t topheight = P_GetFFloorTopZAt(rover, mo->x, mo->y);
 
 	if (rover->flags & FF_SWIMMABLE && GETSECSPECIAL(rover->master->frontsector->special, 1) == 3
 		&& !(rover->master->flags & ML_BLOCKMONSTERS)
@@ -2887,14 +2885,8 @@ void P_MobjCheckWater(mobj_t *mobj)
 		 || ((rover->flags & FF_BLOCKOTHERS) && !mobj->player)))
 			continue;
 
-		topheight = *rover->topheight;
-		bottomheight = *rover->bottomheight;
-
-		if (*rover->t_slope)
-			topheight = P_GetZAt(*rover->t_slope, mobj->x, mobj->y);
-
-		if (*rover->b_slope)
-			bottomheight = P_GetZAt(*rover->b_slope, mobj->x, mobj->y);
+		topheight    = P_GetFFloorTopZAt(rover, mobj->x, mobj->y);
+		bottomheight = P_GetFFloorBottomZAt(rover, mobj->x, mobj->y);
 
 		if (mobj->eflags & MFE_VERTICALFLIP)
 		{
@@ -3112,14 +3104,8 @@ static void P_SceneryCheckWater(mobj_t *mobj)
 			if (!(rover->flags & FF_EXISTS) || !(rover->flags & FF_SWIMMABLE) || rover->flags & FF_BLOCKOTHERS)
 				continue;
 
-			topheight = *rover->topheight;
-			bottomheight = *rover->bottomheight;
-
-			if (*rover->t_slope)
-				topheight = P_GetZAt(*rover->t_slope, mobj->x, mobj->y);
-
-			if (*rover->b_slope)
-				bottomheight = P_GetZAt(*rover->b_slope, mobj->x, mobj->y);
+			topheight    = P_GetFFloorTopZAt(rover, mobj->x, mobj->y);
+			bottomheight = P_GetFFloorBottomZAt(rover, mobj->x, mobj->y);
 
 			if (topheight <= mobj->z
 				|| bottomheight > (mobj->z + FixedMul(mobj->info->height >> 1, mobj->scale)))
@@ -9389,13 +9375,8 @@ void P_SceneryThinker(mobj_t *mobj)
 // GAME SPAWN FUNCTIONS
 //
 
-//
-// P_SpawnMobj
-//
-mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
+FUNCINLINE static ATTRINLINE mobj_t *P_AllocMobj(void)
 {
-	const mobjinfo_t *info = &mobjinfo[type];
-	state_t *st;
 	mobj_t *mobj;
 
 	if (mobjcache != NULL)
@@ -9409,6 +9390,20 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 		mobj = Z_Calloc(sizeof (*mobj), PU_LEVEL, NULL);
 	}
 
+	return mobj;
+}
+
+//
+// P_SpawnMobj
+//
+mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
+{
+	const mobjinfo_t *info = &mobjinfo[type];
+	state_t *st;
+	mobj_t *mobj;
+
+	mobj = P_AllocMobj();
+
 	// this is officially a mobj, declared as soon as possible.
 	mobj->thinker.function.acp1 = (actionf_p1)P_MobjThinker;
 	mobj->type = type;
@@ -9420,11 +9415,6 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	mobj->radius = info->radius;
 	mobj->height = info->height;
 	mobj->flags = info->flags;
-	mobj->sloperoll = 0;
-	mobj->slopepitch = 0;
-
-	mobj->pitch_sprite = 0;
-	mobj->roll_sprite = 0;
 
 	mobj->health = info->spawnhealth;
 
@@ -9462,12 +9452,6 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	mobj->realxscale = mobj->realyscale = mobj->scale;
 	mobj->spritexscale = mobj->realxscale;
 	mobj->spriteyscale = mobj->realyscale;
-	mobj->realxoffset = mobj->realyoffset = 0;
-	mobj->spritexoffset = mobj->realxoffset;
-	mobj->spriteyoffset = mobj->realyoffset;
-
-	// Funni slam sound when landing
-	mobj->slamsoundtimer = 0;
 
 	// set subsector and/or block links
 	P_SetThingPosition(mobj);
@@ -9476,12 +9460,8 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	// Make sure scale matches destscale immediately when spawned
 	P_SetScale(mobj, mobj->destscale);
 
-	mobj->floorz =
-				mobj->subsector->sector->f_slope ? P_GetZAt(mobj->subsector->sector->f_slope, x, y) :
-				mobj->subsector->sector->floorheight;
-	mobj->ceilingz =
-				mobj->subsector->sector->c_slope ? P_GetZAt(mobj->subsector->sector->c_slope, x, y) :
-				mobj->subsector->sector->ceilingheight;
+	mobj->floorz   = P_GetSectorFloorZAt(mobj->subsector->sector, x, y);
+	mobj->ceilingz = P_GetSectorCeilingZAt(mobj->subsector->sector, x, y);
 
 	// Tells MobjCheckWater that the water height was not set.
 	mobj->watertop = INT32_MAX;
@@ -9873,16 +9853,7 @@ mobj_t *P_SpawnShadowMobj(mobj_t * caster)
 	state_t *st;
 	mobj_t *mobj;
 
-	if (mobjcache != NULL)
-	{
-		mobj = mobjcache;
-		mobjcache = mobjcache->hnext;
-		memset(mobj, 0, sizeof(*mobj));
-	}
-	else
-	{
-		mobj = Z_Calloc(sizeof (*mobj), PU_LEVEL, NULL);
-	}
+	mobj = P_AllocMobj();
 
 	// this is officially a mobj, declared as soon as possible.
 	mobj->thinker.function.acp1 = (actionf_p1)P_MobjThinker;
@@ -9932,7 +9903,6 @@ mobj_t *P_SpawnShadowMobj(mobj_t * caster)
 
 	// Sprite rendering
 	mobj->spritexscale = mobj->spriteyscale = mobj->scale;
-	mobj->spritexoffset = mobj->spriteyoffset = 0;
 
 	// set subsector and/or block links
 	P_SetThingPosition(mobj);
@@ -10165,6 +10135,10 @@ void P_RemoveMobj(mobj_t *mobj)
 		{ // Add thinker just to delay removing it until refrences are gone.
 			mobj->flags &= ~MF_NOTHINK;
 			P_AddThinker((thinker_t *)mobj);
+#ifdef PARANOIA
+			// Saved to avoid being scrambled like below...
+			mobj->thinker.debug_mobjtype = mobj->type;
+#endif
 #ifdef SCRAMBLE_REMOVED
 			// Invalidate mobj_t data to cause crashes if accessed!
 			memset((UINT8 *)mobj + sizeof(thinker_t), 0xff, sizeof(mobj_t) - sizeof(thinker_t));
@@ -10174,6 +10148,10 @@ void P_RemoveMobj(mobj_t *mobj)
 	}
 	else
 	{
+#ifdef PARANOIA
+		// Saved to avoid being scrambled like below...
+		mobj->thinker.debug_mobjtype = mobj->type;
+#endif
 #ifdef SCRAMBLE_REMOVED
 		// Invalidate mobj_t data to cause crashes if accessed!
 		memset((UINT8 *)mobj + sizeof(thinker_t), 0xff, sizeof(mobj_t) - sizeof(thinker_t));
@@ -10196,31 +10174,29 @@ void P_FreePrecipMobj(precipmobj_t *mobj)
 // Clearing out stuff for savegames
 void P_RemoveSavegameMobj(mobj_t *mobj)
 {
-	// unlink from sector and block lists
-	if (((thinker_t *)mobj)->function.acp1 == (actionf_p1)P_NullPrecipThinker)
-	{
-		P_UnsetPrecipThingPosition((precipmobj_t *)mobj);
-	}
-	else
-	{
-		// unlink from sector and block lists
-		P_UnsetThingPosition(mobj);
+	thinker_t *th = (thinker_t*)mobj;
 
-		// Remove touching_sectorlist from mobj.
-		if (sector_list)
-		{
-			P_DelSeclist(sector_list);
-			sector_list = NULL;
-		}
+	// unlink from sector and block lists
+	P_UnsetThingPosition(mobj);
+
+	// Remove touching_sectorlist from mobj.
+	if (sector_list)
+	{
+		P_DelSeclist(sector_list);
+		sector_list = NULL;
 	}
 
 	// stop any playing sound
 	S_StopSound(mobj);
 	R_RemoveMobjInterpolator(mobj);
 
+	// just set its reference count to 0 to not trigger the assert in P_UnlinkThinker
+	if (th->references != 0)
+		th->references = 0;
+
 	// free block
 	// Here we use the same code as R_RemoveThinkerDelayed, but without reference counting (we're removing everything so it shouldn't matter) and without touching currentthinker since we aren't in P_RunThinkers
-	P_UnlinkThinker((thinker_t*)mobj);
+	P_UnlinkThinker(th);
 }
 
 static CV_PossibleValue_t respawnitemtime_cons_t[] = {{1, "MIN"}, {300, "MAX"}, {0, NULL}};
@@ -10271,7 +10247,7 @@ void P_SpawnPrecipitation(void)
 				continue;
 
 			// Exists, but is too small for reasonable precipitation.
-			if (!(precipsector->sector->floorheight <= precipsector->sector->ceilingheight - (32<<FRACBITS)))
+			if (FixedDiv(precipsector->sector->ceilingheight - precipsector->sector->floorheight, mapobjectscale) < 64<<FRACBITS)
 				continue;
 
 			// Don't set z properly yet...
@@ -10557,9 +10533,8 @@ void P_RespawnSpecials(void)
 
 		if (mthing->options & MTF_OBJECTFLIP)
 		{
-			z = (
-			ss->sector->c_slope ? P_GetZAt(ss->sector->c_slope, x, y) :
-			ss->sector->ceilingheight) - (mthing->options >> ZSHIFT) * FRACUNIT;
+			z = P_GetSectorCeilingZAt(ss->sector, x, y) - (mthing->options >> ZSHIFT) * FRACUNIT;
+
 			if (mthing->options & MTF_AMBUSH
 			&& (i == MT_RING || i == MT_REDTEAMRING || i == MT_BLUETEAMRING || i == MT_COIN || P_WeaponOrPanel(i)))
 				z -= 24*FRACUNIT;
@@ -10567,9 +10542,8 @@ void P_RespawnSpecials(void)
 		}
 		else
 		{
-			z = (
-			ss->sector->f_slope ? P_GetZAt(ss->sector->f_slope, x, y) :
-			ss->sector->floorheight) + (mthing->options >> ZSHIFT) * FRACUNIT;
+			z = P_GetSectorFloorZAt(ss->sector, x, y) + (mthing->options >> ZSHIFT) * FRACUNIT;
+
 			if (mthing->options & MTF_AMBUSH
 			&& (i == MT_RING || i == MT_REDTEAMRING || i == MT_BLUETEAMRING || i == MT_COIN || P_WeaponOrPanel(i)))
 				z += 24*FRACUNIT;
@@ -10690,7 +10664,7 @@ void P_SpawnPlayer(INT32 playernum)
 	// the dead body mobj retains the skin through the 'spritedef' override).
 	mobj->skin = &skins[p->skin];
 
-	mobj->localskin = ((p->localskin > 0) ? (p->skinlocal ? &localskins[p->localskin - 1] : &skins[p->localskin - 1]) : 0);
+	mobj->localskin = (p->localskin ? K_GetPlayerSkin(p) : 0);
 	mobj->skinlocal = p->skinlocal;
 
 	mobj->health = p->health;
@@ -10870,14 +10844,9 @@ void P_MovePlayerToSpawn(INT32 playernum, mapthing_t *mthing)
 	//spawn at the origin as a desperation move if there is no mapthing
 
 	// set Z height
-	sector = R_PointInSubsector(x, y)->sector;
-
-	floor =
-	sector->f_slope ? P_GetZAt(sector->f_slope, x, y) :
-	sector->floorheight;
-	ceiling =
-	sector->c_slope ? P_GetZAt(sector->c_slope, x, y) :
-	sector->ceilingheight;
+	sector  = R_PointInSubsector(x, y)->sector;
+	floor   = P_GetSectorFloorZAt(sector, x, y);
+	ceiling = P_GetSectorCeilingZAt(sector, x, y);
 
 	if (mthing)
 	{
@@ -10945,14 +10914,11 @@ void P_MovePlayerToStarpost(INT32 playernum)
 	mobj->x = p->starpostx << FRACBITS;
 	mobj->y = p->starposty << FRACBITS;
 	P_SetThingPosition(mobj);
-	sector = R_PointInSubsector(mobj->x, mobj->y)->sector;
 
-	floor =
-	sector->f_slope ? P_GetZAt(sector->f_slope, mobj->x, mobj->y) :
-	sector->floorheight;
-	ceiling =
-	sector->c_slope ? P_GetZAt(sector->c_slope, mobj->x, mobj->y) :
-	sector->ceilingheight;
+	// set Z height
+	sector  = R_PointInSubsector(mobj->x, mobj->y)->sector;
+	floor   = P_GetSectorFloorZAt(sector, mobj->x, mobj->y);
+	ceiling = P_GetSectorCeilingZAt(sector, mobj->x, mobj->y);
 
 	if (mobj->player->kartstuff[k_starpostflip])
 		z = (p->starpostz<<FRACBITS) - FixedMul(128<<FRACBITS, mapobjectscale) - mobj->height;
@@ -11073,9 +11039,17 @@ void P_SpawnMapThing(mapthing_t *mthing)
 	// check for players specially
 	if (mthing->type > 0 && mthing->type <= 32)
 	{
-		// save spots for respawning in network games
-		if (!metalrecording)
-			playerstarts[mthing->type-1] = mthing;
+		if (mthing->type > MAXPLAYERS) // be wary of playerstarts size!  playerstarts[MAXPLAYERS]
+		{
+			CONS_Alert(CONS_ERROR, "Excess player start detected %d This will crash vanilla clients!\n", mthing->type);
+		}
+		else
+		{
+			// save spots for respawning in network games
+			if (!metalrecording)
+				playerstarts[mthing->type-1] = mthing;
+		}
+
 		return;
 	}
 
@@ -11124,10 +11098,8 @@ void P_SpawnMapThing(mapthing_t *mthing)
 		if (gametype != GT_COOP)
 			return;
 
-		ss = R_PointInSubsector(mthing->x << FRACBITS, mthing->y << FRACBITS);
-		mthing->z = (INT16)(((
-								ss->sector->f_slope ? P_GetZAt(ss->sector->f_slope, mthing->x << FRACBITS, mthing->y << FRACBITS) :
-								ss->sector->floorheight)>>FRACBITS) + (mthing->options >> ZSHIFT));
+		ss = R_PointInSubsector((mthing->x << FRACBITS), (mthing->y << FRACBITS));
+		mthing->z = (INT16)((P_GetSectorFloorZAt(ss->sector, (mthing->x << FRACBITS), (mthing->y << FRACBITS)) >> FRACBITS) + (mthing->options >> ZSHIFT));
 
 		if (numhuntemeralds < MAXHUNTEMERALDS)
 			huntemeralds[numhuntemeralds++] = mthing;
@@ -11241,18 +11213,14 @@ void P_SpawnMapThing(mapthing_t *mthing)
 	ss = R_PointInSubsector(x, y);
 
 	if (i == MT_NIGHTSBUMPER)
-		z = (
-			ss->sector->f_slope ? P_GetZAt(ss->sector->f_slope, x, y) :
-			ss->sector->floorheight) + ((mthing->options >> ZSHIFT) << FRACBITS);
+		z = P_GetSectorFloorZAt(ss->sector, x, y) + ((mthing->options >> ZSHIFT) << FRACBITS);
 	else if (i == MT_AXIS || i == MT_AXISTRANSFER || i == MT_AXISTRANSFERLINE)
 		z = ONFLOORZ;
 	else if (i == MT_SPECIALSPIKEBALL || P_WeaponOrPanel(i) || i == MT_EMERALDSPAWN || i == MT_EMMY)
 	{
 		if (mthing->options & MTF_OBJECTFLIP)
 		{
-			z = (
-			ss->sector->c_slope ? P_GetZAt(ss->sector->c_slope, x, y) :
-			ss->sector->ceilingheight);
+			z = P_GetSectorCeilingZAt(ss->sector, x, y);
 
 			if (mthing->options & MTF_AMBUSH) // Special flag for rings
 				z -= 24*FRACUNIT;
@@ -11263,9 +11231,7 @@ void P_SpawnMapThing(mapthing_t *mthing)
 		}
 		else
 		{
-			z = (
-			ss->sector->f_slope ? P_GetZAt(ss->sector->f_slope, x, y) :
-			ss->sector->floorheight);
+			z = P_GetSectorFloorZAt(ss->sector, x, y);
 
 			if (mthing->options & MTF_AMBUSH) // Special flag for rings
 				z += 24*FRACUNIT;
@@ -11285,13 +11251,9 @@ void P_SpawnMapThing(mapthing_t *mthing)
 
 		// base positions
 		if (flip)
-			z = (
-			ss->sector->c_slope ? P_GetZAt(ss->sector->c_slope, x, y) :
-			ss->sector->ceilingheight) - mobjinfo[i].height;
+			z = P_GetSectorCeilingZAt(ss->sector, x, y) - mobjinfo[i].height;
 		else
-			z = (
-			ss->sector->f_slope ? P_GetZAt(ss->sector->f_slope, x, y) :
-			ss->sector->floorheight);
+			z = P_GetSectorFloorZAt(ss->sector, x, y);
 
 		// offsetting
 		if (mthing->options >> ZSHIFT)
@@ -11517,14 +11479,9 @@ ML_NOCLIMB : Direction not controllable
 		mobj->threshold = min(mthing->extrainfo, 7);
 		break;
 	case MT_TUBEWAYPOINT:
-	{
-		UINT8 sequence = mthing->angle >> 8;
-		UINT8 id = mthing->angle & 255;
-		mobj->health = id;
-		mobj->threshold = sequence;
-		P_AddWaypoint(sequence, id, mobj);
+		mobj->health = mthing->angle & 255;
+		mobj->threshold = mthing->angle >> 8;
 		break;
-	}
 	case MT_NIGHTSDRONE:
 		if (mthing->angle > 0)
 			mobj->health = mthing->angle;
@@ -11864,9 +11821,7 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 		hoopcenter = P_SpawnMobj(x, y, z, MT_HOOPCENTER);
 		hoopcenter->spawnpoint = mthing;
 
-		z +=
-			sec->f_slope ? P_GetZAt(sec->f_slope, x, y) :
-			sec->floorheight;
+		z += P_GetSectorFloorZAt(sec, x, y);
 
 		hoopcenter->z = z - hoopcenter->height/2;
 
@@ -11997,9 +11952,7 @@ void P_SpawnHoopsAndRings(mapthing_t *mthing)
 		hoopcenter = P_SpawnMobj(x, y, z, MT_HOOPCENTER);
 		hoopcenter->spawnpoint = mthing;
 
-		z +=
-			sec->f_slope ? P_GetZAt(sec->f_slope, x, y) :
-			sec->floorheight;
+		z += P_GetSectorFloorZAt(sec, x, y);
 		hoopcenter->z = z - hoopcenter->height/2;
 
 		P_UnsetThingPosition(hoopcenter);

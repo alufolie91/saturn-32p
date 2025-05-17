@@ -99,14 +99,16 @@ static GLuint screenPaletteTex = 0; // 1D texture containing the screen palette
 static GLuint paletteLookupTex = 0; // 3D texture containing RGB -> palette index lookup table
 RGBA_t  myPaletteData[256]; // the palette for converting textures to RGBA
 
-GLint   screen_width    = 0;               // used by Draw2DLine()
-GLint   screen_height   = 0;
-GLbyte  screen_depth    = 0;
-GLint   textureformatGL = 0;
-GLint maximumAnisotropy = 0;
-static GLboolean MipMap = GL_FALSE;
-static GLint min_filter = GL_LINEAR;
-static GLint mag_filter = GL_LINEAR;
+static GLint gltexformat = GL_RGB5_A1;
+GLint   screen_width     = 0;               // used by Draw2DLine()
+GLint   screen_height    = 0;
+GLint   screen_texsizew  = 512; // Power-of-two screen texture render resolution
+GLint   screen_texsizeh  = 512; // Power-of-two screen texture render resolution
+GLbyte  screen_depth     = 0;
+GLint maximumAnisotropy  = 0;
+static GLboolean MipMap  = GL_FALSE;
+static GLint min_filter  = GL_LINEAR;
+static GLint mag_filter  = GL_LINEAR;
 static GLint anisotropic_filter = 0;
 boolean supportMipMap = false;
 
@@ -129,6 +131,8 @@ GLuint FramebufferObject, FramebufferTexture, RenderbufferObject;
 
 boolean supportFBO = false;
 static boolean fboinit = false;
+
+static void GL_Framebuffer_DeleteAttachments(void);
 #endif
 
 // Sryder:	NextTexAvail is broken for these because palette changes or changes to the texture filter or antialiasing
@@ -191,7 +195,7 @@ FUNCPRINTF void GL_DBG_Printf(const char *format, ...)
 
 	if (!gllogstream)
 		gllogstream = fopen("ogllog.txt", "w");
-	
+
 	va_start(arglist, format);
 	vsnprintf(str, 4096, format, arglist);
 	va_end(arglist);
@@ -673,7 +677,7 @@ typedef enum
 	gluniform_light_dir,
 	gluniform_light_contrast,
 	gluniform_light_backlight,
-	
+
 	// palette rendering
 	gluniform_palette_tex, // 1d texture containing a palette
 	gluniform_palette_lookup_tex, // 3d texture containing the rgb->index lookup table
@@ -743,7 +747,7 @@ void SetupGLFunc4(void)
 	pglMultiTexCoord2f = GetGLFunc("glMultiTexCoord2f");
 	pglClientActiveTexture = GetGLFunc("glClientActiveTexture");
 	pglMultiTexCoord2fv = GetGLFunc("glMultiTexCoord2fv");
-	
+
 	/* 1.5 funcs */
 	pglGenBuffers = GetGLFunc("glGenBuffers");
 	pglBindBuffer = GetGLFunc("glBindBuffer");
@@ -753,7 +757,7 @@ void SetupGLFunc4(void)
 
 	/* 2.0 funcs */
 	pglBlendEquation = GetGLFunc("glBlendEquation");
-	
+
 	pglStencilFuncSeparate = GetGLFunc("glStencilFuncSeparate");
 	pglStencilOpSeparate = GetGLFunc("glStencilOpSeparate");
 
@@ -809,7 +813,7 @@ boolean GL_InitShaders(void)
 {
 	if (!pglUseProgram)
 		return false;
-	
+
 	gl_fallback_shader.vertex_shader = Z_StrDup(GLSL_FALLBACK_VERTEX_SHADER);
 	gl_fallback_shader.fragment_shader = Z_StrDup(GLSL_FALLBACK_FRAGMENT_SHADER);
 
@@ -948,7 +952,7 @@ void GL_UnSetShader(void)
 static void GL_SetNoTexture(void)
 {
 	// Disable texture.
-	if (tex_downloaded != NOTEXTURE_NUM && !currently_batching)
+	if (tex_downloaded != NOTEXTURE_NUM)
 	{
 		if (NOTEXTURE_NUM == 0)
 			pglGenTextures(1, &NOTEXTURE_NUM);
@@ -991,7 +995,42 @@ static void GL_Perspective(GLfloat fovy, GLfloat aspect)
 // -----------------+
 void GL_SetModelView(GLint w, GLint h)
 {
+	GLint maxtexsize = 0;
 	//GL_DBG_Printf("SetModelView(): %dx%d\n", (int)w, (int)h);
+
+	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
+	if (screen_width != w || screen_height != h)
+	{
+		GL_FlushScreenTextures();
+
+#ifdef USE_FBO_OGL
+		GL_Framebuffer_DeleteAttachments();
+#endif
+	}
+
+	screen_width = (GLint)w;
+	screen_height = (GLint)h;
+
+	screen_texsizew = screen_texsizeh = 512;
+
+	// look for power of two that is large enough for the screen
+	while (screen_texsizew < w)
+		screen_texsizew <<= 1;
+
+	while (screen_texsizeh < h)
+		screen_texsizeh <<= 1;
+
+	pglGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxtexsize); // Get the maximum supported texture size
+	if ((screen_texsizew > maxtexsize || screen_texsizeh > maxtexsize) && maxtexsize > 0)
+	{
+		// The desired screen texture resolution is too big for the player's GPU!
+		CONS_Alert(CONS_WARNING, "Tried to make a screen texture for a %dx%d game resolution, but your GPU only supports up to %dx%d! Please switch to the software renderer or lower your game resolution.\n", w, h, maxtexsize, maxtexsize);
+
+		// For now, let's just pray that clamping it to the maximum supported size "works"
+		// There'll be a stretchy "border" artefact, but it's better than failing to make the screen textures
+		screen_texsizew = min(screen_texsizew, maxtexsize);
+		screen_texsizeh = min(screen_texsizeh, maxtexsize);
+	}
 
 	pglViewport(0, 0, w, h);
 
@@ -1037,6 +1076,8 @@ void GL_SetStates(void)
 	GL_SetNoTexture();
 
 	pglPolygonOffset(-1.0f, -1.0f);
+
+	pglDisable(GL_FOG);
 
 	// bp : when no t&l :)
 	pglLoadIdentity();
@@ -1122,7 +1163,7 @@ static void GL_Framebuffer_GenerateAttachments(void)
 	fboinit = true;
 }
 
-void GL_Framebuffer_DeleteAttachments(void)
+static void GL_Framebuffer_DeleteAttachments(void)
 {
 	if (!supportFBO || fboinit == false)
 		return;
@@ -1529,7 +1570,7 @@ void GL_SetBlend(FBITFIELD PolyFlags)
 {
 	const FBITFIELD Xor = CurrentPolyFlags^PolyFlags;;
 
-	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Invisible))
+	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Skydecal|PF_Invisible))
 	{
 		if (Xor & PF_Blending) // if blending mode must be changed
 			GL_SetBlendMode(PolyFlags & PF_Blending);
@@ -1545,7 +1586,21 @@ void GL_SetBlend(FBITFIELD PolyFlags)
 		if (Xor & PF_Decal)
 		{
 			if (PolyFlags & PF_Decal)
+			{
+				pglPolygonOffset(-1.0f, -1.0f);
 				pglEnable(GL_POLYGON_OFFSET_FILL);
+			}
+			else
+				pglDisable(GL_POLYGON_OFFSET_FILL);
+		}
+
+		if (Xor & PF_Skydecal)
+		{
+			if (PolyFlags & PF_Skydecal)
+			{
+				pglPolygonOffset(0.45f, 0.45f);
+				pglEnable(GL_POLYGON_OFFSET_FILL);
+			}
 			else
 				pglDisable(GL_POLYGON_OFFSET_FILL);
 		}
@@ -1643,7 +1698,7 @@ static void GL_AllocTextureBuffer(GLMipmap_t *pTexInfo)
 // -----------------+
 // UpdateTexture    : Updates texture data.
 // -----------------+
-static void GL_UpdateTexture(GLMipmap_t *pTexInfo)
+void GL_UpdateTexture(GLMipmap_t *pTexInfo)
 {
 	// Upload a texture
 	GLuint num = pTexInfo->downloaded;
@@ -1658,7 +1713,6 @@ static void GL_UpdateTexture(GLMipmap_t *pTexInfo)
 	RGBA_t *tex = NULL;
 
 	GLint texformat = 0;
-	GLTextureFormat_t texinfoformat = 0;
 
 	// Generate a new texture name.
 	if (!num)
@@ -1670,8 +1724,8 @@ static void GL_UpdateTexture(GLMipmap_t *pTexInfo)
 
 	//GL_DBG_Printf("UpdateTexture %d %x\n", (INT32)num, pImgData);
 
-	texformat = textureformatGL;
-	texinfoformat = pTexInfo->format;
+	texformat = gltexformat;
+	const GLTextureFormat_t texinfoformat = pTexInfo->format;
 
 	switch (texinfoformat)
 	{
@@ -2025,7 +2079,7 @@ static boolean GL_Shader_CompileProgram(gl_shader_t *shader, GLint i)
 		pglDeleteShader(gl_vertShader);
 	if (frag_shader)
 		pglDeleteShader(gl_fragShader);
-	
+
 	// couldn't link?
 	if (result != GL_TRUE)
 	{
@@ -2309,7 +2363,12 @@ void GL_SetSpecialState(hwdspecialstate_t IdState, INT32 Value)
 
 			GL_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
-			
+
+		case HWD_SET_TEXTURE_FORMAT:
+			gltexformat = (Value == 32) ? GL_RGBA : GL_RGB5_A1;
+			GL_Flush();
+			break;
+
 		case HWD_SET_MSAA:
 			if (Value)
 			{
@@ -2619,7 +2678,7 @@ void GL_DrawModelEx(model_t *model, INT32 frameIndex, float duration, float tics
 	scalex = hscale;
 	scaley = vscale;
 	scalez = hscale;
-	
+
 	if (duration > 0.0 && tics >= 0.0) // don't interpolate if instantaneous or infinite in length
 	{
 		float newtime = (duration - tics); // + 1;
@@ -2671,8 +2730,7 @@ void GL_DrawModelEx(model_t *model, INT32 frameIndex, float duration, float tics
 	// pos->mirror is if the screen is flipped horizontally
 	// XOR all the flips together to figure out what culling to use!
 	{
-		boolean reversecull = (flipped ^ hflipped ^ pos->flip ^ pos->mirror);
-		if (reversecull)
+		if ((flipped ^ hflipped ^ !!(pos->fliptype & TRANSFORM_FLIP) ^ !!(pos->fliptype & TRANSFORM_MIRROR)))
 			pglCullFace(GL_FRONT);
 		else
 			pglCullFace(GL_BACK);
@@ -2688,7 +2746,7 @@ void GL_DrawModelEx(model_t *model, INT32 frameIndex, float duration, float tics
 	pglRotatef(pos->anglez, 0.0f, 0.0f, -1.0f);
 	pglRotatef(pos->anglex, 1.0f, 0.0f, 0.0f);
 	pglRotatef(pos->angley, 0.0f, -1.0f, 0.0f);
-	
+
 	if (pos->roll)
 	{
 		pglTranslatef(pos->centerx, pos->centery, 0);
@@ -2818,14 +2876,21 @@ void GL_SetTransform(FTransform *stransform)
 		used_fov = stransform->fovangle;
 		shearing = stransform->shearing;
 
-		if (stransform->mirror)
-			pglScalef(-stransform->scalex, stransform->scaley, -stransform->scalez);
-		else if (stransform->mirrorflip)
-			pglScalef(-stransform->scalex, -stransform->scaley, -stransform->scalez);
-		else if (stransform->flip)
-			pglScalef(stransform->scalex, -stransform->scaley, -stransform->scalez);
-		else
-			pglScalef(stransform->scalex, stransform->scaley, -stransform->scalez);
+		switch (stransform->fliptype)
+		{
+			case TRANSFORM_MIRROR:
+				pglScalef(-stransform->scalex, stransform->scaley, -stransform->scalez);
+				break;
+			case TRANSFORM_MIRRORFLIP:
+				pglScalef(-stransform->scalex, -stransform->scaley, -stransform->scalez);
+				break;
+			case TRANSFORM_FLIP:
+				pglScalef(stransform->scalex, -stransform->scaley, -stransform->scalez);
+				break;
+			default: // TRANSFORM_NONE
+				pglScalef(stransform->scalex, stransform->scaley, -stransform->scalez);
+				break;
+		}
 
 		if (stransform->roll)
 			pglRotatef(stransform->rollangle, 0.0f, 0.0f, 1.0f);
@@ -2851,7 +2916,7 @@ void GL_SetTransform(FTransform *stransform)
 	if (shearing)
 	{
 		float dy = stransform->viewaiming * 2;
-		if (stransform->flip || stransform->mirrorflip)
+		if (stransform->fliptype == TRANSFORM_FLIP || stransform->fliptype == TRANSFORM_MIRRORFLIP)
 			dy *= -1.0f;
 		pglTranslatef(0.0f, -dy/BASEVIDHEIGHT, 0.0f);
 	}
@@ -2891,7 +2956,7 @@ INT32 GL_GetTextureUsed(void)
 		res += tmp->height*tmp->width*bpp;
 		tmp = tmp->next;
 	}
-	
+
 	return res;
 }
 
@@ -2900,7 +2965,6 @@ void GL_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 	INT32 x, y;
 	float float_x, float_y, float_nextx, float_nexty;
 	float xfix, yfix;
-	INT32 texsizew = 512, texsizey = 512;
 
 	const float blackBack[16] =
 	{
@@ -2909,23 +2973,17 @@ void GL_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 		16.0f, 16.0f, 6.0f,
 		16.0f, -16.0f, 6.0f
 	};
-	
-	if (gl_enable_screen_textures != 2) 
+
+	if (gl_enable_screen_textures != 2)
 		return;
 
-	// look for power of two that is large enough for the screen
-	while (texsizew < screen_width)
-		texsizew <<= 1;
-
-	while (texsizey < screen_height)
-		texsizey <<= 1;
-
 	// X/Y stretch fix for all resolutions(!)
-	xfix = (float)(texsizew)/((float)((screen_width)/(float)(SCREENVERTS-1)));
-	yfix = (float)(texsizey)/((float)((screen_height)/(float)(SCREENVERTS-1)));
+	xfix = (float)(screen_texsizew)/((float)((screen_width)/(float)(SCREENVERTS-1)));
+	yfix = (float)(screen_texsizeh)/((float)((screen_height)/(float)(SCREENVERTS-1)));
 
 	pglDisable(GL_DEPTH_TEST);
 	pglDisable(GL_BLEND);
+	pglDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	// Draw a black square behind the screen texture,
 	// so nothing shows through the edges
@@ -2933,8 +2991,8 @@ void GL_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 
 	pglVertexPointer(3, GL_FLOAT, 0, blackBack);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
 	pglEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
 	for(x = 0; x < SCREENVERTS-1;x ++)
 	{
 		for(y = 0; y < SCREENVERTS-1; y++)
@@ -2995,7 +3053,6 @@ void GL_FlushScreenTextures(void)
 void GL_DrawScreenTexture(int tex, FSurfaceInfo *surf, FBITFIELD polyflags)
 {
 	float xfix, yfix;
-	INT32 texsizew = 512, texsizey = 512;
 
 	const float screenVerts[12] =
 	{
@@ -3006,19 +3063,12 @@ void GL_DrawScreenTexture(int tex, FSurfaceInfo *surf, FBITFIELD polyflags)
 	};
 
 	float fix[8];
-	
-	if (gl_enable_screen_textures != 2) 
+
+	if (gl_enable_screen_textures != 2)
 		return;
 
-	// look for power of two that is large enough for the screen
-	while (texsizew < screen_width)
-		texsizew <<= 1;
-
-	while (texsizey < screen_height)
-		texsizey <<= 1;
-
-	xfix = 1/((float)(texsizew)/((float)((screen_width))));
-	yfix = 1/((float)(texsizey)/((float)((screen_height))));
+	xfix = 1/((float)(screen_texsizew)/((float)((screen_width))));
+	yfix = 1/((float)(screen_texsizeh)/((float)((screen_height))));
 
 	// const float screenVerts[12]
 
@@ -3035,7 +3085,7 @@ void GL_DrawScreenTexture(int tex, FSurfaceInfo *surf, FBITFIELD polyflags)
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	pglBindTexture(GL_TEXTURE_2D, screenTextures[tex]);
-	
+
 	GL_PreparePolygon(surf, surf ? polyflags : (PF_NoDepthTest));
 	if (!surf)
 		pglColor4ubv(white);
@@ -3051,7 +3101,6 @@ void GL_DrawScreenTexture(int tex, FSurfaceInfo *surf, FBITFIELD polyflags)
 // Do screen fades!
 void GL_DoScreenWipe(int wipeStart, int wipeEnd)
 {
-	INT32 texsizew = 512, texsizey = 512;
 	float xfix, yfix;
 
 	INT32 fademaskdownloaded = tex_downloaded; // the fade mask that has been set
@@ -3074,18 +3123,11 @@ void GL_DoScreenWipe(int wipeStart, int wipeEnd)
 		1.0f, 1.0f
 	};
 
-	if (!gl_enable_screen_textures) 
+	if (!gl_enable_screen_textures)
 		return;
 
-	// look for power of two that is large enough for the screen
-	while (texsizew < screen_width)
-		texsizew <<= 1;
-
-	while (texsizey < screen_height)
-		texsizey <<= 1;
-
-	xfix = 1/((float)(texsizew)/((float)((screen_width))));
-	yfix = 1/((float)(texsizey)/((float)((screen_height))));
+	xfix = 1/((float)(screen_texsizew)/((float)((screen_width))));
+	yfix = 1/((float)(screen_texsizeh)/((float)((screen_height))));
 
 	// const float screenVerts[12]
 
@@ -3125,8 +3167,6 @@ void GL_DoScreenWipe(int wipeStart, int wipeEnd)
 
 	pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-	// const float defaultST[8]
-
 	pglClientActiveTexture(GL_TEXTURE0);
 	pglTexCoordPointer(2, GL_FLOAT, 0, fix);
 	pglVertexPointer(3, GL_FLOAT, 0, screenVerts);
@@ -3145,7 +3185,6 @@ void GL_DoScreenWipe(int wipeStart, int wipeEnd)
 
 void GL_RenderVhsEffect(fixed_t upbary, fixed_t downbary, UINT8 updistort, UINT8 downdistort, UINT8 barsize)
 {
-	INT32 texsizew = 512, texsizey = 512;
 	int tex = HWD_SCREENTEXTURE_VHS;
 	float xfix, yfix;
 	float fix[8];
@@ -3160,18 +3199,11 @@ void GL_RenderVhsEffect(fixed_t upbary, fixed_t downbary, UINT8 updistort, UINT8
 		1.0f, -1.0f, 1.0f
 	};
 
-	if (gl_enable_screen_textures != 2) 
+	if (gl_enable_screen_textures != 2)
 		return;
 
-	// look for power of two that is large enough for the screen
-	while (texsizew < screen_width)
-		texsizew <<= 1;
-
-	while (texsizey < screen_height)
-		texsizey <<= 1;
-
-	xfix = 1/((float)(texsizew)/((float)((screen_width))));
-	yfix = 1/((float)(texsizey)/((float)((screen_height))));
+	xfix = 1/((float)(screen_texsizew)/((float)((screen_width))));
+	yfix = 1/((float)(screen_texsizeh)/((float)((screen_height))));
 
 	// Slight fuzziness
 	GL_MakeScreenTexture(tex);
@@ -3255,18 +3287,10 @@ void GL_RenderVhsEffect(fixed_t upbary, fixed_t downbary, UINT8 updistort, UINT8
 // Create a texture from the screen.
 void GL_MakeScreenTexture(int tex)
 {
-	INT32 texsizew = 512, texsizey = 512;
 	boolean firstTime = (screenTextures[tex] == 0);
-	
+
 	if (!gl_enable_screen_textures)
 		return;
-
-	// look for power of two that is large enough for the screen
-	while (texsizew < screen_width)
-		texsizew <<= 1;
-
-	while (texsizey < screen_height)
-		texsizey <<= 1;
 
 	// Create screen texture
 	if (firstTime)
@@ -3279,10 +3303,10 @@ void GL_MakeScreenTexture(int tex)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		Clamp2D(GL_TEXTURE_WRAP_S);
 		Clamp2D(GL_TEXTURE_WRAP_T);
-		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsizew, texsizey, 0);
+		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, screen_texsizew, screen_texsizeh, 0);
 	}
 	else
-		pglCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsizew, texsizey);
+		pglCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, screen_texsizew, screen_texsizeh);
 
 	tex_downloaded = screenTextures[tex];
 }
@@ -3293,23 +3317,15 @@ void GL_DrawScreenFinalTexture(int tex, INT32 width, INT32 height, boolean usesh
 	float origaspect, newaspect;
 	float xoff = 1, yoff = 1; // xoffset and yoffset for the polygon to have black bars around the screen
 	FRGBAFloat clearColour;
-	INT32 texsizew = 512, texsizey = 512;
 
 	float off[12];
 	float fix[8];
-	
+
 	if (gl_enable_screen_textures != 2)
 		return;
 
-	// look for power of two that is large enough for the screen
-	while (texsizew < screen_width)
-		texsizew <<= 1;
-
-	while (texsizey < screen_height)
-		texsizey <<= 1;
-
-	xfix = 1/((float)(texsizew)/((float)((screen_width))));
-	yfix = 1/((float)(texsizey)/((float)((screen_height))));
+	xfix = 1/((float)(screen_texsizew)/((float)((screen_width))));
+	yfix = 1/((float)(screen_texsizeh)/((float)((screen_height))));
 
 	origaspect = (float)screen_width / screen_height;
 	newaspect = (float)width / height;
@@ -3388,7 +3404,7 @@ void GL_SetPaletteLookup(UINT8 *lut)
 	{
 		internalFormat = GL_R8;
 	}
-	
+
 	if (!paletteLookupTex)
 		pglGenTextures(1, &paletteLookupTex);
 	pglActiveTexture(GL_TEXTURE1);
@@ -3437,7 +3453,7 @@ void GL_ClearLightTables(void)
 	}
 
 	LightTablesTail = NULL;
-	
+
 	// we no longer have a bound light table (if we had one), we just deleted it!
 	lt_downloaded = 0;
 }

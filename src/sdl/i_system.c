@@ -344,7 +344,7 @@ static void write_backtrace(bt_crash_reason_t reason)
 	fprintf(out, "Program name: %s %s\n", SRB2APPLICATION, VERSIONSTRING);
 
 	if (compdate && comptime && comprevision && compbranch)
-	fprintf(out, "Compiled: %s %s, commit %s, branch %s\n", compdate, comptime, comprevision, compbranch);
+		fprintf(out, "Compiled: %s %s, commit %s, branch %s\n", compdate, comptime, comprevision, compbranch);
 
 	if (gamestate == GS_LEVEL)
 	{
@@ -500,9 +500,6 @@ FUNCNORETURN static ATTRNORETURN void signal_handler(INT32 num)
 #ifdef HAVE_LIBBACKTRACE
 	write_backtrace(BT_CRASH_REASON_SIGNAL(num));
 #endif
-
-	if (demo.recording)
-		G_SaveDemo();
 
 	I_ReportSignal(num, 0);
 	I_ShutdownSystem();
@@ -884,9 +881,6 @@ static void signal_handler_child(INT32 num)
 	write_backtrace(BT_CRASH_REASON_SIGNAL(num));
 #endif
 
-	if (demo.recording)
-		G_SaveDemo();
-
 	signal(num, SIG_DFL);               //default signal action
 	raise(num);
 }
@@ -1095,7 +1089,7 @@ INT32 I_GetJoystickDeviceIndex(SDL_GameController *dev)
 	SDL_Joystick *joystick = NULL;
 
 	joystick = SDL_GameControllerGetJoystick(dev);
-	
+
 	if (joystick)
 	{
 		return SDL_JoystickInstanceID(joystick);
@@ -1248,8 +1242,6 @@ void I_GetJoystickEvents(UINT8 index)
 	\param	fname	name of joystick
 
 	\return	axises
-
-
 */
 static int joy_open(int playerIndex, int joyIndex)
 {
@@ -1493,6 +1485,7 @@ void I_GamepadRumble(INT32 playernum, UINT16 low_strength, UINT16 high_strength,
 	(void)duration;
 #else
 	SDL_GameController *controller = JoyInfo[playernum].dev;
+
 	if (controller == NULL)
 	{
 		return;
@@ -1511,6 +1504,7 @@ void I_SetGamepadIndicatorColor(INT32 playernum, UINT8 red, UINT8 green, UINT8 b
 	(void)blue;
 #else
 	SDL_GameController *controller = JoyInfo[playernum].dev;
+
 	if (controller == NULL)
 	{
 		return;
@@ -1929,7 +1923,10 @@ INT32 I_StartupSystem(void)
 	SDL_GetVersion(&SDLlinked);
 	I_StartupConsole();
 #ifdef NEWSIGNALHANDLER
-	I_Fork();
+	// This is useful when debugging. It lets GDB attach to
+	// the correct process easily.
+	if (!M_CheckParm("-nofork"))
+		I_Fork();
 #endif
 #ifdef HAVE_THREADS
 	I_start_threads();
@@ -2221,9 +2218,10 @@ void I_ShutdownSystem(void)
 {
 	INT32 c;
 
-#ifndef NEWSIGNALHANDLER
-	I_ShutdownConsole();
+#ifdef NEWSIGNALHANDLER
+	if (M_CheckParm("-nofork"))
 #endif
+		I_ShutdownConsole();
 
 	for (c = MAX_QUIT_FUNCS-1; c >= 0; c--)
 		if (quit_funcs[c])

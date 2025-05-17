@@ -295,27 +295,11 @@ static void FlipCam4_OnChange(void)
 
 static void Precipstuff_OnChange(void)
 {
-	if (gamestate != GS_LEVEL)
-		return;
-
-	thinker_t *think;
-	thinker_t *next;
-	precipmobj_t *precipmobj;
-
-	for (think = precipcap.next; think != &precipcap; think = next)
+	if (gamestate == GS_LEVEL)
 	{
-		next = think->next;
-
-#ifdef PARANOIA
-		if (think->function.acp1 != (actionf_p1)P_NullPrecipThinker)
-			continue; // not a precipmobj thinker
-#endif
-
-		precipmobj = (precipmobj_t *)think;
-		P_FreePrecipMobj(precipmobj);
+		P_PurgePrecipitation();
+		P_SpawnPrecipitation();
 	}
-
-	P_SpawnPrecipitation();
 }
 
 //
@@ -1374,7 +1358,7 @@ void R_RenderPlayerView(player_t *player)
 	}
 
 	Portal_InitList();
-	
+
 	PS_START_TIMING(ps_skyboxtime);
 	if (skybox && skyVisible)
 	{
@@ -1438,7 +1422,7 @@ void R_RenderPlayerView(player_t *player)
 	PS_START_TIMING(ps_sw_spritecliptime);
 	R_ClipSprites();
 	PS_STOP_TIMING(ps_sw_spritecliptime);
-	
+
 	ps_numsprites.value.i = numvisiblesprites;
 
 	PS_START_TIMING(ps_sw_portaltime);

@@ -59,6 +59,10 @@
 #include "discord.h"
 #endif
 
+// for replay dates
+#include <time.h>
+#include <locale.h>
+
 gameaction_t gameaction;
 gamestate_t gamestate = GS_NULL;
 UINT8 ultimatemode = false;
@@ -341,6 +345,9 @@ consvar_t cv_maxdemosize = {"maxdemosize", "10", CV_SAVE, maxdemosize_cons_t, NU
 static CV_PossibleValue_t demochangemap_cons_t[] = {{0, "Disabled"}, {1, "Diff Map"}, {2, "Always"}, {0, NULL}};
 consvar_t cv_demochangemap = {"netdemo_savemapchange", "Disabled", CV_SAVE, demochangemap_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+static CV_PossibleValue_t demodateformat_cons_t[] = {{0, "Automatic"}, {1, "EU"}, {2, "US"}, {0, NULL}};
+consvar_t cv_demodateformat = {"netdemo_dateformat", "Automatic", CV_SAVE, demodateformat_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 // Analog Control
 void SendWeaponPref(void);
 void SendWeaponPref2(void);
@@ -517,7 +524,8 @@ consvar_t cv_ydeadzone[MAXSPLITSCREENPLAYERS] = {
 static CV_PossibleValue_t driftsparkpulse_t[] = {{0, "MIN"}, {FRACUNIT*3, "MAX"}, {0, NULL}};
 consvar_t cv_driftsparkpulse = {"driftsparkpulse", "1.4", CV_FLOAT | CV_SAVE, driftsparkpulse_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t cechotoggle_t[] = {{0, "Off"}, {1, "On"}, {2, "Console"}, {0, NULL}};
+consvar_t cv_cechotoggle = {"show_cecho", "On", CV_SAVE, cechotoggle_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 #if MAXPLAYERS > 32
 #error "please update player_name table using the new value for MAXPLAYERS"
@@ -634,6 +642,17 @@ static void G_SetSaveGameModified(void)
 	strcatbf(savegamename, srb2home, PATHSEP);
 
 	G_LoadGameData();
+
+	// unlock EVERYTHING.
+	for (UINT8 i = 0; i < MAXUNLOCKABLES; i++)
+	{
+		if (!unlockables[i].conditionset)
+			continue;
+		if (!unlockables[i].unlocked)
+		{
+			unlockables[i].unlocked = true;
+		}
+	}
 }
 
 // for consistency among messages: this modifies the game and removes savemoddata.
@@ -654,7 +673,7 @@ void G_SetGameModified(boolean silent, boolean major)
 	G_SetSaveGameModified();
 
 	if (!silent)
-		CONS_Alert(CONS_NOTICE, M_GetText("Record Attack data will be saved to seperate save.\n"));
+		CONS_Alert(CONS_NOTICE, M_GetText("Record Attack data will be saved to a seperate save file.\n"));
 
 	// If in record attack recording, cancel it.
 	if (modeattacking)
@@ -1285,7 +1304,8 @@ static void G_DoLoadLevel(boolean resetplayer)
 
 	// clear cmd building stuff
 	memset(gamekeydown, 0, sizeof (gamekeydown));
-	for (i = 0;i < JOYAXISSET; i++)
+
+	for (i = 0; i < JOYAXISSET; i++)
 	{
 		joyxmove[i] = joyymove[i] = 0;
 		joy2xmove[i] = joy2ymove[i] = 0;
@@ -1297,7 +1317,7 @@ static void G_DoLoadLevel(boolean resetplayer)
 	// clear hud messages remains (usually from game startup)
 	CON_ClearHUD();
 
-	server_lagless = cv_lagless.value;
+	server_lagless = !cv_gentlemens.value;
 
 	G_ResetAllDeviceRumbles();
 }
@@ -1306,92 +1326,32 @@ static INT32 pausedelay = 0;
 static INT32 camtoggledelay[MAXSPLITSCREENPLAYERS] = {0,0,0,0};
 static INT32 spectatedelay[MAXSPLITSCREENPLAYERS] = {0,0,0,0};
 
-//
-// G_Responder
-// Get info needed to make ticcmd_ts for the players.
-//
-boolean G_Responder(event_t *ev)
+static void G_ToggleSpectate(INT32 player)
 {
-	// any other key pops up menu if in demos
-	if (gameaction == ga_nothing && !demo.quitafterplaying &&
-		((demo.playback && !modeattacking && !demo.title && !multiplayer) || gamestate == GS_TITLESCREEN))
+	switch (player)
 	{
-		if (ev->type == ev_keydown && ev->data1 != 301)
-		{
-			M_StartControlPanel();
-			return true;
-		}
-		return false;
+		case 0:
+			COM_ImmedExecute("changeteam spectator");
+			break;
+		case 1:
+			COM_ImmedExecute("changeteam2 spectator");
+			break;
+		case 2:
+			COM_ImmedExecute("changeteam3 spectator");
+			break;
+		case 3:
+			COM_ImmedExecute("changeteam4 spectator");
+			break;
 	}
-	else if (demo.playback && demo.title)
-	{
-		// Title demo uses intro responder
-		if (F_IntroResponder(ev))
-		{
-			// stop the title demo
-			G_CheckDemoStatus();
-			return true;
-		}
-		return false;
-	}
+}
 
-	if (gamestate == GS_LEVEL)
-	{
-		if (HU_Responder(ev))
-			return true; // chat ate the event
-		if (AM_Responder(ev))
-			return true; // automap ate it
-		// map the event (key/mouse/joy) to a gamecontrol
-	}
-	// Intro
-	else if (gamestate == GS_INTRO)
-	{
-		if (F_IntroResponder(ev))
-		{
-			D_StartTitle();
-			return true;
-		}
-	}
-	else if (gamestate == GS_CUTSCENE)
-	{
-		if (HU_Responder(ev))
-			return true; // chat ate the event
-
-		if (F_CutsceneResponder(ev))
-		{
-			D_StartTitle();
-			return true;
-		}
-	}
-
-	else if (gamestate == GS_CREDITS)
-	{
-		if (HU_Responder(ev))
-			return true; // chat ate the event
-
-		if (F_CreditResponder(ev))
-		{
-			F_StartGameEvaluation();
-			return true;
-		}
-	}
-
-	else if (gamestate == GS_CONTINUING)
-	{
-		if (F_ContinueResponder(ev))
-			return true;
-	}
-	// Demo End
-	else if (gamestate == GS_GAMEEND || gamestate == GS_EVALUATION || gamestate == GS_CREDITS)
-		return true;
-
-	else if (gamestate == GS_INTERMISSION || gamestate == GS_VOTING || gamestate == GS_WAITINGPLAYERS)
-		if (HU_Responder(ev))
-			return true; // chat ate the event
-
+static boolean G_LevelResponder(event_t *ev)
+{
 	// allow spy mode changes even during the demo
-	if (gamestate == GS_LEVEL && ev->type == ev_keydown
-		&& (ev->data1 == KEY_F12 || ev->data1 == gamecontrol[gc_viewpoint][0] || ev->data1 == gamecontrol[gc_viewpoint][1]))
+	if (ev->type == ev_keydown
+		&& (ev->data1 == KEY_F12
+		|| ev->data1 == gamecontrol[0][gc_viewpoint][0]
+		|| ev->data1 == gamecontrol[0][gc_viewpoint][1]))
 	{
 		if (!demo.playback && (splitscreen || !netgame))
 			displayplayers[0] = consoleplayer;
@@ -1407,31 +1367,21 @@ boolean G_Responder(event_t *ev)
 		}
 	}
 
-	if (gamestate == GS_LEVEL && ev->type == ev_keydown && multiplayer && demo.playback)
+	if (ev->type == ev_keydown && multiplayer && demo.playback)
 	{
-		if (ev->data1 == gamecontrolbis[gc_viewpoint][0] || ev->data1 == gamecontrolbis[gc_viewpoint][1])
+		for (INT32 i = 1; i <= splitscreen; i++)
 		{
-			G_AdjustView(2, 1, true);
-
-			return true;
-		}
-		else if (ev->data1 == gamecontrol3[gc_viewpoint][0] || ev->data1 == gamecontrol3[gc_viewpoint][1])
-		{
-			G_AdjustView(3, 1, true);
-
-			return true;
-		}
-		else if (ev->data1 == gamecontrol4[gc_viewpoint][0] || ev->data1 == gamecontrol4[gc_viewpoint][1])
-		{
-			G_AdjustView(4, 1, true);
-
-			return true;
+			if (ev->data1 == gamecontrol[i][gc_viewpoint][0]
+				|| ev->data1 == gamecontrol[i][gc_viewpoint][1])
+			{
+				G_AdjustView(i+1, 1, true);
+				return true;
+			}
 		}
 
 		// Allow pausing
-		if (
-			ev->data1 == gamecontrol[gc_pause][0]
-			|| ev->data1 == gamecontrol[gc_pause][1]
+		if (ev->data1 == gamecontrol[0][gc_pause][0]
+			|| ev->data1 == gamecontrol[0][gc_pause][1]
 			|| ev->data1 == KEY_PAUSE
 		)
 		{
@@ -1455,19 +1405,107 @@ boolean G_Responder(event_t *ev)
 		if (ev->data1 == 32)
 		{
 			M_StartControlPanel();
-
 			return true;
 		}
 	}
 
+	return false;
+}
+
+//
+// G_Responder
+// Get info needed to make ticcmd_ts for the players.
+//
+boolean G_Responder(event_t *ev)
+{
+	if (demo.playback && demo.title)
+	{
+		// Title demo uses intro responder
+		if (F_IntroResponder(ev))
+		{
+			// stop the title demo
+			G_CheckDemoStatus();
+			return true;
+		}
+
+		return false;
+	}
+	else if (gameaction == ga_nothing
+		&& !demo.quitafterplaying
+		&& ((demo.playback && !modeattacking && !multiplayer) || gamestate == GS_TITLESCREEN))
+	{
+		// any other key pops up menu if in demos
+		if (ev->type == ev_keydown && ev->data1 != 301)
+		{
+			M_StartControlPanel();
+			return true;
+		}
+
+		return false;
+	}
+
+	if (Playing())
+	{
+		// If you're playing, chat is real.
+		// Neatly sidesteps a class of bugs where whenever we add a
+		// new gamestate accessible in netplay, chat was console-only.
+		if (HU_Responder(ev))
+		{
+			return true; // chat ate the event
+		}
+	}
+
+	switch (gamestate)
+	{
+		case GS_LEVEL:
+			if (AM_Responder(ev))
+				return true; // automap ate it
+			// map the event (key/mouse/joy) to a gamecontrol
+			if (G_LevelResponder(ev))
+				return true;
+			break;
+		case GS_INTRO:
+			if (F_IntroResponder(ev))
+			{
+				D_StartTitle();
+				return true;
+			}
+			break;
+		case GS_CUTSCENE:
+			if (F_CutsceneResponder(ev))
+			{
+				D_StartTitle();
+				return true;
+			}
+			break;
+		case GS_CREDITS:
+			if (F_CreditResponder(ev))
+			{
+				F_StartGameEvaluation();
+				return true;
+			}
+			break;
+		case GS_CONTINUING:
+			if (F_ContinueResponder(ev))
+				return true;
+			break;
+		case GS_GAMEEND:
+		case GS_EVALUATION:
+			return true; // Demo End
+			break;
+		default:
+			break;
+	}
+
 	// update keys current state
-	G_MapEventsToControls(ev);
+	if (!menuactive)
+		G_MapEventsToControls(ev);
 
 	switch (ev->type)
 	{
 		case ev_keydown:
-			if (ev->data1 == gamecontrol[gc_pause][0]
-				|| ev->data1 == gamecontrol[gc_pause][1]
+			if (ev->data1 == gamecontrol[0][gc_pause][0]
+				|| ev->data1 == gamecontrol[0][gc_pause][1]
 				|| ev->data1 == KEY_PAUSE)
 			{
 				if (!pausedelay)
@@ -1482,121 +1520,58 @@ boolean G_Responder(event_t *ev)
 				else
 					pausedelay = NEWTICRATE/7;
 			}
-			if (ev->data1 == gamecontrol[gc_camtoggle][0]
-				|| ev->data1 == gamecontrol[gc_camtoggle][1])
-			{
-				if (!camtoggledelay[0])
-				{
-					camtoggledelay[0] = NEWTICRATE / 7;
-					CV_SetValue(&cv_chasecam[0], cv_chasecam[0].value ? 0 : 1);
-				}
-			}
-			if (ev->data1 == gamecontrolbis[gc_camtoggle][0]
-				|| ev->data1 == gamecontrolbis[gc_camtoggle][1])
-			{
-				if (!camtoggledelay[1])
-				{
-					camtoggledelay[1] = NEWTICRATE / 7;
-					CV_SetValue(&cv_chasecam[1], cv_chasecam[1].value ? 0 : 1);
-				}
-			}
-			if (ev->data1 == gamecontrol3[gc_camtoggle][0]
-				|| ev->data1 == gamecontrol3[gc_camtoggle][1])
-			{
-				if (!camtoggledelay[2])
-				{
-					camtoggledelay[2] = NEWTICRATE / 7;
-					CV_SetValue(&cv_chasecam[2], cv_chasecam[2].value ? 0 : 1);
-				}
-			}
-			if (ev->data1 == gamecontrol4[gc_camtoggle][0]
-				|| ev->data1 == gamecontrol4[gc_camtoggle][1])
-			{
-				if (!camtoggledelay[3])
-				{
-					camtoggledelay[3] = NEWTICRATE / 7;
-					CV_SetValue(&cv_chasecam[3], cv_chasecam[3].value ? 0 : 1);
-				}
-			}
-			if (ev->data1 == gamecontrol[gc_spectate][0]
-				|| ev->data1 == gamecontrol[gc_spectate][1])
-			{
-				if (!spectatedelay[0])
-				{
-					spectatedelay[0] = NEWTICRATE / 7;
-					COM_ImmedExecute("changeteam spectator");
-				}
-			}
-			if (ev->data1 == gamecontrolbis[gc_spectate][0]
-				|| ev->data1 == gamecontrolbis[gc_spectate][1])
-			{
-				if (!spectatedelay[1])
-				{
-					spectatedelay[1] = NEWTICRATE / 7;
-					COM_ImmedExecute("changeteam2 spectator");
-				}
-			}
-			if (ev->data1 == gamecontrol3[gc_spectate][0]
-				|| ev->data1 == gamecontrol3[gc_spectate][1])
-			{
-				if (!spectatedelay[2])
-				{
-					spectatedelay[2] = NEWTICRATE / 7;
-					COM_ImmedExecute("changeteam3 spectator");
-				}
-			}
-			if (ev->data1 == gamecontrol4[gc_spectate][0]
-				|| ev->data1 == gamecontrol4[gc_spectate][1])
-			{
-				if (!spectatedelay[3])
-				{
-					spectatedelay[3] = NEWTICRATE / 7;
-					COM_ImmedExecute("changeteam4 spectator");
-				}
-			}
 
-			if (ev->data1 == gamecontrol[gc_director][0] || ev->data1 == gamecontrol[gc_director][1])
+			// no splitscreen support for director here
+			if (ev->data1 == gamecontrol[0][gc_director][0]
+				|| ev->data1 == gamecontrol[0][gc_director][1])
 			{
 				K_ToggleDirector();
 			}
 
-			if (ev->data1 == gamecontrol[gc_freecam][0] || ev->data1 == gamecontrol[gc_freecam][1])
+			// absolutely horrid
+			for (INT32 i = 0; i <= splitscreen; i++)
 			{
-				P_ToggleDemoCamera(0);
-			}
-			else if (ev->data1 == gamecontrolbis[gc_freecam][0] || ev->data1 == gamecontrolbis[gc_freecam][1])
-			{
-				P_ToggleDemoCamera(1);
-			}
-			else if (ev->data1 == gamecontrol3[gc_freecam][0] || ev->data1 == gamecontrol3[gc_freecam][1])
-			{
-				P_ToggleDemoCamera(2);
-			}
-			else if (ev->data1 == gamecontrol4[gc_freecam][0] || ev->data1 == gamecontrol4[gc_freecam][1])
-			{
-				P_ToggleDemoCamera(3);
+				if (ev->data1 == gamecontrol[i][gc_camtoggle][0]
+					|| ev->data1 == gamecontrol[i][gc_camtoggle][1])
+				{
+					if (!camtoggledelay[i])
+					{
+						camtoggledelay[i] = NEWTICRATE / 7;
+						CV_SetValue(&cv_chasecam[i], (cv_chasecam[i].value ^ 1));
+					}
+				}
+
+				if (ev->data1 == gamecontrol[i][gc_spectate][0]
+					|| ev->data1 == gamecontrol[i][gc_spectate][1])
+				{
+					if (!spectatedelay[i])
+					{
+						spectatedelay[i] = NEWTICRATE / 7;
+						G_ToggleSpectate(i);
+					}
+				}
+
+				if (ev->data1 == gamecontrol[i][gc_freecam][0]
+					|| ev->data1 == gamecontrol[i][gc_freecam][1])
+				{
+					P_ToggleDemoCamera(i);
+				}
 			}
 
 			return true;
 
 		case ev_keyup:
 			return false; // always let key up events filter down
-
 		case ev_mouse:
 			return true; // eat events
-
 		case ev_joystick:
 			return true; // eat events
-
 		case ev_joystick2:
 			return true; // eat events
-
 		case ev_joystick3:
 			return true; // eat events
-
 		case ev_joystick4:
 			return true; // eat events
-
 		default:
 			break;
 	}
@@ -1626,7 +1601,8 @@ boolean G_CouldView(INT32 playernum)
 	// SRB2Kart: Only go through players who are actually playing
 	if (player->exiting)
 		return false;
-	if (( player->pflags & PF_TIMEOVER ))
+
+	if (player->pflags & PF_TIMEOVER)
 		return false;
 
 	// I don't know if we want this actually, but I'll humor the suggestion anyway
@@ -1662,6 +1638,7 @@ boolean G_CanView(INT32 playernum, UINT8 viewnum, boolean onlyactive)
 		if ((*displayplayerp) == playernum)
 			return false;
 	}
+
 	for (viewd = viewnum + 1; viewd <= splits; ++viewd)
 	{
 		displayplayerp = (&displayplayers[viewd-1]);
@@ -1681,16 +1658,19 @@ INT32 G_FindView(INT32 startview, UINT8 viewnum, boolean onlyactive, boolean rev
 {
 	INT32 i, dir = reverse ? -1 : 1;
 	startview = min(max(startview, 0), MAXPLAYERS);
+
 	for (i = startview; i < MAXPLAYERS && i >= 0; i += dir)
 	{
 		if (G_CanView(i, viewnum, onlyactive))
 			return i;
 	}
+
 	for (i = (reverse ? MAXPLAYERS-1 : 0); i != startview; i += dir)
 	{
 		if (G_CanView(i, viewnum, onlyactive))
 			return i;
 	}
+
 	return -1;
 }
 
@@ -1756,6 +1736,7 @@ void G_ResetView(UINT8 viewnum, INT32 playernum, boolean onlyactive)
 
 		if (viewnum > playersviewable)
 			viewnum = playersviewable;
+
 		splitscreen = viewnum-1;
 
 		R_ExecuteSetViewSize();
@@ -1860,6 +1841,7 @@ void G_Ticker(boolean run)
 	// also the -1 is to ensure that the thinker runs in the loop below.
 
 	P_MapStart();
+
 	// do player reborns if needed
 	if (gamestate == GS_LEVEL)
 	{
@@ -1874,10 +1856,12 @@ void G_Ticker(boolean run)
 			if (playeringame[i] && players[i].playerstate == PST_REBORN)
 				G_DoReborn(i);
 	}
+
 	P_MapEnd();
 
 	// do things to change the game state
 	while (gameaction != ga_nothing)
+	{
 		switch (gameaction)
 		{
 			case ga_completed: G_DoCompleted(); break;
@@ -1888,6 +1872,7 @@ void G_Ticker(boolean run)
 			case ga_nothing: break;
 			default: I_Error("gameaction = %d\n", gameaction);
 		}
+	}
 
 	buf = gametic % TICQUEUE;
 
@@ -1985,6 +1970,7 @@ void G_Ticker(boolean run)
 
 		case GS_TITLESCREEN:
 			F_TitleScreenTicker(run);
+			HU_Ticker();
 			break;
 		case GS_WAITINGPLAYERS:
 			if (netgame)
@@ -3222,6 +3208,7 @@ static void G_DoCompleted(void)
 		while (!mapheaderinfo[cm] || !(mapheaderinfo[cm]->typeoflevel & tolflag))
 		{
 			visitedmap[cm/8] |= (1<<(cm&7));
+
 			if (!mapheaderinfo[cm])
 				cm = -1; // guarantee error execution
 			else
@@ -3231,10 +3218,11 @@ static void G_DoCompleted(void)
 			{
 				cm = nextmap; //Start the loop again so that the error checking below is executed.
 
-				//Make sure the map actually exists before you try to go to it!
+				// Make sure the map actually exists before you try to go to it!
 				if ((W_CheckNumForName(G_BuildMapName(cm + 1)) == LUMPERROR))
 				{
 					//CONS_Alert(CONS_ERROR, M_GetText("Next map given (MAP %d) doesn't exist! Reverting to MAP01.\n"), cm+1);
+					CON_LogMessage(va(M_GetText("Next map given (MAP %d) doesn't exist! Reverting to MAP01.\n"), cm+1));
 					cm = 0;
 					break;
 				}
@@ -3246,6 +3234,7 @@ static void G_DoCompleted(void)
 				// without finding one supporting the current gametype.
 				// Thus, print a warning, and just use this map anyways.
 				//CONS_Alert(CONS_WARNING, M_GetText("Can't find a compatible map after map %d; using map %d anyway\n"), prevmap+1, cm+1);
+				CON_LogMessage(va(M_GetText("Can't find a compatible map after map %d; using map %d anyway\n"), prevmap+1, cm+1));
 				break;
 			}
 		}
@@ -3295,7 +3284,6 @@ static void G_DoCompleted(void)
 			nextmap = G_RandMap(G_TOLFlag(gametype), prevmap, false, 0, false, NULL);
 	}
 
-
 	// We are committed to this map now.
 	// We may as well allocate its header if it doesn't exist
 	// (That is, if it's a real map)
@@ -3316,7 +3304,6 @@ demointermission:
 void G_AfterIntermission(void)
 {
 	HU_ClearCEcho();
-	//G_NextLevel();
 
 	if (demo.playback)
 	{
@@ -3660,6 +3647,7 @@ void G_SaveGameData(boolean force)
 	UINT8 btemp;
 	savebuffer_t save;
 	(void)force;
+	char backupfile[MAX_WADPATH+4];
 
 	if (!gamedataloaded)
 		return; // If never loaded (-nodata), don't save
@@ -3669,6 +3657,23 @@ void G_SaveGameData(boolean force)
 	{
 		CONS_Alert(CONS_ERROR, M_GetText("No more free memory for saving game data\n"));
 		return;
+	}
+
+	// Create backup of the save data
+	snprintf(backupfile, sizeof(backupfile), "%s.bak", gamedatafilename);
+	backupfile[sizeof(backupfile) - 1] = '\0';
+
+	FILE *gamedata = fopen(gamedatafilename, "r");
+
+	if (gamedata != NULL)
+	{
+		fclose(gamedata);
+
+		if (!FIL_CopyFile(gamedatafilename, backupfile))
+		{
+			CONS_Alert(CONS_WARNING,"Failed to create a backup of save data. Will not attempt to write to save data\n");
+			return;
+		}
 	}
 
 	// Version test
@@ -4053,7 +4058,7 @@ void G_InitNew(UINT8 pencoremode, const char *mapname, boolean resetplayer, bool
 		unlocktriggers = 0;
 
 		// clear itemfinder, just in case
-		if (!dedicated)	// except in dedicated servers, where it is not registered and can actually I_Error debug builds
+		if (!dedicated) // except in dedicated servers, where it is not registered and can actually I_Error debug builds
 			CV_StealthSetValue(&cv_itemfinder, 0);
 	}
 
@@ -4071,7 +4076,7 @@ void G_InitNew(UINT8 pencoremode, const char *mapname, boolean resetplayer, bool
 
 	// gamemap changed; we assume that its map header is always valid,
 	// so make it so
-	if(!mapheaderinfo[gamemap-1])
+	if (!mapheaderinfo[gamemap-1])
 		P_AllocMapHeader(gamemap-1);
 
 	maptol = mapheaderinfo[gamemap-1]->typeoflevel;
@@ -4876,6 +4881,7 @@ void G_GhostAddThok(INT32 playernum)
 {
 	if (!demo.recording || !(demoflags & DF_GHOST))
 		return;
+
 	ghostext[playernum].flags = (ghostext[playernum].flags & ~EZT_THOKMASK) | EZT_THOK;
 }
 
@@ -4883,6 +4889,7 @@ void G_GhostAddSpin(INT32 playernum)
 {
 	if (!demo.recording || !(demoflags & DF_GHOST))
 		return;
+
 	ghostext[playernum].flags = (ghostext[playernum].flags & ~EZT_THOKMASK) | EZT_SPIN;
 }
 
@@ -4890,6 +4897,7 @@ void G_GhostAddRev(INT32 playernum)
 {
 	if (!demo.recording || !(demoflags & DF_GHOST))
 		return;
+
 	ghostext[playernum].flags = (ghostext[playernum].flags & ~EZT_THOKMASK) | EZT_REV;
 }
 
@@ -4897,6 +4905,7 @@ void G_GhostAddFlip(INT32 playernum)
 {
 	if (!demo.recording || !(demoflags & DF_GHOST))
 		return;
+
 	ghostext[playernum].flags |= EZT_FLIP;
 }
 
@@ -4904,11 +4913,13 @@ void G_GhostAddColor(INT32 playernum, ghostcolor_t color)
 {
 	if (!demo.recording || !(demoflags & DF_GHOST))
 		return;
+
 	if (ghostext[playernum].lastcolor == (UINT8)color)
 	{
 		ghostext[playernum].flags &= ~EZT_COLOR;
 		return;
 	}
+
 	ghostext[playernum].flags |= EZT_COLOR;
 	ghostext[playernum].color = (UINT8)color;
 }
@@ -4917,11 +4928,13 @@ void G_GhostAddScale(INT32 playernum, fixed_t scale)
 {
 	if (!demo.recording || !(demoflags & DF_GHOST))
 		return;
+
 	if (ghostext[playernum].lastscale == scale)
 	{
 		ghostext[playernum].flags &= ~EZT_SCALE;
 		return;
 	}
+
 	ghostext[playernum].flags |= EZT_SCALE;
 	ghostext[playernum].scale = scale;
 }
@@ -4930,9 +4943,10 @@ void G_GhostAddHit(INT32 playernum, mobj_t *victim)
 {
 	if (!demo.recording || !(demoflags & DF_GHOST))
 		return;
+
 	ghostext[playernum].flags |= EZT_HIT;
 	ghostext[playernum].hits++;
-	ghostext[playernum].hitlist = Z_Realloc(ghostext[playernum].hitlist, ghostext[playernum].hits * sizeof(mobj_t *), PU_LEVEL, NULL);
+	ghostext[playernum].hitlist = Z_Realloc(ghostext[playernum].hitlist, ghostext[playernum].hits * sizeof(mobj_t *), PU_LEVEL, &ghostext[playernum].hitlist);
 	P_SetTarget(ghostext[playernum].hitlist + (ghostext[playernum].hits-1), victim);
 }
 
@@ -4952,7 +4966,7 @@ void G_WriteAllGhostTics(void)
 		if (!playeringame[i] || players[i].spectator)
 			continue;
 
-		if (!players[i].mo)
+		if (P_MobjWasRemoved(players[i].mo))
 			continue;
 
 		counter++;
@@ -5036,6 +5050,7 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 		// Store one full byte of movement, plus one byte of fractional movement.
 		INT16 momx = (INT16)((ghost->x-oldghost[playernum].x + (1<<4))>>8);
 		INT16 momy = (INT16)((ghost->y-oldghost[playernum].y + (1<<4))>>8);
+
 		if (momx != oldghost[playernum].momx
 		|| momy != oldghost[playernum].momy)
 		{
@@ -5048,7 +5063,9 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 			WRITEINT16(demobuf.p,momx);
 			WRITEINT16(demobuf.p,momy);
 		}
+
 		momx = (INT16)((ghost->z-oldghost[playernum].z + (1<<4))>>8);
+
 		if (momx != oldghost[playernum].momz)
 		{
 			oldghost[playernum].momz = momx;
@@ -5120,6 +5137,7 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 
 	if (ghostext[playernum].color == ghostext[playernum].lastcolor)
 		ghostext[playernum].flags &= ~EZT_COLOR;
+
 	if (ghostext[playernum].scale == ghostext[playernum].lastscale)
 		ghostext[playernum].flags &= ~EZT_SCALE;
 
@@ -5134,16 +5152,19 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 			WRITEUINT8(demobuf.p,ghostext[playernum].color);
 			ghostext[playernum].lastcolor = ghostext[playernum].color;
 		}
+
 		if (ghostext[playernum].flags & EZT_SCALE)
 		{
 			CHECKSPACE(sizeof(fixed_t));
 			WRITEFIXED(demobuf.p,ghostext[playernum].scale);
 			ghostext[playernum].lastscale = ghostext[playernum].scale;
 		}
+
 		if (ghostext[playernum].flags & EZT_HIT)
 		{
 			CHECKSPACE(2);
 			WRITEUINT16(demobuf.p,ghostext[playernum].hits);
+
 			for (i = 0; i < ghostext[playernum].hits; i++)
 			{
 				mobj_t *mo = ghostext[playernum].hitlist[i];
@@ -5159,23 +5180,24 @@ void G_WriteGhostTic(mobj_t *ghost, INT32 playernum)
 				WRITEANGLE(demobuf.p,mo->angle);
 				P_SetTarget(ghostext[playernum].hitlist+i, NULL);
 			}
-			Z_Free(ghostext[playernum].hitlist);
+
 			ghostext[playernum].hits = 0;
-			ghostext[playernum].hitlist = NULL;
 		}
+
 		if (ghostext[playernum].flags & EZT_SPRITE)
 		{
 			CHECKSPACE(1);
 			WRITEUINT8(demobuf.p,sprite);
 		}
+
 		if (ghostext[playernum].flags & EZT_KART)
 		{
 			CHECKSPACE(12);
-
 			WRITEINT32(demobuf.p, ghostext[playernum].kartitem);
 			WRITEINT32(demobuf.p, ghostext[playernum].kartamount);
 			WRITEINT32(demobuf.p, ghostext[playernum].kartbumpers);
 		}
+
 		ghostext[playernum].flags = 0;
 	}
 
@@ -5223,6 +5245,7 @@ void G_ConsGhostTic(INT32 playernum)
 
 	// Grab ghost data.
 	ziptic = READUINT8(demobuf.p);
+
 	if (ziptic & GZT_XYZ)
 	{
 		oldghost[playernum].x = READFIXED(demobuf.p);
@@ -5237,17 +5260,22 @@ void G_ConsGhostTic(INT32 playernum)
 			oldghost[playernum].momx = READINT16(demobuf.p)<<8;
 			oldghost[playernum].momy = READINT16(demobuf.p)<<8;
 		}
+
 		if (ziptic & GZT_MOMZ)
 			oldghost[playernum].momz = READINT16(demobuf.p)<<8;
+
 		oldghost[playernum].x += oldghost[playernum].momx;
 		oldghost[playernum].y += oldghost[playernum].momy;
 		oldghost[playernum].z += oldghost[playernum].momz;
 		syncleeway = FRACUNIT;
 	}
+
 	if (ziptic & GZT_ANGLE)
 		demobuf.p++;
+
 	if (ziptic & GZT_SPRITE)
 		demobuf.p++;
+
 	if (ziptic & GZT_NIGHTS)
 	{
 		if (!testmo || !testmo->player || !(testmo->player->pflags & PF_NIGHTSMODE) || !testmo->tracer)
@@ -5261,8 +5289,10 @@ void G_ConsGhostTic(INT32 playernum)
 		ziptic = READUINT8(demobuf.p);
 		if (ziptic & EZT_COLOR)
 			demobuf.p++;
+
 		if (ziptic & EZT_SCALE)
 			demobuf.p += sizeof(fixed_t);
+
 		if (ziptic & EZT_HIT)
 		{ // Resync mob damage.
 			UINT16 i, count = READUINT16(demobuf.p);
@@ -5295,6 +5325,7 @@ void G_ConsGhostTic(INT32 playernum)
 						break;
 					mobj = NULL; // wasn't this one, keep searching.
 				}
+
 				if (mobj && mobj->health != health) // Wasn't damaged?! This is desync! Fix it!
 				{
 					if (demosynced)
@@ -5302,13 +5333,16 @@ void G_ConsGhostTic(INT32 playernum)
 						CONS_Alert(CONS_WARNING, M_GetText("Demo playback has desynced (health)!\n"));
 						CONS_Printf("expected health %d got %d\n", health, mobj->health);
 					}
+
 					demosynced = false;
 					P_DamageMobj(mobj, players[0].mo, players[0].mo, 1);
 				}
 			}
 		}
+
 		if (ziptic & EZT_SPRITE)
 			demobuf.p++;
+
 		if (ziptic & EZT_KART)
 		{
 			ghostext[playernum].kartitem = READINT32(demobuf.p);
@@ -5388,7 +5422,8 @@ void G_ConsGhostTic(INT32 playernum)
 void G_GhostTicker(void)
 {
 	demoghost *g,*p;
-	for(g = ghosts, p = NULL; g; g = g->next)
+
+	for (g = ghosts, p = NULL; g; g = g->next)
 	{
 		// Skip normal demo data.
 		UINT8 ziptic = READUINT8(g->p);
@@ -6676,6 +6711,9 @@ void G_LoadDemoInfo(menudemo_t *pdemo)
 	subversion = READUINT8(info_p);
 	pdemoversion = READUINT16(info_p);
 
+	memset(pdemo->version, 0, sizeof(pdemo->version));
+	snprintf(pdemo->version, sizeof(pdemo->version), "v%d.%d", version, subversion);
+
 	switch(pdemoversion)
 	{
 	case DEMOVERSION: // latest always supported
@@ -6817,6 +6855,108 @@ void G_LoadDemoInfo(menudemo_t *pdemo)
 	Z_Free(infobuffer);
 }
 
+#if defined (_WIN32)
+// return the file creation time
+// useful for demos that were renamed
+static long G_GetCreationTime(char *filepath)
+{
+	struct stat fileinfo;
+
+	if (stat(filepath, &fileinfo) == 0)
+		return fileinfo.st_ctime;
+
+	return 0;
+}
+#endif
+
+static char *G_GetDemoDate(menudemo_t *pdemo)
+{
+	char *datetime;
+	datetime = malloc(sizeof(pdemo->date)); // mallocma balls
+
+	// no mallocma balls... :c
+	if (!datetime)
+	{
+		return NULL;
+	}
+
+	time_t file_time = 0;
+
+	// get le filepath
+	char *filename;
+	filename = strdup(pdemo->filepath);
+
+#if defined (_WIN32)
+	if (!filename)
+	{
+		// if we cant get a filename try just getting the file create time
+		file_time = G_GetCreationTime(pdemo->filepath);
+		goto skipfilenametime;
+	}
+#else
+	if (!filename)
+	{
+		free(datetime);
+		return NULL;
+	}
+#endif
+
+	// get the actual filename Zzz...
+	nameonly(filename);
+
+	// convert it to long Zzz....
+	file_time = strtol(filename, NULL, 10);
+	free(filename); // dont need this anymore a
+
+#if defined (_WIN32)
+skipfilenametime:
+#endif
+
+	// then throw it into localtime to get an actual human readable format lmao
+	struct tm *tm_buf = NULL;
+	tm_buf = localtime(&file_time);
+
+	// cant believe we ended up in 1970
+	if (tm_buf == NULL || tm_buf->tm_year <= 110)
+	{
+#if defined (_WIN32)
+		// uh ohh, we got an invalid time
+		// try one more time getting the creation time
+		file_time = G_GetCreationTime(pdemo->filepath);
+		tm_buf = localtime(&file_time);
+
+		if (tm_buf == NULL || tm_buf->tm_year <= 110)
+		{
+			free(datetime);
+			return NULL;
+		}
+
+		goto gotcreationtime;
+#else
+		free(datetime);
+		return NULL;
+#endif
+	}
+
+#if defined (_WIN32)
+gotcreationtime:
+#endif
+
+	const char *format;
+
+	// US ppl are special (:
+	if (cv_demodateformat.value == 2)
+		format = "%m.%d.%Y";
+	else if (cv_demodateformat.value == 1)
+		format = "%d.%m.%Y";
+	else
+		format = strstr(setlocale(LC_TIME, NULL), "en_US") ? "%m.%d.%Y" : "%d.%m.%Y";
+
+	strftime(datetime, sizeof(pdemo->date), format, tm_buf);
+
+	return datetime;
+}
+
 void G_LoadDemoTitle(menudemo_t *pdemo)
 {
 	UINT8 infobuffer[96], *info_p;
@@ -6850,11 +6990,20 @@ void G_LoadDemoTitle(menudemo_t *pdemo)
 	READUINT8(info_p);
 	pdemoversion = READUINT16(info_p);
 
+	memset(pdemo->date, 0, sizeof(pdemo->date));
+
 	switch(pdemoversion)
 	{
 	case DEMOVERSION: // latest always supported
 		// demo title
 		M_Memcpy(pdemo->title, info_p, 64);
+
+		// demo date
+		char *demodate;
+		demodate = G_GetDemoDate(pdemo);
+		if (demodate)
+			strncpy(pdemo->date, demodate, sizeof(pdemo->date));
+		free(demodate);
 		break;
 #ifdef DEMO_COMPAT_100
 	case 0x0001:
@@ -7919,7 +8068,7 @@ void G_StopDemo(void)
 	demobuf.buffer = NULL;
 	demo.playback = false;
 	if (demo.title)
-		modeattacking = false;
+		modeattacking = ATTACKING_NONE;
 	demo.title = false;
 	demo.timing = false;
 	singletics = false;
@@ -7946,11 +8095,36 @@ void G_StopDemo(void)
 	if (gamestate == GS_VOTING)
 		Y_EndVote();
 
+	M_ClearMenus(true);
+
 	G_SetGamestate(GS_NULL);
 	wipegamestate = GS_NULL;
 	SV_StopServer();
 	SV_ResetServer();
 }
+
+// Stops timing a demo.
+static void G_StopTimingDemo(void)
+{
+	INT32 demotime;
+	double f1, f2;
+	demotime = I_GetTime() - demostarttime;
+	if (!demotime)
+		return;
+	G_StopDemo();
+	demo.timing = false;
+	f1 = (double)demotime;
+	f2 = (double)framecount*TICRATE;
+
+	CONS_Printf(M_GetText("timed %u gametics in %d realtics - %u frames\n%f seconds, %f avg fps\n"),
+				leveltime, demotime, (UINT32)framecount, f1/TICRATE, f2/f1);
+
+	if (restorecv_vidwait != cv_vidwait.value)
+		CV_SetValue(&cv_vidwait, restorecv_vidwait);
+
+	D_StartTitle();
+}
+
 
 boolean G_CheckDemoStatus(void)
 {
@@ -7966,19 +8140,7 @@ boolean G_CheckDemoStatus(void)
 
 	if (demo.timing)
 	{
-		INT32 demotime;
-		double f1, f2;
-		demotime = I_GetTime() - demostarttime;
-		if (!demotime)
-			return true;
-		G_StopDemo();
-		demo.timing = false;
-		f1 = (double)demotime;
-		f2 = (double)framecount*TICRATE;
-		CONS_Printf(M_GetText("timed %u gametics in %d realtics\n%f seconds, %f avg fps\n"), leveltime,demotime,f1/TICRATE,f2/f1);
-		if (restorecv_vidwait != cv_vidwait.value)
-			CV_SetValue(&cv_vidwait, restorecv_vidwait);
-		D_StartTitle();
+		G_StopTimingDemo();
 		return true;
 	}
 
@@ -7988,15 +8150,18 @@ boolean G_CheckDemoStatus(void)
 			I_Quit();
 
 		if (multiplayer && !demo.title)
+		{
 			G_ExitLevel();
+		}
+		else if (modeattacking && !demo.title) // nooo dont crash our titledemos
+		{
+			G_StopDemo();
+			M_EndModeAttackRun();
+		}
 		else
 		{
 			G_StopDemo();
-
-			if (modeattacking)
-				M_EndModeAttackRun();
-			else
-				D_StartTitle();
+			D_StartTitle();
 		}
 
 		return true;
@@ -8032,6 +8197,8 @@ static void G_ResetDemoPlayback(char *pdemoname)
 		Z_Free(demobuf.buffer);
 	demobuf.buffer = NULL;
 	demo.playback = false;
+	if (demo.title)
+		modeattacking = ATTACKING_NONE;
 	demo.title = false;
 }
 

@@ -4011,18 +4011,15 @@ void A_SignPlayer(mobj_t *actor)
 	P_SetTarget(&ov->target, actor);
 	ov->color = actor->target->player->skincolor;
 	ov->skin = &skins[actor->target->player->skin];
-	if (actor->target->skinlocal) {
-		// needs - 1 or else it pukes an error out
-		// same thing happens on p_mobj.c
+
+	// needs - 1 or else it pukes an error out
+	// same thing happens on p_mobj.c
+	if (actor->target->skinlocal)
 		ov->localskin = &localskins[actor->target->player->localskin - 1];
-		ov->skinlocal = actor->target->skinlocal;
-	} else {
-		// needs - 1 or else it pukes an error out
-		// same thing happens on p_mobj.c
-		if (actor->target->player->localskin)
-			ov->localskin = &skins[actor->target->player->localskin - 1];
-		ov->skinlocal = actor->target->skinlocal;
-	}
+	else if (actor->target->player->localskin)
+		ov->localskin = &skins[actor->target->player->localskin - 1];
+	ov->skinlocal = actor->target->skinlocal;
+
 	P_SetMobjState(ov, actor->info->seestate); // S_PLAY_SIGN
 }
 
@@ -9255,7 +9252,7 @@ void A_Custom3DRotate(mobj_t *actor)
 		P_RemoveMobj(actor);
 		return;
 	}
-	
+
 	if (hspeed==0 && vspeed==0)
 	{
 		if (cv_debug)

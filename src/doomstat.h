@@ -244,7 +244,7 @@ typedef struct
 	INT16 nextlevel;       ///< Map number of next level, or 1100-1102 to end.
 	char musname[7];       ///< Music track to play. "" for no music.
 	UINT16 mustrack;       ///< Subsong to play. Only really relevant for music modules and specific formats supported by GME. 0 to ignore.
-	UINT32 muspos;    ///< Music position to jump to.
+	UINT32 muspos;         ///< Music position to jump to.
 	char forcecharacter[17];  ///< (SKINNAMESIZE+1) Skin to switch to or "" to disable.
 	UINT8 weather;         ///< 0 = sunny day, 1 = storm, 2 = snow, 3 = rain, 4 = blank, 5 = thunder w/o rain, 6 = rain w/o lightning, 7 = heat wave.
 	INT16 skynum;          ///< Sky number to use.
@@ -276,7 +276,7 @@ typedef struct
 
 	// SRB2kart
 	//boolean automap;    ///< Displays a level's white map outline in modified games
-	fixed_t mobj_scale; ///< Replacement for TOL_ERZ3
+	fixed_t mobj_scale;   ///< Replacement for TOL_ERZ3
 
 	mapheader_lighting_t lighting;			///< Wall and sprite lighting
 	mapheader_lighting_t lighting_encore;	///< Alternative lighting for Encore mode
@@ -299,8 +299,6 @@ typedef struct
 #define LF_NORELOAD       8 ///< Don't reload level on death
 #define LF_NOZONE        16 ///< Don't include "ZONE" on level title
 #define LF_SECTIONRACE   32 ///< Section race level
-#define LF_SUBTRACTNUM   64 ///< Use subtractive position number (for bright levels)
-
 
 #define LF2_HIDEINMENU     1 ///< Hide in the multiplayer menu
 #define LF2_HIDEINSTATS    2 ///< Hide in the statistics screen

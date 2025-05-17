@@ -1721,6 +1721,19 @@ static boolean is_rain_type (INT32 weathernum)
 	}
 }
 
+void P_PurgePrecipitation(void)
+{
+	thinker_t *think;
+	thinker_t *next;
+
+	for (think = precipcap.next; think != NULL && think != &precipcap;)
+	{
+		next = think->next;
+		P_FreePrecipMobj((precipmobj_t *)think);
+		think = next;
+	}
+}
+
 //
 // P_SwitchWeather
 //
@@ -1729,6 +1742,7 @@ static boolean is_rain_type (INT32 weathernum)
 void P_SwitchWeather(INT32 weathernum)
 {
 	boolean purge = true;
+	boolean spawnprecip = false;
 
 	if (weathernum == curWeather)
 		return;
@@ -1739,22 +1753,7 @@ void P_SwitchWeather(INT32 weathernum)
 
 	if (purge)
 	{
-		thinker_t *think;
-		thinker_t *next;
-		precipmobj_t *precipmobj;
-
-		for (think = precipcap.next; think != &precipcap; think = next)
-		{
-			next = think->next;
-
-#ifdef PARANOIA
-			if (think->function.acp1 != (actionf_p1)P_NullPrecipThinker)
-				continue; // not a precipmobj thinker
-#endif
-
-			precipmobj = (precipmobj_t *)think;
-			P_FreePrecipMobj(precipmobj);
-		}
+		P_PurgePrecipitation();
 	}
 	else // Rather than respawn all that crap, reuse it!
 	{
@@ -1764,11 +1763,6 @@ void P_SwitchWeather(INT32 weathernum)
 
 		for (think = precipcap.next; think != &precipcap; think = think->next)
 		{
-#ifdef PARANOIA
-			if (think->function.acp1 != (actionf_p1)P_NullPrecipThinker)
-				continue; // not a precipmobj thinker
-#endif
-
 			precipmobj = (precipmobj_t *)think;
 
 			INT32 z = 0;
@@ -1813,8 +1807,6 @@ void P_SwitchWeather(INT32 weathernum)
 		}
 	}
 
-	boolean spawnprecip = false;
-
 	switch (weathernum)
 	{
 		case PRECIP_SNOW: // snow
@@ -1822,23 +1814,17 @@ void P_SwitchWeather(INT32 weathernum)
 			spawnprecip = true;
 		break;
 		case PRECIP_RAIN: // rain
-		{
 			curWeather = PRECIP_RAIN;
 			spawnprecip = true;
 			break;
-		}
 		case PRECIP_STORM: // storm
-		{
 			curWeather = PRECIP_STORM;
 			spawnprecip = true;
 			break;
-		}
 		case PRECIP_STORM_NOSTRIKES: // storm w/o lightning
-		{
 			curWeather = PRECIP_STORM_NOSTRIKES;
 			spawnprecip = true;
 			break;
-		}
 		case PRECIP_STORM_NORAIN: // storm w/o rain
 			curWeather = PRECIP_STORM_NORAIN;
 			break;
@@ -3280,9 +3266,10 @@ void P_ProcessSpecialSector(player_t *player, sector_t *sector, sector_t *rovers
 			if (roversector || P_MobjReadyToTrigger(player->mo, sector))
 				P_DamageMobj(player->mo, NULL, NULL, 1);
 			break;
-		case 2: // Damage (Water) // SRB2kart - These three damage types are now offroad sectors
-		case 3: // Damage (Fire)
-		case 4: // Damage (Electrical)
+		// SRB2kart - These three damage types are now offroad sectors
+		case 2: // Offroad (Weak)
+		case 3: // Offroad
+		case 4: // Offroad (Strong)
 			break;
 		case 5: // Spikes
 			// Don't do anything. In Soviet Russia, spikes find you.
@@ -5113,11 +5100,10 @@ void T_LaserFlash(laserthink_t *flash)
 
 	sourcesec = ffloor->master->frontsector; // Less to type!
 
-	top = (*ffloor->t_slope) ? P_GetZAt(*ffloor->t_slope, sector->soundorg.x, sector->soundorg.y)
-			: *ffloor->topheight;
-	bottom = (*ffloor->b_slope) ? P_GetZAt(*ffloor->b_slope, sector->soundorg.x, sector->soundorg.y)
-			: *ffloor->bottomheight;
+	top    = P_GetFFloorTopZAt   (ffloor, sector->soundorg.x, sector->soundorg.y);
+	bottom = P_GetFFloorBottomZAt(ffloor, sector->soundorg.x, sector->soundorg.y);
 	sector->soundorg.z = (top + bottom)/2;
+
 	S_StartSound(&sector->soundorg, sfx_laser);
 
 	// Seek out objects to DESTROY! MUAHAHHAHAHAA!!!*cough*
@@ -6753,10 +6739,7 @@ void T_Disappear(disappear_t *d)
 
 					if (!(lines[d->sourceline].flags & ML_NOCLIMB))
 					{
-						if (*rover->t_slope)
-							sectors[s].soundorg.z = P_GetZAt(*rover->t_slope, sectors[s].soundorg.x, sectors[s].soundorg.y);
-						else
-							sectors[s].soundorg.z = *rover->topheight;
+						sectors[s].soundorg.z = P_GetFFloorTopZAt(rover, sectors[s].soundorg.x, sectors[s].soundorg.y);
 						S_StartSound(&sectors[s].soundorg, sfx_appear);
 					}
 				}

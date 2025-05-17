@@ -20,6 +20,7 @@ void K_GenerateKartColormap(UINT8 *dest_colormap, INT32 skinnum, UINT8 color, bo
 UINT8 K_GetKartColorByName(const char *name);
 UINT8 K_GetHudColor(void);
 boolean K_UseColorHud(void);
+boolean K_UseHighResPortraits(void);
 
 void K_RegisterServerKartStuff(void);
 void K_RegisterClientKartStuff(void);
@@ -40,12 +41,15 @@ extern consvar_t cv_battlespeedo;
 extern consvar_t cv_multiitemicon;
 extern consvar_t cv_huditemamount;
 
-#define NUMSPEEDOSTUFF 7
+#define NUMSPEEDOSTUFF 8
 extern CV_PossibleValue_t speedo_cons_t[NUMSPEEDOSTUFF];
 #define NUMDGAUGESTUFF 6
 extern CV_PossibleValue_t driftgaugestyle_cons_t[NUMDGAUGESTUFF];
 #define NUMINPUTDISPLAYSTUFF 5
 extern CV_PossibleValue_t inputdisplay_cons_t[NUMINPUTDISPLAYSTUFF];
+#define NUMMINIMAPDOTSTUFF 5
+extern CV_PossibleValue_t minimapdot_cons_t[NUMMINIMAPDOTSTUFF];
+
 
 boolean K_IsPlayerLosing(player_t *player);
 boolean K_IsPlayerWanted(player_t *player);
@@ -124,6 +128,7 @@ typedef struct
 patch_t *K_getItemBoxPatch(boolean small, boolean dark);
 patch_t *K_getItemMulPatch(boolean small);
 void K_getItemBoxDrawinfo(drawinfo_t *out);
+INT32 K_getMinimapTrans(void);
 void K_getLapsDrawinfo(drawinfo_t *out);
 void K_getMinimapDrawinfo(drawinfo_t *out);
 

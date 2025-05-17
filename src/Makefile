@@ -88,7 +88,7 @@ ifeq ($(OS),Windows_NT) # all windows are Windows_NT...
   $(info Detected a Windows system, compiling for 32-bit MinGW SDL2...)
   MINGW=1
  endif
- 
+
  SDL=1
  WINDOWSHELL=1
  NOOBJDUMP=1
@@ -291,6 +291,10 @@ ifdef X86_64
 endif
 endif
 
+# apparently MingW just completely ignores everything so just always force this shit
+# FIXME: we should port our code to c24
+CFLAGS+=-std=gnu17
+CPPFLAGS+=-std=gnu17
 
 ifndef NOPNG
 OPTS+=-DHAVE_PNG
@@ -436,7 +440,24 @@ else
 	# build a normal optimised version
 	WINDRESFLAGS = -DNDEBUG
 	CFLAGS+=-O3
+	CPPFLAGS+=-O3
 endif
+
+ifndef DEBUGMODE
+ifdef USELTO
+	# compile with LTO
+	CFLAGS+=-flto=auto
+	CPPFLAGS+=-flto=auto
+endif
+endif
+
+ifdef USEASAN
+	# compile with asan
+	CFLAGS+=-fsanitize=address
+	CPPFLAGS+=-fsanitize=address
+	LDFLAGS+=-fsanitize=address
+endif
+
 	CFLAGS+=-g $(OPTS) $(ARCHOPTS) $(WINDRESFLAGS)
 
 ifdef PROFILEMODE
@@ -534,6 +555,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/r_sky.o    \
 		$(OBJDIR)/r_splats.o \
 		$(OBJDIR)/r_patch.o  \
+		$(OBJDIR)/r_patchrotation.o  \
 		$(OBJDIR)/r_things.o \
 		$(OBJDIR)/r_portal.o \
 		$(OBJDIR)/screen.o   \

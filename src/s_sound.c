@@ -430,7 +430,7 @@ void S_StartSoundAtVolume(const void *origin_p, sfxenum_t sfx_id, INT32 volume)
 {
 	const mobj_t *origin = (const mobj_t *)origin_p;
 	const boolean reverse = (stereoreverse.value ^ encoremode);
-	const INT32 initial_volume = (origin ? S_ScaleVolumeWithSplitscreen(volume) : volume);
+	INT32 initial_volume;
 
 	sfxinfo_t *sfx;
 	INT32 sep, pitch, priority, cnum;
@@ -447,6 +447,8 @@ void S_StartSoundAtVolume(const void *origin_p, sfxenum_t sfx_id, INT32 volume)
 	// Don't want a sound? Okay then...
 	if (sfx_id == sfx_None)
 		return;
+
+	initial_volume = (origin ? S_ScaleVolumeWithSplitscreen(volume) : volume);
 
 	for (i = 0; i <= splitscreen; i++)
 	{
@@ -507,7 +509,7 @@ void S_StartSoundAtVolume(const void *origin_p, sfxenum_t sfx_id, INT32 volume)
 	if (sfx->skinsound != -1 && origin && origin->skin)
 	{
 		// redirect player sound to the sound in the skin table
-		sfx_id = ((skin_t *)( (origin->localskin) ? origin->localskin : origin->skin ))->soundsid[sfx->skinsound];
+		sfx_id = K_GetMobjSkin(origin)->soundsid[sfx->skinsound];
 		sfx = &S_sfx[sfx_id];
 	}
 
@@ -1837,7 +1839,7 @@ void S_ResumeAudio(void)
 	if (S_MusicNotInFocus())
 		return;
 
-	if (I_SongPlaying() && I_SongPaused())
+	if (!paused && I_SongPlaying() && I_SongPaused())
 		I_ResumeSong();
 }
 
@@ -1941,6 +1943,10 @@ static const char *musicexception_list[] = {
 static boolean S_CheckMusicException(void)
 {
 	if (stricmp(music.name, mapmusic.name))
+		return true;
+
+	// dumb hack but dont keepmusic music that is supposed to reset
+	if (music.flags & MUSIC_RELOADRESET)
 		return true;
 
 	// in case somehow the mapmusic was replaced with smth we dont want to keep

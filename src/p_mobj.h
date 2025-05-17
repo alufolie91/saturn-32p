@@ -293,7 +293,9 @@ typedef struct mobj_s
 	fixed_t spritexscale, spriteyscale;
 	fixed_t spritexoffset, spriteyoffset;
 	fixed_t old_spritexscale, old_spriteyscale;
+	fixed_t old_spritexscale2, old_spriteyscale2;
 	fixed_t old_spritexoffset, old_spriteyoffset;
+	fixed_t old_spritexoffset2, old_spriteyoffset2;
 	INT16 lightlevel; // Add to sector lightlevel, -255 - 255
 
 	fixed_t realxscale, realyscale; // funn-E streeetch
@@ -397,7 +399,7 @@ typedef struct mobj_s
 	boolean colorized; // Whether the mobj uses the rainbow colormap
 	boolean mirrored; // The object's rotations will be mirrored left to right, e.g., see frame AL from the right and AR from the left
 
-	tic_t slamsoundtimer;
+	tic_t slamsoundtimer; // Funni slam sound when landing
 
 	// saltyhop! hardcode edition
 	boolean salty_ready;
@@ -447,7 +449,9 @@ typedef struct precipmobj_s
 	fixed_t spritexscale, spriteyscale;
 	fixed_t spritexoffset, spriteyoffset;
 	fixed_t old_spritexscale, old_spriteyscale;
+	fixed_t old_spritexscale2, old_spriteyscale2;
 	fixed_t old_spritexoffset, old_spriteyoffset;
+	fixed_t old_spritexoffset2, old_spriteyoffset2;
 	INT16 lightlevel; // Add to sector lightlevel, -255 - 255
 
 	fixed_t realxscale, realyscale; // funn-E streeetch

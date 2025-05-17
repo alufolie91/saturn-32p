@@ -39,6 +39,7 @@
 #include "d_main.h"
 #include "m_random.h"
 #include "f_finale.h"
+#include "v_video.h"
 #include "filesrch.h"
 #include "mserv.h"
 #include "md5.h"
@@ -303,7 +304,7 @@ static void UseMouse_OnChange(void)
 consvar_t cv_mouseturn = {"mouseturn", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // Lagless camera! Yay!
-consvar_t cv_laglesscam = {"laglesscamera", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_laglesscam = {"lagless_camera", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_verticallook[MAXSPLITSCREENPLAYERS] = {
 	{"verticallook", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL},
@@ -759,6 +760,11 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_killingdead);
 
 	// d_clisrv
+#ifndef NONET
+#ifdef SATURNJOIN
+	CV_RegisterVar(&cv_allownewsaturnplayer); // need to register it before cv_maxplayers && cv_allownewplayer
+#endif
+#endif
 	CV_RegisterVar(&cv_maxplayers);
 	CV_RegisterVar(&cv_gamestateattempts);
 	CV_RegisterVar(&cv_resynchcooldown);
@@ -807,10 +813,6 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_netdemosyncquality);
 	CV_RegisterVar(&cv_maxdemosize);
 	CV_RegisterVar(&cv_demochangemap);
-
-#ifndef NOBLUAJIT
-	CV_RegisterVar(&cv_luajit);
-#endif
 }
 
 // =========================================================================
@@ -929,7 +931,7 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_netstat);
 	CV_RegisterVar(&cv_netticbuffer);
 	CV_RegisterVar(&cv_mindelay);
-	CV_RegisterVar(&cv_lagless);
+	CV_RegisterVar(&cv_gentlemens);
 
 #ifdef NETGAME_DEVMODE
 	CV_RegisterVar(&cv_fishcake);
@@ -955,7 +957,10 @@ void D_RegisterClientCommands(void)
 
 	COM_AddCommand("displayplayer", Command_Displayplayer_f);
 
-	CV_RegisterVar(&cv_audbuffersize); 
+	CV_RegisterVar(&cv_audbuffersize);
+
+	CV_RegisterVar(&cv_palette);
+	CV_RegisterVar(&cv_palettenum);
 
 	// m_menu.c
 	CV_RegisterVar(&cv_chatheight);
@@ -966,10 +971,10 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_chatnotifications);
 	CV_RegisterVar(&cv_chatbacktint);
 	CV_RegisterVar(&cv_songcredits);
-	CV_RegisterVar(&cv_showfreeplay);	
+	CV_RegisterVar(&cv_showfreeplay);
 	CV_RegisterVar(&cv_skinselectspin);
 	CV_RegisterVar(&cv_showallmaps);
-	
+
 	CV_RegisterVar(&cv_growmusic);
 	CV_RegisterVar(&cv_supermusic);
 
@@ -1025,7 +1030,6 @@ void D_RegisterClientCommands(void)
 	{
 		CV_RegisterVar(&cv_rumble[i]);
 		CV_RegisterVar(&cv_gamepadled[i]);
-		CV_RegisterVar(&cv_ledpowerup[i]);
 	}
 
 	CV_RegisterVar(&cv_usemouse);
@@ -1055,7 +1059,7 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_midimusicvolume);
 #endif
 	CV_RegisterVar(&cv_numChannels);
-	
+
 #ifdef HAVE_OPENMPT
 	CV_RegisterVar(&cv_modfilter);
 	CV_RegisterVar(&cv_stereosep);
@@ -1070,7 +1074,6 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_renderview);
 	CV_RegisterVar(&cv_vhseffect);
 	CV_RegisterVar(&cv_shittyscreen);
-	CV_RegisterVar(&cv_scr_depth);
 	CV_RegisterVar(&cv_scr_width);
 	CV_RegisterVar(&cv_scr_height);
 
@@ -1094,6 +1097,8 @@ void D_RegisterClientCommands(void)
 	{
 		CV_RegisterVar(&cv_verticallook[i]);
 	}
+
+	CV_RegisterVar(&cv_demodateformat);
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
@@ -2242,13 +2247,16 @@ static void Command_View_f(void)
 	if (COM_Argc() > 1)/* switch to player */
 	{
 		playerparam = COM_Argv(1);
+
 		if (playerparam[0] == '#')/* search by placement */
 		{
 			placenum = atoi(&playerparam[1]);
 			playernum = FindPlayerByPlace(placenum);
+
 			if (playernum == -1 || !G_CouldView(playernum))
 			{
 				GetViewablePlayerPlaceRange(&firstplace, &lastplace);
+
 				if (playernum == -1)
 				{
 					CONS_Alert(CONS_WARNING, "There is no player in that place! ");
@@ -2260,6 +2268,7 @@ static void Command_View_f(void)
 							"The first player that you can view is \x82#%d\x80; ",
 							firstplace);
 				}
+
 				CONS_Printf("Last place is \x82#%d\x80.\n", lastplace);
 				return;
 			}
@@ -2621,6 +2630,7 @@ void D_PickVote(void)
 	{
 		if (!playeringame[i] || players[i].spectator)
 			continue;
+
 		if (votes[i] != -1)
 		{
 			temppicks[numvotes] = i;
@@ -2696,7 +2706,8 @@ static tic_t last_map_cmd = 0;
 //
 static void Command_Map_f(void)
 {
-	if (I_GetTime() - last_map_cmd < 20) {
+	if (I_GetTime() - last_map_cmd < 20)
+	{
 		CONS_Alert(CONS_WARNING, "Map command is used too frequently!\n");
 		return;
 	}
@@ -2754,8 +2765,7 @@ static void Command_Map_f(void)
 	{
 		if (!multiplayer)
 		{
-			CONS_Printf(M_GetText(
-						"You can't switch gametypes in single player!\n"));
+			CONS_Printf(M_GetText("You can't switch gametypes in single player!\n"));
 			return;
 		}
 		else if (COM_Argc() < option_gametype + 2)/* no argument after? */
@@ -3084,18 +3094,25 @@ static void Command_ReplayMarker(void)
 		CONS_Printf(M_GetText("You must be in a level to use this.\n"));
 		return;
 	}
-	if (demo.savemode == DSM_WILLAUTOSAVE) {
+	if (demo.savemode == DSM_WILLAUTOSAVE)
+	{
 		demo.savemode = DSM_NOTSAVING;
 		CONS_Printf("Replay unmarked.\n");
-	} else {
-		int adjustedleveltime = leveltime - starttime;
+	}
+	else
+	{
 		demo.savemode = DSM_WILLAUTOSAVE;
+
+		int adjustedleveltime = leveltime - starttime;
+
 		if (adjustedleveltime < 0)
 			adjustedleveltime = 0;
+
 		char *title = G_BuildMapTitle(gamemap);
 		snprintf(demo.titlename, 64, "%s [%i:%02d/%.5s]", title, G_TicsToMinutes(adjustedleveltime, false), G_TicsToSeconds(adjustedleveltime), modeattacking ? "Record Attack" : connectedservername);
 		if (title)
 			Z_Free(title);
+
 		CONS_Printf("Replay will be saved!\n");
 	}
 }
@@ -4447,7 +4464,7 @@ static void Command_Addfilelocal(void)
 	// Add any wad file, ignoring checks for if it contains complex things like
 	// lua. Great for complex but client-side customizations, like different
 	// level cards or anything like that.
-	P_AddWadFileLocal(fn);
+	P_AddWadFile(fn, true);
 }
 
 
@@ -4542,38 +4559,9 @@ static void Command_Addfile(void)
 
 /** Adds something at runtime.
   */
-static void
-Command_Addskins (void)
+static void Command_Addskins(void)
 {
-	if (COM_Argc() > 3)
-	{
-		CONS_Printf(
-				"addskins <file>: Load a skin file.\n");
-		return;
-	}
-	// no forcing?
-	/*
-	if (fasticmp(COM_Argv(2), "-force") || fasticmp(COM_Argv(2), "-f")) {
-		CONS_Alert(CONS_NOTICE, M_GetText("Adding file %s. May or may not be a skin.\n"), COM_Argv(1));
-		P_AddWadFile(COM_Argv(1), 0, true);	
-	} else {
-		if (DumbStartsWith("KC_", COM_Argv(1))) {
-			P_AddWadFile(COM_Argv(1), 0, true);
-		} else if (DumbStartsWith("KCL_", COM_Argv(1))) {
-			if (!demo.playback) {
-				CONS_Alert(CONS_ERROR, M_GetText("Cannot add file %s as it is a skin with lua. Include -force or -f to force it to load.\n"), COM_Argv(1));
-				return;
-			} else {
-	*/
-				P_AddWadFile(COM_Argv(1), true);
-	/*
-			}
-		} else {
-			CONS_Alert(CONS_ERROR, M_GetText("Cannot add file %s as it is not a skin.\n"), COM_Argv(1));
-			return;
-		}
-	}
-	*/
+	CONS_Printf("addskins has been deprecated\nuse addfilelocal instead!\n");
 }
 
 static void Command_GLocalSkin (void)
@@ -4589,7 +4577,7 @@ static void Command_GLocalSkin (void)
 
 	char* fuck; // local skin name
 
-	if (!( first_option = COM_FirstOption() ))
+	if (!(first_option = COM_FirstOption()))
 		first_option = COM_Argc();
 
 	if (first_option < 2)
@@ -4597,14 +4585,14 @@ static void Command_GLocalSkin (void)
 		/* holy fucking shit */
 		CONS_Printf("localskin <name> [-player <name>] [-display <number>] [-all]:\n");
 		CONS_Printf(M_GetText("Set a localskin via its internal name (usually printed on the console).\n\n\
-* Using \"-player\" will set a localskin to a specified player.\n\
-  Defaults to yourself.\n\
-* Using \"-display\" will set a localskin to the displayed player.\n\
-  Defaults to 0, which is the first player displayed.\n\
-  Can go up to 3 for splitscreen.\n\
-* Using \"-all\" will set a localskin to ALL players.\n\
-* \"localskin none\" removes the localskin, just like how\n\
-  \"forceskin none\" does.\n"));
+		* Using \"-player\" will set a localskin to a specified player.\n\
+		Defaults to yourself.\n\
+		* Using \"-display\" will set a localskin to the displayed player.\n\
+		Defaults to 0, which is the first player displayed.\n\
+		Can go up to 3 for splitscreen.\n\
+		* Using \"-all\" will set a localskin to ALL players.\n\
+		* \"localskin none\" removes the localskin, just like how\n\
+		\"forceskin none\" does.\n"));
 		return;
 	}
 
@@ -4635,7 +4623,7 @@ static void Command_GLocalSkin (void)
 	{
 		int i;
 
-		for (i = 0; i < MAXPLAYERS; ++i) 
+		for (i = 0; i < MAXPLAYERS; ++i)
 		{
 			if (!playeringame[i])
 				continue;
@@ -6022,7 +6010,7 @@ static void Command_ListSkins(void)
 }
 
 static void Command_SkinSearch(void)
-{	
+{
 	size_t i;
 	UINT16 s;
 	UINT16 ic = 0;
@@ -6032,7 +6020,7 @@ static void Command_SkinSearch(void)
 		{
 			skin_t *skininput = &skins[s];
 			if (strcasestr(skininput->realname,COM_Argv(i)))
-			{	
+			{
 				ic++;
 				CONS_Printf("%d. %s%s:\x80 %s\n", ic,HU_SkinColorToConsoleColor(skininput->prefcolor),skininput->realname,skininput->name);
 			}

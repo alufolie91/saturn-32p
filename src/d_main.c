@@ -147,7 +147,7 @@ INT32 eventhead, eventtail;
 
 boolean dedicated = false;
 
-boolean loaded_config = false;
+boolean loaded_config = false; // true once config.cfg loaded AND executed
 
 //
 // D_PostEvent
@@ -166,48 +166,56 @@ UINT8 ctrldown = 0; // 0x1 left, 0x2 right
 UINT8 altdown = 0; // 0x1 left, 0x2 right
 boolean capslock = 0;	// gee i wonder what this does.
 
-static void D_PadMenuScrollInput(int input)
+static void D_PadMenuScrollInput(UINT8 input)
 {
-	event_t myev = {0, 0, 0, 0};
-	myev.type = ev_keydown;
-	myev.data1 = input;
-	D_PostEvent(&myev); // put into eventlist
+	event_t dpadev;
+	memset(&dpadev, 0, sizeof(event_t));
+	dpadev.type = ev_keydown;
+
+	switch (input)
+	{
+		case DPAD_UP:
+			dpadev.data1 = KEY_UPARROW;
+			break;
+		case DPAD_DOWN:
+			dpadev.data1 = KEY_DOWNARROW;
+			break;
+		case DPAD_LEFT:
+			dpadev.data1 = KEY_LEFTARROW;
+			break;
+		case DPAD_RIGHT:
+			dpadev.data1 = KEY_RIGHTARROW;
+			break;
+	}
+
+	D_PostEvent(&dpadev); // put into eventlist
 }
 
-#define SCROLLDELAY 19 // TICRATE * ( (k+2) (1 - [wz + h + j - q]^2 - [(gk + 2g + k + 1)(h + j) + h - z]^2 - [16(k + 1)^3(k + 2)(n + 1)^2 + 1 - f^2]^2 calculated by my butt
+#define SCROLLDELAY 19
 
-// this is absolutely awful and i hate it lmao
-// but le hAx0r to make dpad also be able to scroll in the menu
+// Check if any dpad button is held
+// and pass it to the eventlist
 static void D_GamePadMenuScrollTicker(void)
 {
-	static SINT8 menuInputDelayTimer = 0;
-	int key = 0; // butt-on output
+	static UINT8 menuInputDelayTimer = 0;
 
 	if (dedicated)
 		return;
 
-	// wish i had a switch ono
-	if (DPADUPSCROLL)
-		key = KEY_UPARROW;
-	else if (DPADDOWNSCROLL)
-		key = KEY_DOWNARROW;
-	else if (DPADLEFTSCROLL)
-		key = KEY_LEFTARROW;
-	else if (DPADRIGHTSCROLL)
-		key = KEY_RIGHTARROW;
-
-	if (key)
+	for (UINT8 i = 0; i < 4; i++)
 	{
-		if (menuInputDelayTimer < SCROLLDELAY)
-			menuInputDelayTimer++;
+		if (dpadscrollstate[i])
+		{
+			if (menuInputDelayTimer < SCROLLDELAY)
+				menuInputDelayTimer++;
+			else if (menuInputDelayTimer == SCROLLDELAY)
+				D_PadMenuScrollInput(i);
 
-		if (menuInputDelayTimer == SCROLLDELAY)
-			D_PadMenuScrollInput(key);
+			return;
+		}
 	}
-	else
-	{
-		menuInputDelayTimer = 0;
-	}
+
+	menuInputDelayTimer = 0;
 }
 #undef SCROLLDELAY
 
@@ -464,6 +472,7 @@ static boolean D_Display(void)
 			F_TitleScreenDrawer();
 			if (wipe)
 				wipedefindex = wipe_titlescreen_toblack;
+			HU_Drawer();
 			break;
 
 		case GS_WAITINGPLAYERS:
@@ -603,8 +612,8 @@ static boolean D_Display(void)
 			py = 4;
 		else
 			py = viewwindowy + 4;
-		patch = W_CachePatchName("M_PAUSE", PU_CACHE);
-		V_DrawScaledPatch(viewwindowx + (BASEVIDWIDTH - SHORT(patch->width))/2, py, V_SNAPTOTOP, patch);
+		patch = W_CachePatchName("M_PAUSE", PU_PATCH);
+		V_DrawScaledPatch(viewwindowx + (BASEVIDWIDTH - patch->width)/2, py, V_SNAPTOTOP, patch);
 	}
 
 	if (rendermode == render_soft && demo.rewinding)
@@ -733,7 +742,7 @@ void D_SRB2Loop(void)
 	COM_ImmedExecute("cls;version");
 
 	if (rendermode == render_soft)
-		V_DrawFixedPatch(0, 0, FRACUNIT/2, 0, (patch_t *)W_CacheLumpNum(W_GetNumForName("KARTKREW"), PU_CACHE), NULL);
+		V_DrawFixedPatch(0, 0, FRACUNIT/2, 0, W_CachePatchNum(W_GetNumForName("KARTKREW"), PU_PATCH_LOWPRIORITY), NULL);
 	I_FinishUpdate(); // page flip or blit buffer
 
 	for (;;)
@@ -825,7 +834,12 @@ void D_SRB2Loop(void)
 
 		if (interp)
 		{
-			renderdeltatics = FLOAT_TO_FIXED(deltatics);
+			renderdeltatics = FloatToFixed(deltatics);
+
+			// I looked at the possibility of putting in a float drawer for
+			// perfstats and it's very complicated, so we'll just do this instead...
+			ps_interp_frac.value.p = (precise_t)((FIXED_TO_FLOAT(g_time.timefrac)) * 1000.0f);
+			ps_interp_lag.value.p = (precise_t)((deltasecs) * 1000.0f);
 
 			if (!(paused || P_AutoPause()) && deltatics < 1.0 && !hu_stopped)
 			{
@@ -929,6 +943,7 @@ void D_SRB2Loop(void)
 void D_StartTitle(void)
 {
 	INT32 i;
+
 	if (netgame)
 	{
 		if (gametype == GT_RACE) // SRB2kart
@@ -949,6 +964,8 @@ void D_StartTitle(void)
 
 		return;
 	}
+
+	M_ClearMenus(true);
 
 	// okay, stop now
 	// (otherwise the game still thinks we're playing!)
@@ -1184,17 +1201,15 @@ void D_CleanFile(char **filearray)
 
 static boolean AddIWAD(void)
 {
-	char * path = va(pandf,srb2path,"srb2.srb");
+	char * path = va(pandf, srb2path, "srb2.srb");
 
 	if (FIL_ReadFileOK(path))
 	{
 		D_AddFile(path, startupwadfiles);
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+
+	return false;
 }
 
 // extra graphic patches for saturn specific thingies
@@ -1208,6 +1223,8 @@ boolean xtra_speedo3 = false;      // 80x 11 extra speedometer check
 boolean xtra_speedo_clr3 = false;  // 80x 11 extra speedometer colour check
 boolean achi_speedo = false;       // achiiro speedometer check
 boolean achi_speedo_clr = false;   // extra speedometer colour check
+boolean dial_speedo = false;       // dial speedometer check
+boolean dial_speedo_clr = false;   // dial speedometer colour check
 boolean kartz_speedo = false;      // kartZ speedo
 boolean kartz_speedo_smol = false; // kartZ speedo but smol
 
@@ -1220,6 +1237,8 @@ boolean nametaggfx = false;        // Nametag stuffs
 boolean driftgaugegfx = false;     // Driftgauge stuffs
 boolean multiitem_icon = false;    // Extra icons for Sneakers, Banana and Jawz
 boolean joystickicon = false;      // Extra icons for the joystick input display
+boolean minidoticon = false;        // Dot graphic for minimap player angle display
+boolean minilighticon = false;     // mkwii-style minimap headlight
 //
 
 static void IdentifyVersion(void)
@@ -1234,11 +1253,11 @@ static void IdentifyVersion(void)
 	// get the current directory (possible problem on NT with "." as current dir)
 	if (srb2waddir)
 	{
-		strlcpy(srb2path,srb2waddir,sizeof (srb2path));
+		strlcpy(srb2path, srb2waddir, sizeof(srb2path));
 	}
 	else
 	{
-		if (getcwd(srb2path, 256) != NULL)
+		if (getcwd(srb2path, sizeof(srb2path)))
 			srb2waddir = srb2path;
 		else
 		{
@@ -1247,7 +1266,7 @@ static void IdentifyVersion(void)
 	}
 
 	// Load the IWAD
-	if (! AddIWAD())
+	if (!AddIWAD())
 	{
 		I_Error("SRB2.SRB not found! Expected in %s\n", srb2waddir);
 	}
@@ -1337,13 +1356,15 @@ static inline void D_MakeTitleString(char *s)
 static void D_CheckSaturnExtraFiles(void)
 {
 	// Possible value that changes depending on whether required files for speedometer are found or not
-	CV_PossibleValue_t speedo_cons_temp[NUMSPEEDOSTUFF] = {{1, "Default"}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}};
+	CV_PossibleValue_t speedo_cons_temp[NUMSPEEDOSTUFF] = {{1, "Default"}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}};
 	CV_PossibleValue_t driftgaugestyle_cons_temp[NUMDGAUGESTUFF] = {{1, "Default"}, {2, "Small"}, {3, "Big Numbers"}, {4, "Numbers Only"}, {0, NULL}, {0, NULL}};
 	CV_PossibleValue_t inputdisplay_cons_temp[NUMINPUTDISPLAYSTUFF] = {{0, "Off"}, {1, "Wheel"}, {2, "Stick"}, {0, NULL}, {0, NULL}};
+	CV_PossibleValue_t minimapdot_cons_temp[NUMMINIMAPDOTSTUFF] = {{0, "Off"}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}};
 
 	unsigned last_speedo_i = 0;
 	unsigned last_driftgauge_i = 3;
 	unsigned last_inputdisplay_i = 2;
+	unsigned last_minimapdot_i = 0;
 #define PUSHCONS(cons, i, id, name) { ++i; cons[i].value = id; cons[i].strvalue = name; }
 
 	// found the funny, add it in!
@@ -1365,6 +1386,17 @@ static void D_CheckSaturnExtraFiles(void)
 			PUSHCONS(speedo_cons_temp, last_speedo_i, 3, "Achii");
 		}
 
+		// now check for dial speedometer stuff
+		if (W_CheckMultipleLumps("K_DSPBS1", "K_DSPBS2", "K_DSDIAL",
+			"K_TRNULL", "SP_DKMH", "SP_DMPH", "SP_DFRAC", "SP_DPERC",
+			"K_DSPNM0", "K_DSPNM1", "K_DSPNM2", "K_DSPNM3", "K_DSPNM4",
+			"K_DSPNM5", "K_DSPNM6", "K_DSPNM7", "K_DSPNM8", "K_DSPNM9",
+			"RANKFIN", NULL))
+		{
+			dial_speedo = true;
+			PUSHCONS(speedo_cons_temp, last_speedo_i, 4, "Dial");
+		}
+
 		// check for bigger lap count
 		if (W_CheckMultipleLumps("K_STLAPB", "K_STLA2B", NULL))
 		{
@@ -1378,7 +1410,7 @@ static void D_CheckSaturnExtraFiles(void)
 			"K_KZSP20", "K_KZSP21", "K_KZSP22", "K_KZSP23", "K_KZSP24", "K_KZSP25", NULL))
 		{
 			kartz_speedo = true;
-			PUSHCONS(speedo_cons_temp, last_speedo_i, 4, "P-Meter");
+			PUSHCONS(speedo_cons_temp, last_speedo_i, 5, "P-Meter");
 		}
 
 		if (W_CheckMultipleLumps("K_KZSS1", "K_KZSS2", "K_KZSS3", "K_KZSS4", "K_KZSS5",
@@ -1387,7 +1419,7 @@ static void D_CheckSaturnExtraFiles(void)
 			"K_KZSS20", "K_KZSS21", "K_KZSS22", "K_KZSS23", "K_KZSS24", "K_KZSS25", NULL))
 		{
 			kartz_speedo_smol = true;
-			PUSHCONS(speedo_cons_temp, last_speedo_i, 5, "P-Meter Small");
+			PUSHCONS(speedo_cons_temp, last_speedo_i, 6, "P-Meter Small");
 		}
 
 		// stat display for extended player setup
@@ -1421,6 +1453,18 @@ static void D_CheckSaturnExtraFiles(void)
 			joystickicon = true;
 			PUSHCONS(inputdisplay_cons_temp, last_inputdisplay_i, 3, "StickGFX");
 		}
+
+		if (W_LumpExists("MMAPDOT"))
+		{
+			minidoticon = true;
+			PUSHCONS(minimapdot_cons_temp, last_minimapdot_i, 1, "Dot");
+		}
+
+		if (W_LumpExists("MMAPHDLT"))
+		{
+			minilighticon = true;
+			PUSHCONS(minimapdot_cons_temp, last_minimapdot_i, 2, "Headlight");
+		}
 	}
 
 	// now check for colour hud stuff
@@ -1447,6 +1491,16 @@ static void D_CheckSaturnExtraFiles(void)
 			achi_speedo_clr = true;
 		}
 
+		// dial speedo but colour
+		if (W_CheckMultipleLumps("K_DSPBC1", "K_DSPBC2", "K_DSDIAL",
+			"K_TRNULL", "SC_DKMH", "SC_DMPH", "SC_DFRAC", "SC_DPERC",
+			"K_DSPNC0", "K_DSPNC1", "K_DSPNC2", "K_DSPNC3", "K_DSPNC4",
+			"K_DSPNC5", "K_DSPNC6", "K_DSPNC7", "K_DSPNC8", "K_DSPNC9",
+			"RANKFIN", NULL))
+		{
+			dial_speedo_clr = true;
+		}
+
 		// driftgauge but colour
 		if (W_CheckMultipleLumps("K_DCAU","K_DCSU", NULL))
 		{
@@ -1470,7 +1524,7 @@ static void D_CheckSaturnExtraFiles(void)
 		if (W_LumpExists("SP_SM3TC"))
 		{
 			xtra_speedo3 = true;
-			PUSHCONS(speedo_cons_temp, last_speedo_i, 6, "Extra");
+			PUSHCONS(speedo_cons_temp, last_speedo_i, 7, "Extra");
 			PUSHCONS(driftgaugestyle_cons_temp, last_driftgauge_i, 5, "Extra");
 		}
 
@@ -1485,7 +1539,10 @@ static void D_CheckSaturnExtraFiles(void)
 	memcpy(speedo_cons_t, speedo_cons_temp, sizeof(speedo_cons_t));
 	memcpy(driftgaugestyle_cons_t, driftgaugestyle_cons_temp, sizeof(driftgaugestyle_cons_t));
 	memcpy(inputdisplay_cons_t, inputdisplay_cons_temp, sizeof(inputdisplay_cons_t));
+	memcpy(minimapdot_cons_t, minimapdot_cons_temp, sizeof(minimapdot_cons_t));
 }
+
+#include <locale.h>
 
 //
 // D_SRB2Main
@@ -1684,6 +1741,7 @@ void D_SRB2Main(void)
 
 	CONS_Printf("I_InitializeTime()...\n");
 	I_InitializeTime();
+	setlocale(LC_TIME, "");
 
 	// Make backups of some SOCcable tables.
 	P_BackupTables();
@@ -1850,7 +1908,9 @@ void D_SRB2Main(void)
 
 	savedata.lives = 0; // flag this as not-used
 
-	loaded_config = true; // so pallettechange doesent get called 500 times at startup lol
+	// make sure I_Quit() will write back the correct config
+	// (do not write back the config if it crash before)
+	loaded_config = true; // so palettechange doesent get called 500 times at startup lol
 
 	//------------------------------------------------ COMMAND LINE PARAMS
 

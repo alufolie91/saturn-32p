@@ -112,10 +112,10 @@ boolean server_lagless;
 static void Lagless_OnChange(void)
 {
 	/* don't back out of dishonesty, or go lagless after playing honestly */
-	if (cv_lagless.value && gamestate == GS_LEVEL)
+	if (!cv_gentlemens.value && gamestate == GS_LEVEL)
 		server_lagless = true;
 
-	/*if (cv_lagless.value)
+	/*if (!cv_gentlemens.value)
 		HU_AddChatText(M_GetText("\x82*Gentlemans Delay has been disabled for Serverplayer."), false);
 	else
 		HU_AddChatText(M_GetText("\x82*Gentlemans Delay will be enabled for Serverplayer."), false);*/
@@ -123,7 +123,7 @@ static void Lagless_OnChange(void)
 
 static CV_PossibleValue_t mindelay_cons_t[] = {{0, "MIN"}, {30, "MAX"}, {0, NULL}};
 consvar_t cv_mindelay = {"mindelay", "0", CV_SAVE, mindelay_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_lagless = {"serverlagless", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Lagless_OnChange, 0, NULL, NULL, 0, 0, NULL}; // this should be a netvar Zzz...
+consvar_t cv_gentlemens = {"gentlemensdelay", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Lagless_OnChange, 0, NULL, NULL, 0, 0, NULL}; // this should be a netvar Zzz...
 
 SINT8 nodetoplayer[MAXNETNODES];
 SINT8 nodetoplayer2[MAXNETNODES]; // say the numplayer for this node if any (splitscreen)
@@ -212,7 +212,7 @@ consvar_t cv_kicktime = {"kicktime", "10", CV_SAVE, CV_Unsigned, NULL, 0, NULL, 
 
 static boolean UseLocalDelay(void)
 {
-	if (dedicated || (server && server_lagless && !cv_mindelay.value))
+	if (dedicated || (server && server_lagless && !cv_mindelay.value) || modeattacking == ATTACKING_RECORD)
 		return false;
 
 	return (cv_mindelay.value || (server && !server_lagless));
@@ -519,11 +519,6 @@ void D_ResetTiccmds(void)
 			D_Clearticcmd(textcmds[i]->tic);
 }
 
-/*ticcmd_t *D_LocalTiccmd(UINT8 ss)
-{
-	return &localcmds[ss][0];
-}*/
-
 void SendKick(UINT8 playernum, UINT8 msg)
 {
 	UINT8 buf[2];
@@ -621,11 +616,6 @@ typedef enum
 static void GetPackets(void);
 
 static cl_mode_t cl_mode = CL_SEARCHING;
-
-#ifdef HAVE_CURL
-char http_source[MAX_MIRROR_LENGTH+1];
-#endif
-
 static UINT16 cl_lastcheckedfilecount = 0;	// used for full file list
 
 #ifdef CLIENT_LOADINGSCREEN
@@ -665,10 +655,10 @@ static inline void CL_DrawConnectionStatus(void)
 		{
 #ifdef JOININGAME
 			case CL_DOWNLOADSAVEGAME:
-				if (lastfilenum != -1)
+				if (filedownload.current != -1)
 				{
-					UINT32 currentsize = fileneeded[lastfilenum].currentsize;
-					UINT32 totalsize = fileneeded[lastfilenum].totalsize;
+					UINT32 currentsize = fileneeded[filedownload.current].currentsize;
+					UINT32 totalsize = fileneeded[filedownload.current].totalsize;
 					INT32 dldlength;
 
 					cltext = M_GetText("Downloading game state...");
@@ -763,13 +753,13 @@ static inline void CL_DrawConnectionStatus(void)
 			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24, V_20TRANS|V_MONOSPACE|MENUCAPS,
 				va(" %2u/%2u Files",loadcompletednum,fileneedednum));
 		}
-		else if (lastfilenum != -1)
+		else if (filedownload.current != -1)
 		{
 			INT32 dldlength;
 			INT32 totalfileslength;
 			UINT32 totaldldsize;
 			static char tempname[28];
-			fileneeded_t *file = &fileneeded[lastfilenum];
+			fileneeded_t *file = &fileneeded[filedownload.current];
 			char *filename = file->filename;
 
 			// Draw the bottom box.
@@ -808,32 +798,32 @@ static inline void CL_DrawConnectionStatus(void)
 			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-58-22, V_YELLOWMAP|MENUCAPS,
 				va(M_GetText("\"%s\""), tempname));
 			V_DrawString(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-58, V_20TRANS|V_MONOSPACE|MENUCAPS,
-				va(" %4uK/%4uK",fileneeded[lastfilenum].currentsize>>10,file->totalsize>>10));
+				va(" %4uK/%4uK",file->currentsize>>10,file->totalsize>>10));
 			V_DrawRightAlignedString(BASEVIDWIDTH/2+128, BASEVIDHEIGHT-58, V_20TRANS|V_MONOSPACE|MENUCAPS,
 				va("%3.1fK/s ", ((double)getbps)/1024));
 
 			// Download progress
 
-			if (fileneeded[lastfilenum].currentsize != fileneeded[lastfilenum].totalsize)
-				totaldldsize = downloadcompletedsize+fileneeded[lastfilenum].currentsize; //Add in single file progress download if applicable
+			if (file->currentsize != file->totalsize)
+				totaldldsize = filedownload.completedsize+file->currentsize; //Add in single file progress download if applicable
 			else
-				totaldldsize = downloadcompletedsize;
+				totaldldsize = filedownload.completedsize;
 
 			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24-14, V_YELLOWMAP|MENUCAPS, "Overall Download Progress");
-			totalfileslength = (INT32)((totaldldsize/(double)totalfilesrequestedsize) * 256);
+			totalfileslength = (INT32)((totaldldsize/(double)filedownload.totalsize) * 256);
 			M_DrawTextBox(BASEVIDWIDTH/2-128-8, BASEVIDHEIGHT-24-8, 32, 1);
 			V_DrawFill(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-24, 256, 8, 175);
 			V_DrawFill(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-24, totalfileslength, 8, 160);
 
-			if (totalfilesrequestedsize>>20 >= 10) //display in MB if over 10MB
+			if (filedownload.totalsize>>20 >= 10) //display in MB if over 10MB
 				V_DrawString(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-24, V_20TRANS|V_MONOSPACE|MENUCAPS,
-					va(" %4uM/%4uM",totaldldsize>>20,totalfilesrequestedsize>>20));
+					va(" %4uM/%4uM",totaldldsize>>20,filedownload.totalsize>>20));
 			else
 				V_DrawString(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-24, V_20TRANS|V_MONOSPACE|MENUCAPS,
-					va(" %4uK/%4uK",totaldldsize>>10,totalfilesrequestedsize>>10));
+					va(" %4uK/%4uK",totaldldsize>>10,filedownload.totalsize>>10));
 
 			V_DrawRightAlignedString(BASEVIDWIDTH/2+128, BASEVIDHEIGHT-24, V_20TRANS|V_MONOSPACE|MENUCAPS,
-					va("%2u/%2u Files ",downloadcompletednum,totalfilesrequestednum));
+					va("%2u/%2u Files ", filedownload.completednum, filedownload.totalnum));
 		}
 		else
 		{
@@ -1557,7 +1547,7 @@ void CL_QueryServerList (msg_server_t *server_list)
 		{
 			INT32 node = I_NetMakeNodewPort(server_list[i].ip, server_list[i].port);
 			if (node == -1)
-				break; // no more node free
+				continue; // no more node free, or resolution failure
 			SendAskInfo(node);
 			resendserverlistnode[node] = true;
 			// Leave this node open. It'll be closed if the
@@ -1602,10 +1592,10 @@ void CL_TimeoutServerList(void)
 
 static void CL_ConfirmConnect(void)
 {
-	if (totalfilesrequestednum > 0)
+	if (filedownload.totalnum > 0)
 	{
 #ifdef HAVE_CURL
-		if (http_source[0] == '\0' || curl_failedwebdownload)
+		if (filedownload.http_source[0] == '\0' || filedownload.http_failed)
 #endif
 		{
 			if (CL_SendRequestFile())
@@ -1632,13 +1622,13 @@ static void M_ConfirmConnect(event_t *ev)
 #ifndef NONET
 	if (ev->type == ev_keydown)
 	{
-		if (ev->data1 == ' ' || ev->data1 == 'y' || ev->data1 == KEY_ENTER || ev->data1 == gamecontrol[gc_accelerate][0] || ev->data1 == gamecontrol[gc_accelerate][1])
+		if (ev->data1 == ' ' || ev->data1 == 'y' || ev->data1 == KEY_ENTER || ev->data1 == gamecontrol[0][gc_accelerate][0] || ev->data1 == gamecontrol[0][gc_accelerate][1])
 		{
 			CL_ConfirmConnect();
 
 			M_ClearMenus(true);
 		}
-		else if (ev->data1 == 'n' || ev->data1 == KEY_ESCAPE|| ev->data1 == gamecontrol[gc_brake][0] || ev->data1 == gamecontrol[gc_brake][1])
+		else if (ev->data1 == 'n' || ev->data1 == KEY_ESCAPE|| ev->data1 == gamecontrol[0][gc_brake][0] || ev->data1 == gamecontrol[0][gc_brake][1])
 		{
 			cl_mode = CL_ABORTED;
 			M_ClearMenus(true);
@@ -1718,7 +1708,7 @@ static boolean CL_FinishedFileList(void)
 		// must download something
 		// can we, though?
 #ifdef HAVE_CURL
-		if (http_source[0] == '\0' || curl_failedwebdownload)
+		if (filedownload.http_source[0] == '\0' || filedownload.http_failed)
 #endif
 		{
 			if (!CL_CheckDownloadable()) // nope!
@@ -1738,30 +1728,31 @@ static boolean CL_FinishedFileList(void)
 		}
 
 #ifdef HAVE_CURL
-		if (!curl_failedwebdownload)
+		if (!filedownload.http_failed)
 #endif
 		{
 #ifndef NONET
-			downloadcompletednum = 0;
-			downloadcompletedsize = 0;
-			totalfilesrequestednum = 0;
-			totalfilesrequestedsize = 0;
+			filedownload.completednum = 0;
+			filedownload.completedsize = 0;
+
+			filedownload.totalnum = 0;
+			filedownload.totalsize = 0;
 #endif
 
 			for (i = 0; i < fileneedednum; i++)
 				if (fileneeded[i].status == FS_NOTFOUND || fileneeded[i].status == FS_MD5SUMBAD)
 				{
 #ifndef NONET
-					totalfilesrequestednum++;
-					totalfilesrequestedsize += fileneeded[i].totalsize;
+					filedownload.totalnum++;
+					filedownload.totalsize += fileneeded[i].totalsize;
 #endif
 				}
 
 #ifndef NONET
-			if (totalfilesrequestedsize>>20 >= 10)
-				downloadsize = Z_StrDup(va("%uM",totalfilesrequestedsize>>20));
+			if (filedownload.totalsize>>20 >= 10)
+				downloadsize = Z_StrDup(va("%uM",filedownload.totalsize>>20));
 			else
-				downloadsize = Z_StrDup(va("%uK",totalfilesrequestedsize>>10));
+				downloadsize = Z_StrDup(va("%uK",filedownload.totalsize>>10));
 #endif
 
 			if (cv_showdownloadprompt.value)
@@ -1846,9 +1837,9 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 		{
 #ifdef HAVE_CURL
 			if (serverlist[i].info.httpsource[0])
-				strncpy(http_source, serverlist[i].info.httpsource, MAX_MIRROR_LENGTH);
+				strncpy(filedownload.http_source, serverlist[i].info.httpsource, MAX_MIRROR_LENGTH);
 			else
-				http_source[0] = '\0';
+				filedownload.http_source[0] = '\0';
 #else
 			if (serverlist[i].info.httpsource[0])
 				CONS_Printf("We received a http url from the server, however it will not be used as this build lacks curl support (%s)\n", serverlist[i].info.httpsource);
@@ -1931,12 +1922,12 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 			break;
 #ifdef HAVE_CURL
 		case CL_PREPAREHTTPFILES:
-			if (http_source[0])
+			if (filedownload.http_source[0])
 			{
 				for (i = 0; i < fileneedednum; i++)
 					if (fileneeded[i].status == FS_NOTFOUND || fileneeded[i].status == FS_MD5SUMBAD)
 					{
-						curl_transfers++;
+						filedownload.remaining++;
 					}
 
 				cl_mode = CL_DOWNLOADHTTPFILES;
@@ -1948,8 +1939,8 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 			for (i = 0; i < fileneedednum; i++)
 				if (fileneeded[i].status == FS_NOTFOUND || fileneeded[i].status == FS_MD5SUMBAD)
 				{
-					if (!curl_running)
-						CURLPrepareFile(http_source, i);
+					if (!filedownload.http_running)
+						CURLPrepareFile(filedownload.http_source, i);
 					waitmore = true;
 					break;
 				}
@@ -1957,14 +1948,14 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 			if (waitmore)
 				break; // exit the case
 
-			if (curl_failedwebdownload && !curl_transfers)
+			if (filedownload.http_failed && !filedownload.remaining)
 			{
 				CONS_Printf("One or more files failed to download, falling back to internal downloader\n");
 				cl_mode = CL_CHECKFILES;
 				break;
 			}
 
-			if (!curl_transfers)
+			if (!filedownload.remaining)
 				cl_mode = CL_LOADFILES;
 
 			break;
@@ -2141,7 +2132,7 @@ static void CL_ConnectToServer(void)
 #endif
 
 #ifdef CLIENT_LOADINGSCREEN
-	lastfilenum = -1;
+	filedownload.current = -1;
 #endif
 
 	cl_mode = CL_SEARCHING;
@@ -2526,12 +2517,14 @@ static void Command_connect(void)
 		return;
 	}
 
-	M_ClearMenus(true);
-
-	if (Playing() || demo.title)
+	if (Playing() || demo.title || demo.playback)
 	{
-		if (demo.title)
+		if (demo.title || demo.playback)
+		{
 			G_CheckDemoStatus();
+			if (multiplayer && !demo.title) // dumb hack: G_CheckDemoStatus doesent call G_StopDemo for multiplayer demos
+				G_StopDemo();
+		}
 
 		if (netgame)
 		{
@@ -2541,6 +2534,8 @@ static void Command_connect(void)
 
 		D_StartTitle();
 	}
+	else
+		M_ClearMenus(true); // close the menus
 
 	// modified game check: no longer handled
 	// we don't request a restart unless the filelist differs
@@ -2629,6 +2624,7 @@ void CL_ClearPlayer(INT32 playernum)
 			P_RemoveMobj(players[playernum].mo->tracer);
 		P_RemoveMobj(players[playernum].mo);
 	}
+
 	memset(&players[playernum], 0, sizeof (player_t));
 }
 
@@ -2706,7 +2702,7 @@ void CL_RemovePlayer(INT32 playernum, INT32 reason)
 	// remove avatar of player
 	playeringame[playernum] = false;
 	playernode[playernum] = UINT8_MAX;
-	while (!playeringame[doomcom->numslots-1] && doomcom->numslots > 1)
+	while ((doomcom->numslots > 1) && !playeringame[doomcom->numslots-1])
 		doomcom->numslots--;
 
 	// Reset the name
@@ -2776,18 +2772,18 @@ void CL_Reset(void)
 	memset(packetstat, 0, sizeof(packetstat));
 
 #ifndef NONET
-	totalfilesrequestednum = 0;
-	totalfilesrequestedsize = 0;
+	filedownload.totalnum = 0;
+	filedownload.totalsize = 0;
 #endif
 	firstconnectattempttime = 0;
 	serverisfull = false;
 	connectiontimeout = (tic_t)cv_nettimeout.value; //reset this temporary hack
 
 #ifdef HAVE_CURL
-	curl_failedwebdownload = false;
-	curl_transfers = 0;
-	curl_running = false;
-	http_source[0] = '\0';
+	filedownload.remaining = 0;
+	filedownload.http_failed = false;
+	filedownload.http_running = false;
+	filedownload.http_source[0] = '\0';
 #endif
 	G_ResetAllDeviceRumbles();
 
@@ -3725,6 +3721,9 @@ void D_QuitNetGame(void)
 		HSendPacket(servernode, true, 0, 0);
 	}
 
+#ifdef SEENAMES
+	seenplayer = NULL;
+#endif
 	D_CloseConnection();
 	ClearAdminPlayers();
 
@@ -5486,7 +5485,8 @@ static void Local_Maketic(INT32 realtics)
 	D_ProcessEvents(); // menu responder, cons responder,
 	                   // game responder calls HU_Responder, AM_Responder, F_Responder,
 	                   // and G_MapEventsToControls
-	if (!dedicated) rendergametic = gametic;
+	if (!dedicated)
+		rendergametic = gametic;
 
 	// translate inputs (keyboard/mouse/joystick) into game controls
 	for (i = 0; i <= splitscreen; i++)
@@ -5668,6 +5668,7 @@ static inline void PingUpdate(void)
 	INT32 i;
 	UINT8 pingkick[MAXPLAYERS];
 	UINT8 nonlaggers = 0;
+
 	memset(pingkick, 0, sizeof(pingkick));
 
 	netbuffer->packettype = PT_PING;

@@ -557,14 +557,9 @@ void P_PlayRinglossSound(mobj_t *source, mobj_t *damager)
 		{
 			sfxenum_t sfx = sfx_khurt1 + key;
 
-			INT32 skinnum = -1;
-
 			// I HATE LOCALSKINS! I HATE LOCALSKINS! :AAAAAAAAAA:
 			if (source->player)
-				skinnum = source->player->skinlocal ? (source->player->localskin - 1) : source->player->skin;
-
-			if (skinnum >= 0)
-				sfx = (source->player->skinlocal ? localskins : skins)[skinnum].soundsid[SKSKPAN1 + key];
+				sfx = K_GetPlayerSkin(source->player)->soundsid[SKSKPAN1 + key];
 
 			S_StartSound(NULL, sfx);
 		}
@@ -1195,9 +1190,9 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 	ghost->tics = -1;
 	ghost->frame &= ~FF_TRANSMASK;
 	ghost->frame |= tr_trans50<<FF_TRANSSHIFT;
-	ghost->slopepitch = mobj->slopepitch; 
+	ghost->slopepitch = mobj->slopepitch;
 	ghost->sloperoll = mobj->sloperoll;
-	
+
 	ghost->fuse = ghost->info->damage;
 	ghost->skin = mobj->skin;
 	ghost->localskin = mobj->localskin;
@@ -1224,6 +1219,10 @@ mobj_t *P_SpawnGhostMobj(mobj_t *mobj)
 	ghost->old_sloperoll = mobj->old_sloperoll2;
 	ghost->old_slopepitch = mobj->old_slopepitch2;
 	ghost->old_scale = mobj->old_scale2;
+	ghost->old_spritexscale = mobj->old_spritexscale2;
+	ghost->old_spriteyscale = mobj->old_spriteyscale2;
+	ghost->old_spritexoffset = mobj->old_spritexoffset2;
+	ghost->old_spriteyoffset = mobj->old_spriteyoffset2;
 
 	return ghost;
 }
@@ -1248,41 +1247,23 @@ void P_DoPlayerExit(player_t *player)
 		player->exiting = raceexittime+2;
 		K_KartUpdatePosition(player);
 
-		if (!P_MobjWasRemoved(player->mo) && cv_kartvoices.value)
+		if (cv_kartvoices.value && !P_MobjWasRemoved(player->mo))
 		{
+			const int soundid = K_IsPlayerLosing(player) ? sfx_klose: sfx_kwin; // fix godjjsa win sounds
+
 			if (P_IsLocalPlayer(player))
 			{
-				sfxenum_t sfx_id;
-				// fix godjjsa win sounds
-				if (K_IsPlayerLosing(player)) {
-					if (player->mo->localskin)
-						sfx_id = ((skin_t *)player->mo->localskin)->soundsid[S_sfx[sfx_klose].skinsound];
-					else
-						sfx_id = ((skin_t *)player->mo->skin)->soundsid[S_sfx[sfx_klose].skinsound];
-				}
-				else {
-					if (player->mo->localskin)
-						sfx_id = ((skin_t *)player->mo->localskin)->soundsid[S_sfx[sfx_kwin].skinsound];
-					else
-						sfx_id = ((skin_t *)player->mo->skin)->soundsid[S_sfx[sfx_kwin].skinsound];
-				}
+				sfxenum_t sfx_id = K_GetMobjSkin(player->mo)->soundsid[S_sfx[soundid].skinsound];
 				S_StartSound(NULL, sfx_id);
 			}
 			else
 			{
-				if (K_IsPlayerLosing(player))
-					S_StartSound(player->mo, sfx_klose);
-				else
-					S_StartSound(player->mo, sfx_kwin);
+				S_StartSound(player->mo, soundid);
 			}
 		}
 
 		if (cv_inttime.value > 0)
 			P_EndingMusic(player);
-
-		// SRB2kart 120217
-		//if (!exitcountdown)
-			//exitcountdown = racecountdown + 8*TICRATE;
 
 		if (P_CheckRacers())
 			player->exiting = raceexittime+1;
@@ -1301,9 +1282,6 @@ void P_DoPlayerExit(player_t *player)
 
 	if (player == &players[consoleplayer])
 		demo.savebutton = leveltime;
-
-	/*if (playeringame[player-players] && netgame && !circuitmap)
-		CONS_Printf(M_GetText("%s has completed the level.\n"), player_names[player-players]);*/
 }
 
 #define SPACESPECIAL 12
@@ -1326,8 +1304,9 @@ boolean P_InSpaceSector(mobj_t *mo) // Returns true if you are in space
 
 			if (GETSECSPECIAL(rover->master->frontsector->special, 1) != SPACESPECIAL)
 				continue;
-			topheight = *rover->t_slope ? P_GetZAt(*rover->t_slope, mo->x, mo->y) : *rover->topheight;
-			bottomheight = *rover->b_slope ? P_GetZAt(*rover->b_slope, mo->x, mo->y) : *rover->bottomheight;
+
+			topheight    = P_GetFFloorTopZAt(rover, mo->x, mo->y);
+			bottomheight = P_GetFFloorBottomZAt(rover, mo->x, mo->y);
 
 			if (mo->z + (mo->height/2) > topheight)
 				continue;
@@ -1361,8 +1340,8 @@ boolean P_InQuicksand(mobj_t *mo) // Returns true if you are in quicksand
 			if (!(rover->flags & FF_QUICKSAND))
 				continue;
 
-			topheight = *rover->t_slope ? P_GetZAt(*rover->t_slope, mo->x, mo->y) : *rover->topheight;
-			bottomheight = *rover->b_slope ? P_GetZAt(*rover->b_slope, mo->x, mo->y) : *rover->bottomheight;
+			topheight    = P_GetFFloorTopZAt(rover, mo->x, mo->y);
+			bottomheight = P_GetFFloorBottomZAt(rover, mo->x, mo->y);
 
 			if (mo->z + flipoffset > topheight)
 				continue;
@@ -1653,8 +1632,8 @@ static void P_CheckQuicksand(player_t *player)
 		if (!(rover->flags & FF_QUICKSAND))
 			continue;
 
-		topheight = *rover->t_slope ? P_GetZAt(*rover->t_slope, player->mo->x, player->mo->y) : *rover->topheight;
-		bottomheight = *rover->b_slope ? P_GetZAt(*rover->b_slope, player->mo->x, player->mo->y) : *rover->bottomheight;
+		topheight    = P_GetFFloorTopZAt(rover, player->mo->x, player->mo->y);
+		bottomheight = P_GetFFloorBottomZAt(rover, player->mo->x, player->mo->y);
 
 		if (topheight >= player->mo->z && bottomheight < player->mo->z + player->mo->height)
 		{
@@ -2142,12 +2121,16 @@ static void P_SpectatorMovement(player_t *player)
 void P_BlackOw(player_t *player)
 {
 	INT32 i;
-	S_StartSound (player->mo, sfx_bkpoof); // Sound the BANG!
+	S_StartSound(player->mo, sfx_bkpoof); // Sound the BANG!
 
 	for (i = 0; i < MAXPLAYERS; i++)
-		if (playeringame[i] && P_AproxDistance(player->mo->x - players[i].mo->x,
-			player->mo->y - players[i].mo->y) < 1536*FRACUNIT)
+	{
+		if (!playeringame[i])
+			continue;
+
+		if (P_AproxDistance(player->mo->x - players[i].mo->x, player->mo->y - players[i].mo->y) < 1536*FRACUNIT)
 			P_FlashPal(&players[i], PAL_NUKE, 10);
+	}
 
 	P_NukeEnemies(player->mo, player->mo, 1536*FRACUNIT); // Search for all nearby enemies and nuke their pants off!
 	player->powers[pw_shield] = player->powers[pw_shield] & SH_STACK;
@@ -2177,12 +2160,15 @@ void P_ElementalFireTrail(player_t *player)
 	{
 		newx = player->mo->x + P_ReturnThrustX(player->mo, travelangle + ((i&1) ? -1 : 1)*ANGLE_135, FixedMul(24*FRACUNIT, player->mo->scale));
 		newy = player->mo->y + P_ReturnThrustY(player->mo, travelangle + ((i&1) ? -1 : 1)*ANGLE_135, FixedMul(24*FRACUNIT, player->mo->scale));
+
 		if (player->mo->standingslope)
 		{
-			ground = P_GetZAt(player->mo->standingslope, newx, newy);
+			ground = P_GetSlopeZAt(player->mo->standingslope, newx, newy);
+
 			if (player->mo->eflags & MFE_VERTICALFLIP)
 				ground -= FixedMul(mobjinfo[MT_SPINFIRE].height, player->mo->scale);
 		}
+
 		flame = P_SpawnMobj(newx, newy, ground, MT_SPINFIRE);
 		P_SetTarget(&flame->target, player->mo);
 		flame->angle = travelangle;
@@ -2193,6 +2179,7 @@ void P_ElementalFireTrail(player_t *player)
 
 		flame->momx = 8;
 		P_XYMovement(flame);
+
 		if (P_MobjWasRemoved(flame))
 			continue;
 
@@ -2295,7 +2282,9 @@ static void P_MovePlayer(player_t *player)
 		{
 			player->lturn_max[leveltime%MAXPREDICTTICS] = K_GetKartTurnValue(player, KART_FULLTURN)+1;
 			player->rturn_max[leveltime%MAXPREDICTTICS] = K_GetKartTurnValue(player, -KART_FULLTURN)-1;
-		} else {
+		}
+		else
+		{
 			player->lturn_max[leveltime%MAXPREDICTTICS] = player->rturn_max[leveltime%MAXPREDICTTICS] = 0;
 		}
 
@@ -3730,6 +3719,33 @@ static boolean P_CheckNoclipCameraPosition(player_t *player, camera_t *thiscam, 
 }
 #endif
 
+static void P_MoveCameraToSpawn(UINT8 playernum)
+{
+	camera_t *thiscam = &camera[playernum];
+	player_t *player = playernum == 0 ? &players[consoleplayer] : &players[displayplayers[playernum]];
+
+	if (!thiscam || !player->mo)
+		return;
+
+	thiscam->x = player->mo->x - P_ReturnThrustX(player->mo, thiscam->angle, player->mo->radius);
+	thiscam->y = player->mo->y - P_ReturnThrustY(player->mo, thiscam->angle, player->mo->radius);
+	if (player->mo->eflags & MFE_VERTICALFLIP)
+		thiscam->z = player->mo->z + player->mo->height - (32<<FRACBITS) - 16*FRACUNIT;
+	else
+		thiscam->z = player->mo->z + (32<<FRACBITS);
+
+	thiscam->reset = true;
+
+	thiscam->angle = player->mo->angle;
+	thiscam->aiming = 0;
+
+	thiscam->subsector = R_PointInSubsector(thiscam->x,thiscam->y);
+
+	thiscam->reset_aiming = true;
+
+	R_ResetViewInterpolation(playernum);
+}
+
 boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcalled)
 {
 	static boolean lookbackactive[MAXSPLITSCREENPLAYERS];
@@ -3763,6 +3779,13 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 
 	if (thiscam->freecam || player->spectator)
 	{
+		// idk if this is the best place?
+		if (player->spectator && InputDown(gc_freecam, num+1))
+		{
+			P_MoveCameraToSpawn(num);
+			return true; // dont move while you hold this
+		}
+
 		P_DemoCameraMovement(thiscam, num);
 		P_CalcChasePostImg(player, thiscam);
 		return true;
@@ -4436,6 +4459,36 @@ DoABarrelRoll (player_t *player)
 		player->tilt = slope;
 }
 
+// mhhm this is definitely not mostly copy pasted code from SRB2s music test (:
+// TODO: make this sane lmao
+static void P_DoFunnyDance(player_t *player)
+{
+	fixed_t bpm; // 140bpm ish
+
+	if (player->spectator || !player->mo || player->kartstuff[k_respawn] || player->mo->salty_jump) // this looks jank as hell during hop
+		return;
+
+	player->squishdance.bounce = 0;
+
+	// bpm = FixedDiv((60*TICRATE)<<FRACBITS, FLOAT_TO_FIXED(mapmusic.bpm)); << maybe can get the tempo and beat detection lib to work for bpm autodetection
+	bpm = FixedDiv((60*TICRATE)<<FRACBITS, FLOAT_TO_FIXED((float)cv_squishdancespeed.value));
+
+	player->squishdance.work = (player->squishdance.time << FRACBITS) % bpm;
+
+	if (player->squishdance.time >= (FRACUNIT >> 1)) // prevent overflow jump - takes about 15 minutes
+		player->squishdance.time = (player->squishdance.work >> FRACBITS);
+
+	player->squishdance.work = FixedDiv(player->squishdance.work*180, bpm);
+
+	player->squishdance.ang = ((FixedAngle(player->squishdance.work) >> ANGLETOFINESHIFT) & FINEMASK);
+	player->squishdance.bounce = ((FINESINE(player->squishdance.ang) - FRACUNIT/2) / 2);
+
+	player->mo->spritexscale -= player->squishdance.bounce;
+	player->mo->spriteyscale += player->squishdance.bounce;
+
+	player->squishdance.time++;
+}
+
 #define SPINOUTROTSPEED (24 * FRACUNIT)
 #define MAXSPINROT (360 * FRACUNIT)
 
@@ -4711,7 +4764,7 @@ void P_PlayerThink(player_t *player)
 				continue;
 			break;
 		}
-		
+
 		if (i < MAXPLAYERS && !player->spectator && !player->exiting && !(player->pflags & PF_TIMEOVER))
 		{
 			const tic_t griefval = cv_antigrief.value * TICRATE;
@@ -4971,6 +5024,19 @@ void P_PlayerThink(player_t *player)
 
 	if (player->losstime && !player->powers[pw_flashing])
 		player->losstime--;
+
+	if (cv_squishdance.value && (cmd->buttons & BT_CUSTOM3))
+	{
+		player->squishdance.countdown++;
+
+		if (player->squishdance.countdown > TICRATE*2)
+			P_DoFunnyDance(player);
+	}
+	else
+	{
+		player->squishdance.countdown = 0;
+		player->squishdance.time = 0;
+	}
 
 	// Flash player after being hit.
 	if (!(player->kartstuff[k_hyudorotimer] // SRB2kart - fixes Hyudoro not flashing when it should.

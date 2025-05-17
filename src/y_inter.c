@@ -448,30 +448,23 @@ static void Y_PlayerStandingsDrawer(y_data_t *standings, INT32 x, INT32 hilicol)
 				{
 					UINT8 *colormap = R_GetTranslationColormap(*standings->character[i], *standings->color[i], GTC_CACHE);
 					INT32 skinnum = (player->localskin ? (player->localskin - 1) : *standings->character[i]);
-					patch_t *faceprefix = NULL;
-
-					if (!player->skinlocal)
-						faceprefix = (cv_highresportrait.value ? facewantprefix[skinnum] : facerankprefix[skinnum]);
-					else
-						faceprefix = (cv_highresportrait.value ? localfacewantprefix[skinnum] : localfacerankprefix[skinnum]);
+					patch_t *faceprefix = K_GetFacePrefix(player, skinnum);
 
 					if (manyplayers16)
 					{
-						if (cv_highresportrait.value)
-							V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/4, 0, faceprefix, colormap);
-						else
-							V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, FRACUNIT/2, 0, faceprefix, colormap);
+						fixed_t scale = K_UseHighResPortraits() ? FRACUNIT/4 : FRACUNIT/2;
+						V_DrawFixedPatch((x+8)<<FRACBITS, (y+1)<<FRACBITS, scale, 0, faceprefix, colormap);
 					}
 					else
 					{
-						if (cv_highresportrait.value)
+						if (K_UseHighResPortraits())
 							V_DrawSmallMappedPatch(x + 16, y - 4, 0, faceprefix, colormap);
 						else
 							V_DrawMappedPatch(x + 16, y - 4, 0, faceprefix, colormap);
 					}
 				}
 
-				if (whiteplayer && standings->numplayers <= NUMFORNEWCOLUMN*2)
+				if (pnum == whiteplayer && standings->numplayers <= NUMFORNEWCOLUMN*2)
 				{
 					UINT8 cursorframe = (intertic / 4) % 8;
 					V_DrawScaledPatch(x+16, y-4, 0, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_CACHE));
@@ -707,8 +700,6 @@ void Y_Ticker(void)
 
 		if (demo.savemode == DSM_WILLSAVE || demo.savemode == DSM_WILLAUTOSAVE)
 			G_SaveDemo();
-		else if (demo.savemode != DSM_TITLEENTRY)
-			G_ResetDemoRecording();
 	}
 
 	// Check for pause or menu up in single player
@@ -970,7 +961,7 @@ void Y_StartIntermission(void)
 			break;
 	}
 
-	bgtile = W_CachePatchName("SRB2BACK", PU_STATIC);
+	bgtile = W_CachePatchName("SRB2BACK", PU_PATCH);
 
 	LUA_HUD_DestroyDrawList(luahuddrawlist_intermission);
 	luahuddrawlist_intermission = LUA_HUD_CreateDrawList();
@@ -1001,7 +992,7 @@ static void Y_FollowIntermission(void)
 	G_AfterIntermission();
 }
 
-#define UNLOAD(x) Z_ChangeTag(x, PU_CACHE); x = NULL
+#define UNLOAD(x) if (x) {Patch_Free(x);} x = NULL;
 
 //
 // Y_UnloadData
@@ -1036,9 +1027,9 @@ static void Y_DrawAnimatedVoteScreenPatch(boolean widePatch)
 	if (currentAnimFrame > tempFoundAnimVoteFrames - 1)
 		currentAnimFrame = 0;
 
-	patch_t *background = W_CachePatchName(va("%s%d", tempAnimPrefix, currentAnimFrame + 1), PU_CACHE);
-	V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(background->width)/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
-				(vid.height / vid.dupy) - SHORT(background->height),
+	patch_t *background = W_CachePatchName(va("%s%d", tempAnimPrefix, currentAnimFrame + 1), PU_PATCH);
+	V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (background->width/2), // Keep the width/height adjustments, for screens that are less wide than 320(?)
+				(vid.height / vid.dupy) - background->height,
 				V_SNAPTOTOP|V_SNAPTOLEFT, background);
 
 	if (renderisnewtic && votetic % 2 == 0 && !paused)
@@ -1068,8 +1059,8 @@ static void Y_DrawVoteScreenPatch(void)
 		votebg = widebgpatch;
 	}
 
-	V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (SHORT(votebg->width)/2),
-					  (vid.height / vid.dupy) - SHORT(votebg->height),
+	V_DrawScaledPatch(((vid.width/2) / vid.dupx) - (votebg->width/2),
+					  (vid.height / vid.dupy) - votebg->height,
 					  V_SNAPTOTOP|V_SNAPTOLEFT, votebg);
 }
 
@@ -1162,7 +1153,7 @@ void Y_VoteDrawer(void)
 		if (i < rowval)
 			height += 5-splitscreen;
 	}
-	
+
 	height /= votemax;
 
 	y = (200-height)/2;
@@ -1288,7 +1279,7 @@ void Y_VoteDrawer(void)
 				else // literally almost entirely covers the map icon, let's just mark it red or something
 				{
 					V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 8, V_SNAPTORIGHT|31);
-					V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 6, V_SNAPTORIGHT|levelinfo[i].gtc); 
+					V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 6, V_SNAPTORIGHT|levelinfo[i].gtc);
 				}
 			}
 
@@ -1320,7 +1311,7 @@ void Y_VoteDrawer(void)
 				V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 8, V_SNAPTORIGHT|31);
 				V_DrawDiag(BASEVIDWIDTH-(1200/hypotdiv)-scaledpicdiff, y, 6, V_SNAPTORIGHT|levelinfo[i].gtc);
 			}
-			
+
 			y += ((25*10) / (hypotdiv/2));
 			lvls += 1;
 
@@ -1337,7 +1328,7 @@ void Y_VoteDrawer(void)
 		y += 5-splitscreen;
 		lvls += 1;
 
-		
+
 		if (lvls >= 6)
 		{
 			lvls = -2;
@@ -1356,7 +1347,9 @@ void Y_VoteDrawer(void)
 		if (dedicated && i == 0) // While leaving blank spots for non-existent players is largely intentional, the first spot *always* being blank looks a tad silly :V
 			continue;
 
-		if ((playeringame[i] && !players[i].spectator) && votes[i] != -1)
+		player_t *player = &players[i];
+
+		if ((playeringame[i] && !player->spectator) && votes[i] != -1)
 		{
 			patch_t *pic;
 
@@ -1388,19 +1381,22 @@ void Y_VoteDrawer(void)
 				V_DrawDiag(x, y, 6, V_SNAPTOLEFT|levelinfo[votes[i]].gtc);
 			}
 
-			if (players[i].skincolor)
+			if (player->skincolor)
 			{
-				UINT8 *colormap = R_GetTranslationColormap(players[i].skin, players[i].skincolor, GTC_CACHE);
-				if (cv_highresportrait.value)
-					V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, (players[i].skinlocal ? localfacewantprefix : facewantprefix)[((players[i].localskin) ? players[i].localskin-1 : players[i].skin)], colormap);
+				UINT8 *colormap = R_GetTranslationColormap(player->skin, player->skincolor, GTC_CACHE);
+
+				patch_t *faceprefix = K_GetFacePrefix(player, K_GetSkinNum(player));
+
+				if (K_UseHighResPortraits())
+					V_DrawSmallMappedPatch(x+24, y+9, V_SNAPTOLEFT, faceprefix, colormap);
 				else
-					V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, (players[i].skinlocal ? localfacerankprefix : facerankprefix)[((players[i].localskin) ? players[i].localskin-1 : players[i].skin)], colormap);
+					V_DrawMappedPatch(x+24, y+9, V_SNAPTOLEFT, faceprefix, colormap);
 			}
 
 			if (!splitscreen && i == consoleplayer)
 			{
 				UINT8 cursorframe = (votetic / 4) % 8;
-				V_DrawScaledPatch(x+24, y+9, V_SNAPTOLEFT, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_CACHE));
+				V_DrawScaledPatch(x+24, y+9, V_SNAPTOLEFT, W_CachePatchName(va("K_CHILI%d", cursorframe+1), PU_PATCH));
 			}
 		}
 
@@ -1619,7 +1615,7 @@ void Y_VoteTicker(void)
 					voteclient.playerinfo[i].selection++;
 					pressed = true;
 				}
-				
+
 				if (votemax > 1) // only allow side-movements for multi-row selections
 				{
 					// HORRIBLE hack, my GOD
@@ -1627,7 +1623,7 @@ void Y_VoteTicker(void)
 					{
 						if ((voteclient.playerinfo[i].selection) <= votewrap)
 							voteclient.playerinfo[i].selection += 4;
-						else 
+						else
 							voteclient.playerinfo[i].selection -= ((votemax-1)*4);
 
 						pressed = true;
@@ -1637,7 +1633,7 @@ void Y_VoteTicker(void)
 					{
 						if (voteclient.playerinfo[i].selection > 3)
 							voteclient.playerinfo[i].selection -= 4;
-						else 
+						else
 							voteclient.playerinfo[i].selection += ((votemax-1)*4);
 
 						pressed = true;
@@ -1715,15 +1711,15 @@ void Y_StartVote(void)
 
 	Y_AnimatedVoteScreenCheck();
 
-	widebgpatch = W_CachePatchName(((prefgametype == GT_MATCH) ? "BATTLSCW" : "INTERSCW"), PU_STATIC);
-	bgpatch = W_CachePatchName(((prefgametype == GT_MATCH) ? "BATTLSCR" : "INTERSCR"), PU_STATIC);
-	cursor = W_CachePatchName("M_CURSOR", PU_STATIC);
-	cursor1 = W_CachePatchName("P1CURSOR", PU_STATIC);
-	cursor2 = W_CachePatchName("P2CURSOR", PU_STATIC);
-	cursor3 = W_CachePatchName("P3CURSOR", PU_STATIC);
-	cursor4 = W_CachePatchName("P4CURSOR", PU_STATIC);
-	randomlvl = W_CachePatchName("RANDOMLV", PU_STATIC);
-	rubyicon = W_CachePatchName("RUBYICON", PU_STATIC);
+	widebgpatch = W_CachePatchName(((prefgametype == GT_MATCH) ? "BATTLSCW" : "INTERSCW"), PU_PATCH);
+	bgpatch = W_CachePatchName(((prefgametype == GT_MATCH) ? "BATTLSCR" : "INTERSCR"), PU_PATCH);
+	cursor = W_CachePatchName("M_CURSOR", PU_PATCH);
+	cursor1 = W_CachePatchName("P1CURSOR", PU_PATCH);
+	cursor2 = W_CachePatchName("P2CURSOR", PU_PATCH);
+	cursor3 = W_CachePatchName("P3CURSOR", PU_PATCH);
+	cursor4 = W_CachePatchName("P4CURSOR", PU_PATCH);
+	randomlvl = W_CachePatchName("RANDOMLV", PU_PATCH);
+	rubyicon = W_CachePatchName("RUBYICON", PU_PATCH);
 
 	timer = cv_votetime.value*TICRATE;
 	pickedvote = -1;
@@ -1791,9 +1787,9 @@ void Y_StartVote(void)
 		// set up the pic
 		lumpnum = W_CheckNumForName(va("%sP", G_BuildMapName(votelevels[i][0]+1)));
 		if (lumpnum != LUMPERROR)
-			levelinfo[i].pic = W_CachePatchName(va("%sP", G_BuildMapName(votelevels[i][0]+1)), PU_STATIC);
+			levelinfo[i].pic = W_CachePatchName(va("%sP", G_BuildMapName(votelevels[i][0]+1)), PU_PATCH);
 		else
-			levelinfo[i].pic = W_CachePatchName("BLANKLVL", PU_STATIC);
+			levelinfo[i].pic = W_CachePatchName("BLANKLVL", PU_PATCH);
 	}
 
 	voteclient.loaded = true;
