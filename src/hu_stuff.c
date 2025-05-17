@@ -1249,7 +1249,7 @@ void HU_Ticker(void)
 
 	// Animate the desynch dots
 	if (hu_redownloadinggamestate)
-		resynch_ticker++;	//tic tic tic tic tic	
+		resynch_ticker++;	//tic tic tic tic tic
 
 	HU_TickSongCredits();
 }
@@ -2669,20 +2669,15 @@ static void HU_DrawSpectatorTicker(void)
 
 			if (player->mo && player->mo->color)
 			{
-				player_t *player;
-				player = &players[i];
+				const UINT8 *colormap = R_GetTranslationColormap(player->skin, player->mo->color, GTC_CACHE);
+				if (player->mo->colorized)
+					colormap = R_GetTranslationColormap(TC_RAINBOW, player->mo->color, GTC_CACHE);
 
-				if (player->mo && player->mo->color)
-				{
-					const UINT8 *colormap = R_GetTranslationColormap(player->skin, player->mo->color, GTC_CACHE);
-					if (player->mo->colorized)
-						colormap = R_GetTranslationColormap(TC_RAINBOW, player->mo->color, GTC_CACHE);
-
-					if (K_UseHighResPortraits())
-						V_DrawSmallMappedPatch((templength - duptweak), height+10, V_TRANSLUCENT, R_GetSkinFaceWant(player), colormap);
-					else
-						V_DrawMappedPatch((templength - duptweak), height+10, V_TRANSLUCENT, R_GetSkinFaceRank(player), colormap);
-				}
+				if (K_UseHighResPortraits())
+					V_DrawSmallMappedPatch((templength - duptweak), height+10, V_TRANSLUCENT, R_GetSkinFaceWant(player), colormap);
+				else
+					V_DrawMappedPatch((templength - duptweak), height+10, V_TRANSLUCENT, R_GetSkinFaceRank(player), colormap);
+			}
 
 			if ((netgame && i != serverplayer) || (cv_mindelay.value && P_IsLocalPlayer(player)))
 			{

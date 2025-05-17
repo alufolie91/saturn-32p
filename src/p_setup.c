@@ -3051,6 +3051,8 @@ boolean P_SetupLevel(boolean fromnetsave, boolean reloadinggamestate)
 	memset(playerstarts, 0, sizeof(playerstarts));
 	memset(skyboxmo, 0, sizeof(skyboxmo));
 
+	P_ResetWaypoints();
+
 	P_MapStart();
 
 	if (lastloadedmaplumpnum)
