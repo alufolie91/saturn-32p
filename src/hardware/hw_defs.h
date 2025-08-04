@@ -121,41 +121,32 @@ typedef struct
 	poly_t *planepoly;  // the generated convex polygon
 } extrasubsector_t;
 
-// Kart features
-#define USE_FTRANSFORM_ANGLEZ
-#define USE_FTRANSFORM_MIRROR
-
 // Vanilla features
 //#define USE_MODEL_NEXTFRAME
 
 typedef struct
 {
 	FLOAT       x,y,z;           // position
-#ifdef USE_FTRANSFORM_ANGLEZ
 	FLOAT       anglex, angley, anglez;   // aimingangle / viewangle
-	FLOAT       anglex2, anglez2;        // secondaries
-#else
-	FLOAT       anglex, angley;   // aimingangle / viewangle
-	FLOAT       anglex2;         // secondaries
-#endif
 	FLOAT       scalex, scaley, scalez;
-	FLOAT       spritexscale, spriteyscale;
-	FLOAT       fovxangle, fovyangle;
+	FLOAT       fovangle;
 	UINT8       splitscreen;
-	boolean     flip;            // screenflip
 	boolean     roll;
-	boolean     rollmodel;
-	SINT8       rollflip;
 	FLOAT       rollangle;
-	UINT8       rotaxis;
 	FLOAT       centerx, centery;
-#ifdef USE_FTRANSFORM_MIRROR
-	boolean     mirror;          // SRB2Kart: Encore Mode
-	boolean     mirrorflip;      // Encore Mode with Flipcam
-#endif
+	FLOAT       rollx, rollz;
+	UINT8       fliptype;
 	boolean     shearing;        // 14042019
 	float       viewaiming;      // 17052019
 } FTransform;
+
+enum
+{
+	TRANSFORM_NONE   = 0,
+	TRANSFORM_FLIP   = 1 << 0,                             // screenflip
+	TRANSFORM_MIRROR = 1 << 1,                             // SRB2Kart: Encore Mode
+	TRANSFORM_MIRRORFLIP = TRANSFORM_FLIP|TRANSFORM_MIRROR // SRB2Kart: Encore Mode with Flipcam
+};
 
 // Transformed vector, as passed to HWR API
 typedef struct
@@ -246,22 +237,22 @@ enum EPolyFlags
 {
 	// the first 5 are mutually exclusive
 
-	PF_Masked           = 0x00000001,   // Poly is alpha scaled and 0 alpha pels are discarded (holes in texture)
+	PF_Masked           = 0x00000001,   // Poly is alpha scaled and 0 alpha pixels are discarded (holes in texture)
 	PF_Translucent      = 0x00000002,   // Poly is transparent, alpha = level of transparency
-	PF_Additive         = 0x00000004,   // Poly is added to the frame buffer
-	PF_Environment      = 0x00000008,   // Poly should be drawn environment mapped.
-	                                    // Hurdler: used for text drawing
-	PF_Substractive     = 0x00000010,   // for splat
-	PF_NoAlphaTest      = 0x00000020,   // hiden param
-	PF_Fog              = 0x00000040,   // Fog blocks
-	PF_Blending         = (PF_Environment|PF_Additive|PF_Translucent|PF_Masked|PF_Substractive|PF_Fog)&~PF_NoAlphaTest,
+	PF_Environment      = 0x00000004,   // Poly should be drawn environment mapped. (Hurdler: used for text drawing)
+	PF_Additive         = 0x00000008,   // Source blending factor is additive.
+	PF_Subtractive      = 0x00000010,   // Subtractive color blending
+	PF_ReverseSubtract  = 0x00000020,   // Reverse subtract, used in wall splats (decals)
+	PF_Multiplicative   = 0x00000040,   // Multiplicative color blending
+	PF_Fog              = 0x20000000,   // Fog blocks
+	PF_NoAlphaTest      = 0x40000000,   // Disables alpha testing
+	PF_Blending         = (PF_Masked|PF_Translucent|PF_Environment|PF_Additive|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative|PF_Fog) & ~PF_NoAlphaTest,
 
 	// other flag bits
-
-	PF_Occlude          = 0x00000100,   // Update the depth buffer
-	PF_NoDepthTest      = 0x00000200,   // Disable the depth test mode
-	PF_Invisible        = 0x00000400,   // Disable write to color buffer
-	PF_Decal            = 0x00000800,   // Enable polygon offset
+	PF_Occlude          = 0x00000100,   // Updates the depth buffer
+	PF_NoDepthTest      = 0x00000200,   // Disables the depth test mode
+	PF_Invisible        = 0x00000400,   // Disables write to color buffer
+	PF_Decal            = 0x00000800,   // Enables polygon offset
 	PF_Modulated        = 0x00001000,   // Modulation (multiply output with constant RGBA)
 	                                    // When set, pass the color constant into the FSurfaceInfo -> FlatColor
 	PF_NoTexture        = 0x00002000,   // Disable texture
@@ -270,7 +261,8 @@ enum EPolyFlags
 	PF_RemoveYWrap      = 0x00010000,   // Force clamp texture on Y
 	PF_ForceWrapX       = 0x00020000,   // Force repeat texture on X
 	PF_ForceWrapY       = 0x00040000,   // Forces repeat texture on Y
-	PF_Ripple           = 0x00100000    // Water ripple effect. The current backend doesn't use it for anything.
+	PF_Ripple           = 0x00100000,   // Water ripple effect. The current backend doesn't use it for anything.
+	PF_Skydecal         = 0x20000000    // Enables smaller polygon offset, to be used for skywalls only
 	//                    0x20000000
 	//                    0x40000000
 	//                    0x80000000
@@ -325,13 +317,15 @@ enum hwdsetspecialstate
 
 	HWD_SET_TEXTUREFILTERMODE,
 	HWD_SET_TEXTUREANISOTROPICMODE,
-	
+
 	HWD_SET_MSAA,
 
 	HWD_SET_SCREEN_TEXTURES,
 
 	HWD_SET_PORTAL_MODE,// new portal thing
 	HWD_SET_STENCIL_LEVEL,
+
+	HWD_SET_TEXTURE_FORMAT,
 
 	HWD_NUMSTATE
 };

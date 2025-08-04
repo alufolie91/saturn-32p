@@ -45,10 +45,6 @@ extern boolean g_in_exiting_signal_handler;
 */
 size_t I_GetFreeMem(size_t *total);
 
-/**	\brief	Fills a buffer with random data, returns amount of data obtained.
-  */
-size_t I_GetRandomBytes(char *destination, size_t count);
-
 /**	\brief	Returns precise time value for performance measurement. The precise
             time should be a monotonically increasing counter, and will wrap.
 			precise_t is internally represented as an unsigned integer and
@@ -116,77 +112,6 @@ ticcmd_t *I_BaseTiccmd4(void);
 */
 void I_Quit(void) FUNCNORETURN;
 
-typedef enum
-{
-	EvilForce = -1,
-	//Constant
-	ConstantForce = 0,
-	//Ramp
-	RampForce,
-	//Periodics
-	SquareForce,
-	SineForce,
-	TriangleForce,
-	SawtoothUpForce,
-	SawtoothDownForce,
-	//MAX
-	NumberofForces,
-} FFType;
-
-typedef struct JoyFF_s
-{
-	INT32 ForceX; ///< The X of the Force's Vel
-	INT32 ForceY; ///< The Y of the Force's Vel
-	//All
-	UINT32 Duration; ///< The total duration of the effect, in microseconds
-	INT32 Gain; //< /The gain to be applied to the effect, in the range from 0 through 10,000.
-	//All, CONSTANTFORCE -10,000 to 10,000
-	INT32 Magnitude; ///< Magnitude of the effect, in the range from 0 through 10,000.
-	//RAMPFORCE
-	INT32 Start; ///< Magnitude at the start of the effect, in the range from -10,000 through 10,000.
-	INT32 End; ///< Magnitude at the end of the effect, in the range from -10,000 through 10,000.
-	//PERIODIC
-	INT32 Offset; ///< Offset of the effect.
-	UINT32 Phase; ///< Position in the cycle of the periodic effect at which playback begins, in the range from 0 through 35,999
-	UINT32 Period; ///< Period of the effect, in microseconds.
-} JoyFF_t;
-
-/**	\brief	Forcefeedback for the first joystick
-
-	\param	Type   what kind of Effect
-	\param	Effect Effect Info
-
-	\return	void
-*/
-
-void I_Tactile(FFType Type, const JoyFF_t *Effect);
-
-/**	\brief	Forcefeedback for the second joystick
-
-	\param	Type   what kind of Effect
-	\param	Effect Effect Info
-
-	\return	void
-*/
-void I_Tactile2(FFType Type, const JoyFF_t *Effect);
-
-/**	\brief	Forcefeedback for the third joystick
-
-\param	Type   what kind of Effect
-\param	Effect Effect Info
-
-\return	void
-*/
-void I_Tactile3(FFType Type, const JoyFF_t *Effect);
-
-/**	\brief	Forcefeedback for the fourth joystick
-
-\param	Type   what kind of Effect
-\param	Effect Effect Info
-
-\return	void
-*/
-void I_Tactile4(FFType Type, const JoyFF_t *Effect);
 
 /**	\brief to set up the first joystick scale
 */
@@ -230,6 +155,8 @@ void I_InitJoystick4(void);
 */
 INT32 I_NumJoys(void);
 
+extern INT32 numcontrollers;
+
 /**	\brief	The *I_GetJoyName function
 
 	\param	joyindex	which joystick
@@ -238,8 +165,8 @@ INT32 I_NumJoys(void);
 */
 const char *I_GetJoyName(INT32 joyindex);
 
-void I_GamepadRumble(INT32 device_id, UINT16 low_strength, UINT16 high_strength, UINT32 duration);
-void I_SetGamepadIndicatorColor(INT32 device_id, UINT8 red, UINT8 green, UINT8 blue);
+void I_GamepadRumble(INT32 playernum, UINT16 low_strength, UINT16 high_strength, UINT32 duration);
+void I_SetGamepadIndicatorColor(INT32 playernum, UINT8 red, UINT8 green, UINT8 blue);
 
 #ifndef NOMUMBLE
 #include "p_mobj.h" // mobj_t
@@ -252,10 +179,6 @@ void I_UpdateMumble(const mobj_t *mobj, const listener_t listener);
 /**	\brief Startup the first mouse
 */
 void I_StartupMouse(void);
-
-/**	\brief Startup the second mouse
-*/
-void I_StartupMouse2(void);
 
 /**	\brief  setup timer irq and user timer routine.
 */
@@ -318,10 +241,6 @@ const char *I_LocateWad(void);
 /**	\brief Joystick events
 */
 void I_GetJoystickEvents(UINT8 index);
-
-/**	\brief Mouses events
-*/
-void I_GetMouseEvents(void);
 
 char *I_GetEnv(const char *name);
 

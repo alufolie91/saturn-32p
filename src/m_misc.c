@@ -110,6 +110,9 @@ consvar_t cv_screenshot_folder = {"screenshot_folder", "", CV_SAVE, NULL, NULL, 
 static CV_PossibleValue_t moviemode_cons_t[] = {{MM_GIF, "GIF"}, {MM_APNG, "aPNG"}, {MM_SCREENSHOT, "Screenshots"}, {0, NULL}};
 consvar_t cv_moviemode = {"moviemode_mode", "GIF", CV_SAVE|CV_CALL, moviemode_cons_t, Moviemode_mode_Onchange, 0, NULL, NULL, 0, 0, NULL};
 
+consvar_t cv_movie_option = {"movie_option", "Default", CV_SAVE|CV_CALL, screenshot_cons_t, Moviemode_option_Onchange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_movie_folder = {"movie_folder", "", CV_SAVE, NULL, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 static CV_PossibleValue_t zlib_mem_level_t[] = {
 	{1, "(Min Memory) 1"},
 	{2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}, {7, "7"},
@@ -440,7 +443,6 @@ char configfile[MAX_WADPATH];
 // ==========================================================================
 //                          CONFIGURATION
 // ==========================================================================
-static boolean gameconfig_loaded = false; // true once config.cfg loaded AND executed
 
 /** Saves a player's config, possibly to a particular file.
   *
@@ -545,10 +547,28 @@ void M_FirstLoadConfig(void)
 	// don't filter anymore vars and don't let this convsvar be changed
 	COM_BufInsertText(va("%s \"%d\"\n", cv_execversion.name, EXECVERSION));
 	CV_ToggleExecVersion(false);
+}
 
-	// make sure I_Quit() will write back the correct config
-	// (do not write back the config if it crash before)
-	gameconfig_loaded = true;
+static boolean M_BackupConfig(const char *filename)
+{
+	char backupfile[MAX_WADPATH+4];
+
+	snprintf(backupfile, sizeof backupfile, "%s.bak", filename);
+	backupfile[sizeof backupfile - 1] = '\0';
+
+	FILE *config = fopen(filename, "r");
+
+	if (config != NULL)
+	{
+		fclose(config);
+		if (FIL_CopyFile(filename, backupfile) == false)
+		{
+			CONS_Alert(CONS_WARNING,"Failed to create a backup of the configuration file. Will not attempt to write to file\n");
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /** Saves the game configuration.
@@ -559,27 +579,10 @@ void M_SaveConfig(const char *filename)
 {
 	FILE *f;
 	char *filepath;
-	char backupfile[MAX_WADPATH+4];
 
 	// make sure not to write back the config until it's been correctly loaded
-	if (!gameconfig_loaded)
+	if (!loaded_config)
 		return;
-
-	// Create backup of the config file
-	snprintf(backupfile, sizeof backupfile, "%s.bak", configfile);
-	backupfile[sizeof backupfile - 1] = '\0';
-
-	FILE *config = fopen(configfile, "r");
-
-	if (config != NULL)
-	{
-		fclose(config);
-		if (FIL_CopyFile(configfile, backupfile) == false)
-		{
-			CONS_Alert(CONS_WARNING,"Failed to create a backup of the configuration file. Will not attempt to write to file\n");
-			return;
-		}
-	}
 
 	// can change the file name
 	if (filename)
@@ -596,6 +599,10 @@ void M_SaveConfig(const char *filename)
 			filepath = va(pandf,srb2home, filename);
 		else
 			filepath = Z_StrDup(filename);
+
+		// If failed to backup, do not proceed
+		if (!M_BackupConfig(filepath))
+			return;
 
 		f = fopen(filepath, "w");
 		// change it only if valid
@@ -614,6 +621,10 @@ void M_SaveConfig(const char *filename)
 			CONS_Alert(CONS_NOTICE, M_GetText("Config filename must be .cfg\n"));
 			return;
 		}
+
+		// If failed to backup, do not proceed
+		if (!M_BackupConfig(configfile))
+			return;
 
 		f = fopen(configfile, "w");
 		if (!f)
@@ -1144,19 +1155,25 @@ static inline moviemode_t M_StartMovieGIF(const char *pathname)
 void M_StartMovie(void)
 {
 #if NUMSCREENS > 2
-	const char *pathname = ".";
+	char pathname[MAX_WADPATH];
 
 	if (moviemode)
 		return;
 
-	if (cv_screenshot_option.value == 0)
-		pathname = usehome ? srb2home : srb2path;
-	else if (cv_screenshot_option.value == 1)
-		pathname = srb2home;
-	else if (cv_screenshot_option.value == 2)
-		pathname = srb2path;
-	else if (cv_screenshot_option.value == 3 && *cv_screenshot_folder.string != '\0')
-		pathname = cv_screenshot_folder.string;
+	if (cv_movie_option.value == 0)
+		strcpy(pathname, usehome ? srb2home : srb2path);
+	else if (cv_movie_option.value == 1)
+		strcpy(pathname, srb2home);
+	else if (cv_movie_option.value == 2)
+		strcpy(pathname, srb2path);
+	else if (cv_movie_option.value == 3 && *cv_movie_folder.string != '\0')
+		strcpy(pathname, cv_movie_folder.string);
+
+	if (cv_movie_option.value != 3)
+	{
+		strcat(pathname, PATHSEP"gifs"PATHSEP);
+		I_mkdir(pathname, 0755);
+	}
 
 	if (rendermode == render_none)
 		I_Error("Can't make a movie without a render system\n");
@@ -1482,7 +1499,8 @@ void M_ScreenShot(void)
 void M_DoScreenShot(void)
 {
 #if NUMSCREENS > 2
-	const char *freename = NULL, *pathname = ".";
+	const char *freename = NULL;
+	char pathname[MAX_WADPATH];
 	boolean ret = false;
 	UINT8 *linear = NULL;
 
@@ -1494,13 +1512,19 @@ void M_DoScreenShot(void)
 		return;
 
 	if (cv_screenshot_option.value == 0)
-		pathname = usehome ? srb2home : srb2path;
+		strcpy(pathname, usehome ? srb2home : srb2path);
 	else if (cv_screenshot_option.value == 1)
-		pathname = srb2home;
+		strcpy(pathname, srb2home);
 	else if (cv_screenshot_option.value == 2)
-		pathname = srb2path;
+		strcpy(pathname, srb2path);
 	else if (cv_screenshot_option.value == 3 && *cv_screenshot_folder.string != '\0')
-		pathname = cv_screenshot_folder.string;
+		strcpy(pathname, cv_screenshot_folder.string);
+
+	if (cv_screenshot_option.value != 3)
+	{
+		strcat(pathname, PATHSEP"screenshots"PATHSEP);
+		I_mkdir(pathname, 0755);
+	}
 
 #ifdef USE_PNG
 	freename = Newsnapshotfile(pathname,"png");
@@ -1566,9 +1590,9 @@ boolean M_ScreenshotResponder(event_t *ev)
 	if (ch >= KEY_MOUSE1 && menuactive) // If it's not a keyboard key, then don't allow it in the menus!
 		return false;
 
-	if (ch == KEY_F8 || ch == gamecontrol[gc_screenshot][0] || ch == gamecontrol[gc_screenshot][1]) // remappable F8
+	if (ch == KEY_F8 || ch == gamecontrol[0][gc_screenshot][0] || ch == gamecontrol[0][gc_screenshot][1]) // remappable F8
 		M_ScreenShot();
-	else if (ch == KEY_F9 || ch == gamecontrol[gc_recordgif][0] || ch == gamecontrol[gc_recordgif][1]) // remappable F9
+	else if (ch == KEY_F9 || ch == gamecontrol[0][gc_recordgif][0] || ch == gamecontrol[0][gc_recordgif][1]) // remappable F9
 		((moviemode) ? M_StopMovie : M_StartMovie)();
 	else
 		return false;
@@ -1651,7 +1675,6 @@ failure:
 	}
 #endif //#ifdef USE_PNG
 }
-
 
 // ==========================================================================
 //                       TRANSLATION FUNCTIONS
@@ -1942,6 +1965,25 @@ char *M_GetToken(const char *inputString)
 	return texturesToken;
 }
 
+
+const char * M_Ftrim (double f)
+{
+	static char dig[9];/* "0." + 6 digits (6 is printf's default) */
+	int i;
+	/* I know I said it's the default, but just in case... */
+	sprintf(dig, "%.6f", fabs(modf(f, &f)));
+	/* trim trailing zeroes */
+	for (i = strlen(dig)-1; dig[i] == '0'; --i)
+		;
+	if (dig[i] == '.')/* :NOTHING: */
+		return "";
+	else
+	{
+		dig[i + 1] = '\0';
+		return &dig[1];/* skip the 0 */
+	}
+}
+
 /** Count bits in a number.
   */
 UINT8 M_CountBits(UINT32 num, UINT8 size)
@@ -2075,4 +2117,95 @@ const char *M_FileError(FILE *fp)
 		return strerror(errno);
 	else
 		return "end-of-file";
+}
+
+/** Return the number of parts of this path.
+*/
+int M_PathParts(const char *path)
+{
+	int n;
+	const char *p;
+	const char *t;
+	if (path == NULL)
+		return 0;
+	for (n = 0, p = path ;; ++n)
+	{
+		t = p;
+		if (( p = strchr(p, PATHSEP[0]) ))
+			p += strspn(p, PATHSEP);
+		else
+		{
+			if (*t)/* there is something after the final delimiter */
+				n++;
+			break;
+		}
+	}
+	return n;
+}
+
+/** Check whether a path is an absolute path.
+*/
+boolean M_IsPathAbsolute(const char *path)
+{
+#ifdef _WIN32
+	return ( strncmp(&path[1], ":\\", 2) == 0 );
+#else
+	return ( path[0] == '/' );
+#endif
+}
+
+/** I_mkdir for each part of the path.
+*/
+void M_MkdirEachUntil(const char *cpath, int start, int end, int mode)
+{
+	char path[MAX_WADPATH];
+	char *p;
+	char *t;
+
+	if (end > 0 && end <= start)
+		return;
+
+	strlcpy(path, cpath, sizeof path);
+#ifdef _WIN32
+	if (strncmp(&path[1], ":\\", 2) == 0)
+		p = &path[3];
+	else
+#endif
+		p = path;
+
+	if (end > 0)
+		end -= start;
+
+	for (; start > 0; --start)
+	{
+		p += strspn(p, PATHSEP);
+		if (!( p = strchr(p, PATHSEP[0]) ))
+			return;
+	}
+	p += strspn(p, PATHSEP);
+	for (;;)
+	{
+		if (end > 0 && !--end)
+			break;
+
+		t = p;
+		if (( p = strchr(p, PATHSEP[0]) ))
+		{
+			*p = '\0';
+			I_mkdir(path, mode);
+			*p = PATHSEP[0];
+			p += strspn(p, PATHSEP);
+		}
+		else
+		{
+			if (*t)
+				I_mkdir(path, mode);
+			break;
+		}
+	}
+}
+
+void M_MkdirEach(const char *path, int start, int mode)
+{
+	M_MkdirEachUntil(path, start, -1, mode);
 }

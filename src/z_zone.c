@@ -149,9 +149,12 @@ void Z_Free(void *ptr)
 #endif
 #endif
 
-#ifdef ZDEBUG
+#ifdef ZDEBUG2
 	// Write every Z_Free call to a debug file.
 	CONS_Debug(DBG_MEMORY, "Z_Free at %s:%d\n", file, line);
+#elif defined(ZDEBUG)
+	(void)file;
+	(void)line;
 #endif
 
 	// anything that isn't by lua gets passed to lua just in case.
@@ -358,8 +361,10 @@ void *Z_ReallocAlign(void *ptr, size_t size, INT32 tag, void *user, INT32 alignb
 		return NULL;
 
 #ifdef ZDEBUG
+#ifdef ZDEBUG2
 	// Write every Z_Realloc call to a debug file.
 	DEBFILE(va("Z_Realloc at %s:%d\n", file, line));
+#endif
 	rez = Z_Malloc2(size, tag, user, alignbits, file, line);
 #else
 	rez = Z_MallocAlign(size, tag, user, alignbits);
@@ -394,11 +399,19 @@ void *Z_ReallocAlign(void *ptr, size_t size, INT32 tag, void *user, INT32 alignb
   * \param lowtag The lowest tag to consider.
   * \param hightag The highest tag to consider.
   */
+#ifdef ZDEBUG
+void Z_FreeTags2(INT32 lowtag, INT32 hightag, const char *file, INT32 line)
+#else
 void Z_FreeTags(INT32 lowtag, INT32 hightag)
+#endif
 {
 	memblock_t *block, *next;
 
+#ifdef ZDEBUG
+	Z_CheckHeap2(file, line);
+#else
 	Z_CheckHeap(420);
+#endif
 	for (block = head.next; block != &head; block = next)
 	{
 		next = block->next; // get link before freeing
@@ -468,11 +481,19 @@ void Z_CheckMemCleanup(void)
   * \param i Identifies from where in the code Z_CheckHeap was called.
   * \author Graue <graue@oceanbase.org>
   */
-void Z_CheckHeap(INT32 i)
+#ifdef ZDEBUG
+void Z_CheckHeap2(const char *file, INT32 line)
+#else
+void Z_CheckHeap(INT32 tag)
+#endif
 {
 	memblock_t *block;
 	UINT32 blocknumon = 0;
 	void *given;
+
+#ifndef ZDEBUG
+	(void)tag;
+#endif
 
 	for (block = head.next; block != &head; block = block->next)
 	{
@@ -498,11 +519,19 @@ void Z_CheckHeap(INT32 i)
 #endif
 		if (block->user != NULL && *(block->user) != given)
 		{
-			I_Error("Z_CheckHeap %d: block %u"
+			I_Error("Z_CheckHeap"
+#ifdef ZDEBUG
+				"at %s %d :"
+#endif
+				"block %u"
 #ifdef ZDEBUG
 				"(owned by %s:%d)"
 #endif
-				" doesn't have a proper user", i, blocknumon
+				" doesn't have a proper user"
+#ifdef ZDEBUG
+				, file, line
+#endif
+				, blocknumon
 #ifdef ZDEBUG
 				, block->ownerfile, block->ownerline
 #endif
@@ -510,11 +539,19 @@ void Z_CheckHeap(INT32 i)
 		}
 		if (block->next->prev != block)
 		{
-			I_Error("Z_CheckHeap %d: block %u"
+			I_Error("Z_CheckHeap"
+#ifdef ZDEBUG
+				"at %s %d :"
+#endif
+				"block %u"
 #ifdef ZDEBUG
 				"(owned by %s:%d)"
 #endif
-				" lacks proper backlink", i, blocknumon
+				" lacks proper backlink"
+#ifdef ZDEBUG
+				, file, line
+#endif
+				, blocknumon
 #ifdef ZDEBUG
 				, block->ownerfile, block->ownerline
 #endif
@@ -522,11 +559,19 @@ void Z_CheckHeap(INT32 i)
 		}
 		if (block->prev->next != block)
 		{
-			I_Error("Z_CheckHeap %d: block %u"
+			I_Error("Z_CheckHeap"
+#ifdef ZDEBUG
+				"at %s %d :"
+#endif
+				"block %u"
 #ifdef ZDEBUG
 				"(owned by %s:%d)"
 #endif
-				" lacks proper forward link", i, blocknumon
+				" lacks proper forward link"
+#ifdef ZDEBUG
+				, file, line
+#endif
+				, blocknumon
 #ifdef ZDEBUG
 				, block->ownerfile, block->ownerline
 #endif
@@ -534,11 +579,19 @@ void Z_CheckHeap(INT32 i)
 		}
 		if (block->id != ZONEID)
 		{
-			I_Error("Z_CheckHeap %d: block %u"
+			I_Error("Z_CheckHeap"
+#ifdef ZDEBUG
+				"at %s %d :"
+#endif
+				"block %u"
 #ifdef ZDEBUG
 				"(owned by %s:%d)"
 #endif
-				" have the wrong ID", i, blocknumon
+				" have the wrong ID"
+#ifdef ZDEBUG
+				, file, line
+#endif
+				, blocknumon
 #ifdef ZDEBUG
 				, block->ownerfile, block->ownerline
 #endif
@@ -656,24 +709,30 @@ static void Command_Memfree_f(void)
 
 	Z_CheckHeap(-1);
 	CONS_Printf("\x82%s", M_GetText("Memory Info\n"));
-	CONS_Printf(M_GetText("Total heap used   : %7s KB\n"), sizeu1(Z_TagsUsage(0, INT32_MAX)>>10));
-	CONS_Printf(M_GetText("Static            : %7s KB\n"), sizeu1(Z_TagUsage(PU_STATIC)>>10));
-	CONS_Printf(M_GetText("Lua               : %7s KB\n"), sizeu1(Z_TagUsage(PU_LUA)>>10));
-	CONS_Printf(M_GetText("Static (sound)    : %7s KB\n"), sizeu1(Z_TagUsage(PU_SOUND)>>10));
-	CONS_Printf(M_GetText("Static (music)    : %7s KB\n"), sizeu1(Z_TagUsage(PU_MUSIC)>>10));
-	CONS_Printf(M_GetText("Locked cache      : %7s KB\n"), sizeu1(Z_TagUsage(PU_CACHE)>>10));
-	CONS_Printf(M_GetText("Level             : %7s KB\n"), sizeu1(Z_TagUsage(PU_LEVEL)>>10));
-	CONS_Printf(M_GetText("Special thinker   : %7s KB\n"), sizeu1(Z_TagUsage(PU_LEVSPEC)>>10));
-	CONS_Printf(M_GetText("All purgable      : %7s KB\n"),
+	CONS_Printf(M_GetText("Total heap used        : %7s KB\n"), sizeu1(Z_TotalUsage()>>10));
+	CONS_Printf(M_GetText("Lua                    : %7s KB\n"), sizeu1(Z_TagUsage(PU_LUA)>>10));
+	CONS_Printf(M_GetText("Static                 : %7s KB\n"), sizeu1(Z_TagUsage(PU_STATIC)>>10));
+	CONS_Printf(M_GetText("Static (sound)         : %7s KB\n"), sizeu1(Z_TagUsage(PU_SOUND)>>10));
+	CONS_Printf(M_GetText("Static (music)         : %7s KB\n"), sizeu1(Z_TagUsage(PU_MUSIC)>>10));
+	CONS_Printf(M_GetText("Patches                : %7s KB\n"), sizeu1(Z_TagUsage(PU_PATCH)>>10));
+	CONS_Printf(M_GetText("Patches (low priority) : %7s KB\n"), sizeu1(Z_TagUsage(PU_PATCH_LOWPRIORITY)>>10));
+	CONS_Printf(M_GetText("Patches (rotated)      : %7s KB\n"), sizeu1(Z_TagUsage(PU_PATCH_ROTATED)>>10));
+	CONS_Printf(M_GetText("Sprites                : %7s KB\n"), sizeu1(Z_TagUsage(PU_SPRITE)>>10));
+	CONS_Printf(M_GetText("HUD graphics           : %7s KB\n"), sizeu1(Z_TagUsage(PU_HUDGFX)>>10));
+	CONS_Printf(M_GetText("Locked cache           : %7s KB\n"), sizeu1(Z_TagUsage(PU_CACHE)>>10));
+	CONS_Printf(M_GetText("Level                  : %7s KB\n"), sizeu1(Z_TagUsage(PU_LEVEL)>>10));
+	CONS_Printf(M_GetText("Special thinker        : %7s KB\n"), sizeu1(Z_TagUsage(PU_LEVSPEC)>>10));
+	CONS_Printf(M_GetText("All purgable           : %7s KB\n"),
 		sizeu1(Z_TagsUsage(PU_PURGELEVEL, INT32_MAX)>>10));
 
 #ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none)
+	if (rendermode == render_opengl)
 	{
-		CONS_Printf(M_GetText("Patch info headers: %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRPATCHINFO)>>10));
-		CONS_Printf(M_GetText("Mipmap patches    : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRPATCHCOLMIPMAP)>>10));
-		CONS_Printf(M_GetText("HW Texture cache  : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRCACHE)>>10));
-		CONS_Printf(M_GetText("Plane polygons    : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRPLANE)>>10));
+		CONS_Printf(M_GetText("Patch info headers     : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRPATCHINFO)>>10));
+		CONS_Printf(M_GetText("Cached textures        : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRCACHE)>>10));
+		CONS_Printf(M_GetText("Texture colormaps      : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRPATCHCOLMIPMAP)>>10));
+		CONS_Printf(M_GetText("Model textures         : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRMODELTEXTURE)>>10));
+		CONS_Printf(M_GetText("Plane polygons         : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRPLANE)>>10));
 		CONS_Printf(M_GetText("All GPU textures       : %7d KB\n"), HWR_GetTextureUsed()>>10);
 	}
 #endif
@@ -683,8 +742,6 @@ static void Command_Memfree_f(void)
 	CONS_Printf(M_GetText("    Total physical memory: %s KB\n"), sizeu1(totalbytes>>10));
 	CONS_Printf(M_GetText("Available physical memory: %s KB\n"), sizeu1(freebytes>>10));
 }
-
-
 
 #ifdef ZDEBUG
 /** The function called by the "memdump" console command.

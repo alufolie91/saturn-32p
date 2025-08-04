@@ -28,7 +28,7 @@
 #include "p_local.h" // for var1 and var2, and some constants
 #include "p_setup.h"
 #include "r_data.h"
-#include "r_patch.h"
+#include "r_fps.h"
 #include "r_sky.h"
 #include "r_draw.h" // translation colormap consts (for lua)
 #include "fastcmp.h"
@@ -690,6 +690,20 @@ static const struct {
 	{NULL, 0}
 };
 
+static mapheader_lighting_t *usemaplighting(INT32 mapnum, const char *word)
+{
+	if (fastncmp(word, "ENCORE", 6))
+	{
+		mapheaderinfo[mapnum]->use_encore_lighting = true;
+
+		return &mapheaderinfo[mapnum]->lighting_encore;
+	}
+	else
+	{
+		return &mapheaderinfo[mapnum]->lighting;
+	}
+}
+
 static void readlevelheader(MYFILE *f, INT32 num, INT32 wadnum)
 {
 	char *s = Z_Malloc(MAXLINELEN, PU_STATIC, NULL);
@@ -983,26 +997,34 @@ static void readlevelheader(MYFILE *f, INT32 num, INT32 wadnum)
 			}*/
 			else if (fastcmp(word, "MOBJSCALE"))
 				mapheaderinfo[num-1]->mobj_scale = get_number(word2);
-			else if (fastcmp(word, "LIGHTCONTRAST"))
+			else if (fastcmp(word, "LIGHTCONTRAST") || fastcmp(word, "ENCORELIGHTCONTRAST"))
 			{
-				mapheaderinfo[num-1]->light_contrast = (UINT8)i;
+				mapheader_lighting_t *lighting = usemaplighting(num-1, word);
+				lighting->light_contrast = (UINT8)i;
+				lighting->use_custom_light = true;
 			}
-			else if (fastcmp(word, "SPRITEBACKLIGHT"))
+			else if (fastcmp(word, "SPRITEBACKLIGHT") || fastcmp(word, "ENCORESPRITEBACKLIGHT"))
 			{
-				mapheaderinfo[num-1]->sprite_backlight = (SINT8)i;
+				mapheader_lighting_t *lighting = usemaplighting(num-1, word);
+				lighting->sprite_backlight = (SINT8)i;
+				lighting->use_custom_light = true;
 			}
-			else if (fastcmp(word, "LIGHTANGLE"))
+			else if (fastcmp(word, "LIGHTANGLE") || fastcmp(word, "ENCORELIGHTANGLE"))
 			{
+				mapheader_lighting_t *lighting = usemaplighting(num-1, word);
+
 				if (fastcmp(word2, "EVEN"))
 				{
-					mapheaderinfo[num-1]->use_light_angle = false;
-					mapheaderinfo[num-1]->light_angle = 0;
+					lighting->use_light_angle = false;
+					lighting->light_angle = 0;
 				}
 				else
 				{
-					mapheaderinfo[num-1]->use_light_angle = true;
-					mapheaderinfo[num-1]->light_angle = FixedAngle(FloatToFixed(atof(word2)));
+					lighting->use_light_angle = true;
+					lighting->light_angle = FixedAngle(FloatToFixed(atof(word2)));
 				}
+
+				lighting->use_custom_light = true;
 			}
 
 			// Individual triggers for level flags, for ease of use (and 2.0 compatibility)
@@ -1777,7 +1799,7 @@ static void readsound(MYFILE *f, INT32 num, const char *savesfxnames[])
  * \sa readmaincfg()
  * \author Graue <graue@oceanbase.org>
  */
-static boolean GoodDataFileName(const char *s)
+/*static boolean GoodDataFileName(const char *s)
 {
 	const char *p;
 	const char *tail = ".dat";
@@ -1797,7 +1819,7 @@ static boolean GoodDataFileName(const char *s)
 	if (fasticmp(s, "online.dat")) return false; // SRB2Kart online replay folder
 
 	return true;
-}
+}*/
 
 static void reademblemdata(MYFILE *f, INT32 num)
 {
@@ -2575,10 +2597,10 @@ static void readmaincfg(MYFILE *f)
 			{
 				maxXtraLife = (UINT8)get_number(word2);
 			}
-
 			else if (fastcmp(word, "GAMEDATA"))
 			{
-				size_t filenamelen;
+				// just ignore it but dont throw a warning
+				/*size_t filenamelen;
 
 				// Check the data filename so that mods
 				// can't write arbitrary files.
@@ -2602,7 +2624,7 @@ static void readmaincfg(MYFILE *f)
 				// can't use sprintf since there is %u in savegamename
 				strcatbf(savegamename, srb2home, PATHSEP);
 
-				refreshdirmenu |= REFRESHDIR_GAMEDATA;
+				refreshdirmenu |= REFRESHDIR_GAMEDATA;*/
 			}
 			else if (fastcmp(word, "RESETDATA"))
 			{
@@ -7846,7 +7868,18 @@ struct {
 	{"FF_HORIZONTALFLIP",FF_HORIZONTALFLIP},
 	{"FF_PAPERSPRITE",FF_PAPERSPRITE},
 	{"FF_ANIMATE",FF_ANIMATE},
+	// brightness
+	{"FF_BRIGHTMASK",FF_BRIGHTMASK},
 	{"FF_FULLBRIGHT",FF_FULLBRIGHT},
+	{"FF_SEMIBRIGHT",FF_SEMIBRIGHT},
+	{"FF_FULLDARK",FF_FULLDARK},
+	// blending
+	{"FF_BLENDMASK",FF_BLENDMASK},
+	{"FF_BLENDSHIFT",FF_BRIGHTMASK},
+	{"FF_ADD",FF_ADD},
+	{"FF_SUBTRACT",FF_SUBTRACT},
+	{"FF_REVERSESUBTRACT",FF_REVERSESUBTRACT},
+	{"FF_MODULATE",FF_MODULATE},
 	{"FF_TRANSMASK",FF_TRANSMASK},
 	{"FF_TRANSSHIFT",FF_TRANSSHIFT},
 	// new preshifted translucency (used in source)
@@ -7881,6 +7914,15 @@ struct {
 	{"tr_trans80",tr_trans80},
 	{"tr_trans90",tr_trans90},
 	{"NUMTRANSMAPS",NUMTRANSMAPS},
+
+	// Alpha styles (blend modes)
+	{"AST_COPY",AST_COPY},
+	{"AST_TRANSLUCENT",AST_TRANSLUCENT},
+	{"AST_ADD",AST_ADD},
+	{"AST_SUBTRACT",AST_SUBTRACT},
+	{"AST_REVERSESUBTRACT",AST_REVERSESUBTRACT},
+	{"AST_MODULATE",AST_MODULATE},
+	{"AST_OVERLAY",AST_OVERLAY},
 
 	// Type of levels
 	{"TOL_SP",TOL_SP},
@@ -8245,6 +8287,14 @@ struct {
 
 	{"V_CHARCOLORSHIFT",V_CHARCOLORSHIFT},
 	{"V_ALPHASHIFT",V_ALPHASHIFT},
+
+	// Blending
+	{"V_BLENDSHIFT",V_BLENDSHIFT},
+	{"V_BLENDMASK",V_BLENDMASK},
+	{"B_ADD",B_ADD},
+	{"B_SUBTRACT",B_SUBTRACT},
+	{"B_REVERSESUBTRACT",B_REVERSESUBTRACT},
+	{"B_MODULATE",B_MODULATE},
 
 	//Kick Reasons
 	{"KR_KICK",KR_KICK},
@@ -9284,8 +9334,6 @@ int LUA_EnumLib(lua_State *L)
 	PUSHGETTER(globalweather, u8);
 	PUSHGETTER(levelskynum, i32);
 	PUSHGETTER(globallevelskynum, i32);
-	PUSHGETTER(mapmusflags, u16);
-	PUSHGETTER(mapmusposition, u32);
 	PUSHGETTER(gravity, fxp);
 	PUSHGETTER(gamespeed, u8);
 	PUSHGETTER(encoremode, bool);
@@ -9301,8 +9349,18 @@ int LUA_EnumLib(lua_State *L)
 	PUSHGETTER(exitcountdown, u32);
 
 	lua_pushcfunction(L, lua_glib_new_getter);
+	lua_pushliteral(L, "mapmusflags");
+	lua_glib_push_u16_getter(L, &mapmusic.flags);
+	lua_call(L, 2, 0);
+
+	lua_pushcfunction(L, lua_glib_new_getter);
+	lua_pushliteral(L, "mapmusposition");
+	lua_glib_push_u32_getter(L, &mapmusic.position);
+	lua_call(L, 2, 0);
+
+	lua_pushcfunction(L, lua_glib_new_getter);
 	lua_pushliteral(L, "mapmusname");
-	lua_glib_push_str_getter(L, mapmusname);
+	lua_glib_push_str_getter(L, mapmusic.name);
 	lua_call(L, 2, 0);
 
 	lua_pushcfunction(L, lua_glib_new_getter);

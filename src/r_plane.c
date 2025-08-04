@@ -128,7 +128,7 @@ static void R_CalculatePlaneRipple(visplane_t *plane, INT32 y, fixed_t plheight,
 {
 	fixed_t distance = FixedMul(plheight, yslope[y]);
 	const INT32 yay = (planeripple.offset + (distance>>9)) & 8191;
-	
+
 	// ripples da water texture
 	ds_bgofs = FixedDiv(FINESINE(yay), (1<<12) + (distance>>11))>>FRACBITS;
 
@@ -630,7 +630,7 @@ void R_DrawPlanes(void)
 			R_DrawSinglePlane(pl);
 		}
 	}
-	
+
 #ifndef NOWATER
 	R_UpdatePlaneRipple();
 #endif
@@ -662,6 +662,7 @@ static void R_DrawSkyPlane(visplane_t *pl)
 
 	dc_texturemid = skytexturemid;
 	dc_texheight = textureheight[skytexture] >>FRACBITS;
+	dc_sourcelength = dc_texheight;
 
 	for (x = pl->minx; x <= pl->maxx; x++)
 	{
@@ -696,7 +697,7 @@ void R_CalculateSlopeVectors(pslope_t *slope, fixed_t planeviewx, fixed_t planev
 	vy = FIXED_TO_FLOAT(planeviewy-planeyoffset);
 	vz = FIXED_TO_FLOAT(planeviewz);
 
-	temp = P_GetZAt(slope, planeviewx, planeviewy);
+	temp = P_GetSlopeZAt(slope, planeviewx, planeviewy);
 	zeroheight = FIXED_TO_FLOAT(temp);
 
 	// p is the texture origin in view space
@@ -705,7 +706,7 @@ void R_CalculateSlopeVectors(pslope_t *slope, fixed_t planeviewx, fixed_t planev
 	ang = ANG2RAD(ANGLE_270 - planeviewangle);
 	p.x = vx * cos(ang) - vy * sin(ang);
 	p.z = vx * sin(ang) + vy * cos(ang);
-	temp = P_GetZAt(slope, -planexoffset, planeyoffset);
+	temp = P_GetSlopeZAt(slope, -planexoffset, planeyoffset);
 	p.y = FIXED_TO_FLOAT(temp) - vz;
 
 	// m is the v direction vector in view space
@@ -718,9 +719,9 @@ void R_CalculateSlopeVectors(pslope_t *slope, fixed_t planeviewx, fixed_t planev
 	n.z = -xscale * cos(ang);
 
 	ang = ANG2RAD(planeangle);
-	temp = P_GetZAt(slope, planeviewx + FLOAT_TO_FIXED(yscale * sin(ang)), planeviewy + FLOAT_TO_FIXED(yscale * cos(ang)));
+	temp = P_GetSlopeZAt(slope, planeviewx + FLOAT_TO_FIXED(yscale * sin(ang)), planeviewy + FLOAT_TO_FIXED(yscale * cos(ang)));
 	m.y = FIXED_TO_FLOAT(temp) - zeroheight;
-	temp = P_GetZAt(slope, planeviewx + FLOAT_TO_FIXED(xscale * cos(ang)), planeviewy - FLOAT_TO_FIXED(xscale * sin(ang)));
+	temp = P_GetSlopeZAt(slope, planeviewx + FLOAT_TO_FIXED(xscale * cos(ang)), planeviewy - FLOAT_TO_FIXED(xscale * sin(ang)));
 	n.y = FIXED_TO_FLOAT(temp) - zeroheight;
 
 	m.x /= fudge;
@@ -804,7 +805,7 @@ void R_DrawSinglePlane(visplane_t *pl)
 		if (pl->polyobj->translucency >= 10)
 			return; // Don't even draw it
 		else if (pl->polyobj->translucency > 0)
-			ds_transmap = transtables + ((pl->polyobj->translucency-1)<<FF_TRANSSHIFT);
+			ds_transmap = R_GetTranslucencyTable(pl->polyobj->translucency);
 		else // Opaque, but allow transparent flat pixels
 			spanfunc = splatfunc;
 
@@ -841,28 +842,17 @@ void R_DrawSinglePlane(visplane_t *pl)
 				spanfunc = R_DrawTranslucentSpan_8;
 
 				// Hacked up support for alpha value in software mode Tails 09-24-2002
-				if (pl->ffloor->alpha < 12)
-					return; // Don't even draw it
-				else if (pl->ffloor->alpha < 38)
-					ds_transmap = transtables + ((tr_trans90-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 64)
-					ds_transmap = transtables + ((tr_trans80-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 89)
-					ds_transmap = transtables + ((tr_trans70-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 115)
-					ds_transmap = transtables + ((tr_trans60-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 140)
-					ds_transmap = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 166)
-					ds_transmap = transtables + ((tr_trans40-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 192)
-					ds_transmap = transtables + ((tr_trans30-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 217)
-					ds_transmap = transtables + ((tr_trans20-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 243)
-					ds_transmap = transtables + ((tr_trans10-1)<<FF_TRANSSHIFT);
-				else // Opaque, but allow transparent flat pixels
-					spanfunc = splatfunc;
+				// ...unhacked by toaster 04-01-2021, re-hacked a little by sphere 19-11-2021
+				// and mercilessly shoved into saturn by chearii 02-02-2025
+				{
+					INT32 trans = (10*((256+12) - pl->ffloor->alpha))/255;
+					if (trans >= 10)
+						return; // Don't even draw it
+					if (pl->ffloor->blend) // additive, (reverse) subtractive, modulative
+						ds_transmap = R_GetBlendTable(pl->ffloor->blend, trans);
+					else if (!(ds_transmap = R_GetTranslucencyTable(trans)) || trans == 0)
+						spanfunc = splatfunc; // Opaque, but allow transparent flat pixels
+				}
 
 #ifdef SHITPLANESPARENCY
 				if (spanfunc == splatfunc || (pl->extra_colormap && pl->extra_colormap->fog))
@@ -1060,11 +1050,11 @@ void R_DrawSinglePlane(visplane_t *pl)
 
 		xoffs = (fixed_t)(xoffs*fudgecanyon);
 		yoffs = (fixed_t)(yoffs/fudgecanyon);
-		
+
 #ifndef NOWATER
 		if (planeripple.active)
 		{
-			fixed_t plheight = abs(P_GetZAt(pl->slope, pl->viewx, pl->viewy) - pl->viewz);
+			fixed_t plheight = abs(P_GetSlopeZAt(pl->slope, pl->viewx, pl->viewy) - pl->viewz);
 
 			R_PlaneBounds(pl);
 
@@ -1137,7 +1127,7 @@ using the palette colors.
 	if (spanfunc == R_DrawSpan_8)
 	{
 		INT32 i;
-		ds_transmap = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
+		ds_transmap = R_GetTranslucencyTable(tr_trans50);
 		spanfunc = R_DrawTranslucentSpan_8;
 		for (i=0; i<4; i++)
 		{

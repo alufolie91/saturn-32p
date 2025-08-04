@@ -103,8 +103,6 @@ extern PFNglGetString pglGetString;
 #endif
 
 #ifdef USE_FBO_OGL
-void GL_Framebuffer_DeleteAttachments(void);
-
 void GL_Framebuffer_Unbind(void);
 void GL_Framebuffer_Enable(void);
 void GL_Framebuffer_Disable(void);
@@ -136,7 +134,6 @@ extern boolean 			supportMipMap;
 /**	\brief OpenGL flags for video driver
 */
 extern INT32            oglflags;
-extern GLint            textureformatGL;
 
 extern GLfloat projMatrix[16];
 

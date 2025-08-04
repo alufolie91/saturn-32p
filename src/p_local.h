@@ -84,8 +84,6 @@ typedef struct camera_s
 	boolean chase;
 	boolean freecam;
 
-	boolean keyboardlook;
-
 	angle_t localangle;
 	INT32 localaiming;
 
@@ -96,6 +94,9 @@ typedef struct camera_s
 
 	// Freecam: aiming needs to be reset after switching from chasecam
 	boolean reset_aiming;
+
+	// Hold up/down to pan the camera vertically
+	SINT8 dpad_y_held;
 
 	// Things used by FS cameras.
 	fixed_t viewheight;
@@ -147,9 +148,9 @@ extern consvar_t cv_cam_still[MAXSPLITSCREENPLAYERS];
 extern consvar_t cv_cam_height[MAXSPLITSCREENPLAYERS];
 extern consvar_t cv_cam_speed[MAXSPLITSCREENPLAYERS];
 extern consvar_t cv_cam_rotate[MAXSPLITSCREENPLAYERS];
-extern consvar_t cv_cam_rotspeed[MAXSPLITSCREENPLAYERS];
+extern consvar_t cv_cam_timeover[MAXSPLITSCREENPLAYERS];
 
-extern consvar_t cv_freecam_speed;
+extern consvar_t cv_freecam_speed[MAXSPLITSCREENPLAYERS];
 
 extern consvar_t cv_tilting;
 extern consvar_t cv_quaketilt;
@@ -157,7 +158,11 @@ extern consvar_t cv_tiltsmoothing;
 
 extern consvar_t cv_actionmovie;
 
-extern consvar_t cv_lookbackmom;
+extern consvar_t cv_screenquake;
+
+extern consvar_t cv_lookbackmom[MAXSPLITSCREENPLAYERS];
+
+extern consvar_t cv_verticallook[MAXSPLITSCREENPLAYERS];
 
 extern fixed_t t_cam_rotate[MAXSPLITSCREENPLAYERS];
 
@@ -234,7 +239,6 @@ void P_PlayRinglossSound(mobj_t *source, mobj_t *damager);
 void P_PlayDeathSound(mobj_t *source);
 void P_PlayVictorySound(mobj_t *source);
 
-
 //
 // P_MOBJ
 //
@@ -256,7 +260,6 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type);
 
 mobj_t *P_SpawnShadowMobj(mobj_t * caster);
 
-void P_RecalcPrecipInSector(sector_t *sector);
 void P_PrecipitationEffects(void);
 
 void P_RemoveMobj(mobj_t *th);
@@ -314,7 +317,7 @@ void P_ColorTeamMissile(mobj_t *missile, player_t *source);
 // Special utility to return +1 or -1 depending on mobj's gravity
 FUNCINLINE static ATTRINLINE SINT8 P_MobjFlip(const mobj_t *mobj)
 {
-	return (mobj && mobj->eflags & MFE_VERTICALFLIP) ? -1 : 1;
+	return (mobj && (mobj->eflags & MFE_VERTICALFLIP)) ? -1 : 1;
 }
 
 fixed_t P_GetMobjGravity(mobj_t *mo);
@@ -371,8 +374,6 @@ extern line_t *ceilingline;
 extern line_t *blockingline;
 extern msecnode_t *sector_list;
 
-extern mprecipsecnode_t *precipsector_list;
-
 void P_UnsetThingPosition(mobj_t *thing);
 void P_SetThingPosition(mobj_t *thing);
 void P_SetUnderlayPosition(mobj_t *thing);
@@ -396,7 +397,6 @@ void P_CheckHoopPosition(mobj_t *hoopthing, fixed_t x, fixed_t y, fixed_t z, fix
 boolean P_CheckSector(sector_t *sector, boolean crunch);
 
 void P_DelSeclist(msecnode_t *node);
-void P_DelPrecipSeclist(mprecipsecnode_t *node);
 
 void P_CreateSecNodeList(mobj_t *thing, fixed_t x, fixed_t y);
 void P_Initsecnode(void);
@@ -424,7 +424,6 @@ extern precipmobj_t **precipblocklinks; // special blockmap for precip rendering
 extern struct minimapinfo
 {
 	patch_t *minimap_pic;
-	UINT8 mapthingcount;
 	INT32 min_x, min_y;
 	INT32 max_x, max_y;
 	INT32 map_w, map_h;
@@ -436,21 +435,11 @@ extern struct minimapinfo
 //
 // P_INTER
 //
-typedef struct BasicFF_s
-{
-	INT32 ForceX; ///< The X of the Force's Vel
-	INT32 ForceY; ///< The Y of the Force's Vel
-	const player_t *player; ///< Player of Rumble
-	//All
-	UINT32 Duration; ///< The total duration of the effect, in microseconds
-	INT32 Gain; ///< /The gain to be applied to the effect, in the range from 0 through 10,000.
-	//All, CONSTANTFORCE �10,000 to 10,000
-	INT32 Magnitude; ///< Magnitude of the effect, in the range from 0 through 10,000.
-} BasicFF_t;
 
-void P_ForceFeed(const player_t *player, INT32 attack, INT32 fade, tic_t duration, INT32 period);
-void P_ForceConstant(const BasicFF_t *FFInfo);
-void P_RampConstant(const BasicFF_t *FFInfo, INT32 Start, INT32 End);
+// replace damage magic numbers with smth readable
+#define DMG_INSTAKILL 10000
+#define DMG_SPECTATOR 42000
+
 void P_RemoveShield(player_t *player);
 boolean P_DamageMobj(mobj_t *target, mobj_t *inflictor, mobj_t *source, INT32 damage);
 void P_KillMobj(mobj_t *target, mobj_t *inflictor, mobj_t *source);
@@ -487,7 +476,6 @@ boolean P_Teleport(mobj_t *thing, fixed_t x, fixed_t y, fixed_t z, angle_t angle
 boolean P_SetMobjStateNF(mobj_t *mobj, statenum_t state);
 boolean P_CheckMissileSpawn(mobj_t *th);
 void P_Thrust(mobj_t *mo, angle_t angle, fixed_t move);
-void P_DoSuperTransformation(player_t *player, boolean giverings);
 void P_ExplodeMissile(mobj_t *mo);
 void P_CheckGravity(mobj_t *mo, boolean affect);
 

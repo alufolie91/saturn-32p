@@ -29,6 +29,7 @@
 	X (TouchSpecial),/* P_TouchSpecialThing */\
 	X (MobjFuse),/* when mobj->fuse runs out */\
 	X (MobjThinker),/* P_MobjThinker, P_SceneryThinker */\
+	X (MobjScaleChange),/*SRB2KART*/\
 	X (BossThinker),/* P_GenericBossThinker */\
 	X (ShouldDamage),/* P_DamageMobj (Should mobj take damage?) */\
 	X (MobjDamage),/* P_DamageMobj (Mobj actually takes damage!) */\
@@ -61,6 +62,10 @@
 	X (PlayerSpin),/*SRB2KART*/\
 	X (PlayerExplode),/*SRB2KART*/\
 	X (PlayerSquish),/*SRB2KART*/\
+	X (PlayerItemUse),/*SRB2KART*/\
+	X (KartHyudoro),/*SRB2KART*/\
+	X (KartSneaker),/*SRB2KART*/\
+	X (KartStealBumper),/*SRB2KART*/\
 	X (PlayerCmd),/* building the player's ticcmd struct (Ported from SRB2Kart) */\
 	X (IntermissionThinker),/* Y_Ticker */\
 	X (VoteThinker),/*SRB2KART*/\
@@ -138,3 +143,10 @@ int LUA_HookShouldSquish(player_t *player, mobj_t *inflictor, mobj_t *source); /
 boolean LUA_HookPlayerSpin(player_t *player, mobj_t *inflictor, mobj_t *source); // SRB2KART: Hook for K_SpinPlayer. Allows Lua to execute code and/or overwrite its behavior.
 boolean LUA_HookPlayerExplode(player_t *player, mobj_t *inflictor, mobj_t *source); // SRB2KART: Hook for K_ExplodePlayer. Allows Lua to execute code and/or overwrite its behavior.
 boolean LUA_HookPlayerSquish(player_t *player, mobj_t *inflictor, mobj_t *source); // SRB2KART: Hook for K_SquishPlayer. Allows Lua to execute code and/or overwrite its behavior.
+
+// SRB2Kart: Hook for K_MoveKartPlayer (specifically for using items and overriding default behaviour.)
+boolean LUA_HookPlayerItemUse(player_t *player, kartitems_t itemType, boolean wasHoldingItem, boolean *force);
+boolean LUA_HookKartHyudoro(player_t *player, INT32 *target, boolean sink); // SRB2Kart: Hook for K_DoHyudoroSteal and overriding its results.
+boolean LUA_HookKartStealBumper(player_t *player, player_t *target, boolean *force); // SRB2Kart: Hook for K_StealBumper.
+boolean LUA_HookMobjScaleChange(mobj_t *target, fixed_t newscale, fixed_t oldscale); // SRB2Kart: Hook for P_SetScale.
+boolean LUA_HookKartSneaker(player_t *player, int type); // SRB2Kart: Hook for K_DoSneaker.

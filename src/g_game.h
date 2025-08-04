@@ -42,6 +42,7 @@ extern savebuffer_t demobuf;
 
 // demoplaying back and demo recording
 extern consvar_t cv_recordmultiplayerdemos, cv_netdemosyncquality, cv_maxdemosize, cv_demochangemap;
+extern consvar_t cv_demodateformat;
 
 // Publicly-accessible demo vars
 struct demovars_s {
@@ -66,9 +67,6 @@ struct demovars_s {
 		DSM_WILLSAVE,
 		DSM_SAVED
 	} savemode;
-
-	boolean freecam;
-
 };
 
 extern struct demovars_s demo;
@@ -86,6 +84,8 @@ typedef struct menudemo_s {
 	menudemotype_e type;
 
 	char title[65]; // Null-terminated for string prints
+	char date[11]; // date when replay was recorded
+	char version[12]; // combined version and subversion
 	UINT16 map;
 	UINT8 addonstatus; // What do we need to do addon-wise to play this demo?
 	UINT8 gametype;
@@ -119,12 +119,12 @@ extern consvar_t cv_songcredits;
 extern consvar_t cv_showfreeplay;
 extern consvar_t cv_growmusic, cv_supermusic;
 extern consvar_t cv_pauseifunfocused;
-//extern consvar_t cv_crosshair, cv_crosshair2, cv_crosshair3, cv_crosshair4;
-extern consvar_t cv_invertmouse/*, cv_alwaysfreelook, cv_chasefreelook, cv_mousemove*/;
-extern consvar_t cv_invertmouse2/*, cv_alwaysfreelook2, cv_chasefreelook2, cv_mousemove2*/;
+extern consvar_t cv_invertmouse;
 
 extern consvar_t cv_turnaxis[MAXSPLITSCREENPLAYERS];
 extern consvar_t cv_moveaxis[MAXSPLITSCREENPLAYERS];
+extern consvar_t cv_camturnaxis[MAXSPLITSCREENPLAYERS];
+extern consvar_t cv_camstrafeaxis[MAXSPLITSCREENPLAYERS];
 extern consvar_t cv_brakeaxis[MAXSPLITSCREENPLAYERS];
 extern consvar_t cv_aimaxis[MAXSPLITSCREENPLAYERS];
 extern consvar_t cv_lookaxis[MAXSPLITSCREENPLAYERS];
@@ -150,18 +150,19 @@ extern consvar_t cv_##name##_yoffset;
 DECL_HUD_OFFSET_X(name)\
 DECL_HUD_OFFSET_Y(name)
 
-DECL_HUD_OFFSET(item); // Item box
-DECL_HUD_OFFSET(time); // Time
-DECL_HUD_OFFSET(laps); // Number of laps
-DECL_HUD_OFFSET(dnft); // Countdown (did not finish timer)
-DECL_HUD_OFFSET(speed); // Speedometer
-DECL_HUD_OFFSET(posi); // Position in race
-DECL_HUD_OFFSET(face); // Mini rankings
-DECL_HUD_OFFSET(stcd); // Starting countdown
+DECL_HUD_OFFSET(item);   // Item box
+DECL_HUD_OFFSET(time);   // Time
+DECL_HUD_OFFSET(laps);   // Number of laps
+DECL_HUD_OFFSET(dnft);   // Countdown (did not finish timer)
+DECL_HUD_OFFSET(speed);  // Speedometer
+DECL_HUD_OFFSET(posi);   // Position in race
+DECL_HUD_OFFSET(wheel);  // RA Wheel
+DECL_HUD_OFFSET(face);   // Mini rankings
+DECL_HUD_OFFSET(stcd);   // Starting countdown
 DECL_HUD_OFFSET_Y(chek); // Check gfx
-DECL_HUD_OFFSET(mini); // Minimap
-DECL_HUD_OFFSET(want); // Wanted
-DECL_HUD_OFFSET(stat); // Stats
+DECL_HUD_OFFSET(mini);   // Minimap
+DECL_HUD_OFFSET(want);   // Wanted
+DECL_HUD_OFFSET(stat);   // Stats
 
 #undef DECL_HUD_OFFSET
 #undef DECL_HUD_OFFSET_X
@@ -173,8 +174,10 @@ extern consvar_t cv_smallposnum;
 extern consvar_t cv_newspeedometer;
 
 extern consvar_t cv_saltyhop;
+extern consvar_t cv_saltyheight;
 extern consvar_t cv_saltyhopsfx;
 extern consvar_t cv_saltysquish;
+extern consvar_t cv_saltyroll;
 
 extern consvar_t cv_driftsparkpulse;
 extern consvar_t cv_gravstretch;
@@ -183,6 +186,11 @@ extern consvar_t cv_sliptideroll;
 extern consvar_t cv_slamsound;
 extern consvar_t cv_sloperolldist;
 extern consvar_t cv_sparkroll;
+extern consvar_t cv_spinoutroll;
+
+extern consvar_t cv_squishdance, cv_squishdancespeed;
+
+extern consvar_t cv_playerblendeffects;
 
 extern consvar_t cv_cechotoggle;
 
@@ -195,6 +203,8 @@ typedef enum
 	AXISNONE = 0,
 	AXISTURN,
 	AXISMOVE,
+	AXISCAMTURN,
+	AXISCAMSTRAFE,
 	AXISBRAKE,
 	AXISAIM,
 	AXISLOOK,
@@ -379,16 +389,24 @@ boolean G_CheckDemoStatus(void);
 void G_SaveDemo(void);
 boolean G_DemoTitleResponder(event_t *ev);
 
+#define G_GametypeHasTeams() (G_IsGameType(GT_TEAMMATCH) || G_IsGameType(GT_CTF))
+#define G_BattleGametype() (G_IsGameType(GT_MATCH))
+#define G_RaceGametype() (G_IsGameType(GT_RACE))
+#define G_TagGametype() (G_IsGameType(GT_TAG) || G_IsGameType(GT_HIDEANDSEEK))
+
+FUNCINLINE static ATTRINLINE boolean G_IsGameType(int type)
+{
+	return (gametype == type);
+}
+
+FUNCINLINE static ATTRINLINE boolean G_GametypeHasSpectators(void)
+{
+	return (netgame || (multiplayer && demo.playback));
+}
+
 INT32 G_GetGametypeByName(const char *gametypestr);
-boolean G_IsSpecialStage(INT32 mapnum);
-boolean G_GametypeUsesLives(void);
-boolean G_GametypeHasTeams(void);
-boolean G_GametypeHasSpectators(void);
-boolean G_BattleGametype(void);
 UINT8 G_SometimesGetDifferentGametype(UINT8 prefgametype);
 UINT8 G_GetGametypeColor(INT16 gt);
-boolean G_RaceGametype(void);
-boolean G_TagGametype(void);
 void G_ExitLevel(void);
 void G_NextLevel(void);
 void G_Continue(void);
@@ -418,7 +436,6 @@ void G_SetRetryFlag(void);
 void G_ClearRetryFlag(void);
 boolean G_GetRetryFlag(void);
 
-
 void G_LoadGameData(void);
 void G_LoadGameSettings(void);
 
@@ -433,11 +450,32 @@ void G_ClearRecords(void);
 
 tic_t G_GetBestTime(INT16 map);
 
-FUNCMATH INT32 G_TicsToHours(tic_t tics);
-FUNCMATH INT32 G_TicsToMinutes(tic_t tics, boolean full);
-FUNCMATH INT32 G_TicsToSeconds(tic_t tics);
-FUNCMATH INT32 G_TicsToCentiseconds(tic_t tics);
-FUNCMATH INT32 G_TicsToMilliseconds(tic_t tics);
+// Time utility functions
+
+FUNCINLINE static ATTRINLINE FUNCMATH INT32 G_TicsToHours(tic_t tics)
+{
+	return tics/(3600*TICRATE);
+}
+
+FUNCINLINE static ATTRINLINE FUNCMATH INT32 G_TicsToMinutes(tic_t tics, boolean full)
+{
+	return full ? (tics/(60*TICRATE)) : (tics/(60*TICRATE)%60);
+}
+
+FUNCINLINE static ATTRINLINE FUNCMATH INT32 G_TicsToSeconds(tic_t tics)
+{
+	return (tics/TICRATE)%60;
+}
+
+FUNCINLINE static ATTRINLINE FUNCMATH INT32 G_TicsToCentiseconds(tic_t tics)
+{
+	return (INT32)((tics%TICRATE) * (100.00f/TICRATE));
+}
+
+FUNCINLINE static ATTRINLINE FUNCMATH INT32 G_TicsToMilliseconds(tic_t tics)
+{
+	return (INT32)((tics%TICRATE) * (1000.00f/TICRATE));
+}
 
 // Don't split up TOL handling
 INT16 G_TOLFlag(INT32 pgametype);

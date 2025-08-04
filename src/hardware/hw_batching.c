@@ -88,7 +88,10 @@ void HWR_ProcessPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPt
 	if (currently_batching)
 	{
 		if (!pSurf)
+		{
 			I_Error("Got a null FSurfaceInfo in batching");// nulls should not come in the stuff that batching currently applies to
+		}
+
 		if (polygonArraySize == polygonArrayAllocSize)
 		{
 			PolygonArrayEntry* new_array;
@@ -121,7 +124,7 @@ void HWR_ProcessPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPt
 		polygonArray[polygonArraySize].numVerts = iNumPts;
 		polygonArray[polygonArraySize].polyFlags = PolyFlags;
 		polygonArray[polygonArraySize].texture = current_texture;
-		polygonArray[polygonArraySize].shader = (shader_target != -1) ? HWR_GetShaderFromTarget(shader_target) : shader_target;
+		polygonArray[polygonArraySize].shader = (shader_target != SHADER_NONE) ? HWR_GetShaderFromTarget(shader_target) : shader_target;
 		polygonArray[polygonArraySize].horizonSpecial = horizonSpecial;
 		polygonArraySize++;
 
@@ -141,27 +144,19 @@ static int comparePolygons(const void *p1, const void *p2)
 	PolygonArrayEntry *poly2 = *(PolygonArrayEntry *const *)p2;
 	int diff;
 	INT64 diff64;
-	UINT32 downloaded1 = 0;
-	UINT32 downloaded2 = 0;
 
-	int shader1 = poly1->shader;
-	int shader2 = poly2->shader;
-	// make skywalls and horizon lines first in order
-	if (poly1->polyFlags & PF_NoTexture || poly1->horizonSpecial)
-		shader1 = -1;
-	if (poly2->polyFlags & PF_NoTexture || poly2->horizonSpecial)
-		shader2 = -1;
-	diff = shader1 - shader2;
-	if (diff != 0) return diff;
+	int shader1 = (poly1->polyFlags & PF_NoTexture || poly1->horizonSpecial) ? -1 : poly1->shader;
+	int shader2 = (poly2->polyFlags & PF_NoTexture || poly2->horizonSpecial) ? -1 : poly2->shader;
 
 	// skywalls and horizon lines must retain their order for horizon lines to work
 	if (shader1 == -1 && shader2 == -1)
 		return poly1 - poly2;
 
-	if (poly1->texture)
-		downloaded1 = poly1->texture->downloaded; // there should be a opengl texture name here, usable for comparisons
-	if (poly2->texture)
-		downloaded2 = poly2->texture->downloaded;
+	diff = shader1 - shader2;
+	if (diff != 0) return diff;
+
+	UINT32 downloaded1 = poly1->texture ? poly1->texture->downloaded : 0; // there should be a opengl texture name here, usable for comparisons
+	UINT32 downloaded2 = poly2->texture ? poly2->texture->downloaded : 0;
 	diff64 = downloaded1 - downloaded2;
 	if (diff64 != 0) return diff64;
 
@@ -194,21 +189,15 @@ static int comparePolygonsNoShaders(const void *p1, const void *p2)
 	int diff;
 	INT64 diff64;
 
-	GLMipmap_t *texture1 = poly1->texture;
-	GLMipmap_t *texture2 = poly2->texture;
-	UINT32 downloaded1 = 0;
-	UINT32 downloaded2 = 0;
-	if (poly1->polyFlags & PF_NoTexture || poly1->horizonSpecial)
-		texture1 = NULL;
-	if (poly2->polyFlags & PF_NoTexture || poly2->horizonSpecial)
-		texture2 = NULL;
-	if (texture1)
-		downloaded1 = texture1->downloaded; // there should be a opengl texture name here, usable for comparisons
-	if (texture2)
-		downloaded2 = texture2->downloaded;
+	GLMipmap_t *texture1 = (poly1->polyFlags & PF_NoTexture || poly1->horizonSpecial) ? NULL : poly1->texture;
+	GLMipmap_t *texture2 = (poly2->polyFlags & PF_NoTexture || poly2->horizonSpecial) ? NULL : poly2->texture;
+
 	// skywalls and horizon lines must retain their order for horizon lines to work
 	if (!texture1 && !texture2)
 		return poly1 - poly2;
+
+	UINT32 downloaded1 = texture1 ? texture1->downloaded : 0; // there should be a opengl texture name here, usable for comparisons
+	UINT32 downloaded2 = texture2 ? texture2->downloaded : 0;
 	diff64 = downloaded1 - downloaded2;
 	if (diff64 != 0) return diff64;
 
@@ -242,7 +231,9 @@ void HWR_RenderBatches(void)
 	int i;
 
 	if (!currently_batching)
+	{
 		I_Error("HWR_RenderBatches called without starting batching");
+	}
 
 	nextSurfaceInfo.LightInfo.fade_end = 0;
 	nextSurfaceInfo.LightInfo.fade_start = 0;
@@ -250,6 +241,7 @@ void HWR_RenderBatches(void)
 	nextSurfaceInfo.LightInfo.directional = false;
 
 	currently_batching = false;// no longer collecting batches
+
 	if (!polygonArraySize)
 	{
 		ps_hw_numpolys.value.i = ps_hw_numcalls.value.i = ps_hw_numshaders.value.i
@@ -257,6 +249,7 @@ void HWR_RenderBatches(void)
 			= ps_hw_numcolors.value.i = 0;
 		return;// nothing to draw
 	}
+
 	// init stats vars
 	ps_hw_numpolys.value.i = polygonArraySize;
 	ps_hw_numcalls.value.i = ps_hw_numverts.value.i = 0;
@@ -305,7 +298,7 @@ void HWR_RenderBatches(void)
 	else
 		GL_SetTexture(currentTexture);
 
-	while (1)// note: remember handling notexture polyflag as having texture number 0 (also in comparePolygons)
+	while (1) // note: remember handling notexture polyflag as having texture number 0 (also in comparePolygons)
 	{
 		int firstIndex;
 		int lastIndex;
@@ -375,23 +368,28 @@ void HWR_RenderBatches(void)
 			nextTexture = nextEntry->texture;
 			nextPolyFlags = nextEntry->polyFlags;
 			nextSurfaceInfo = nextEntry->surf;
+
 			if (nextPolyFlags & PF_NoTexture)
 				nextTexture = 0;
+
 			if (currentShader != nextShader && cv_glshaders.value && gl_shadersavailable)
 			{
 				changeState = true;
 				changeShader = true;
 			}
+
 			if (currentTexture != nextTexture)
 			{
 				changeState = true;
 				changeTexture = true;
 			}
+
 			if (currentPolyFlags != nextPolyFlags)
 			{
 				changeState = true;
 				changePolyFlags = true;
 			}
+
 			if (cv_glshaders.value && gl_shadersavailable)
 			{
 				if (currentSurfaceInfo.PolyColor.rgba != nextSurfaceInfo.PolyColor.rgba ||
@@ -427,10 +425,12 @@ void HWR_RenderBatches(void)
 			finalVertexWritePos = 0;
 			finalIndexWritePos = 0;
 		}
-		else continue;
+		else
+			continue;
 
 		// if we're here then either its time to stop or time to change state
-		if (stopFlag) break;
+		if (stopFlag)
+			break;
 
 		// change state according to change bools and next vars, update current vars and reset bools
 		if (changeState)
@@ -443,6 +443,7 @@ void HWR_RenderBatches(void)
 
 				ps_hw_numshaders.value.i++;
 			}
+
 			if (changeTexture)
 			{
 				// texture should be already ready for use from calls to GL_SetTexture during batch collection
@@ -452,6 +453,7 @@ void HWR_RenderBatches(void)
 
 				ps_hw_numtextures.value.i++;
 			}
+
 			if (changePolyFlags)
 			{
 				currentPolyFlags = nextPolyFlags;
@@ -459,6 +461,7 @@ void HWR_RenderBatches(void)
 
 				ps_hw_numpolyflags.value.i++;
 			}
+
 			if (changeSurfaceInfo)
 			{
 				currentSurfaceInfo = nextSurfaceInfo;

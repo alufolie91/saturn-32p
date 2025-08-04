@@ -46,8 +46,6 @@
 #include "../i_video.h"
 #include "../f_finale.h"
 
-#include "../f_finale.h"
-
 #ifdef DEBUG_TO_FILE
 #include <stdarg.h>
 #if defined (_WIN32) && !defined (__CYGWIN__)
@@ -130,14 +128,13 @@ static boolean first_init = false;
 
 boolean OglSdlSurface(INT32 w, INT32 h)
 {
-	INT32 cbpp = cv_scr_depth.value < 16 ? 16 : cv_scr_depth.value;
 	const char *gllogdir = NULL;
 
 	oglflags = 0;
 
 	if (!first_init)
 	{
-		if (!gllogstream) 
+		if (!gllogstream)
 		{
 			gllogdir = D_Home();
 
@@ -150,7 +147,7 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 				gllogstream = fopen("./ogllog.txt", "wt");
 #endif
 		}
-			
+
 		gl_version = pglGetString(GL_VERSION);
 		gl_renderer = pglGetString(GL_RENDERER);
 		gl_extensions = pglGetString(GL_EXTENSIONS);
@@ -159,7 +156,28 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 
 		GL_DBG_Printf("OpenGL %s\n", gl_version);
 		GL_DBG_Printf("GPU: %s\n", gl_renderer);
-		GL_DBG_Printf("Extensions: %s\n", gl_extensions);
+		GL_DBG_Printf("Extensions:");
+
+		{
+			// Need to do it with strtok for same reason its done like that in gr_glinfo command
+
+			char *copy = strdup((const char*)gl_extensions);
+			char *ext = strtok(copy, " ");
+
+			if (copy == NULL)
+			{
+				GL_DBG_Printf("Ran out of memory listing extensions?!?!");
+			}
+			else
+			{
+				do
+				{
+					GL_DBG_Printf(" %s", ext);
+				} while ((ext = strtok(NULL, " ")) != NULL);
+
+				free(copy);
+			}
+		}
 
 		if (strcmp((const char*)gl_renderer, "GDI Generic") == 0 &&
 			strcmp((const char*)gl_version, "1.1.0") == 0)
@@ -192,26 +210,16 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 
 #if defined (__unix__)
 #ifdef USE_FBO_OGL
-		if (supportFBO && strstr((const char*)gl_renderer, "NVIDIA"))
+		char videodriver[4] = {'S','D','L',0};
+		if (supportFBO && strstr((const char*)gl_renderer, "NVIDIA")
+			&& (*strncpy(videodriver, SDL_GetCurrentVideoDriver(), sizeof(videodriver)-1) != '\0')
+			&& (strncasecmp("x11",videodriver,4) == 0))
 			xwaylandcrap = true;
 #endif
 #endif
 	}
 
 	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
-
-	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
-	if (screen_width != w || screen_height != h)
-	{
-		GL_FlushScreenTextures();
-
-#ifdef USE_FBO_OGL
-		GL_Framebuffer_DeleteAttachments();
-#endif
-	}
-
-	screen_width = (GLint)w;
-	screen_height = (GLint)h;
 
 	GL_SetModelView(w, h);
 	GL_SetStates();
@@ -226,7 +234,6 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 
 	if (!first_init)
 		HWR_Startup();
-	textureformatGL = cbpp > 16 ? GL_RGBA : GL_RGB5_A1;
 
 	first_init = true;
 
@@ -265,7 +272,7 @@ void OglSdlFinishUpdate(boolean waitvbl)
 	}
 #endif
 
-	GL_DrawScreenFinalTexture(HWD_SCREENTEXTURE_GENERIC2, sdlw, sdlh, HWR_ShouldUsePaletteRendering());
+	HWR_DrawScreenFinalTexture(sdlw, sdlh, HWR_ShouldUsePaletteRendering());
 
 #ifdef USE_FBO_OGL
 	if (usefbo)
@@ -290,8 +297,8 @@ void OglSdlFinishUpdate(boolean waitvbl)
 
 #if defined (__unix__)
 #ifdef USE_FBO_OGL
-		if (loaded_config == true)
-			xwaylandcrap = false;
+	if (loaded_config)
+		xwaylandcrap = false;
 #endif
 #endif
 }

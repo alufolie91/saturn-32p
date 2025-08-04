@@ -136,6 +136,7 @@ static const udata_field_t player_fields[] = {
     FIELD(player_t, startedtime,      udatalib_getter_tic,         udatalib_setter_tic),
     FIELD(player_t, finishedtime,     udatalib_getter_tic,         udatalib_setter_tic),
     FIELD(player_t, finishedrings,    udatalib_getter_int16,       udatalib_setter_int16),
+    FIELD(player_t, interpoints,      udatalib_getter_int32,       udatalib_setter_int32),
     FIELD(player_t, marescore,        udatalib_getter_uint32,      udatalib_setter_uint32),
     FIELD(player_t, lastmarescore,    udatalib_getter_uint32,      udatalib_setter_uint32),
     FIELD(player_t, lastmare,         udatalib_getter_uint8,       udatalib_setter_uint8),
@@ -157,9 +158,8 @@ static const udata_field_t player_fields[] = {
     FIELD(player_t, grieftime,        udatalib_getter_tic,         udatalib_setter_tic),
     FIELD(player_t, griefstrikes,     udatalib_getter_uint8,       udatalib_setter_uint8),
     FIELD(player_t, splitscreenindex, udatalib_getter_uint8,       player_splitscreenindex_noset),
-#ifdef HWRENDER
     FIELD(player_t, fovadd,           udatalib_getter_fixed,       udatalib_setter_fixed), // Mmm yeah thats definitely synch safe
-#endif
+
     // Same as player.name
 	{ "sliproll", 0, player_sliproll_getter, player_sliproll_noset },
 	{ "viewrollangle", 0, player_viewrollangle_getter, player_viewrollangle_noset },
@@ -296,7 +296,7 @@ int player_localskin_getter(lua_State *L)
 	player_t *plr = GETPLAYER();
 
 	if (plr->localskin)
-		lua_pushstring(L, (plr->skinlocal ? localskins : skins)[plr->localskin - 1].name);
+		lua_pushstring(L, K_GetPlayerSkin(plr)->name);
 	else
 		lua_pushnil(L);
 
@@ -486,6 +486,7 @@ static int lib_iterateDisplayplayers(lua_State *L)
 
 		if (!players[displayplayers[i]].mo)
 			continue;
+
 		LUA_PushUserdata(L, &players[displayplayers[i]], META_PLAYER);
 		lua_pushinteger(L, i);	// push this to recall what number we were on for the next function call. I suppose this also means you can retrieve the splitscreen player number with 'for p, n in displayplayers.iterate'!
 		return 2;
@@ -707,8 +708,8 @@ static int kartstuff_len(lua_State *L)
 	return 1;
 }
 
-#define NOFIELD luaL_error(L, LUA_QL("ticcmd_t") " has no field named " LUA_QS, field)
-#define NOSET luaL_error(L, LUA_QL("ticcmd_t") " field " LUA_QS " should not be set directly.", field)
+#define NOFIELD luaL_error(L, LUA_QL("ticcmd_t") " has no field named " LUA_QS, lua_tostring(L, 2))
+#define NOSET luaL_error(L, LUA_QL("ticcmd_t") " field " LUA_QS " should not be set directly.", lua_tostring(L, 2))
 
 enum ticcmd_e
 {

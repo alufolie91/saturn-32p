@@ -51,19 +51,6 @@ mobj_t *skyboxmo[2];
 // This must be updated whenever we up the max flat size - quicker to assume rather than figuring out the sqrt of the specific flat's filesize.
 #define MAXFLATSIZE (2048<<FRACBITS)
 
-/** Animated texture descriptor
-  * This keeps track of an animated texture or an animated flat.
-  * \sa P_UpdateSpecials, P_InitPicAnims, animdef_t
-  */
-typedef struct
-{
-	SINT8 istexture; ///< ::true for a texture, ::false for a flat
-	INT32 picnum;    ///< The end flat number
-	INT32 basepic;   ///< The start flat number
-	INT32 numpics;   ///< Number of frames in the animation
-	tic_t speed;     ///< Number of tics for which each frame is shown
-} anim_t;
-
 #if defined(_MSC_VER)
 #pragma pack(1)
 #endif
@@ -113,8 +100,8 @@ static void P_AddSpikeThinker(sector_t *sec, INT32 referrer);
 
 
 //SoM: 3/7/2000: New sturcture without limits.
-static anim_t *lastanim;
-static anim_t *anims = NULL; /// \todo free leak
+anim_t *lastanim;
+anim_t *anims = NULL; /// \todo free leak
 static size_t maxanims;
 
 //
@@ -1427,14 +1414,14 @@ boolean P_RunTriggerLinedef(line_t *triggerline, mobj_t *actor, sector_t *caller
 	}
 	else if (caller)
 	{
-		INT32 special = GETSECSPECIAL(caller->special, 2);
+		const INT32 secspecial = GETSECSPECIAL(caller->special, 2);
 
-		if (special == 6)
+		if (secspecial == 6)
 		{
 			if (!(ALL7EMERALDS(emeralds)))
 				return false;
 		}
-		else if (special == 7) // SRB2Kart: reusing for Race Lap executor
+		else if (secspecial == 7) // SRB2Kart: reusing for Race Lap executor
 		{
 			UINT8 lap;
 
@@ -1468,7 +1455,7 @@ boolean P_RunTriggerLinedef(line_t *triggerline, mobj_t *actor, sector_t *caller
 		// If we were not triggered by a sector type especially for the purpose,
 		// a Linedef Executor linedef trigger is not handling sector triggers properly, return.
 
-		else if ((!special || special > 7) && (specialtype > 322))
+		else if ((!secspecial || secspecial > 7) && (specialtype > 322))
 		{
 			CONS_Alert(CONS_WARNING,
 				M_GetText("Linedef executor trigger isn't handling sector triggers properly!\nspecialtype = %d, if you are not a dev, report this warning instance\nalong with the wad that caused it!\n"),
@@ -1718,6 +1705,35 @@ void P_LinedefExecute(INT16 tag, mobj_t *actor, sector_t *caller)
 	}
 }
 
+static boolean is_rain_type (INT32 weathernum)
+{
+	switch (weathernum)
+	{
+		case PRECIP_SNOW:
+		case PRECIP_RAIN:
+		case PRECIP_STORM:
+		case PRECIP_STORM_NOSTRIKES:
+		case PRECIP_BLANK:
+			return true;
+
+		default:
+			return false;
+	}
+}
+
+void P_PurgePrecipitation(void)
+{
+	thinker_t *think;
+	thinker_t *next;
+
+	for (think = precipcap.next; think != NULL && think != &precipcap;)
+	{
+		next = think->next;
+		P_FreePrecipMobj((precipmobj_t *)think);
+		think = next;
+	}
+}
+
 //
 // P_SwitchWeather
 //
@@ -1725,74 +1741,21 @@ void P_LinedefExecute(INT16 tag, mobj_t *actor, sector_t *caller)
 //
 void P_SwitchWeather(INT32 weathernum)
 {
-	boolean purge = false;
-	INT32 swap = 0;
+	boolean purge = true;
+	boolean spawnprecip = false;
 
-	switch (weathernum)
-	{
-		case PRECIP_NONE: // None
-			if (curWeather == PRECIP_NONE)
-				return; // Nothing to do.
-			purge = true;
-			break;
-		case PRECIP_STORM: // Storm
-		case PRECIP_STORM_NOSTRIKES: // Storm w/ no lightning
-		case PRECIP_RAIN: // Rain
-			if (curWeather == PRECIP_SNOW || curWeather == PRECIP_BLANK || curWeather == PRECIP_STORM_NORAIN)
-				swap = PRECIP_RAIN;
-			break;
-		case PRECIP_SNOW: // Snow
-			if (curWeather == PRECIP_SNOW)
-				return; // Nothing to do.
-			if (curWeather == PRECIP_RAIN || curWeather == PRECIP_STORM || curWeather == PRECIP_STORM_NOSTRIKES || curWeather == PRECIP_BLANK || curWeather == PRECIP_STORM_NORAIN)
-				swap = PRECIP_SNOW; // Need to delete the other precips.
-			break;
-		case PRECIP_STORM_NORAIN: // Storm w/o rain
-			if (curWeather == PRECIP_SNOW
-				|| curWeather == PRECIP_STORM
-				|| curWeather == PRECIP_STORM_NOSTRIKES
-				|| curWeather == PRECIP_RAIN
-				|| curWeather == PRECIP_BLANK)
-				swap = PRECIP_STORM_NORAIN;
-			else if (curWeather == PRECIP_STORM_NORAIN)
-				return;
-			break;
-		case PRECIP_BLANK:
-			if (curWeather == PRECIP_SNOW
-				|| curWeather == PRECIP_STORM
-				|| curWeather == PRECIP_STORM_NOSTRIKES
-				|| curWeather == PRECIP_RAIN)
-				swap = PRECIP_BLANK;
-			else if (curWeather == PRECIP_STORM_NORAIN)
-				swap = PRECIP_BLANK;
-			else if (curWeather == PRECIP_BLANK)
-				return;
-			break;
-		default:
-			CONS_Debug(DBG_GAMELOGIC, "P_SwitchWeather: Unknown weather type %d.\n", weathernum);
-			break;
-	}
+	if (weathernum == curWeather)
+		return;
+
+	if (is_rain_type(weathernum) &&
+		is_rain_type(curWeather))
+		purge = false;
 
 	if (purge)
 	{
-		thinker_t *think;
-		thinker_t *next;
-		precipmobj_t *precipmobj;
-
-		for (think = precipcap.next; think != &precipcap; think = next)
-		{
-			next = think->next;
-
-#ifdef PARANOIA
-			if (think->function.acp1 != (actionf_p1)P_NullPrecipThinker)
-				continue; // not a precipmobj thinker
-#endif
-
-			precipmobj = (precipmobj_t *)think;
-			P_FreePrecipMobj(precipmobj);
-		}
+		P_PurgePrecipitation();
 	}
-	else if (swap && !((swap == PRECIP_BLANK && curWeather == PRECIP_STORM_NORAIN) || (swap == PRECIP_STORM_NORAIN && curWeather == PRECIP_BLANK))) // Rather than respawn all that crap, reuse it!
+	else // Rather than respawn all that crap, reuse it!
 	{
 		thinker_t *think;
 		precipmobj_t *precipmobj;
@@ -1800,27 +1763,21 @@ void P_SwitchWeather(INT32 weathernum)
 
 		for (think = precipcap.next; think != &precipcap; think = think->next)
 		{
-#ifdef PARANOIA
-			if (think->function.acp1 != (actionf_p1)P_NullPrecipThinker)
-				continue; // not a precipmobj thinker
-#endif
-
 			precipmobj = (precipmobj_t *)think;
 
-			mobjtype_t type = 0;
 			INT32 z = 0;
+			mobjtype_t type = MT_NULL;
 
-			if (swap == PRECIP_BLANK || swap == PRECIP_STORM_NORAIN) // Remove precip, but keep it around for reuse.
+			if (weathernum == PRECIP_NONE || weathernum == PRECIP_BLANK || weathernum == PRECIP_STORM_NORAIN) // Remove precip, but keep it around for reuse.
 			{
 				precipmobj->precipflags |= PCF_INVISIBLE;
 				continue;
 			}
-
-			if (swap == PRECIP_RAIN) // Snow To Rain
+			else if (weathernum == PRECIP_RAIN || weathernum == PRECIP_STORM || weathernum == PRECIP_STORM_NOSTRIKES) // Snow To Rain
 			{
 				type = MT_RAIN;
 			}
-			else if (swap == PRECIP_SNOW) // Rain To Snow
+			else if (weathernum == PRECIP_SNOW) // Rain To Snow
 			{
 				type = MT_SNOWFLAKE;
 
@@ -1850,50 +1807,37 @@ void P_SwitchWeather(INT32 weathernum)
 		}
 	}
 
-	boolean dontspawn = false;
-
 	switch (weathernum)
 	{
 		case PRECIP_SNOW: // snow
 			curWeather = PRECIP_SNOW;
-			break;
+			spawnprecip = true;
+		break;
 		case PRECIP_RAIN: // rain
-		{
-			if (curWeather == PRECIP_RAIN || curWeather == PRECIP_STORM || curWeather == PRECIP_STORM_NOSTRIKES)
-				dontspawn = true;
-
 			curWeather = PRECIP_RAIN;
+			spawnprecip = true;
 			break;
-		}
 		case PRECIP_STORM: // storm
-		{
-			if (curWeather == PRECIP_RAIN || curWeather == PRECIP_STORM || curWeather == PRECIP_STORM_NOSTRIKES)
-				dontspawn = true;
-
 			curWeather = PRECIP_STORM;
+			spawnprecip = true;
 			break;
-		}
 		case PRECIP_STORM_NOSTRIKES: // storm w/o lightning
-		{
-			if (curWeather == PRECIP_RAIN || curWeather == PRECIP_STORM || curWeather == PRECIP_STORM_NOSTRIKES)
-				dontspawn = true;
-
 			curWeather = PRECIP_STORM_NOSTRIKES;
+			spawnprecip = true;
 			break;
-		}
 		case PRECIP_STORM_NORAIN: // storm w/o rain
 			curWeather = PRECIP_STORM_NORAIN;
 			break;
-		case PRECIP_BLANK:
+		case PRECIP_BLANK: //preloaded
 			curWeather = PRECIP_BLANK;
-			break;
+			spawnprecip = true;
+		break;
 		default:
-			dontspawn = true;
 			curWeather = PRECIP_NONE;
 			break;
 	}
 
-	if (!dontspawn && !swap)
+	if (spawnprecip && purge)
 		P_SpawnPrecipitation();
 }
 
@@ -2102,7 +2046,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 			break;
 
 		case 413: // Change music
-			if (keepmusic && (leveltime <= MUSICSTARTTIME)) //why check for starttime? cause encore music Zzz...
+			if (keepmapmusic && (leveltime <= MUSICSTARTTIME)) // why check for starttime? cause encore music Zzz...
 				return;
 
 			//if (cv_ignoremusicchanges.value && (leveltime >= MUSICSTARTTIME) && !fromlapexec) // keep lap music intanct tho
@@ -2150,19 +2094,19 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 				// Change the music and apply position/fade operations
 				else
 				{
-					strncpy(mapmusname, sides[line->sidenum[0]].text, 7);
-					mapmusname[6] = 0;
+					strncpy(mapmusic.name, sides[line->sidenum[0]].text, 7);
+					mapmusic.name[6] = 0;
 
-					mapmusflags = tracknum & MUSIC_TRACKMASK;
+					mapmusic.flags = tracknum & MUSIC_TRACKMASK;
 					if (!(line->flags & ML_BLOCKMONSTERS))
-						mapmusflags |= MUSIC_RELOADRESET;
+						mapmusic.flags |= MUSIC_RELOADRESET;
 					if (line->flags & ML_BOUNCY)
-						mapmusflags |= MUSIC_FORCERESET;
+						mapmusic.flags |= MUSIC_FORCERESET;
 
-					mapmusposition = position;
-					mapmusresume = 0;
+					mapmusic.position = position;
+					mapmusic.resume = 0;
 
-					S_ChangeMusicEx(mapmusname, mapmusflags, !(line->flags & ML_EFFECT4), position,
+					S_ChangeMusicEx(mapmusic.name, mapmusic.flags, !(line->flags & ML_EFFECT4), position,
 						!(line->flags & ML_EFFECT2) ? prefadems : 0,
 						!(line->flags & ML_EFFECT2) ? postfadems : 0);
 
@@ -2189,7 +2133,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 				INT32 sfxnum;
 
 				//dont play any funky sound intros that may interfere with the music
-				if (skipintromus && (leveltime < MUSICSTARTTIME))
+				if ((skipintromus || keepmapmusic) && (leveltime < MUSICSTARTTIME))
 					return;
 
 				sfxnum = sides[line->sidenum[0]].toptexture; //P_AproxDistance(line->dx, line->dy)>>FRACBITS;
@@ -3322,9 +3266,10 @@ void P_ProcessSpecialSector(player_t *player, sector_t *sector, sector_t *rovers
 			if (roversector || P_MobjReadyToTrigger(player->mo, sector))
 				P_DamageMobj(player->mo, NULL, NULL, 1);
 			break;
-		case 2: // Damage (Water) // SRB2kart - These three damage types are now offroad sectors
-		case 3: // Damage (Fire)
-		case 4: // Damage (Electrical)
+		// SRB2kart - These three damage types are now offroad sectors
+		case 2: // Offroad (Weak)
+		case 3: // Offroad
+		case 4: // Offroad (Strong)
 			break;
 		case 5: // Spikes
 			// Don't do anything. In Soviet Russia, spikes find you.
@@ -3332,10 +3277,10 @@ void P_ProcessSpecialSector(player_t *player, sector_t *sector, sector_t *rovers
 		case 6: // Death Pit (Camera Tilt)
 		case 7: // Death Pit (No Camera Tilt)
 			if (roversector || P_MobjReadyToTrigger(player->mo, sector))
-				P_DamageMobj(player->mo, NULL, NULL, 10000);
+				P_DamageMobj(player->mo, NULL, NULL, DMG_INSTAKILL);
 			break;
 		case 8: // Instant Kill
-			P_DamageMobj(player->mo, NULL, NULL, 10000);
+			P_DamageMobj(player->mo, NULL, NULL, DMG_INSTAKILL);
 			break;
 		case 9: // Ring Drainer (Floor Touch)
 		case 10: // Ring Drainer (No Floor Touch)
@@ -3583,14 +3528,16 @@ DoneSection2:
 
 				if (!demo.playback || P_AnalogMove(player))
 				{
-					if (player == &players[consoleplayer])
-						localangle[0] = player->mo->angle;
-					else if (player == &players[displayplayers[1]])
-						localangle[1] = player->mo->angle;
-					else if (player == &players[displayplayers[2]])
-						localangle[2] = player->mo->angle;
-					else if (player == &players[displayplayers[3]])
-						localangle[3] = player->mo->angle;
+					for (UINT8 j = 0; j <= splitscreen; ++j)
+					{
+						INT32 id = (j == 0 ? consoleplayer : displayplayers[j]);
+
+						if (player == &players[id])
+						{
+							localangle[j] = player->mo->angle;
+							break;
+						}
+					}
 				}
 
 				if (!(lines[i].flags & ML_EFFECT4))
@@ -3621,7 +3568,6 @@ DoneSection2:
 					sfxenum_t pick = P_RandomKey(2); // Gotta roll the RNG every time this is called for sync reasons
 					if (cv_kartvoices.value)
 						S_StartSound(player->mo, sfx_kbost1+pick);
-					//K_TauntVoiceTimers(player);
 				}
 			}
 			break;
@@ -3657,8 +3603,6 @@ DoneSection2:
 		case 2: // Special stage GOAL sector / Exit Sector / CTF Flag Return
 			if (player->bot)
 				break;
-			if (!useNightsSS && G_IsSpecialStage(gamemap) && sstimer > 6)
-				sstimer = 6; // Just let P_Ticker take care of the rest.
 
 			// Exit (for FOF exits; others are handled in P_PlayerThink in p_user.c)
 			{
@@ -3829,12 +3773,6 @@ DoneSection2:
 
 				if (!(player->mo->state >= &states[S_KART_RUN1] && player->mo->state <= &states[S_KART_RUN2]))
 					P_SetPlayerMobjState(player->mo, S_KART_RUN1);
-
-				//if (!(player->mo->state >= &states[S_PLAY_ATK1] && player->mo->state <= &states[S_PLAY_ATK4])) // SRB2kart
-				//{
-				//	P_SetPlayerMobjState(player->mo, S_PLAY_ATK1);
-				//	S_StartSound(player->mo, sfx_spin);
-				//}
 			}
 			break;
 
@@ -3969,12 +3907,6 @@ DoneSection2:
 						else if (player->laps < (UINT8)(cv_numlaps.value - 1))
 							S_StartSound(NULL, sfx_s221);
 					}
-
-					//player->starpostangle = player->starposttime = player->starpostnum = 0;
-					//player->starpostx = player->starposty = player->starpostz = 0;
-
-					// Play the starpost sound for 'consistency'
-					// S_StartSound(player->mo, sfx_strpst);
 
 					thwompsactive = true; // Lap 2 effects
 					player->grieftime = 0;
@@ -4455,14 +4387,6 @@ static void P_RunSpecialSectorCheck(player_t *player, sector_t *sector)
 	switch(GETSECSPECIAL(sector->special, 4))
 	{
 		case 2: // Level Exit / GOAL Sector / Flag Return
-			if (!useNightsSS && G_IsSpecialStage(gamemap))
-			{
-				// Special stage GOAL sector
-				// requires touching floor.
-				break;
-			}
-			/* FALLTHRU */
-
 		case 1: // Starpost activator
 		case 5: // Fan sector
 		case 6: // Super Sonic Transform
@@ -4728,11 +4652,11 @@ static ffloor_t *P_AddFakeFloor(sector_t *sec, sector_t *sec2, line_t *master, f
 	i = 0;
 	th = thinkercap.next;
 
-	for(;;)
+	for (;;)
 	{
-		if(secthinkers)
+		if (secthinkers)
 		{
-			if(i < secthinkers[sec2num].count)
+			if (i < secthinkers[sec2num].count)
 				th = secthinkers[sec2num].thinkers[i];
 			else break;
 		}
@@ -4764,20 +4688,40 @@ static ffloor_t *P_AddFakeFloor(sector_t *sec, sector_t *sec2, line_t *master, f
 				Add_Pusher(p->type, p->x_mag<<FRACBITS, p->y_mag<<FRACBITS, p->source, (INT32)(sec-sectors), p->affectee, p->exclusive, p->slider);
 		}
 
-		if(secthinkers) i++;
-		else th = th->next;
+		if (secthinkers)
+			i++;
+		else
+			th = th->next;
 	}
-
 
 	if (flags & FF_TRANSLUCENT)
 	{
 		if (sides[master->sidenum[0]].toptexture > 0)
-			ffloor->alpha = sides[master->sidenum[0]].toptexture; // for future reference, "#0" is 1, and "#255" is 256. Be warned
+		{
+			// for future reference, "#0" is 1, and "#255" is 256. Be warned
+			ffloor->alpha = sides[master->sidenum[0]].toptexture;
+
+			if (ffloor->alpha >= 1001) // fourth digit
+			{
+				ffloor->blend = (ffloor->alpha/1000)+1; // becomes an AST
+				ffloor->alpha %= 1000;
+			}
+			else
+			{
+				ffloor->blend = 0;
+			}
+		}
 		else
+		{
 			ffloor->alpha = 0x80;
+			ffloor->blend = 0;
+		}
 	}
 	else
+	{
 		ffloor->alpha = 0xff;
+		ffloor->blend = 0;
+	}
 
 	ffloor->spawnalpha = ffloor->alpha; // save for netgames
 
@@ -5136,11 +5080,10 @@ void T_LaserFlash(laserthink_t *flash)
 
 	sourcesec = ffloor->master->frontsector; // Less to type!
 
-	top = (*ffloor->t_slope) ? P_GetZAt(*ffloor->t_slope, sector->soundorg.x, sector->soundorg.y)
-			: *ffloor->topheight;
-	bottom = (*ffloor->b_slope) ? P_GetZAt(*ffloor->b_slope, sector->soundorg.x, sector->soundorg.y)
-			: *ffloor->bottomheight;
+	top    = P_GetFFloorTopZAt   (ffloor, sector->soundorg.x, sector->soundorg.y);
+	bottom = P_GetFFloorBottomZAt(ffloor, sector->soundorg.x, sector->soundorg.y);
 	sector->soundorg.z = (top + bottom)/2;
+
 	S_StartSound(&sector->soundorg, sfx_laser);
 
 	// Seek out objects to DESTROY! MUAHAHHAHAHAA!!!*cough*
@@ -5239,12 +5182,6 @@ void P_SpawnSpecials(INT32 fromnetsave, boolean reloadinggamestate)
 	// Set the default gravity. Custom gravity overrides this setting.
 	gravity = (FRACUNIT*8)/10;
 
-	// Set map lighting settings.
-	maplighting.contrast = mapheaderinfo[gamemap-1]->light_contrast;
-	maplighting.backlight = mapheaderinfo[gamemap-1]->sprite_backlight;
-	maplighting.directional = mapheaderinfo[gamemap-1]->use_light_angle;
-	maplighting.angle = mapheaderinfo[gamemap-1]->light_angle;
-
 	// Defaults in case levels don't have them set.
 	sstimer = 90*TICRATE + 6;
 	totalrings = 1;
@@ -5293,20 +5230,8 @@ void P_SpawnSpecials(INT32 fromnetsave, boolean reloadinggamestate)
 		}
 	}
 
-	if (mapheaderinfo[gamemap-1]->weather == 2) // snow
-		curWeather = PRECIP_SNOW;
-	else if (mapheaderinfo[gamemap-1]->weather == 3) // rain
-		curWeather = PRECIP_RAIN;
-	else if (mapheaderinfo[gamemap-1]->weather == 1) // storm
-		curWeather = PRECIP_STORM;
-	else if (mapheaderinfo[gamemap-1]->weather == 5) // storm w/o rain
-		curWeather = PRECIP_STORM_NORAIN;
-	else if (mapheaderinfo[gamemap-1]->weather == 6) // storm w/o lightning
-		curWeather = PRECIP_STORM_NOSTRIKES;
-	else if (mapheaderinfo[gamemap-1]->weather == 4) // blank
-		curWeather = PRECIP_BLANK;
-	else
-		curWeather = PRECIP_NONE;
+	// set current weather
+	curWeather = mapheaderinfo[gamemap-1]->weather;
 
 	P_InitTagLists();   // Create xref tables for tags
 	P_SearchForDisableLinedefs(); // Disable linedefs are now allowed to disable *any* line
@@ -6291,6 +6216,7 @@ static void P_AddFakeFloorsByLine(size_t line, ffloortype_e ffloorflags, thinker
 static void P_DoScrollMove(mobj_t *thing, fixed_t dx, fixed_t dy, INT32 exclusive)
 {
 	fixed_t fuckaj = 0; // Nov 05 14:12:08 <+MonsterIestyn> I've heard of explicitly defined variables but this is ridiculous
+
 	if (thing->player)
 	{
 		if (!(dx | dy))
@@ -6312,7 +6238,8 @@ static void P_DoScrollMove(mobj_t *thing, fixed_t dx, fixed_t dy, INT32 exclusiv
 	else if (thing->friction != ORIG_FRICTION)
 		fuckaj = thing->friction;
 
-	if (fuckaj) {
+	if (fuckaj)
+	{
 		// refactor thrust for new friction
 		dx = FixedDiv(dx, CARRYFACTOR);
 		dy = FixedDiv(dy, CARRYFACTOR);
@@ -6370,9 +6297,6 @@ void T_Scroll(scroll_t *s)
 		s->vdx = dx += s->vdx;
 		s->vdy = dy += s->vdy;
 	}
-
-//	if (!(dx | dy)) // no-op if both (x,y) offsets 0
-//		return;
 
 	switch (s->type)
 	{
@@ -6649,27 +6573,21 @@ static void P_SpawnScrollers(void)
 		// this linedef controls the direction and speed of the scrolling. The
 		// most complicated linedef since donuts, but powerful :)
 
-		if (special == 515 || special == 512 || special == 522 || special == 532 || special == 504) // displacement scrollers
+		switch (special)
 		{
-			special -= 2;
-			control = (INT32)(sides[*l->sidenum].sector - sectors);
-		}
-		else if (special == 514 || special == 511 || special == 521 || special == 531 || special == 503) // accelerative scrollers
-		{
-			special--;
-			accel = 1;
-			control = (INT32)(sides[*l->sidenum].sector - sectors);
-		}
-		else if (special == 535 || special == 525) // displacement scrollers
-		{
-			special -= 2;
-			control = (INT32)(sides[*l->sidenum].sector - sectors);
-		}
-		else if (special == 534 || special == 524) // accelerative scrollers
-		{
-			accel = 1;
-			special--;
-			control = (INT32)(sides[*l->sidenum].sector - sectors);
+			case 515: case 512: case 522: case 532: case 504:
+			case 535: case 525: // displacement scrollers
+
+				special -= 2;
+				control = (INT32)(sides[*l->sidenum].sector - sectors);
+				break;
+
+			case 514: case 511: case 521: case 531: case 503:
+			case 534: case 524: // accelerative scrollers
+				special--;
+				accel = 1;
+				control = (INT32)(sides[*l->sidenum].sector - sectors);
+				break;
 		}
 
 		switch (special)
@@ -6794,10 +6712,7 @@ void T_Disappear(disappear_t *d)
 
 					if (!(lines[d->sourceline].flags & ML_NOCLIMB))
 					{
-						if (*rover->t_slope)
-							sectors[s].soundorg.z = P_GetZAt(*rover->t_slope, sectors[s].soundorg.x, sectors[s].soundorg.y);
-						else
-							sectors[s].soundorg.z = *rover->topheight;
+						sectors[s].soundorg.z = P_GetFFloorTopZAt(rover, sectors[s].soundorg.x, sectors[s].soundorg.y);
 						S_StartSound(&sectors[s].soundorg, sfx_appear);
 					}
 				}
@@ -7424,33 +7339,18 @@ void T_Pusher(pusher_t *p)
 
 				if (!demo.playback || P_AnalogMove(thing->player))
 				{
-					if (thing->player == &players[consoleplayer])
+					for (UINT8 i = 0; i <= splitscreen; ++i)
 					{
-						if (thing->angle - localangle[0] > ANGLE_180)
-							localangle[0] -= (localangle[0] - thing->angle) / 8;
-						else
-							localangle[0] += (thing->angle - localangle[0]) / 8;
-					}
-					else if (thing->player == &players[displayplayers[1]])
-					{
-						if (thing->angle - localangle[1] > ANGLE_180)
-							localangle[1] -= (localangle[1] - thing->angle) / 8;
-						else
-							localangle[1] += (thing->angle - localangle[1]) / 8;
-					}
-					else if (thing->player == &players[displayplayers[2]])
-					{
-						if (thing->angle - localangle[2] > ANGLE_180)
-							localangle[2] -= (localangle[2] - thing->angle) / 8;
-						else
-							localangle[2] += (thing->angle - localangle[2]) / 8;
-					}
-					else if (thing->player == &players[displayplayers[3]])
-					{
-						if (thing->angle - localangle[3] > ANGLE_180)
-							localangle[3] -= (localangle[3] - thing->angle) / 8;
-						else
-							localangle[3] += (thing->angle - localangle[3]) / 8;
+						INT32 id = (i == 0 ? consoleplayer : displayplayers[i]);
+						if (thing->player == &players[id])
+						{
+							if (thing->angle - localangle[i] > ANGLE_180)
+								localangle[i] -= (localangle[i] - thing->angle) / 8;
+							else
+								localangle[i] += (thing->angle - localangle[i]) / 8;
+
+							break;
+						}
 					}
 				}
 			}

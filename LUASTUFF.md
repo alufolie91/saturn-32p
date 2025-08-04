@@ -28,6 +28,10 @@ exist.
 Returns the values of the given HUD item's `xoffset`/`yoffset` cvars.
 Available for any HUD item with offset cvars.
 
+## patch = v.cachePatchRotated(name, rollangle)
+Like v.cachePatch, it caches a new patch with the corresponding name. Unlike v.cachePatch, however,
+a rollangle can be supplied to the function so that it returns a rotated patch instead.
+
 ## x, y, flags = v.getDrawInfo(item)
 
 Returns the X, Y and flags where the given HUD item will be drawn for the current displayplayer.
@@ -151,6 +155,11 @@ Best to be used in a Loop to ensure the color wont get overwritten by the game.
 Add Gamepad Rumble support for things.
 To be used with Displayplayers.
 Duration is in milliseconds and is optional to set, default value is 84ms.
+
+## P_CheckSightFast(mo1, mo2)
+
+Exactly same as P_CheckSight but uses cheaper algorithm, useful for things like nametags. Doesn't work exactly
+like P_CheckSight so don't use it for anything gameplay-related.
 
 # Other changes
 

@@ -32,10 +32,20 @@ enum hud {
 	hud_wanted,
 	hud_speedometer,
 	hud_statdisplay,
+	hud_inputdisplay,
 	hud_nametags,
 	hud_driftgauge,
 	hud_freeplay,
 	hud_rankings,		// Tab rankings
+
+	// SRB2KART CEP stuff
+	hud_interlisting,
+	hud_interplayers,
+	hud_interborders,
+	hud_interscores,
+	hud_interscoretitle,
+	hud_intertitle,
+	//
 
 	hud_MAX
 };

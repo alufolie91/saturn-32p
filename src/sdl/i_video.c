@@ -138,6 +138,9 @@ static void I_CheckDesktopRes(void);
 consvar_t cv_vidwait = {"vid_wait", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Impl_SetVsync, 0, NULL, NULL, 0, 0, NULL};
 static consvar_t cv_stretch = {"stretch", "Off", CV_SAVE|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+static void mousegrabOnChange(void);
+consvar_t cv_alwaysgrabmouse = {"alwaysgrabmouse", "Off", CV_SAVE|CV_CALL, CV_OnOff, mousegrabOnChange, 0, NULL, NULL, 0, 0, NULL};
+
 // these cant be used since config is read after window creation, so need to use command line parameter instead
 //static CV_PossibleValue_t msaa_cons_t[] = {{0, "Off"}, {2, "2X"}, {4, "4X"}, {8, "8X"}, {16, "16X"}, {0, NULL}};
 //consvar_t cv_msaa = {"msaa", "Off", CV_SAVE, msaa_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -147,7 +150,7 @@ UINT8 graphics_started = 0; // Is used in console.c and screen.c
 // To disable fullscreen at startup; is set in VID_PrepareModeList
 boolean allow_fullscreen = false;
 static SDL_bool disable_fullscreen = SDL_FALSE;
-#define USE_FULLSCREEN (disable_fullscreen||!allow_fullscreen)?0:cv_fullscreen.value
+#define USE_FULLSCREEN (disable_fullscreen||!allow_fullscreen)? 0: (cv_fullscreen.value == 1)
 static SDL_bool disable_mouse = SDL_FALSE;
 #define USE_MOUSEINPUT (!disable_mouse && cv_usemouse.value && havefocus)
 #define MOUSE_MENU false //(!disable_mouse && cv_usemouse.value && menuactive && !USE_FULLSCREEN)
@@ -222,6 +225,9 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen);
 //static void Impl_SetWindowName(const char *title);
 static void Impl_SetWindowIcon(void);
 
+static void SDLdoGrabMouse(void);
+static void SDLdoUngrabMouse(void);
+
 #ifdef USE_FBO_OGL
 boolean downsample = false;
 void RefreshOGLSDLSurface(void)
@@ -230,6 +236,23 @@ void RefreshOGLSDLSurface(void)
 		OglSdlSurface(vid.width, vid.height);
 }
 #endif
+
+static void mousegrabOnChange(void)
+{
+	static SDL_bool firsttimeonmouse = SDL_TRUE;
+
+	if (!firsttimeonmouse)
+	{
+		HalfWarpMouse(realwidth, realheight); // warp to center
+	}
+	else
+		firsttimeonmouse = SDL_FALSE;
+
+	if (cv_usemouse.value || cv_alwaysgrabmouse.value)
+		SDLdoGrabMouse();
+	else
+		SDLdoUngrabMouse();
+}
 
 static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 {
@@ -250,6 +273,7 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 		{
 			wasfullscreen = SDL_TRUE;
 			SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+			I_SetBorderlessWindow();
 		}
 		else // windowed mode
 		{
@@ -417,13 +441,15 @@ static INT32 Impl_SDL_Scancode_To_Keycode(SDL_Scancode code)
 }
 
 // Get the equivalent ASCII (Unicode?) character for a keypress.
-static INT32 GetTypedChar(SDL_Scancode code, SDL_Keysym *sym)
+static INT32 GetTypedChar(SDL_Keysym keysym)
 {
 	SDL_Event next_event;
-	boolean Text_Input_Only = (chat_on || CON_Ready() || (menu_text_input && menuactive));  //only use this this if on chat or console or the current menu wants inputs from us (except if its the control setup menu ig)
+	SDL_Keycode keycode = keysym.sym;
+	SDL_Scancode scancode = keysym.scancode;
+	const boolean Text_Input_Only = (chat_on || CON_Ready() || (menu_text_input && menuactive)); // only use this this if on chat or console or the current menu wants inputs from us (except if its the control setup menu ig)
 
 	// Special cases, where we always return a fixed value.
-	switch (sym->sym)
+	switch (keycode)
 	{
 		case SDLK_BACKSPACE: return KEY_BACKSPACE;
 		case SDLK_RETURN:    return KEY_ENTER;
@@ -440,13 +466,13 @@ static INT32 GetTypedChar(SDL_Scancode code, SDL_Keysym *sym)
 		}
 	}
 
-	return Impl_SDL_Scancode_To_Keycode(code); //fallback
+	return Impl_SDL_Scancode_To_Keycode(scancode); // fallback
 }
 
 static INT32 Impl_SDL_Keysym_To_Keycode(SDL_Keysym keysym)
 {
-	SDL_Keycode keycode= keysym.sym;
-	SDL_Scancode scancode= keysym.scancode;
+	SDL_Keycode keycode = keysym.sym;
+	SDL_Scancode scancode = keysym.scancode;
 
 	if (keycode >= SDLK_a && keycode <= SDLK_z)
 	{
@@ -457,15 +483,14 @@ static INT32 Impl_SDL_Keysym_To_Keycode(SDL_Keysym keysym)
 	{
 		return KEY_F1 + (keycode - SDLK_F1);
 	}
-	if(scancode == SDL_SCANCODE_APOSTROPHE)
+
+	switch (scancode)
 	{
-		return KEY_FR_U_GRAVE;
-	}
-	switch(scancode){
 		case SDL_SCANCODE_APOSTROPHE:    return KEY_FR_U_GRAVE;
 		case SDL_SCANCODE_LEFTBRACKET:   return '^';
 		default:               break;
 	}
+
 	switch (keycode)
 	{
 		// F11 and F12 are separated from the rest of the function keys
@@ -658,11 +683,6 @@ static void VID_Command_Mode_f (void)
 		setmodeneeded = modenum+1; // request vid mode change
 }
 
-static inline void SDLJoyRemap(event_t *event)
-{
-	(void)event;
-}
-
 static INT32 SDLJoyAxis(const Sint16 axis, evtype_t which)
 {
 	// -32768 to 32767
@@ -845,6 +865,7 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 		{
 			SDLforceUngrabMouse();
 		}
+
 		memset(gamekeydown, 0, NUMKEYS); // TODO this is a scary memset
 
 		if (MOUSE_MENU)
@@ -858,6 +879,7 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 static void Impl_HandleKeyboardEvent(SDL_KeyboardEvent evt, Uint32 type)
 {
 	event_t event;
+
 	if (type == SDL_KEYUP)
 	{
 		event.type = ev_keyup;
@@ -871,12 +893,18 @@ static void Impl_HandleKeyboardEvent(SDL_KeyboardEvent evt, Uint32 type)
 		return;
 	}
 
-	if (cv_keyboardlayout.value == 2)
-		event.data1 = GetTypedChar(evt.keysym.scancode, &evt.keysym);
-	else if (cv_keyboardlayout.value == 3)
-		event.data1 = Impl_SDL_Keysym_To_Keycode(evt.keysym);
-	else
-		event.data1 = Impl_SDL_Scancode_To_Keycode(evt.keysym.scancode);
+	switch (cv_keyboardlayout.value)
+	{
+		case 2: // "native"
+			event.data1 = GetTypedChar(evt.keysym);
+			break;
+		case 3: // AZERTY
+			event.data1 = Impl_SDL_Keysym_To_Keycode(evt.keysym);
+			break;
+		default:
+			event.data1 = Impl_SDL_Scancode_To_Keycode(evt.keysym.scancode);
+			break;
+	}
 
 	if (event.data1) D_PostEvent(&event);
 }
@@ -885,7 +913,9 @@ static void Impl_HandleMouseMotionEvent(SDL_MouseMotionEvent evt)
 {
 	if (USE_MOUSEINPUT)
 	{
-		if ((SDL_GetMouseFocus() != window && SDL_GetKeyboardFocus() != window))
+		const boolean windowinfocus = (SDL_GetMouseFocus() == window && SDL_GetKeyboardFocus() == window);
+
+		if (!windowinfocus)
 		{
 			SDLdoUngrabMouse();
 			return;
@@ -895,7 +925,7 @@ static void Impl_HandleMouseMotionEvent(SDL_MouseMotionEvent evt)
 		// add on the offsets so we can make an overall event later.
 		if (SDL_GetRelativeMouseMode())
 		{
-			if (SDL_GetMouseFocus() == window && SDL_GetKeyboardFocus() == window)
+			if (windowinfocus)
 			{
 				mousemovex +=  evt.xrel;
 				mousemovey += -evt.yrel;
@@ -915,7 +945,21 @@ static void Impl_HandleMouseMotionEvent(SDL_MouseMotionEvent evt)
 		// just grab and set relative mode
 		// this fixes the stupid camera jerk on mouse entering bug
 		// -- Monster Iestyn
-		if (SDL_GetMouseFocus() == window && SDL_GetKeyboardFocus() == window)
+		if (windowinfocus)
+		{
+			SDLdoGrabMouse();
+		}
+	}
+	else if (cv_alwaysgrabmouse.value)
+	{
+		const boolean windowinfocus = (SDL_GetMouseFocus() == window && SDL_GetKeyboardFocus() == window);
+
+		if (!windowinfocus)
+		{
+			SDLdoUngrabMouse();
+			return;
+		}
+		else if (windowinfocus)
 		{
 			SDLdoGrabMouse();
 		}
@@ -925,8 +969,6 @@ static void Impl_HandleMouseMotionEvent(SDL_MouseMotionEvent evt)
 static void Impl_HandleMouseButtonEvent(SDL_MouseButtonEvent evt, Uint32 type)
 {
 	event_t event;
-
-	SDL_memset(&event, 0, sizeof(event_t));
 
 	// Ignore the event if the mouse is not actually focused on the window.
 	// This can happen if you used the mouse to restore keyboard focus;
@@ -939,6 +981,8 @@ static void Impl_HandleMouseButtonEvent(SDL_MouseButtonEvent evt, Uint32 type)
 	/// \todo inputEvent.button.which
 	if (USE_MOUSEINPUT)
 	{
+		SDL_memset(&event, 0, sizeof(event_t));
+
 		if (type == SDL_MOUSEBUTTONUP)
 		{
 			event.type = ev_keyup;
@@ -969,26 +1013,29 @@ static void Impl_HandleMouseWheelEvent(SDL_MouseWheelEvent evt)
 {
 	event_t event;
 
-	SDL_memset(&event, 0, sizeof(event_t));
+	if (USE_MOUSEINPUT)
+	{
+		SDL_memset(&event, 0, sizeof(event_t));
 
-	if (evt.y > 0)
-	{
-		event.data1 = KEY_MOUSEWHEELUP;
-		event.type = ev_keydown;
-	}
-	if (evt.y < 0)
-	{
-		event.data1 = KEY_MOUSEWHEELDOWN;
-		event.type = ev_keydown;
-	}
-	if (evt.y == 0)
-	{
-		event.data1 = 0;
-		event.type = ev_keyup;
-	}
-	if (event.type == ev_keyup || event.type == ev_keydown)
-	{
-		D_PostEvent(&event);
+		if (evt.y > 0)
+		{
+			event.data1 = KEY_MOUSEWHEELUP;
+			event.type = ev_keydown;
+		}
+		if (evt.y < 0)
+		{
+			event.data1 = KEY_MOUSEWHEELDOWN;
+			event.type = ev_keydown;
+		}
+		if (evt.y == 0)
+		{
+			event.data1 = 0;
+			event.type = ev_keyup;
+		}
+		if (event.type == ev_keyup || event.type == ev_keydown)
+		{
+			D_PostEvent(&event);
+		}
 	}
 }
 
@@ -1101,6 +1148,7 @@ static void Impl_HandleControllerButtonEvent(SDL_ControllerButtonEvent evt, Uint
 		event.data1 = KEY_4JOY1;
 	}
 	else return;
+
 	if (type == SDL_CONTROLLERBUTTONUP)
 	{
 		event.type = ev_keyup;
@@ -1110,13 +1158,13 @@ static void Impl_HandleControllerButtonEvent(SDL_ControllerButtonEvent evt, Uint
 		event.type = ev_keydown;
 	}
 	else return;
+
 	if (evt.button < JOYBUTTONS)
 	{
 		event.data1 += evt.button;
 	}
 	else return;
 
-	SDLJoyRemap(&event);
 	if (event.type != ev_console) D_PostEvent(&event);
 }
 
@@ -1238,7 +1286,10 @@ void I_GetEvent(void)
 					////////////////////////////////////////////////////////////
 
 					for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
+					{
 						I_InitJoystick(i);
+						G_SetPlayerGamepadIndicatorColor(i, G_GetSkinColor(i)); // gotta update the controller led again on reconnect
+					}
 
 					////////////////////////////////////////////////////////////
 
@@ -1248,6 +1299,8 @@ void I_GetEvent(void)
 					// update the menu
 					if (currentMenu == &OP_JoystickSetDef)
 						M_SetupJoystickMenu(0);
+
+					numcontrollers = I_NumJoys();
 
 					for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
 					{
@@ -1308,6 +1361,9 @@ void I_GetEvent(void)
 				// update the menu
 				if (currentMenu == &OP_JoystickSetDef)
 					M_SetupJoystickMenu(0);
+
+				numcontrollers = I_NumJoys();
+
 				break;
 			case SDL_DROPFILE:
 				dropped_filedir = evt.drop.file;
@@ -1353,7 +1409,7 @@ void I_StartupMouse(void)
 	}
 	else
 		firsttimeonmouse = SDL_FALSE;
-	if (cv_usemouse.value)
+	if (cv_usemouse.value || cv_alwaysgrabmouse.value)
 		SDLdoGrabMouse();
 	else
 		SDLdoUngrabMouse();
@@ -1375,8 +1431,6 @@ void I_OsPolling(void)
 		for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
 			I_GetJoystickEvents(i);
 	}
-
-	I_GetMouseEvents();
 
 	I_GetEvent();
 
@@ -1418,37 +1472,6 @@ void I_UpdateNoBlit(void)
 	exposevideo = SDL_FALSE;
 }
 
-// I_SkipFrame
-//
-// Returns true if it thinks we can afford to skip this frame
-// from PrBoom's src/SDL/i_video.c
-static inline boolean I_SkipFrame(void)
-{
-#if 1
-	// While I fixed the FPS counter bugging out with this,
-	// I actually really like being able to pause and
-	// use perfstats to measure rendering performance
-	// without game logic changes.
-	return false;
-#else
-	static boolean skip = false;
-
-	skip = !skip;
-
-	switch (gamestate)
-	{
-		case GS_LEVEL:
-			if (!paused)
-				return false;
-			/* FALLTHRU */
-		case GS_WAITINGPLAYERS:
-			return skip; // Skip odd frames
-		default:
-			return false;
-	}
-#endif
-}
-
 //
 // I_FinishUpdate
 //
@@ -1461,14 +1484,14 @@ void I_FinishUpdate(void)
 
 	SCR_CalculateFPS();
 
-	if (I_SkipFrame())
-		return;
+	if (st_overlay)
+	{
+		if (cv_ticrate.value)
+			SCR_DisplayTicRate();
 
-	if (cv_ticrate.value && st_overlay)
-		SCR_DisplayTicRate();
-
-	if (cv_showping.value && netgame && consoleplayer != serverplayer && st_overlay)
-		SCR_DisplayLocalPing();
+		if (cv_showping.value && ((netgame && consoleplayer != serverplayer) || (simulated_lag != 0 && consoleplayer == serverplayer && Playing())))
+			SCR_DisplayLocalPing();
+	}
 
 #ifdef HAVE_DISCORDRPC
 	if (discordRequestList != NULL)
@@ -1873,7 +1896,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 	// Some GPU drivers may give us a 16-bit depth buffer since the
 	// default value for SDL_GL_DEPTH_SIZE is 16.
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-	
+
 	// request stencil buffer. If there are problems on weaker hw the bit count could be reduced
 	// If only something like 1-bit or 2-bit stencil is available on some gpus then should implement limit for maxportals based on that.
 	// 4 bits would be enough for current limit in maxportals (12)
@@ -1982,6 +2005,7 @@ void I_StartupGraphics(void)
 	COM_AddCommand ("vid_mode", VID_Command_Mode_f);
 	CV_RegisterVar (&cv_vidwait);
 	CV_RegisterVar (&cv_stretch);
+	CV_RegisterVar (&cv_alwaysgrabmouse);
 	disable_mouse = M_CheckParm("-nomouse");
 	disable_fullscreen = M_CheckParm("-win") ? 1 : 0;
 
@@ -2198,10 +2222,7 @@ void I_StartupGraphics(void)
 
 	if (mousegrabok && !disable_mouse)
 	{
-		SDL_ShowCursor(SDL_DISABLE);
-		SDL_SetRelativeMouseMode(SDL_TRUE);
-		wrapmouseok = SDL_TRUE;
-		SDL_SetWindowGrab(window, SDL_TRUE);
+		SDLdoGrabMouse();
 	}
 
 	graphics_started = true;
@@ -2267,6 +2288,12 @@ static void Impl_SetVsync(void)
 		SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
 	}
 #endif
+}
+
+void I_SetBorderlessWindow(void)
+{
+	SDL_bool borderless = (cv_fullscreen.value == 2) ? SDL_FALSE : SDL_TRUE;
+	SDL_SetWindowBordered(window, borderless);
 }
 
 #endif

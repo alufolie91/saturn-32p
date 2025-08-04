@@ -48,6 +48,9 @@ consvar_t cv_ticrate = {"showfps", "No", CV_SAVE, fps_cons_t, NULL, 0, NULL, NUL
 
 static void CV_palette_OnChange(void);
 
+consvar_t cv_palette = {"palette", "", CV_CALL|CV_NOINIT, NULL, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_palettenum = {"palettenum", "0", CV_CALL|CV_NOINIT, CV_Unsigned, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
+
 static CV_PossibleValue_t gamma_cons_t[] = {{-15, "MIN"}, {4, "MAX"}, {0, NULL}};
 consvar_t cv_globalgamma = {"gamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
@@ -91,6 +94,8 @@ consvar_t cv_menucaps = {"menucaps", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NUL
 // local copy of the palette for V_GetColor()
 RGBA_t *pLocalPalette = NULL;
 
+static size_t currentPaletteSize;
+
 /*
 The following was an extremely helpful resource when developing my Colour Cube LUT.
 http://http.developer.nvidia.com/GPUGems2/gpugems2_chapter24.html
@@ -129,14 +134,17 @@ static boolean InitCube(void)
 			}
 		}
 	};
+
 	float desatur[3]; // grey
 	float globalgammamul, globalgammaoffs;
 	boolean doinggamma;
 
-	if (loaded_config == false)
+	if (!loaded_config)
 		return false;
 
-#define diffcons(cv) (cv.value != atoi(cv.defaultvalue))
+#define diffcons(cv) (strcmp(cv.string, cv.defaultvalue))
+#define diffconsgamma(cv) (cv.value != 0)
+#define diffconssat(cv) (cv.value != 10)
 
 #ifdef BACKWARDSCOMPATCORRECTION
 	doinggamma = (cv_globalgamma.value < 0); //dont mess up gamma when raising brightness pls
@@ -156,12 +164,12 @@ static boolean InitCube(void)
 		|| diffcons(cv_chue)
 		|| diffcons(cv_bhue)
 		|| diffcons(cv_mhue)
-		|| diffcons(cv_rgamma)
-		|| diffcons(cv_ygamma)
-		|| diffcons(cv_ggamma)
-		|| diffcons(cv_cgamma)
-		|| diffcons(cv_bgamma)
-		|| diffcons(cv_mgamma)) // set the gamma'd/hued positions (saturation is done later)
+		|| diffconsgamma(cv_rgamma)
+		|| diffconsgamma(cv_ygamma)
+		|| diffconsgamma(cv_ggamma)
+		|| diffconsgamma(cv_cgamma)
+		|| diffconsgamma(cv_bgamma)
+		|| diffconsgamma(cv_mgamma)) // set the gamma'd/hued positions (saturation is done later)
 	{
 		float mod, tempgammamul, tempgammaoffs;
 
@@ -219,7 +227,7 @@ static boolean InitCube(void)
 
 #define dosaturation(a, e) a = ((1 - work)*e + work*a)
 #define docvsat(cv_sat, hue, gamma, r, g, b) \
-	if diffcons(cv_sat)\
+	if diffconssat(cv_sat)\
 	{\
 		float work, mod, tempgammamul, tempgammaoffs;\
 		apply = true;\
@@ -244,7 +252,7 @@ static boolean InitCube(void)
 
 #undef gammascale
 
-	if diffcons(cv_globalsaturation)
+	if diffconssat(cv_globalsaturation)
 	{
 		float work = (cv_globalsaturation.value/10.0);
 
@@ -265,6 +273,8 @@ static boolean InitCube(void)
 #undef dosaturation
 
 #undef diffcons
+#undef diffconsgamma
+#undef diffconssat
 
 	if (!apply)
 		return false;
@@ -406,13 +416,19 @@ const UINT8 gammatable[5][256] =
 // keep a copy of the palette so that we can get the RGB value for a color index at any time.
 static void LoadPalette(const char *lumpname)
 {
+	UINT8 *pal;
+	size_t i, palsize;
+	lumpnum_t lumpnum;
+
 #ifdef BACKWARDSCOMPATCORRECTION
 	const UINT8 *usegamma = gammatable[min(max(cv_globalgamma.value, 0), 4)];
 #endif
 	Cubeapply = InitCube();
-	lumpnum_t lumpnum = W_GetNumForName(lumpname);
-	size_t i, palsize = W_LumpLength(lumpnum)/3;
-	UINT8 *pal;
+
+	lumpnum = W_GetNumForName(lumpname);
+
+	currentPaletteSize = W_LumpLength(lumpnum);
+	palsize = currentPaletteSize / 3;
 
 	Z_Free(pLocalPalette);
 
@@ -441,11 +457,10 @@ static void LoadPalette(const char *lumpname)
 #endif
 		pLocalPalette[i].s.alpha = 0xFF;
 
-		// lerp of colour cubing! if you want, make it smoother yourself
-
 		if (!Cubeapply)
 			continue;
 
+		// lerp of colour cubing! if you want, make it smoother yourself
 		V_CubeApply(&pLocalPalette[i].s.red, &pLocalPalette[i].s.green, &pLocalPalette[i].s.blue);
 	}
 }
@@ -504,8 +519,23 @@ const char *R_GetPalname(UINT16 num)
 
 const char *GetPalette(void)
 {
+	const char *user = cv_palette.string;
+
+	if (user && user[0])
+	{
+		if (W_CheckNumForName(user) == LUMPERROR)
+		{
+			CONS_Alert(CONS_WARNING, "cv_palette %s lump does not exist\n", user);
+		}
+		else
+		{
+			return cv_palette.string;
+		}
+	}
+
 	if (gamestate == GS_LEVEL)
 		return R_GetPalname((encoremode ? mapheaderinfo[gamemap-1]->encorepal : mapheaderinfo[gamemap-1]->palette));
+
 	return "PLAYPAL";
 }
 
@@ -524,6 +554,22 @@ void V_SetPalette(INT32 palettenum)
 		V_ReloadPalette();
 
 #ifdef HWRENDER
+	if (rendermode == render_soft || (rendermode == render_opengl && HWR_ShouldUsePaletteRendering())) // opengl without paletterendering hates subpalettes
+#endif
+	{
+		if (palettenum == 0)
+		{
+			palettenum = cv_palettenum.value;
+
+			if (palettenum * 256U > currentPaletteSize - 256)
+			{
+				CONS_Alert(CONS_WARNING, "cv_palettenum %d out of range\n", palettenum);
+				palettenum = 0;
+			}
+		}
+	}
+
+#ifdef HWRENDER
 	if (rendermode == render_opengl)
 		HWR_SetPalette(&pLocalPalette[palettenum*256]);
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
@@ -537,15 +583,7 @@ void V_SetPalette(INT32 palettenum)
 void V_SetPaletteLump(const char *pal)
 {
 	LoadPalette(pal);
-#ifdef HWRENDER
-	if (rendermode == render_opengl)
-		HWR_SetPalette(pLocalPalette);
-#if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
-	else
-#endif
-#endif
-	if (rendermode != render_none)
-		I_SetPalette(pLocalPalette);
+	V_SetPalette(0);
 #ifdef HASINVERT
 	R_MakeInvertmap();
 #endif
@@ -553,11 +591,25 @@ void V_SetPaletteLump(const char *pal)
 
 static void CV_palette_OnChange(void)
 {
-	if (loaded_config == false)
+	if (!loaded_config)
 		return;
 	// reload palette
+	// recalculate Color Cube
 	V_ReloadPalette();
 	V_SetPalette(0);
+}
+
+void V_ResetPaletteCVars(void)
+{
+	if (!loaded_config)
+		return;
+
+#define diffcons(cv) (strcmp(cv.string, cv.defaultvalue))
+	if diffcons(cv_palette)
+		CV_StealthSetValue(&cv_palette, atoi(cv_palette.defaultvalue));
+	if diffcons(cv_palettenum)
+		CV_StealthSetValue(&cv_palettenum, atoi(cv_palettenum.defaultvalue));
+#undef diffcons
 }
 
 static void CV_constextsize_OnChange(void)
@@ -589,37 +641,32 @@ static UINT8 hudplusalpha[11]  = { 10,  8,  6,  4,  2,  0,  0,  0,  0,  0,  0};
 static UINT8 hudminusalpha[11] = { 10,  9,  9,  8,  8,  7,  7,  6,  6,  5,  5};
 UINT8 hudtrans = 0;
 
-// this is pretty dumb, but has to be done like this, otherwise the fps counter just disappears sometimes for no reason lol
-INT32 V_LocalTransFlag(void)
-{
-	return ((10-cv_translucenthud.value)*V_10TRANS);
-}
-
 static const UINT8 *v_colormap = NULL;
 static const UINT8 *v_translevel = NULL;
 
-static inline UINT8 standardpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
+FUNCINLINE static ATTRINLINE UINT8 standardpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
 {
 	(void)dest; return source[ofs>>FRACBITS];
 }
-static inline UINT8 mappedpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
+FUNCINLINE static ATTRINLINE UINT8 mappedpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
 {
 	(void)dest; return *(v_colormap + source[ofs>>FRACBITS]);
 }
-static inline UINT8 translucentpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
+FUNCINLINE static ATTRINLINE UINT8 translucentpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
 {
 	return *(v_translevel + ((source[ofs>>FRACBITS]<<8)&0xff00) + (*dest&0xff));
 }
-static inline UINT8 transmappedpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
+FUNCINLINE static ATTRINLINE UINT8 transmappedpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
 {
 	return *(v_translevel + (((*(v_colormap + source[ofs>>FRACBITS]))<<8)&0xff00) + (*dest&0xff));
 }
 
 // Draws a patch scaled to arbitrary size.
-void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vscale, INT32 scrn, patch_t *patch, const UINT8 *colormap)
+void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vscale, INT32 scrn, patch_t *patch, const UINT8 *colormap, INT32 bflags)
 {
 	UINT8 (*patchdrawfunc)(const UINT8*, const UINT8*, fixed_t);
-	UINT32 alphalevel = 0;
+	UINT32 alphalevel = ((scrn & V_ALPHAMASK) >> V_ALPHASHIFT);
+	UINT32 blendmode = ((bflags & V_BLENDMASK) >> V_BLENDSHIFT);
 
 	fixed_t col, ofs, colfrac, rowfrac, fdup, vdup;
 	INT32 dupx, dupy;
@@ -632,11 +679,14 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 	if (rendermode == render_none)
 		return;
 
+	if (!patch)
+		return;
+
 #ifdef HWRENDER
 	//if (rendermode != render_soft && !con_startup)		// Why?
 	if (rendermode == render_opengl)
 	{
-		HWR_DrawStretchyFixedPatch((GLPatch_t *)patch, x, y, pscale, vscale, scrn, colormap);
+		HWR_DrawStretchyFixedPatch(patch, x, y, pscale, vscale, scrn, colormap, bflags);
 		return;
 	}
 #endif
@@ -644,7 +694,7 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 	patchdrawfunc = standardpdraw;
 
 	v_translevel = NULL;
-	if ((alphalevel = ((scrn & V_ALPHAMASK) >> V_ALPHASHIFT)))
+	if (alphalevel || blendmode)
 	{
 		if (alphalevel == 13)
 			alphalevel = hudminusalpha[hudtrans];
@@ -656,14 +706,15 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 		if (alphalevel >= 10)
 			return; // invis
 
-		if (alphalevel)
+		if (alphalevel || blendmode)
 		{
-			v_translevel = transtables + ((alphalevel-1)<<FF_TRANSSHIFT);
+			v_translevel = R_GetBlendTable(blendmode+1, alphalevel);
 			patchdrawfunc = translucentpdraw;
 		}
 	}
 
 	v_colormap = NULL;
+
 	if (colormap)
 	{
 		v_colormap = colormap;
@@ -672,21 +723,25 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 
 	dupx = vid.dupx;
 	dupy = vid.dupy;
-	if (scrn & V_SCALEPATCHMASK) switch ((scrn & V_SCALEPATCHMASK) >> V_SCALEPATCHSHIFT)
+
+	if (scrn & V_SCALEPATCHMASK)
 	{
-		case 1: // V_NOSCALEPATCH
-			dupx = dupy = 1;
-			break;
-		case 2: // V_SMALLSCALEPATCH
-			dupx = vid.smalldupx;
-			dupy = vid.smalldupy;
-			break;
-		case 3: // V_MEDSCALEPATCH
-			dupx = vid.meddupx;
-			dupy = vid.meddupy;
-			break;
-		default:
-			break;
+		switch ((scrn & V_SCALEPATCHMASK) >> V_SCALEPATCHSHIFT)
+		{
+			case 1: // V_NOSCALEPATCH
+				dupx = dupy = 1;
+				break;
+			case 2: // V_SMALLSCALEPATCH
+				dupx = vid.smalldupx;
+				dupy = vid.smalldupy;
+				break;
+			case 3: // V_MEDSCALEPATCH
+				dupx = vid.meddupx;
+				dupy = vid.meddupy;
+				break;
+			default:
+				break;
+		}
 	}
 
 	// only use one dup, to avoid stretching (har har)
@@ -706,15 +761,15 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 
 		// left offset
 		if (scrn & V_FLIP)
-			offsetx = FixedMul((SHORT(patch->width) - SHORT(patch->leftoffset))<<FRACBITS, pscale) + 1;
+			offsetx = FixedMul((patch->width - patch->leftoffset)<<FRACBITS, pscale) + 1;
 		else
-			offsetx = FixedMul(SHORT(patch->leftoffset)<<FRACBITS, pscale);
+			offsetx = FixedMul(patch->leftoffset<<FRACBITS, pscale);
 
 		// top offset
 		// TODO: make some kind of vertical version of V_FLIP, maybe by deprecating V_OFFSET in future?!?
-		offsety = FixedMul(SHORT(patch->topoffset)<<FRACBITS, vscale);
+		offsety = FixedMul(patch->topoffset<<FRACBITS, vscale);
 
-		if ((scrn & (V_NOSCALESTART|V_OFFSET)) == (V_NOSCALESTART|V_OFFSET)) // Multiply by dupx/dupy for crosshairs
+		if ((scrn & (V_NOSCALESTART|V_OFFSET)) == (V_NOSCALESTART|V_OFFSET)) // Multiply by dupx/dupy
 		{
 			offsetx = FixedMul(offsetx, dupx<<FRACBITS);
 			offsety = FixedMul(offsety, dupy<<FRACBITS);
@@ -755,9 +810,9 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 		if (!(scrn & V_SCALEPATCHMASK))
 		{
 			// if it's meant to cover the whole screen, black out the rest (ONLY IF TOP LEFT ISN'T TRANSPARENT)
-			if (x == 0 && SHORT(patch->width) == BASEVIDWIDTH && y == 0 && SHORT(patch->height) == BASEVIDHEIGHT)
+			if (x == 0 && patch->width == BASEVIDWIDTH && y == 0 && patch->height == BASEVIDHEIGHT)
 			{
-				column = (const column_t *)((const UINT8 *)(patch) + LONG(patch->columnofs[0]));
+				column = (const column_t *)((const UINT8 *)(patch->columns) + (patch->columnofs[0]));
 				if (!column->topdelta)
 				{
 					source = (const UINT8 *)(column) + 3;
@@ -793,18 +848,18 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 
 	if (pscale != FRACUNIT) // scale width properly
 	{
-		pwidth = SHORT(patch->width)<<FRACBITS;
+		pwidth = patch->width<<FRACBITS;
 		pwidth = FixedMul(pwidth, pscale);
 		pwidth = FixedMul(pwidth, dupx<<FRACBITS);
 		pwidth >>= FRACBITS;
 	}
 	else
-		pwidth = SHORT(patch->width) * dupx;
+		pwidth = patch->width * dupx;
 
 	deststart = desttop;
 	destend = desttop + pwidth;
 
-	for (col = 0; (col>>FRACBITS) < SHORT(patch->width); col += colfrac, ++offx, desttop++)
+	for (col = 0; (col>>FRACBITS) < patch->width; col += colfrac, ++offx, desttop++)
 	{
 		INT32 topdelta, prevdelta = -1;
 		if (scrn & V_FLIP) // offx is measured from right edge instead of left
@@ -821,7 +876,7 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 			if (x+offx >= vid.width) // don't draw off the right of the screen (WRAP PREVENTION)
 				break;
 		}
-		column = (const column_t *)((const UINT8 *)(patch) + LONG(patch->columnofs[col>>FRACBITS]));
+		column = (const column_t *)((const UINT8 *)(patch->columns) + (patch->columnofs[col>>FRACBITS]));
 
 		while (column->topdelta != 0xff)
 		{
@@ -862,10 +917,13 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 	if (rendermode == render_none)
 		return;
 
+	if (!patch)
+		return;
+
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
 	{
-		HWR_DrawCroppedPatch((GLPatch_t*)patch,x,y,pscale,scrn,sx,sy,w,h);
+		HWR_DrawCroppedPatch(patch, x, y, pscale, scrn, sx, sy, w, h);
 		return;
 	}
 #endif
@@ -898,8 +956,8 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 	colfrac = FixedDiv(FRACUNIT, fdup);
 	rowfrac = FixedDiv(FRACUNIT, fdup);
 
-	y -= FixedMul(SHORT(patch->topoffset)<<FRACBITS, pscale);
-	x -= FixedMul(SHORT(patch->leftoffset)<<FRACBITS, pscale);
+	y -= FixedMul(patch->topoffset<<FRACBITS, pscale);
+	x -= FixedMul(patch->leftoffset<<FRACBITS, pscale);
 
 	desttop = screens[scrn&V_PARAMMASK];
 
@@ -908,7 +966,8 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 
 	deststop = desttop + vid.rowbytes * vid.height;
 
-	if (scrn & V_NOSCALESTART) {
+	if (scrn & V_NOSCALESTART)
+	{
 		x >>= FRACBITS;
 		y >>= FRACBITS;
 		desttop += (y*vid.width) + x;
@@ -948,14 +1007,14 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 		desttop += (y*vid.width) + x;
 	}
 
-	for (col = sx<<FRACBITS; (col>>FRACBITS) < SHORT(patch->width) && ((col>>FRACBITS) - sx) < w; col += colfrac, ++x, desttop++)
+	for (col = sx<<FRACBITS; (col>>FRACBITS) < patch->width && ((col>>FRACBITS) - sx) < w; col += colfrac, ++x, desttop++)
 	{
 		INT32 topdelta, prevdelta = -1;
 		if (x < 0) // don't draw off the left of the screen (WRAP PREVENTION)
 			continue;
 		if (x >= vid.width) // don't draw off the right of the screen (WRAP PREVENTION)
 			break;
-		column = (const column_t *)((const UINT8 *)(patch) + LONG(patch->columnofs[col>>FRACBITS]));
+		column = (const column_t *)((const UINT8 *)(patch->columns) + (patch->columnofs[col>>FRACBITS]));
 
 		while (column->topdelta != 0xff)
 		{
@@ -991,11 +1050,11 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 void V_DrawContinueIcon(INT32 x, INT32 y, INT32 flags, INT32 skinnum, UINT8 skincolor)
 {
 	if (skinnum < 0 || skinnum >= numskins || (skins[skinnum].flags & SF_HIRES))
-		V_DrawScaledPatch(x - 10, y - 14, flags, W_CachePatchName("CONTINS", PU_CACHE)); // Draw a star
+		V_DrawScaledPatch(x - 10, y - 14, flags, W_CachePatchName("CONTINS", PU_PATCH)); // Draw a star
 	else
 	{ // Find front angle of the first waiting frame of the character's actual sprites
 		spriteframe_t *sprframe = &skins[skinnum].spritedef.spriteframes[2 & FF_FRAMEMASK];
-		patch_t *patch = W_CachePatchNum(sprframe->lumppat[0], PU_CACHE);
+		patch_t *patch = W_CachePatchNum(sprframe->lumppat[0], PU_PATCH);
 		const UINT8 *colormap = R_GetTranslationColormap(skinnum, skincolor, GTC_CACHE);
 
 		// No variant for translucency
@@ -1497,13 +1556,58 @@ void V_DrawFlatFill(INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatnum)
 void V_DrawPatchFill(patch_t *pat)
 {
 	INT32 dupz = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
-	INT32 x, y, pw = SHORT(pat->width) * dupz, ph = SHORT(pat->height) * dupz;
+	INT32 x, y, pw = pat->width * dupz, ph = pat->height * dupz;
 
 	for (x = 0; x < vid.width; x += pw)
 	{
 		for (y = 0; y < vid.height; y += ph)
 			V_DrawScaledPatch(x, y, V_NOSCALESTART, pat);
 	}
+}
+
+// Draws a patch and tries to always fill the screen with the patch
+void V_DrawAdaptiveScaledFullScreenPatch(patch_t *patch)
+{
+	fixed_t x = 0, y = 0;
+	fixed_t scale = ((vid.width * FRACUNIT) / patch->width); // fit the screen horizontally
+	fixed_t scaled_height = FixedMul(patch->height << FRACBITS, scale);
+
+	// however, if this means the patch doesent fill out the screen vertically then
+	if (scaled_height < (vid.height << FRACBITS))
+	{
+		scale = ((vid.height * FRACUNIT) / patch->height); // scale it to fit the screen vertically
+		x = ((vid.width << FRACBITS) - FixedMul(patch->width << FRACBITS, scale)) / 2;
+	}
+	else
+		y = (vid.height << FRACBITS) - scaled_height;
+
+	V_DrawFixedPatch(x, y, scale, V_NOSCALEPATCH, patch, NULL);
+}
+
+// Draws a patch and scales it to fill out the screen vertically while remaining centered
+void V_DrawVerticallyScaledFullScreenPatch(patch_t *patch)
+{
+	fixed_t scale = ((vid.height * FRACUNIT) / patch->height);
+	fixed_t x = ((vid.width << FRACBITS) - FixedMul(patch->width << FRACBITS, scale)) / 2; // i fucking hate maths
+
+	V_DrawFixedPatch(x, 0, scale, V_NOSCALEPATCH, patch, NULL);
+}
+
+// Draws a patch and scales it to fill out the screen horizontally
+// centers the patch when its too small to fit the screen vertically
+void V_DrawHorizontallyScaledFullScreenPatch(patch_t *patch)
+{
+	fixed_t scale = ((vid.width * FRACUNIT) / patch->width);
+	fixed_t scaled_height = FixedMul(patch->height << FRACBITS, scale);
+	fixed_t y = (vid.height << FRACBITS) - scaled_height;
+
+	// center it if it does not fit the screen vertically
+	if (scaled_height < (vid.height << FRACBITS))
+	{
+		y /= 2;
+	}
+
+	V_DrawFixedPatch(0, y, scale, V_NOSCALEPATCH, patch, NULL);
 }
 
 void V_DrawVhsEffect(boolean rewind)
@@ -1694,10 +1798,11 @@ void V_DrawCharacter(INT32 x, INT32 y, INT32 c, boolean lowercaseallowed)
 		c -= HU_FONTSTART;
 	else
 		c = toupper(c) - HU_FONTSTART;
+
 	if (c < 0 || c >= HU_FONTSIZE || !hu_font[c])
 		return;
 
-	w = SHORT(hu_font[c]->width);
+	w = hu_font[c]->width;
 	if (x + w > vid.width)
 		return;
 
@@ -1724,7 +1829,7 @@ void V_DrawChatCharacter(INT32 x, INT32 y, INT32 c, boolean lowercaseallowed, UI
 	if (c < 0 || c >= HU_FONTSIZE || !hu_font[c])
 		return;
 
-	w = SHORT(hu_font[c]->width)/2;
+	w = hu_font[c]->width/2;
 	if (x + w > vid.width)
 		return;
 
@@ -1890,10 +1995,10 @@ void V_DrawString(INT32 x, INT32 y, INT32 option, const char *string)
 		if (charwidth)
 		{
 			w = charwidth * dupx;
-			center = w/2 - SHORT(hu_font[c]->width)*dupx/2;
+			center = w/2 - hu_font[c]->width*dupx/2;
 		}
 		else
-			w = SHORT(hu_font[c]->width) * dupx;
+			w = hu_font[c]->width * dupx;
 
 		if (cx > scrwidth)
 			break;
@@ -1992,10 +2097,10 @@ void V_DrawKartString(INT32 x, INT32 y, INT32 option, const char *string)
 		if (charwidth)
 		{
 			w = charwidth * dupx;
-			center = w/2 - SHORT(kart_font[c]->width)*dupx/2;
+			center = w/2 - kart_font[c]->width*dupx/2;
 		}
 		else
-			w = SHORT(kart_font[c]->width) * dupx;
+			w = kart_font[c]->width * dupx;
 
 		if (cx > scrwidth)
 			break;
@@ -2110,10 +2215,10 @@ void V_DrawSmallString(INT32 x, INT32 y, INT32 option, const char *string)
 		if (charwidth)
 		{
 			w = charwidth * dupx;
-			center = w/2 - SHORT(hu_font[c]->width)*dupx/4;
+			center = w/2 - hu_font[c]->width*dupx/4;
 		}
 		else
-			w = SHORT(hu_font[c]->width) * dupx / 2;
+			w = hu_font[c]->width * dupx / 2;
 		if (cx > scrwidth)
 			break;
 		if (cx+left + w < 0) //left boundary check
@@ -2227,8 +2332,8 @@ void V_DrawThinString(INT32 x, INT32 y, INT32 option, const char *string)
 		if (charwidth)
 			w = charwidth * dupx;
 		else
-			w = ((option & V_6WIDTHSPACE ? max(1, SHORT(tny_font[c]->width)-1) // Reuse this flag for the alternate bunched-up spacing
-				: SHORT(tny_font[c]->width)) * dupx);
+			w = ((option & V_6WIDTHSPACE ? max(1, tny_font[c]->width-1) // Reuse this flag for the alternate bunched-up spacing
+				: tny_font[c]->width) * dupx);
 
 		if (cx > scrwidth)
 			break;
@@ -2328,10 +2433,10 @@ void V_DrawStringAtFixed(fixed_t x, fixed_t y, INT32 option, const char *string)
 		if (charwidth)
 		{
 			w = charwidth * dupx;
-			center = w/2 - SHORT(hu_font[c]->width)*(dupx/2);
+			center = w/2 - hu_font[c]->width*(dupx/2);
 		}
 		else
-			w = SHORT(hu_font[c]->width) * dupx;
+			w = hu_font[c]->width * dupx;
 
 		if ((cx>>FRACBITS) > scrwidth)
 			break;
@@ -2526,10 +2631,10 @@ void V_DrawThinStringAtFixed(fixed_t x, fixed_t y, INT32 option, const char *str
 		if (charwidth)
 		{
 			w = charwidth * dupx;
-			center = w/2 - SHORT(tny_font[c]->width)*(dupx/2);
+			center = w/2 - tny_font[c]->width*(dupx/2);
 		}
 		else
-			w = SHORT(tny_font[c]->width) * dupx;
+			w = tny_font[c]->width * dupx;
 
 		if ((cx>>FRACBITS) > scrwidth)
 			break;
@@ -2549,7 +2654,7 @@ void V_DrawThinStringAtFixed(fixed_t x, fixed_t y, INT32 option, const char *str
 // Draws a tallnum.  Replaces two functions in y_inter and st_stuff
 void V_DrawTallNum(INT32 x, INT32 y, INT32 flags, INT32 num)
 {
-	INT32 w = SHORT(tallnum[0]->width);
+	INT32 w = tallnum[0]->width;
 	boolean neg;
 
 	if (flags & V_NOSCALESTART)
@@ -2575,7 +2680,7 @@ void V_DrawTallNum(INT32 x, INT32 y, INT32 flags, INT32 num)
 // Does not handle negative numbers in a special way, don't try to feed it any.
 void V_DrawPaddedTallNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits)
 {
-	INT32 w = SHORT(tallnum[0]->width);
+	INT32 w = tallnum[0]->width;
 
 	if (flags & V_NOSCALESTART)
 		w *= vid.dupx;
@@ -2596,7 +2701,7 @@ void V_DrawPaddedTallNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits)
 // Does not handle negative numbers in a special way, don't try to feed it any.
 void V_DrawPaddedTallColorNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits, const UINT8 *colormap)
 {
-	INT32 w = SHORT(tallnum[0]->width);
+	INT32 w = tallnum[0]->width;
 
 	if (flags & V_NOSCALESTART)
 		w *= vid.dupx;
@@ -2618,7 +2723,7 @@ void V_DrawPaddedTallColorNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 di
 
 INT32 V_DrawPingNum(INT32 x, INT32 y, INT32 flags, INT32 num, const UINT8 *colormap)
 {
-	INT32 w = SHORT(pingnum[0]->width);	// this SHOULD always be 5 but I guess custom graphics exist.
+	INT32 w = pingnum[0]->width;	// this SHOULD always be 5 but I guess custom graphics exist.
 
 	if (flags & V_NOSCALESTART)
 		w *= vid.dupx;
@@ -2641,7 +2746,7 @@ INT32 V_DrawPingNum(INT32 x, INT32 y, INT32 flags, INT32 num, const UINT8 *color
 //
 void V_DrawRankNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits, const UINT8 *colormap)
 {
-	INT32 w = SHORT(ranknum[0]->width) - 1;
+	INT32 w = ranknum[0]->width - 1;
 
 	if (flags & V_NOSCALESTART)
 		w *= vid.dupx;
@@ -2700,7 +2805,7 @@ void V_DrawCreditString(fixed_t x, fixed_t y, INT32 option, const char *string)
 			continue;
 		}
 
-		w = SHORT(cred_font[c]->width) * dupx;
+		w = cred_font[c]->width * dupx;
 		if ((cx>>FRACBITS) > scrwidth)
 			break;
 
@@ -2726,7 +2831,7 @@ INT32 V_CreditStringWidth(const char *string)
 		if (c < 0 || c >= CRED_FONTSIZE)
 			w += 16;
 		else
-			w += SHORT(cred_font[c]->width);
+			w += cred_font[c]->width;
 	}
 
 	return w;
@@ -2773,7 +2878,7 @@ void V_DrawLevelTitle(INT32 x, INT32 y, INT32 option, const char *string)
 			continue;
 		}
 
-		w = SHORT(lt_font[c]->width) * dupx;
+		w = lt_font[c]->width * dupx;
 		if (cx > scrwidth)
 			break;
 		if (cx+left + w < 0) //left boundary check
@@ -2800,7 +2905,7 @@ INT32 V_LevelNameWidth(const char *string)
 		if (c < 0 || c >= LT_FONTSIZE || !lt_font[c])
 			w += 12;
 		else
-			w += SHORT(lt_font[c]->width);
+			w += lt_font[c]->width;
 	}
 
 	return w;
@@ -2819,8 +2924,8 @@ INT32 V_LevelNameHeight(const char *string)
 		if (c < 0 || c >= LT_FONTSIZE || !lt_font[c])
 			continue;
 
-		if (SHORT(lt_font[c]->height) > w)
-			w = SHORT(lt_font[c]->height);
+		if (lt_font[c]->height > w)
+			w = lt_font[c]->height;
 	}
 
 	return w;
@@ -2862,7 +2967,7 @@ INT32 V_SubStringWidth(const char *string, INT32 length, INT32 option)
 		if (c < 0 || c >= HU_FONTSIZE || !hu_font[c])
 			w += spacewidth;
 		else
-			w += (charwidth ? charwidth : SHORT(hu_font[c]->width));
+			w += (charwidth ? charwidth : hu_font[c]->width);
 	}
 
 	return w;
@@ -2904,7 +3009,7 @@ INT32 V_SmallSubStringWidth(const char *string, INT32 length, INT32 option)
 		if (c < 0 || c >= HU_FONTSIZE || !hu_font[c])
 			w += spacewidth;
 		else
-			w += (charwidth ? charwidth : SHORT(hu_font[c]->width)/2);
+			w += (charwidth ? charwidth : hu_font[c]->width/2);
 	}
 
 	return w;
@@ -2956,8 +3061,8 @@ INT32 V_ThinSubStringWidth(const char *string, INT32 length, INT32 option)
 		else
 		{
 			w += (charwidth ? charwidth
-				: ((option & V_6WIDTHSPACE && i < length-1) ? max(1, SHORT(tny_font[c]->width)-1) // Reuse this flag for the alternate bunched-up spacing
-				: SHORT(tny_font[c]->width)));
+				: ((option & V_6WIDTHSPACE && i < length-1) ? max(1, tny_font[c]->width-1) // Reuse this flag for the alternate bunched-up spacing
+				: tny_font[c]->width));
 		}
 	}
 
@@ -2998,7 +3103,7 @@ INT32 V_SubStringLengthToFit(const char *string, INT32 width, INT32 option)
 		if (c < 0 || c >= HU_FONTSIZE || !hu_font[c])
 			w += spacewidth;
 		else
-			w += (charwidth ? charwidth : SHORT(hu_font[c]->width));
+			w += (charwidth ? charwidth : hu_font[c]->width);
 	}
 
 	return max(i-1, 0);
@@ -3272,6 +3377,134 @@ char V_GetSkincolorChar(INT32 color)
 	return cstart;
 }
 
+// TODO: get rid of all those crap huge ass switches
+// get can make em just use V_GetSkincolorChar but im lazy
+INT32 V_SkinColorToHighlightcolor(skincolors_t color)
+{
+	switch (color)
+	{
+		case SKINCOLOR_WHITE:
+		case SKINCOLOR_SILVER:
+		case SKINCOLOR_SLATE:
+			return V_STEELMAP;
+		case SKINCOLOR_GREY:
+		case SKINCOLOR_NICKEL:
+		case SKINCOLOR_BLACK:
+		case SKINCOLOR_SKUNK:
+		case SKINCOLOR_JET:
+			return V_GRAYMAP;
+		case SKINCOLOR_SEPIA:
+		case SKINCOLOR_BEIGE:
+		case SKINCOLOR_WALNUT:
+		case SKINCOLOR_BROWN:
+		case SKINCOLOR_LEATHER:
+		case SKINCOLOR_RUST:
+		case SKINCOLOR_WRISTWATCH:
+			return V_BROWNMAP;
+		case SKINCOLOR_FAIRY:
+		case SKINCOLOR_SALMON:
+		case SKINCOLOR_PINK:
+		case SKINCOLOR_ROSE:
+		case SKINCOLOR_BRICK:
+		case SKINCOLOR_LEMONADE:
+		case SKINCOLOR_BUBBLEGUM:
+		case SKINCOLOR_LILAC:
+			return V_PINKMAP;
+		case SKINCOLOR_CINNAMON:
+		case SKINCOLOR_RUBY:
+		case SKINCOLOR_RASPBERRY:
+		case SKINCOLOR_CHERRY:
+		case SKINCOLOR_RED:
+		case SKINCOLOR_CRIMSON:
+		case SKINCOLOR_MAROON:
+		case SKINCOLOR_FLAME:
+		case SKINCOLOR_SCARLET:
+		case SKINCOLOR_KETCHUP:
+			return V_REDMAP;
+		case SKINCOLOR_DAWN:
+		case SKINCOLOR_SUNSET:
+		case SKINCOLOR_CREAMSICLE:
+		case SKINCOLOR_ORANGE:
+		case SKINCOLOR_PUMPKIN:
+		case SKINCOLOR_ROSEWOOD:
+		case SKINCOLOR_BURGUNDY:
+		case SKINCOLOR_TANGERINE:
+			return V_ORANGEMAP;
+		case SKINCOLOR_PEACH:
+		case SKINCOLOR_CARAMEL:
+		case SKINCOLOR_CREAM:
+			return V_PEACHMAP;
+		case SKINCOLOR_GOLD:
+		case SKINCOLOR_ROYAL:
+		case SKINCOLOR_BRONZE:
+		case SKINCOLOR_COPPER:
+		case SKINCOLOR_THUNDER:
+			return V_GOLDMAP;
+		case SKINCOLOR_POPCORN:
+		case SKINCOLOR_QUARRY:
+		case SKINCOLOR_YELLOW:
+		case SKINCOLOR_MUSTARD:
+		case SKINCOLOR_CROCODILE:
+		case SKINCOLOR_OLIVE:
+			return V_YELLOWMAP;
+		case SKINCOLOR_ARTICHOKE:
+		case SKINCOLOR_VOMIT:
+		case SKINCOLOR_GARDEN:
+		case SKINCOLOR_TEA:
+		case SKINCOLOR_PISTACHIO:
+			return V_TEAMAP;
+		case SKINCOLOR_LIME:
+		case SKINCOLOR_HANDHELD:
+		case SKINCOLOR_MOSS:
+		case SKINCOLOR_CAMOUFLAGE:
+		case SKINCOLOR_ROBOHOOD:
+		case SKINCOLOR_MINT:
+		case SKINCOLOR_GREEN:
+		case SKINCOLOR_PINETREE:
+		case SKINCOLOR_EMERALD:
+		case SKINCOLOR_SWAMP:
+		case SKINCOLOR_DREAM:
+		case SKINCOLOR_PLAGUE:
+		case SKINCOLOR_ALGAE:
+			return V_GREENMAP;
+		case SKINCOLOR_CARIBBEAN:
+		case SKINCOLOR_AZURE:
+		case SKINCOLOR_AQUA:
+		case SKINCOLOR_TEAL:
+		case SKINCOLOR_CYAN:
+		case SKINCOLOR_JAWZ:
+		case SKINCOLOR_CERULEAN:
+		case SKINCOLOR_NAVY:
+		case SKINCOLOR_SAPPHIRE:
+			return V_SKYMAP;
+		case SKINCOLOR_PIGEON:
+		case SKINCOLOR_PLATINUM:
+		case SKINCOLOR_STEEL:
+			return V_STEELMAP;
+		case SKINCOLOR_PERIWINKLE:
+		case SKINCOLOR_BLUE:
+		case SKINCOLOR_BLUEBERRY:
+		case SKINCOLOR_NOVA:
+			return V_BLUEMAP;
+		case SKINCOLOR_ULTRAVIOLET:
+		case SKINCOLOR_PURPLE:
+		case SKINCOLOR_FUCHSIA:
+			return V_PURPLEMAP;
+		case SKINCOLOR_PASTEL:
+		case SKINCOLOR_MOONSLAM:
+		case SKINCOLOR_DUSK:
+		case SKINCOLOR_TOXIC:
+		case SKINCOLOR_MAUVE:
+		case SKINCOLOR_LAVENDER:
+		case SKINCOLOR_BYZANTIUM:
+		case SKINCOLOR_POMEGRANATE:
+			return V_LAVENDERMAP;
+
+		default:
+			return 0;
+	}
+}
+
 boolean *heatshifter = NULL;
 INT32 lastheight = 0;
 INT32 heatindex[MAXSPLITSCREENPLAYERS] = {0, 0, 0, 0};
@@ -3480,28 +3713,49 @@ void V_DoPostProcessor(INT32 view, INT32 param)
 #endif
 }
 
-
-// Taken from my videos-in-SRB2 project
-// Generates a color look-up table
-// which has up to 64 colors at each channel
-// (see the defines in v_video.h)
-
-UINT8 colorlookup[CLUTSIZE][CLUTSIZE][CLUTSIZE];
-
-void InitColorLUT(void)
+// Generates a RGB565 color look-up table
+void InitColorLUT(colorlookup_t *lut, RGBA_t *palette, boolean makecolors)
 {
-	UINT8 r, g, b;
-	static boolean clutinit = false;
-	static RGBA_t *lastpalette = NULL;
-	if ((!clutinit) || (lastpalette != pLocalPalette))
+	size_t palsize = (sizeof(RGBA_t) * 256);
+
+	if (!lut->init || memcmp(lut->palette, palette, palsize))
 	{
-		for (r = 0; r < CLUTSIZE; r++)
-			for (g = 0; g < CLUTSIZE; g++)
-				for (b = 0; b < CLUTSIZE; b++)
-					colorlookup[r][g][b] = NearestColor(r << SHIFTCOLORBITS, g << SHIFTCOLORBITS, b << SHIFTCOLORBITS);
-		clutinit = true;
-		lastpalette = pLocalPalette;
+		INT32 i;
+
+		lut->init = true;
+		memcpy(lut->palette, palette, palsize);
+
+		for (i = 0; i < 0xFFFF; i++)
+			lut->table[i] = 0xFFFF;
+
+		if (makecolors)
+		{
+			UINT8 r, g, b;
+
+			for (r = 0; r < 0xFF; r++)
+			for (g = 0; g < 0xFF; g++)
+			for (b = 0; b < 0xFF; b++)
+			{
+				i = CLUTINDEX(r, g, b);
+				if (lut->table[i] == 0xFFFF)
+					lut->table[i] = NearestPaletteColor(r, g, b, palette);
+			}
+		}
 	}
+}
+
+UINT8 GetColorLUT(colorlookup_t *lut, UINT8 r, UINT8 g, UINT8 b)
+{
+	INT32 i = CLUTINDEX(r, g, b);
+	if (lut->table[i] == 0xFFFF)
+		lut->table[i] = NearestPaletteColor(r, g, b, lut->palette);
+	return lut->table[i];
+}
+
+UINT8 GetColorLUTDirect(colorlookup_t *lut, UINT8 r, UINT8 g, UINT8 b)
+{
+	INT32 i = CLUTINDEX(r, g, b);
+	return lut->table[i];
 }
 
 // V_Init

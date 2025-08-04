@@ -28,7 +28,6 @@
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
-#include "hardware/hw_glob.h" // HWR_ClearLightTables
 #endif
 
 #ifdef _WIN32
@@ -126,6 +125,113 @@ size_t flatmemory, spritememory, texturememory; // gotta play by 2.2 rules to ge
 INT16 color8to16[256]; // remap color index to highcolor rgb value
 INT16 *hicolormaps; // test a 32k colormap remaps high -> high
 
+// Blends two pixels together, using the equation
+// that matches the specified alpha style.
+UINT32 ASTBlendPixel(RGBA_t background, RGBA_t foreground, int style, UINT8 alpha)
+{
+	RGBA_t output;
+	INT16 fullalpha = (alpha - (0xFF - foreground.s.alpha));
+	if (style == AST_TRANSLUCENT)
+	{
+		if (fullalpha <= 0)
+			output.rgba = background.rgba;
+		else
+		{
+			// don't go too high
+			if (fullalpha >= 0xFF)
+				fullalpha = 0xFF;
+			alpha = (UINT8)fullalpha;
+
+			// if the background pixel is empty,
+			// match software and don't blend anything
+			if (!background.s.alpha)
+			{
+				// ...unless the foreground pixel ISN'T actually translucent.
+				if (alpha == 0xFF)
+					output.rgba = foreground.rgba;
+				else
+					output.rgba = 0;
+			}
+			else
+			{
+				UINT8 beta = (0xFF - alpha);
+				output.s.red = ((background.s.red * beta) + (foreground.s.red * alpha)) / 0xFF;
+				output.s.green = ((background.s.green * beta) + (foreground.s.green * alpha)) / 0xFF;
+				output.s.blue = ((background.s.blue * beta) + (foreground.s.blue * alpha)) / 0xFF;
+				output.s.alpha = 0xFF;
+			}
+		}
+		return output.rgba;
+	}
+#define clamp(c) max(min(c, 0xFF), 0x00);
+	else
+	{
+		float falpha = ((float)alpha / 256.0f);
+		float fr = ((float)foreground.s.red * falpha);
+		float fg = ((float)foreground.s.green * falpha);
+		float fb = ((float)foreground.s.blue * falpha);
+		if (style == AST_ADD)
+		{
+			output.s.red = clamp((int)(background.s.red + fr));
+			output.s.green = clamp((int)(background.s.green + fg));
+			output.s.blue = clamp((int)(background.s.blue + fb));
+		}
+		else if (style == AST_SUBTRACT)
+		{
+			output.s.red = clamp((int)(background.s.red - fr));
+			output.s.green = clamp((int)(background.s.green - fg));
+			output.s.blue = clamp((int)(background.s.blue - fb));
+		}
+		else if (style == AST_REVERSESUBTRACT)
+		{
+			output.s.red = clamp((int)((-background.s.red) + fr));
+			output.s.green = clamp((int)((-background.s.green) + fg));
+			output.s.blue = clamp((int)((-background.s.blue) + fb));
+		}
+		else if (style == AST_MODULATE)
+		{
+			fr = ((float)foreground.s.red / 256.0f);
+			fg = ((float)foreground.s.green / 256.0f);
+			fb = ((float)foreground.s.blue / 256.0f);
+			output.s.red = clamp((int)(background.s.red * fr));
+			output.s.green = clamp((int)(background.s.green * fg));
+			output.s.blue = clamp((int)(background.s.blue * fb));
+		}
+		// just copy the pixel
+		else if (style == AST_COPY)
+			output.rgba = foreground.rgba;
+
+		output.s.alpha = 0xFF;
+		return output.rgba;
+	}
+#undef clamp
+	return 0;
+}
+
+INT32 ASTTextureBlendingThreshold[2] = {255/11, (10*255/11)};
+
+// Blends a pixel for a texture patch.
+UINT32 ASTBlendTexturePixel(RGBA_t background, RGBA_t foreground, int style, UINT8 alpha)
+{
+	// Alpha style set to translucent?
+	if (style == AST_TRANSLUCENT)
+	{
+		// Is the alpha small enough for translucency?
+		if (alpha <= ASTTextureBlendingThreshold[1])
+		{
+			// Is the patch way too translucent? Don't blend then.
+			if (alpha < ASTTextureBlendingThreshold[0])
+				return background.rgba;
+
+			return ASTBlendPixel(background, foreground, style, alpha);
+		}
+		else // just copy the pixel
+			return foreground.rgba;
+	}
+	else
+		return ASTBlendPixel(background, foreground, style, alpha);
+}
+
 // Painfully simple texture id cacheing to make maps load faster. :3
 static struct {
 	char name[9];
@@ -196,8 +302,9 @@ static UINT8 *R_GenerateTexture(size_t texnum)
 	UINT8 *blocktex;
 	texture_t *texture;
 	texpatch_t *patch;
-	patch_t *realpatch;
-	int x, x1, x2, i;
+	softwarepatch_t *realpatch;
+	UINT8 *pdata;
+	int x, x1, x2, i, width, height;
 	size_t blocksize;
 	column_t *patchcol;
 	UINT8 *colofs;
@@ -216,29 +323,37 @@ static UINT8 *R_GenerateTexture(size_t texnum)
 	{
 		boolean holey = false;
 		patch = texture->patches;
-		realpatch = W_CacheLumpNumPwad(patch->wad, patch->lump, PU_LEVEL);
+		pdata = W_CacheLumpNumPwad(patch->wad, patch->lump, PU_LEVEL);
+		realpatch = (softwarepatch_t *)pdata;
 
 		// Check the patch for holes.
 		if (texture->width > SHORT(realpatch->width) || texture->height > SHORT(realpatch->height))
 			holey = true;
-		colofs = (UINT8 *)realpatch->columnofs;
-		for (x = 0; x < texture->width && !holey; x++)
+		else
 		{
-			column_t *col = (column_t *)((UINT8 *)realpatch + LONG(*(UINT32 *)&colofs[x<<2]));
-			INT32 topdelta, prevdelta = -1, y = 0;
-			while (col->topdelta != 0xff)
+			colofs = (UINT8 *)realpatch->columnofs;
+
+			for (x = 0; x < texture->width; x++)
 			{
-				topdelta = col->topdelta;
-				if (topdelta <= prevdelta)
-					topdelta += prevdelta;
-				prevdelta = topdelta;
-				if (topdelta > y)
-					break;
-				y = topdelta + col->length + 1;
-				col = (column_t *)((UINT8 *)col + col->length + 4);
+				column_t *col = (column_t *)((UINT8 *)realpatch + LONG(*(UINT32 *)&colofs[x<<2]));
+
+				INT32 topdelta, prevdelta = -1, y = 0;
+
+				while (col->topdelta != 0xff)
+				{
+					topdelta = col->topdelta;
+					if (topdelta <= prevdelta)
+						topdelta += prevdelta;
+					prevdelta = topdelta;
+					if (topdelta > y)
+						break;
+					y = topdelta + col->length + 1;
+					col = (column_t *)((UINT8 *)col + col->length + 4);
+				}
+
+				if (y < texture->height)
+					holey = true; // this texture is HOLEy! D:
 			}
-			if (y < texture->height)
-				holey = true; // this texture is HOLEy! D:
 		}
 
 		// If the patch uses transparency, we have to save it this way.
@@ -254,8 +369,12 @@ static UINT8 *R_GenerateTexture(size_t texnum)
 			colofs = (block + 8);
 			texturecolumnofs[texnum] = (UINT32 *)colofs;
 			blocktex = block;
+
 			for (x = 0; x < texture->width; x++)
+			{
 				*(UINT32 *)&colofs[x<<2] = LONG(LONG(*(UINT32 *)&colofs[x<<2]) + 3);
+			}
+
 			goto done;
 		}
 
@@ -268,7 +387,7 @@ static UINT8 *R_GenerateTexture(size_t texnum)
 	texturememory += blocksize;
 	block = Z_Malloc(blocksize+1, PU_LEVEL, &texturecache[texnum]);
 
-	memset(block, 0xF7, blocksize+1); // Transparency hack
+	memset(block, TRANSPARENTPIXEL, blocksize+1); // Transparency hack
 
 	// columns lookup table
 	colofs = block;
@@ -280,15 +399,30 @@ static UINT8 *R_GenerateTexture(size_t texnum)
 	// Composite the columns together.
 	for (i = 0, patch = texture->patches; i < texture->patchcount; i++, patch++)
 	{
-		realpatch = W_CacheLumpNumPwad(patch->wad, patch->lump, PU_LEVEL);
-		x1 = patch->originx;
-		x2 = x1 + SHORT(realpatch->width);
+		pdata = W_CacheLumpNumPwad(patch->wad, patch->lump, PU_LEVEL);
+		realpatch = (softwarepatch_t *)pdata;
 
+		x1 = patch->originx;
+		width = SHORT(realpatch->width);
+		height = SHORT(realpatch->height);
+		x2 = x1 + width;
+
+		if (x1 > texture->width || x2 < 0)
+			continue; // patch not located within texture's x bounds, ignore
+
+		if (patch->originy > texture->height || (patch->originy + height) < 0)
+			continue; // patch not located within texture's y bounds, ignore
+
+		// patch is actually inside the texture!
+		// now check if texture is partly off-screen and adjust accordingly
+
+		// left edge
 		if (x1 < 0)
 			x = 0;
 		else
 			x = x1;
 
+		// right edge
 		if (x2 > texture->width)
 			x2 = texture->width;
 
@@ -382,7 +516,7 @@ void R_LoadTextures(void)
 	INT32 i, k, w;
 	UINT16 j;
 	UINT16 texstart, texend, texturesLumpPos;
-	patch_t *patchlump;
+	softwarepatch_t *patchlump;
 	texpatch_t *patch;
 	texture_t *texture;
 
@@ -407,7 +541,7 @@ void R_LoadTextures(void)
 	// but the alternative is to spend a ton of time checking and re-checking all previous entries just to skip any potentially patched textures.
 	for (w = 0, numtextures = 0; w < numwadfiles; w++)
 	{
-		if (wadfiles[w]->type == RET_PK3)
+		if (W_FileHasFolders(wadfiles[w]))
 		{
 			texstart = W_CheckNumForFolderStartPK3("textures/", (UINT16)w, 0);
 			texend = W_CheckNumForFolderEndPK3("textures/", (UINT16)w, texstart);
@@ -471,7 +605,7 @@ void R_LoadTextures(void)
 	for (i = 0, w = 0; w < numwadfiles; w++)
 	{
 		// Get the lump numbers for the markers in the WAD, if they exist.
-		if (wadfiles[w]->type == RET_PK3)
+		if (W_FileHasFolders(wadfiles[w]))
 		{
 			texstart = W_CheckNumForFolderStartPK3("textures/", (UINT16)w, 0);
 			texend = W_CheckNumForFolderEndPK3("textures/", (UINT16)w, texstart);
@@ -497,18 +631,22 @@ void R_LoadTextures(void)
 		// Work through each lump between the markers in the WAD.
 		for (j = 0; j < (texend - texstart); j++)
 		{
+			UINT16 wadnum = (UINT16)w;
+			lumpnum_t lumpnum = texstart + j;
+
 			if (W_FileHasFolders(wadfiles[w]))
 			{
-				if (W_IsLumpFolder(w, texstart + j)) // Check if lump is a folder
+				if (W_IsLumpFolder(wadnum, lumpnum)) // Check if lump is a folder
 					continue; // If it is then SKIP IT
 			}
-			patchlump = W_CacheLumpNumPwad((UINT16)w, texstart + j, PU_CACHE);
 
-			//CONS_Printf("\n\"%s\" is a single patch, dimensions %d x %d",W_CheckNameForNumPwad((UINT16)w,texstart+j),patchlump->width, patchlump->height);
+			patchlump = (softwarepatch_t *)W_CacheLumpNumPwad(wadnum, lumpnum, PU_STATIC);
+
+			//CONS_Printf("\n\"%s\" is a single patch, dimensions %d x %d",W_CheckNameForNumPwad(wadnum, lumpnum), patchlump->width, patchlump->height);
 			texture = textures[i] = Z_Calloc(sizeof(texture_t) + sizeof(texpatch_t), PU_STATIC, NULL);
 
 			// Set texture properties.
-			M_Memcpy(texture->name, W_CheckNameForNumPwad((UINT16)w, texstart + j), sizeof(texture->name));
+			M_Memcpy(texture->name, W_CheckNameForNumPwad(wadnum, lumpnum), sizeof(texture->name));
 			texture->width = SHORT(patchlump->width);
 			texture->height = SHORT(patchlump->height);
 			texture->patchcount = 1;
@@ -518,7 +656,7 @@ void R_LoadTextures(void)
 			patch = &texture->patches[0];
 
 			patch->originx = patch->originy = 0;
-			patch->wad = (UINT16)w;
+			patch->wad = wadnum;
 			patch->lump = texstart + j;
 
 			Z_Free(patchlump);
@@ -535,7 +673,7 @@ void R_LoadTextures(void)
 
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
-		HWR_LoadTextures(numtextures);
+		HWR_LoadMapTextures(numtextures);
 #endif
 }
 
@@ -552,12 +690,15 @@ static texpatch_t *R_ParsePatch(boolean actuallyLoadPatch)
 
 	// Patch identifier
 	texturesToken = M_GetToken(NULL);
+
 	if (texturesToken == NULL)
 	{
 		I_Error("Error parsing TEXTURES lump: Unexpected end of file where patch name should be");
 	}
+
 	texturesTokenLength = strlen(texturesToken);
-	if (texturesTokenLength>8)
+
+	if (texturesTokenLength > 8)
 	{
 		I_Error("Error parsing TEXTURES lump: Patch name \"%s\" exceeds 8 characters",texturesToken);
 	}
@@ -575,10 +716,12 @@ static texpatch_t *R_ParsePatch(boolean actuallyLoadPatch)
 	// Comma 1
 	Z_Free(texturesToken);
 	texturesToken = M_GetToken(NULL);
+
 	if (texturesToken == NULL)
 	{
 		I_Error("Error parsing TEXTURES lump: Unexpected end of file where comma after \"%s\"'s patch name should be",patchName);
 	}
+
 	if (strcmp(texturesToken,",")!=0)
 	{
 		I_Error("Error parsing TEXTURES lump: Expected \",\" after %s's patch name, got \"%s\"",patchName,texturesToken);
@@ -587,14 +730,17 @@ static texpatch_t *R_ParsePatch(boolean actuallyLoadPatch)
 	// XPos
 	Z_Free(texturesToken);
 	texturesToken = M_GetToken(NULL);
+
 	if (texturesToken == NULL)
 	{
 		I_Error("Error parsing TEXTURES lump: Unexpected end of file where patch \"%s\"'s x coordinate should be",patchName);
 	}
+
 	endPos = NULL;
 #ifndef AVOID_ERRNO
 	errno = 0;
 #endif
+
 	patchXPos = strtol(texturesToken,&endPos,10);
 	(void)patchXPos; //unused for now
 	if (endPos == texturesToken // Empty string
@@ -610,10 +756,12 @@ static texpatch_t *R_ParsePatch(boolean actuallyLoadPatch)
 	// Comma 2
 	Z_Free(texturesToken);
 	texturesToken = M_GetToken(NULL);
+
 	if (texturesToken == NULL)
 	{
 		I_Error("Error parsing TEXTURES lump: Unexpected end of file where comma after patch \"%s\"'s x coordinate should be",patchName);
 	}
+
 	if (strcmp(texturesToken,",")!=0)
 	{
 		I_Error("Error parsing TEXTURES lump: Expected \",\" after patch \"%s\"'s x coordinate, got \"%s\"",patchName,texturesToken);
@@ -622,6 +770,7 @@ static texpatch_t *R_ParsePatch(boolean actuallyLoadPatch)
 	// YPos
 	Z_Free(texturesToken);
 	texturesToken = M_GetToken(NULL);
+
 	if (texturesToken == NULL)
 	{
 		I_Error("Error parsing TEXTURES lump: Unexpected end of file where patch \"%s\"'s y coordinate should be",patchName);
@@ -993,9 +1142,9 @@ static void R_InitExtraColormaps(void)
 lumpnum_t R_GetFlatNumForName(const char *name)
 {
 	INT32 i;
-	lumpnum_t lump;
-	lumpnum_t start;
-	lumpnum_t end;
+	lumpnum_t lump = LUMPERROR;
+	lumpnum_t start = LUMPERROR;
+	lumpnum_t end = LUMPERROR;
 
 	// Scan wad files backwards so patched flats take preference.
 	for (i = numwadfiles - 1; i >= 0; i--)
@@ -1151,11 +1300,6 @@ void R_ClearColormaps(void)
 		foundcolormaps[i] = LUMPERROR;
 
 	memset(extra_colormaps, 0, sizeof (extra_colormaps));
-
-#ifdef HWRENDER
-	if (rendermode == render_opengl)
-		HWR_ClearLightTables();
-#endif
 }
 
 /*INT32 R_ColormapNumForName(char *name)
@@ -1336,13 +1480,13 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 	extra_colormaps[mapnum].fadestart = (UINT16)fadestart;
 	extra_colormaps[mapnum].fadeend = (UINT16)fadeend;
 	extra_colormaps[mapnum].fog = fog;
-	
+
 	if (rendermode != render_none)
-	{	
+	{
 		double r, g, b, cbrightness;
 		int p;
 		lighttable_t *colormap_p;
-	
+
 		// Initialise the map and delta arrays
 		// map[i] stores an RGB color (as double) for index i,
 		//  which is then converted to SRB2's palette later
@@ -1422,7 +1566,7 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 			}
 		}
 	}
-	
+
 	return (INT32)mapnum;
 }
 
@@ -1475,7 +1619,7 @@ const char *R_ColormapNameForNum(INT32 num)
 	if (num == -1)
 		return "NONE";
 
-	if (num < 0 || num > MAXCOLORMAPS)
+	if (num < 0 || num >= MAXCOLORMAPS)
 		I_Error("R_ColormapNameForNum: num %d is invalid!\n", num);
 
 	if (foundcolormaps[num] == LUMPERROR)
@@ -1615,33 +1759,13 @@ INT32 R_TextureNumForName(const char *name)
 	return i;
 }
 
-//
-// R_PrecacheLevel
-//
-// Preloads all relevant graphics for the level.
-//
-void R_PrecacheLevel(void)
+static void R_PrecacheLevelTextures(void)
 {
-	char *texturepresent, *spritepresent;
-	size_t i, j, k;
-	lumpnum_t lump;
+	char *texturepresent;
+	anim_t *anim;
+	size_t j;
+	INT32 h;
 
-	thinker_t *th;
-	spriteframe_t *sf;
-
-	if (demo.playback)
-		return;
-
-	// do not flush the memory, Z_Malloc twice with same user will cause error in Z_CheckHeap()
-	if (rendermode != render_soft)
-		return;
-
-	// Precache flats.
-	flatmemory = P_PrecacheLevelFlats();
-
-	//
-	// Precache textures.
-	//
 	// no need to precache all software textures in 3D mode
 	// (note they are still used with the reference software view)
 	texturepresent = calloc(numtextures, sizeof (*texturepresent));
@@ -1656,6 +1780,22 @@ void R_PrecacheLevel(void)
 			texturepresent[sides[j].midtexture] = 1;
 		if (sides[j].bottomtexture >= 0 && sides[j].bottomtexture < numtextures)
 			texturepresent[sides[j].bottomtexture] = 1;
+	}
+
+	// check for animated textures
+	for (anim = anims; anim < lastanim; anim++)
+	{
+		if (!anim->istexture)
+			continue;
+
+		if (!texturepresent[anim->basepic])
+			continue;
+
+		for (h = 1; h < anim->numpics; h++)
+		{
+			if (!texturecache[anim->basepic+h])
+				R_GenerateTexture(anim->basepic+h);
+		}
 	}
 
 	// Sky texture is always present.
@@ -1675,16 +1815,27 @@ void R_PrecacheLevel(void)
 		// since we cache entire composite textures
 	}
 	free(texturepresent);
+}
 
-	//
-	// Precache sprites.
-	//
+static void R_PrecacheLevelSprites(void)
+{
+	char *spritepresent;
+	size_t i, j, k;
+	lumpnum_t lump;
+
+	thinker_t *th;
+	spriteframe_t *sf;
+
 	spritepresent = calloc(numsprites, sizeof (*spritepresent));
 	if (spritepresent == NULL) I_Error("%s: Out of memory looking up sprites", "R_PrecacheLevel");
 
 	for (th = thinkercap.next; th != &thinkercap; th = th->next)
-		if (th->function.acp1 == (actionf_p1)P_MobjThinker)
-			spritepresent[((mobj_t *)th)->sprite] = 1;
+	{
+		if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+			continue;
+
+		spritepresent[((mobj_t *)th)->sprite] = 1;
+	}
 
 	spritememory = 0;
 	for (i = 0; i < numsprites; i++)
@@ -1695,17 +1846,65 @@ void R_PrecacheLevel(void)
 		for (j = 0; j < sprites[i].numframes; j++)
 		{
 			sf = &sprites[i].spriteframes[j];
-			for (k = 0; k < 8; k++)
-			{
-				// see R_InitSprites for more about lumppat,lumpid
-				lump = sf->lumppat[k];
-				if (devparm)
-					spritememory += W_LumpLength(lump);
-				W_CachePatchNum(lump, PU_CACHE);
+#define cacheang(a) {\
+				lump = sf->lumppat[a];\
+				if (devparm)\
+					spritememory += W_LumpLength(lump);\
+				W_CachePatchNum(lump, PU_SPRITE);\
 			}
+			// see R_InitSprites for more about lumppat,lumpid
+			switch (sf->rotate)
+			{
+				case SRF_SINGLE:
+					cacheang(0);
+					break;
+				case SRF_2D:
+					cacheang(2);
+					cacheang(6);
+					break;
+				default:
+					k = 8;
+					while (k--)
+						cacheang(k);
+					break;
+			}
+#undef cacheang
 		}
 	}
+
 	free(spritepresent);
+}
+
+//
+// R_PrecacheLevel
+//
+// Preloads all relevant graphics for the level.
+//
+void R_PrecacheLevel(void)
+{
+	// do not flush the memory, Z_Malloc twice with same user will cause error in Z_CheckHeap()
+	if (rendermode == render_none)
+		return;
+
+	if (demo.playback)
+		return;
+
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
+	{
+		HWR_PrecacheLevel();
+		return;
+	}
+#endif
+
+	// Precache flats.
+	flatmemory = P_PrecacheLevelFlats();
+
+	// Precache textures.
+	R_PrecacheLevelTextures();
+
+	// Precache sprites.
+	R_PrecacheLevelSprites();
 
 	// FIXME: this is no longer correct with OpenGL render mode
 	CONS_Debug(DBG_SETUP, "Precache level done:\n"

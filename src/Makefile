@@ -68,7 +68,6 @@ ALL_SYSTEMS=\
 	LINUX64\
 	MINGW64\
 	HAIKU\
-	DUMMY\
 	MINGW\
 	UNIX\
 	LINUX\
@@ -81,18 +80,19 @@ ALL_SYSTEMS=\
 ifeq (,$(filter $(ALL_SYSTEMS),$(.VARIABLES)))
 ifeq ($(OS),Windows_NT) # all windows are Windows_NT...
 
- $(info Detected a Windows system, compiling for 32-bit MinGW SDL2...)
+ ifeq ($(shell uname -s | grep -o MINGW64),MINGW64) # 64-bit MinGW
+  $(info Detected a Windows system, compiling for 64-bit MinGW SDL2...)
+  MINGW64=1
+ else # 32-bit MinGW
+  $(info Detected a Windows system, compiling for 32-bit MinGW SDL2...)
+  MINGW=1
+ endif
 
- # go for a 32-bit sdl mingw exe by default
- MINGW=1
  SDL=1
  WINDOWSHELL=1
- NOUPX=1
+ NOOBJDUMP=1
 
 else # if you on the *nix
-
- NOUPX=1
-
  system:=$(shell uname -s)
 
  ifeq ($(system),Linux)
@@ -116,6 +116,7 @@ else # if you on the *nix
 endif
 endif
 
+NOUPX=1
 
 # SRB2 data files
 D_DIR?=../bin/Resources
@@ -155,17 +156,6 @@ SDL=1
 endif
 
 include Makefile.cfg
-
-ifdef DUMMY
-NOPNG=1
-NOZLIB=1
-NONET=1
-NOHW=1
-NOIPX=1
-EXENAME?=srb2dummy
-OBJS=$(OBJDIR)/i_video.o
-LIBS=-lm
-endif
 
 ifdef HAIKU
 NOIPX=1
@@ -289,6 +279,10 @@ ifdef X86_64
 endif
 endif
 
+# apparently MingW just completely ignores everything so just always force this shit
+# FIXME: we should port our code to c24
+CFLAGS+=-std=gnu17
+CPPFLAGS+=-std=gnu17
 
 ifndef NOPNG
 OPTS+=-DHAVE_PNG
@@ -434,7 +428,24 @@ else
 	# build a normal optimised version
 	WINDRESFLAGS = -DNDEBUG
 	CFLAGS+=-O3
+	CPPFLAGS+=-O3
 endif
+
+ifndef DEBUGMODE
+ifdef USELTO
+	# compile with LTO
+	CFLAGS+=-flto=auto
+	CPPFLAGS+=-flto=auto
+endif
+endif
+
+ifdef USEASAN
+	# compile with asan
+	CFLAGS+=-fsanitize=address
+	CPPFLAGS+=-fsanitize=address
+	LDFLAGS+=-fsanitize=address
+endif
+
 	CFLAGS+=-g $(OPTS) $(ARCHOPTS) $(WINDRESFLAGS)
 
 ifdef PROFILEMODE
@@ -489,6 +500,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/st_stuff.o \
 		$(OBJDIR)/k_director.o   \
 		$(OBJDIR)/k_kart.o   \
+		$(OBJDIR)/k_stats.o  \
 		$(OBJDIR)/m_aatree.o \
 		$(OBJDIR)/m_anigif.o \
 		$(OBJDIR)/m_argv.o   \
@@ -531,6 +543,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/r_sky.o    \
 		$(OBJDIR)/r_splats.o \
 		$(OBJDIR)/r_patch.o  \
+		$(OBJDIR)/r_patchrotation.o  \
 		$(OBJDIR)/r_things.o \
 		$(OBJDIR)/r_portal.o \
 		$(OBJDIR)/screen.o   \
@@ -574,10 +587,6 @@ ifdef SDL
 all:	 pre-build $(BIN)/$(EXENAME)
 endif
 
-ifdef DUMMY
-all:	$(BIN)/$(EXENAME)
-endif
-
 cleandep:
 	$(REMOVE) $(OBJDIR)/depend.dep
 	$(REMOVE) comptime.h
@@ -589,10 +598,14 @@ else
 	-$(.)../comptime.sh .
 endif
 
-clean:
+clean: cleandep
 	$(REMOVE) *~ *.flc
 	$(REMOVE) $(OBJDIR)/*.o
 ifndef NOBLUAJIT
+	$(REMOVE) $(OBJDIR)/buildvm* $(OBJDIR)/minilua* $(OBJDIR)/lj_vm* $(ALL_HDRGEN)
+
+cleanjit:
+	$(REMOVE) $(LJVMCORE_O) $(ALL_GEN)
 	$(REMOVE) $(OBJDIR)/buildvm* $(OBJDIR)/minilua* $(OBJDIR)/lj_vm* $(ALL_HDRGEN)
 endif
 
@@ -701,9 +714,7 @@ endif
 
 #dependecy made by gcc itself !
 $(OBJS):
-ifndef DUMMY
 -include $(OBJDIR)/depend.dep
-endif
 
 $(OBJDIR)/depend.dep:
 	@echo "Creating dependency file, depend.dep"

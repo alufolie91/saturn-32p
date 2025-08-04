@@ -41,6 +41,15 @@ applications may follow different packet versions.
 #define BACKUPTICS 32
 #define TICQUEUE 512 // more than enough for most timeouts....
 #define MAXTEXTCMD 256
+
+// No. of tics your controls can be delayed by.
+
+// TODO: Instead of storing a ton of extra cmds for gentlemens' delay,
+// keep them in a linked-list, with timestamps to discard everything that's older than already sent.
+// That will support any amount of lag, and be less wasteful for clients who don't use it.
+// This just works as a quick implementation.
+#define MAXGENTLEMENDELAY TICRATE
+
 //
 // Packet structure
 //
@@ -224,6 +233,7 @@ typedef struct
 #define MAXSERVERNAME 32
 #define MAXFILENEEDED 915
 #define MAX_MIRROR_LENGTH 256
+
 // This packet is too large
 typedef struct
 {
@@ -412,6 +422,11 @@ extern UINT32 realpingtable[MAXPLAYERS];
 extern UINT32 playerpingtable[MAXPLAYERS];
 extern tic_t servermaxping;
 
+extern boolean server_lagless;
+extern tic_t simulated_lag;
+extern tic_t lowest_lag;
+extern consvar_t cv_mindelay, cv_gentlemens;
+
 extern consvar_t
 #ifdef VANILLAJOINNEXTROUND
 	cv_joinnextround,
@@ -430,6 +445,7 @@ void D_ClientServerInit(void);
 void RegisterNetXCmd(netxcmd_t id, void (*cmd_f)(UINT8 **p, INT32 playernum));
 void SendNetXCmdForPlayer(UINT8 playerid, netxcmd_t id, const void *param, size_t nparam);
 #define SendNetXCmd(id, param, nparam) SendNetXCmdForPlayer(0, id, param, nparam) // Shortcut for P1
+void SendKick(UINT8 playernum, UINT8 msg);
 
 // Create any new ticcmds and broadcast to other players.
 void NetKeepAlive(void);
@@ -448,6 +464,9 @@ void CL_RemovePlayer(INT32 playernum, INT32 reason);
 void CL_QueryServerList(msg_server_t *list);
 void CL_UpdateServerList(void);
 void CL_TimeoutServerList(void);
+
+void CL_AbortConnection(void);
+
 // Is there a game running
 boolean Playing(void);
 
@@ -475,7 +494,6 @@ extern UINT8 playernode[MAXPLAYERS];
 INT32 D_NumPlayers(void);
 
 void D_ResetTiccmds(void);
-ticcmd_t *D_LocalTiccmd(UINT8 ss);
 
 tic_t GetLag(INT32 node);
 //UINT8 GetFreeXCmdSize(UINT8 playerid);

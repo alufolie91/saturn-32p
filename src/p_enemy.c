@@ -3920,10 +3920,12 @@ void A_MineExplode(mobj_t *actor)
 	for (d = 0; d < 16; d++)
 		K_SpawnKartExplosion(actor->x, actor->y, actor->z, explodedist + 32*mapobjectscale, 32, type, d*(ANGLE_45/4), true, false, actor->target); // 32 <-> 64
 
+	skincolors_t color = SKINCOLOR_KETCHUP;
+
 	if (actor->target && actor->target->player)
-		K_SpawnMineExplosion(actor, actor->target->player->skincolor);
-	else
-		K_SpawnMineExplosion(actor, SKINCOLOR_KETCHUP);
+		color = actor->target->player->skincolor;
+
+	K_SpawnMineExplosion(actor, color);
 
 	P_SpawnMobj(actor->x, actor->y, actor->z, MT_MINEEXPLOSIONSOUND);
 
@@ -4009,18 +4011,15 @@ void A_SignPlayer(mobj_t *actor)
 	P_SetTarget(&ov->target, actor);
 	ov->color = actor->target->player->skincolor;
 	ov->skin = &skins[actor->target->player->skin];
-	if (actor->target->skinlocal) {
-		// needs - 1 or else it pukes an error out
-		// same thing happens on p_mobj.c
+
+	// needs - 1 or else it pukes an error out
+	// same thing happens on p_mobj.c
+	if (actor->target->skinlocal)
 		ov->localskin = &localskins[actor->target->player->localskin - 1];
-		ov->skinlocal = actor->target->skinlocal;
-	} else {
-		// needs - 1 or else it pukes an error out
-		// same thing happens on p_mobj.c
-		if (actor->target->player->localskin)
-			ov->localskin = &skins[actor->target->player->localskin - 1];
-		ov->skinlocal = actor->target->skinlocal;
-	}
+	else if (actor->target->player->localskin)
+		ov->localskin = &skins[actor->target->player->localskin - 1];
+	ov->skinlocal = actor->target->skinlocal;
+
 	P_SetMobjState(ov, actor->info->seestate); // S_PLAY_SIGN
 }
 
@@ -9253,7 +9252,7 @@ void A_Custom3DRotate(mobj_t *actor)
 		P_RemoveMobj(actor);
 		return;
 	}
-	
+
 	if (hspeed==0 && vspeed==0)
 	{
 		if (cv_debug)
@@ -10137,7 +10136,7 @@ void A_RemoteDamage(mobj_t *actor)
 	if (locvar2 == 1) // Kill mobj!
 	{
 		if (target->player) // players die using P_DamageMobj instead for some reason
-			P_DamageMobj(target, source, source, 10000);
+			P_DamageMobj(target, source, source, DMG_INSTAKILL);
 		else
 			P_KillMobj(target, source, source);
 	}

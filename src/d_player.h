@@ -356,6 +356,16 @@ typedef enum
 	LAP__MAX
 } laptime_e;
 
+// yes i made a whole struct for this :chonkbuncle:
+typedef struct squishdance_s
+{
+	tic_t   countdown; // hold "custom 3" for 2 seconds to engange le dance
+	tic_t   time;
+	fixed_t work;
+	fixed_t ang;
+	fixed_t bounce;    // hehe squishy
+} squishdance_t;
+
 // ========================================================================
 //                          PLAYER STRUCTURE
 // ========================================================================
@@ -402,7 +412,7 @@ typedef struct player_s
 	INT32 kartstuff[NUMKARTSTUFF];
 	angle_t frameangle; // for the player add the ability to have the sprite only face other angles
 	angle_t old_frameangle, old_frameangle2;
-	
+
 	// SRB2Kart CEP: Sliptide rolling
 	angle_t sliproll;
 
@@ -519,6 +529,7 @@ typedef struct player_s
 	tic_t startedtime; // Time which you started this mare with.
 	tic_t finishedtime; // Time it took you to finish the mare (used for display)
 	INT16 finishedrings; // The rings you had left upon finishing the mare
+	INT32 interpoints; // Saturn 32p (port from SRB2Kart CEP): override for number of points earned in intermission
 	UINT32 marescore; // SRB2Kart: Battle score
 	UINT32 lastmarescore; // score for the last mare
 	UINT8 lastmare; // previous mare
@@ -550,9 +561,14 @@ typedef struct player_s
 	UINT8 hitemvictim;
 
 	UINT8 splitscreenindex;
-#ifdef HWRENDER
+
+	tic_t driftsparkGrowTimer;
+
+	fixed_t spinoutrot; // When a player spins out, this value increments modulus 360.
+
+	squishdance_t squishdance;
+
 	fixed_t fovadd; // adjust FOV for hw rendering
-#endif
 } player_t;
 
 #endif

@@ -639,9 +639,8 @@ UINT32 quickncasehash (const char *p, size_t n)
 #ifndef max // Double-Check with WATTCP-32's cdefs.h
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 #endif
-
 #ifndef CLAMP
-#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
+#define CLAMP(x, y, z) ((x) < (y) ? (y) : ((x) > (z) ? (z) : (x)))
 #endif
 
 #ifndef M_PIl
@@ -655,6 +654,19 @@ UINT32 quickncasehash (const char *p, size_t n)
 
 #ifndef DBL_EPSILON
 #define DBL_EPSILON 2.2204460492503131e-16l
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#ifndef LIKELY
+#define LIKELY(x)   __builtin_expect(!!(x), 1)
+#endif
+
+#ifndef UNLIKELY
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#endif
+#else
+#define LIKELY(x)       (x)
+#define UNLIKELY(x)     (x)
 #endif
 
 // An assert-type mechanism.

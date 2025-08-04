@@ -321,24 +321,6 @@ static int lib_pRandomRange(lua_State *L)
 	return 1;
 }
 
-static int lib_mRandomRange(lua_State *L)
-{
-	INT32 a = (INT32)luaL_checkinteger(L, 1);
-	INT32 b = (INT32)luaL_checkinteger(L, 2);
-
-	NOHUD
-	if (b < a) {
-		INT32 c = a;
-		a = b;
-		b = c;
-	}
-	if ((b-a+1) > 65536)
-		LUA_UsageWarning(L, "M_RandomRange: range > 65536 is undefined behavior");
-	lua_pushinteger(L, M_RandomRange(a, b));
-	demo_writerng = 0;
-	return 1;
-}
-
 // Deprecated, macros, etc.
 static int lib_pRandom(lua_State *L)
 {
@@ -375,6 +357,7 @@ static int lib_pAproxDistance(lua_State *L)
 	fixed_t dy = luaL_checkfixed(L, 2);
 	//HUDSAFE
 	//LUA_Deprecated(L, "P_AproxDistance", "FixedHypot");
+	LUA_LogDeprecated(L, "P_AproxDistance", "FixedHypot");
 	lua_pushfixed(L, FixedHypot(dx, dy));
 	return 1;
 }
@@ -1175,6 +1158,7 @@ static int lib_pTeleportMove(lua_State *L)
 	if (!thing)
 		return LUA_ErrInvalid(L, "mobj_t");
 	//LUA_Deprecated(L, "P_TeleportMove", "P_SetOrigin\" or \"P_MoveOrigin");
+	LUA_LogDeprecated(L, "P_TeleportMove", "P_SetOrigin\" or \"P_MoveOrigin");
 	lua_pushboolean(L, P_MoveOrigin(thing, x, y, z));
 	LUA_PushUserdata(L, tmthing, META_MOBJ);
 	P_SetTarget(&tmthing, ptmthing);
@@ -1529,11 +1513,9 @@ static int lib_pSetMobjStateNF(lua_State *L)
 static int lib_pDoSuperTransformation(lua_State *L)
 {
 	player_t *player = *((player_t **)luaL_checkudata(L, 1, META_PLAYER));
-	boolean giverings = lua_optboolean(L, 2);
 	NOHUD
 	if (!player)
 		return LUA_ErrInvalid(L, "player_t");
-	P_DoSuperTransformation(player, giverings);
 	return 0;
 }
 
@@ -1785,7 +1767,7 @@ static int lib_pGetZAt(lua_State *L)
 	if (!slope)
 		return LUA_ErrInvalid(L, "pslope_t");
 
-	lua_pushfixed(L, P_GetZAt(slope, x, y));
+	lua_pushfixed(L, P_GetSlopeZAt(slope, x, y));
 	return 1;
 }
 
@@ -2585,16 +2567,15 @@ static int lib_gExitLevel(lua_State *L)
 
 static int lib_gIsSpecialStage(lua_State *L)
 {
-	INT32 mapnum = luaL_optinteger(L, 1, gamemap);
 	//HUDSAFE
-	lua_pushboolean(L, G_IsSpecialStage(mapnum));
+	lua_pushboolean(L, false);
 	return 1;
 }
 
 static int lib_gGametypeUsesLives(lua_State *L)
 {
 	//HUDSAFE
-	lua_pushboolean(L, G_GametypeUsesLives());
+	lua_pushboolean(L, false);
 	return 1;
 }
 
@@ -3234,8 +3215,6 @@ static luaL_Reg lib[] = {
 	{"P_Random",lib_pRandom}, // DEPRECATED
 	{"P_SignedRandom",lib_pSignedRandom}, // MACRO
 	{"P_RandomChance",lib_pRandomChance}, // MACRO
-
-	{"M_RandomRange",lib_mRandomRange},
 
 	// p_maputil
 	{"P_AproxDistance",lib_pAproxDistance},

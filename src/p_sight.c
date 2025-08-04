@@ -33,6 +33,9 @@ typedef struct {
 
 static INT32 sightcounts[2];
 
+typedef INT32 (*divlinefunc)(fixed_t x, fixed_t y, const divline_t *node);
+typedef INT32 (*divlinecrossfunc)(fixed_t x1, fixed_t y1, fixed_t x2, fixed_t y2, const divline_t *node);
+
 //
 // P_DivlineSide
 //
@@ -42,17 +45,32 @@ static INT32 sightcounts[2];
 static INT32 P_DivlineSide(fixed_t x, fixed_t y, const divline_t *node)
 {
 	fixed_t left, right;
-	return
+
+	return(
 		!node->dx ? x == node->x ? 2 : x <= node->x ? node->dy > 0 : node->dy < 0 :
 		!node->dy ? y == node->y ? 2 : y <= node->y ? node->dx < 0 : node->dx > 0 :
 		(right = ((y - node->y) >> FRACBITS) * (node->dx >> FRACBITS)) <
 		(left  = ((x - node->x) >> FRACBITS) * (node->dy >> FRACBITS)) ? 0 :
-		right == left ? 2 : 1;
+		right == left ? 2 : 1);
 }
 
-static INT32 P_DivlineCrossed(fixed_t x1, fixed_t y1, fixed_t x2, fixed_t y2, const divline_t *node)
+static inline INT32 P_DivlineSideFast(fixed_t x, fixed_t y, const divline_t *node)
+{
+	INT64 v = ((INT64)y - node->y) * node->dx - ((INT64)x - node->x) * node->dy;
+
+	if (v == 0)
+		return 2;
+	return v > 0;
+}
+
+static inline INT32 P_DivlineCrossed(fixed_t x1, fixed_t y1, fixed_t x2, fixed_t y2, const divline_t *node)
 {
 	return (P_DivlineSide(x1, y1, node) == P_DivlineSide(x2, y2, node));
+}
+
+static inline INT32 P_DivlineCrossedFast(fixed_t x1, fixed_t y1, fixed_t x2, fixed_t y2, const divline_t *node)
+{
+	return (P_DivlineSideFast(x1, y1, node) == P_DivlineSideFast(x2, y2, node));
 }
 
 static boolean P_CrossSubsecPolyObj(polyobj_t *po, register los_t *los)
@@ -100,10 +118,6 @@ static boolean P_CrossSubsecPolyObj(polyobj_t *po, register los_t *los)
 		if (P_DivlineCrossed(los->strace.x, los->strace.y, los->t2x, los->t2y, &divl))
 			continue;
 
-		// stop because it is not two sided
-		//if (!(po->flags & POF_TESTHEIGHT))
-			//return false;
-
 		frac = P_InterceptVector(&los->strace, &divl);
 
 		// get slopes of top and bottom of this polyobject line
@@ -112,23 +126,17 @@ static boolean P_CrossSubsecPolyObj(polyobj_t *po, register los_t *los)
 
 		if (topslope >= los->topslope && bottomslope <= los->bottomslope)
 			return false; // view completely blocked
-
-		// TODO: figure out if it's worth considering partially blocked cases or not?
-		// maybe to adjust los's top/bottom slopes if needed
-		//if (los->topslope <= los->bottomslope)
-			//return false;
 	}
 
 	return true;
 }
-
 
 //
 // P_CrossSubsector
 //
 // Returns true if strace crosses the given subsector successfully.
 //
-static boolean P_CrossSubsector(size_t num, register los_t *los)
+static boolean P_CrossSubsector(size_t num, register los_t *los, boolean fast)
 {
 	seg_t *seg;
 	INT32 count;
@@ -156,6 +164,8 @@ static boolean P_CrossSubsector(size_t num, register los_t *los)
 			po = (polyobj_t *)(po->link.next);
 		}
 	}
+
+	const divlinecrossfunc divlinecrossFunc = fast ? P_DivlineCrossedFast : P_DivlineCrossed;
 
 	for (count = subsectors[num].numlines; --count >= 0; seg++)  // check lines
 	{
@@ -185,14 +195,14 @@ static boolean P_CrossSubsector(size_t num, register los_t *los)
 		v2 = line->v2;
 
 		// line isn't crossed?
-		if (P_DivlineCrossed(v1->x, v1->y, v2->x, v2->y, &los->strace))
+		if (divlinecrossFunc(v1->x, v1->y, v2->x, v2->y, &los->strace))
 			continue;
 
 		divl.dx = v2->x - (divl.x = v1->x);
 		divl.dy = v2->y - (divl.y = v1->y);
 
 		// line isn't crossed?
-		if (P_DivlineCrossed(los->strace.x, los->strace.y, los->t2x, los->t2y, &divl))
+		if (divlinecrossFunc(los->strace.x, los->strace.y, los->t2x, los->t2y, &divl))
 			continue;
 
 		// stop because it is not two sided anyway
@@ -301,33 +311,30 @@ static boolean P_CrossSubsector(size_t num, register los_t *los)
 // killough 4/20/98: rewritten to remove tail recursion, clean up, and optimize
 static boolean P_CrossBSPNode(INT32 bspnum, register los_t *los, boolean fast)
 {
+	const divlinefunc divlineFunc = fast ? P_DivlineSideFast : P_DivlineSide;
+
 	while (!(bspnum & NF_SUBSECTOR))
 	{
 		register node_t *bsp = nodes + bspnum;
 
-		INT32 side = (fast ? R_PointOnSideFast(los->strace.x, los->strace.y, bsp) : (P_DivlineSide(los->strace.x,los->strace.y, (divline_t *)bsp) & 1));
-		INT32 side2 = (fast ? R_PointOnSideFast(los->t2x, los->t2y, bsp) : P_DivlineSide(los->t2x, los->t2y, (divline_t *) bsp));
+		INT32 side = divlineFunc(los->strace.x, los->strace.y, (divline_t *)bsp) & 1;
+		INT32 side2 = divlineFunc(los->t2x, los->t2y, (divline_t *) bsp);
 
 		if (side == side2)
 		{
 			// doesn't touch the other side
 			bspnum = bsp->children[side];
 		}
-		else
+		else // the partition plane is crossed here
 		{
-			// the partition plane is crossed here
 			if (!P_CrossBSPNode(bsp->children[side], los, fast))
-			{
 				return false; // cross the starting side
-			}
-			else
-			{
-				bspnum = bsp->children[side^1]; // cross the ending side
-			}
+
+			bspnum = bsp->children[side^1]; // cross the ending side
 		}
 	}
 
-	return P_CrossSubsector((bspnum == -1 ? 0 : bspnum & ~NF_SUBSECTOR), los);
+	return P_CrossSubsector((bspnum == -1 ? 0 : bspnum & ~NF_SUBSECTOR), los, fast);
 }
 
 //

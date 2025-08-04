@@ -33,6 +33,16 @@ extern boolean forceshowhud;
 // Does all the real work of the menu interaction.
 boolean M_Responder(event_t *ev);
 
+// for scrolling through menus with controllers
+extern boolean dpadscrollstate[4];
+enum
+{
+	DPAD_UP,
+	DPAD_DOWN,
+	DPAD_LEFT,
+	DPAD_RIGHT
+};
+
 // Called by main loop, runs for demo playback. If this returns true, nullify any further user input.
 boolean M_DemoResponder(event_t *ev);
 
@@ -286,6 +296,9 @@ void Screenshot_option_Onchange(void);
 // Addons menu updating
 void Addons_option_Onchange(void);
 
+// Moviemode menu updating
+void Moviemode_option_Onchange(void);
+
 // Player distortion menu updating
 void PDistort_menu_Onchange(void);
 
@@ -294,6 +307,8 @@ void Bird_menu_Onchange(void);
 
 // Saturn Hud menu updating
 void SaturnHud_menu_Onchange(void);
+
+void GameFocus_menu_Onchange (void);
 
 #ifdef HWRENDER
 void M_UpdateOGLMenu(void);

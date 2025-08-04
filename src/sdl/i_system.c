@@ -41,11 +41,6 @@ typedef DWORD (WINAPI *p_timeGetTime) (void);
 typedef UINT (WINAPI *p_timeEndPeriod) (UINT);
 typedef HANDLE (WINAPI *p_OpenFileMappingA) (DWORD, BOOL, LPCSTR);
 typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
-
-// This is for RtlGenRandom.
-#define SystemFunction036 NTAPI SystemFunction036
-#include <ntsecapi.h>
-#undef SystemFunction036
 #endif
 
 // A little more than the minimum sleep duration on Windows.
@@ -67,6 +62,7 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
 #include <fcntl.h>
 #endif
 
+#include <stdio.h>
 #ifdef _WIN32
 #include <conio.h>
 #endif
@@ -114,8 +110,11 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
 #endif
 #endif
 
-#if defined (__unix__) || (defined (UNIXCOMMON) && !defined (__APPLE__))
+#if defined(UNIXCOMMON)
 #include <poll.h>
+#endif
+
+#if defined (__unix__) || (defined (UNIXCOMMON) && !defined (__APPLE__))
 #include <errno.h>
 #include <sys/wait.h>
 #define NEWSIGNALHANDLER
@@ -204,6 +203,8 @@ static char returnWadPath[256];
 #include "../d_clisrv.h"
 #include "../byteptr.h"
 #endif
+
+INT32 numcontrollers = 0;
 
 #ifdef HAVE_LIBBACKTRACE
 #include <backtrace.h>
@@ -346,7 +347,7 @@ static void write_backtrace(bt_crash_reason_t reason)
 	fprintf(out, "Program name: %s %s\n", SRB2APPLICATION, VERSIONSTRING);
 
 	if (compdate && comptime && comprevision && compbranch)
-	fprintf(out, "Compiled: %s %s, commit %s, branch %s\n", compdate, comptime, comprevision, compbranch);
+		fprintf(out, "Compiled: %s %s, commit %s, branch %s\n", compdate, comptime, comprevision, compbranch);
 
 	if (gamestate == GS_LEVEL)
 	{
@@ -423,12 +424,6 @@ static INT32 joystick_started[MAXSPLITSCREENPLAYERS] = {0, 0, 0, 0};
 /**	\brief SDL info about joystick
 */
 SDLJoyInfo_t JoyInfo[MAXSPLITSCREENPLAYERS];
-
-
-#ifdef HAVE_TERMIOS
-static INT32 fdmouse2 = -1;
-static INT32 mouse2_started = 0;
-#endif
 
 SDL_bool consolevent = SDL_FALSE;
 SDL_bool framebuffer = SDL_FALSE;
@@ -508,9 +503,6 @@ FUNCNORETURN static ATTRNORETURN void signal_handler(INT32 num)
 #ifdef HAVE_LIBBACKTRACE
 	write_backtrace(BT_CRASH_REASON_SIGNAL(num));
 #endif
-
-	if (demo.recording)
-		G_SaveDemo();
 
 	I_ReportSignal(num, 0);
 	I_ShutdownSystem();
@@ -892,9 +884,6 @@ static void signal_handler_child(INT32 num)
 	write_backtrace(BT_CRASH_REASON_SIGNAL(num));
 #endif
 
-	if (demo.recording)
-		G_SaveDemo();
-
 	signal(num, SIG_DFL);               //default signal action
 	raise(num);
 }
@@ -1103,7 +1092,7 @@ INT32 I_GetJoystickDeviceIndex(SDL_GameController *dev)
 	SDL_Joystick *joystick = NULL;
 
 	joystick = SDL_GameControllerGetJoystick(dev);
-	
+
 	if (joystick)
 	{
 		return SDL_JoystickInstanceID(joystick);
@@ -1179,21 +1168,21 @@ void I_ShutdownJoystick(UINT8 index)
 {
 	INT32 i;
 	event_t event;
-	event.type=ev_keyup;
+	event.type = ev_keyup;
 	event.data2 = 0;
 	event.data3 = 0;
 
 	lastjoybuttons[index] = lastjoyhats[index] = 0;
 
 	// emulate the up of all joystick buttons
-	for (i=0;i<JOYBUTTONS;i++)
+	for (i = 0; i < JOYBUTTONS; i++)
 	{
-		event.data1=KEY_JOY1+i;
+		event.data1=KEY_JOY1 + i;
 		D_PostEvent(&event);
 	}
 
 	// emulate the up of all joystick hats
-	for (i=0;i<JOYHATS*4;i++)
+	for (i = 0; i < JOYHATS*4; i++)
 	{
 		event.data1=KEY_HAT1+i;
 		D_PostEvent(&event);
@@ -1201,7 +1190,7 @@ void I_ShutdownJoystick(UINT8 index)
 
 	// reset joystick position
 	event.type = ev_joystick;
-	for (i=0;i<JOYAXISSET; i++)
+	for (i = 0; i < JOYAXISSET; i++)
 	{
 		event.data1 = i;
 		D_PostEvent(&event);
@@ -1256,8 +1245,6 @@ void I_GetJoystickEvents(UINT8 index)
 	\param	fname	name of joystick
 
 	\return	axises
-
-
 */
 static int joy_open(int playerIndex, int joyIndex)
 {
@@ -1492,17 +1479,16 @@ const char *I_GetJoyName(INT32 joyindex)
 	return joyname;
 }
 
-void I_GamepadRumble(INT32 device_id, UINT16 low_strength, UINT16 high_strength, UINT32 duration)
+void I_GamepadRumble(INT32 playernum, UINT16 low_strength, UINT16 high_strength, UINT32 duration)
 {
 #if !(SDL_VERSION_ATLEAST(2,0,14))
-	(void)device_id;
+	(void)playernum;
 	(void)low_strength;
 	(void)high_strength;
 	(void)duration;
 #else
-	I_Assert(device_id > 0); // Gamepad devices are always ID 1 or higher
+	SDL_GameController *controller = JoyInfo[playernum].dev;
 
-	SDL_GameController *controller = SDL_GameControllerFromInstanceID(device_id - 1);
 	if (controller == NULL)
 	{
 		return;
@@ -1512,17 +1498,16 @@ void I_GamepadRumble(INT32 device_id, UINT16 low_strength, UINT16 high_strength,
 #endif
 }
 
-void I_SetGamepadIndicatorColor(INT32 device_id, UINT8 red, UINT8 green, UINT8 blue)
+void I_SetGamepadIndicatorColor(INT32 playernum, UINT8 red, UINT8 green, UINT8 blue)
 {
 #if !(SDL_VERSION_ATLEAST(2,0,14))
-	(void)device_id;
+	(void)playernum;
 	(void)red;
 	(void)green;
 	(void)blue;
 #else
-	I_Assert(device_id > 0); // Gamepad devices are always ID 1 or higher
+	SDL_GameController *controller = JoyInfo[playernum].dev;
 
-	SDL_GameController *controller = SDL_GameControllerFromInstanceID(device_id - 1);
 	if (controller == NULL)
 	{
 		return;
@@ -1659,368 +1644,6 @@ void I_UpdateMumble(const mobj_t *mobj, const listener_t listener)
 }
 #undef WINMUMBLE
 #endif // NOMUMBLE
-
-#ifdef HAVE_TERMIOS
-
-void I_GetMouseEvents(void)
-{
-	static UINT8 mdata[5];
-	static INT32 i = 0,om2b = 0;
-	INT32 di, j, mlp, button;
-	event_t event;
-	const INT32 mswap[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-
-	if (!mouse2_started) return;
-	for (mlp = 0; mlp < 20; mlp++)
-	{
-		for (; i < 5; i++)
-		{
-			di = read(fdmouse2, mdata+i, 1);
-			if (di == -1) return;
-		}
-		if ((mdata[0] & 0xf8) != 0x80)
-		{
-			for (j = 1; j < 5; j++)
-				if ((mdata[j] & 0xf8) == 0x80)
-					for (i = 0; i < 5-j; i++) // shift
-						mdata[i] = mdata[i+j];
-			if (i < 5) continue;
-		}
-		else
-		{
-			button = mswap[~mdata[0] & 0x07];
-			for (j = 0; j < MOUSEBUTTONS; j++)
-			{
-				if (om2b & (1<<j))
-				{
-					if (!(button & (1<<j))) //keyup
-					{
-						event.type = ev_keyup;
-						event.data1 = KEY_2MOUSE1+j;
-						D_PostEvent(&event);
-						om2b ^= 1 << j;
-					}
-				}
-				else
-				{
-					if (button & (1<<j))
-					{
-						event.type = ev_keydown;
-						event.data1 = KEY_2MOUSE1+j;
-						D_PostEvent(&event);
-						om2b ^= 1 << j;
-					}
-				}
-			}
-			event.data2 = ((SINT8)mdata[1])+((SINT8)mdata[3]);
-			event.data3 = ((SINT8)mdata[2])+((SINT8)mdata[4]);
-			if (event.data2 && event.data3)
-			{
-				event.type = ev_mouse2;
-				event.data1 = 0;
-				D_PostEvent(&event);
-			}
-		}
-		i = 0;
-	}
-}
-
-//
-// I_ShutdownMouse2
-//
-static void I_ShutdownMouse2(void)
-{
-	if (fdmouse2 != -1) close(fdmouse2);
-	mouse2_started = 0;
-}
-#elif defined (_WIN32)
-
-static HANDLE mouse2filehandle = INVALID_HANDLE_VALUE;
-
-static void I_ShutdownMouse2(void)
-{
-	event_t event;
-	INT32 i;
-
-	if (mouse2filehandle == INVALID_HANDLE_VALUE)
-		return;
-
-	SetCommMask(mouse2filehandle, 0);
-
-	EscapeCommFunction(mouse2filehandle, CLRDTR);
-	EscapeCommFunction(mouse2filehandle, CLRRTS);
-
-	PurgeComm(mouse2filehandle, PURGE_TXABORT | PURGE_RXABORT |
-			  PURGE_TXCLEAR | PURGE_RXCLEAR);
-
-	CloseHandle(mouse2filehandle);
-
-	// emulate the up of all mouse buttons
-	for (i = 0; i < MOUSEBUTTONS; i++)
-	{
-		event.type = ev_keyup;
-		event.data1 = KEY_2MOUSE1+i;
-		D_PostEvent(&event);
-	}
-
-	mouse2filehandle = INVALID_HANDLE_VALUE;
-}
-
-#define MOUSECOMBUFFERSIZE 256
-static INT32 handlermouse2x,handlermouse2y,handlermouse2buttons;
-
-static void I_PoolMouse2(void)
-{
-	UINT8 buffer[MOUSECOMBUFFERSIZE];
-	COMSTAT ComStat;
-	DWORD dwErrorFlags;
-	DWORD dwLength;
-	char dx,dy;
-
-	static INT32 bytenum;
-	static UINT8 combytes[4];
-	DWORD i;
-
-	ClearCommError(mouse2filehandle, &dwErrorFlags, &ComStat);
-	dwLength = min(MOUSECOMBUFFERSIZE, ComStat.cbInQue);
-
-	if (dwLength <= 0)
-		return;
-
-	if (!ReadFile(mouse2filehandle, buffer, dwLength, &dwLength, NULL))
-	{
-		CONS_Alert(CONS_WARNING, "%s", M_GetText("Read Error on secondary mouse port\n"));
-		return;
-	}
-
-	// parse the mouse packets
-	for (i = 0; i < dwLength; i++)
-	{
-		if ((buffer[i] & 64)== 64)
-			bytenum = 0;
-
-		if (bytenum < 4)
-			combytes[bytenum] = buffer[i];
-		bytenum++;
-
-		if (bytenum == 1)
-		{
-			handlermouse2buttons &= ~3;
-			handlermouse2buttons |= ((combytes[0] & (32+16)) >> 4);
-		}
-		else if (bytenum == 3)
-		{
-			dx = (char)((combytes[0] &  3) << 6);
-			dy = (char)((combytes[0] & 12) << 4);
-			dx = (char)(dx + combytes[1]);
-			dy = (char)(dy + combytes[2]);
-			handlermouse2x+= dx;
-			handlermouse2y+= dy;
-		}
-		else if (bytenum == 4) // fourth UINT8 (logitech mouses)
-		{
-			if (buffer[i] & 32)
-				handlermouse2buttons |= 4;
-			else
-				handlermouse2buttons &= ~4;
-		}
-	}
-}
-
-void I_GetMouseEvents(void)
-{
-	static UINT8 lastbuttons2 = 0; //mouse movement
-	event_t event;
-
-	if (mouse2filehandle == INVALID_HANDLE_VALUE)
-		return;
-
-	I_PoolMouse2();
-	// post key event for buttons
-	if (handlermouse2buttons != lastbuttons2)
-	{
-		INT32 i, j = 1, k;
-		k = (handlermouse2buttons ^ lastbuttons2); // only changed bit to 1
-		lastbuttons2 = (UINT8)handlermouse2buttons;
-
-		for (i = 0; i < MOUSEBUTTONS; i++, j <<= 1)
-			if (k & j)
-			{
-				if (handlermouse2buttons & j)
-					event.type = ev_keydown;
-				else
-					event.type = ev_keyup;
-				event.data1 = KEY_2MOUSE1+i;
-				D_PostEvent(&event);
-			}
-	}
-
-	if (handlermouse2x != 0 || handlermouse2y != 0)
-	{
-		event.type = ev_mouse2;
-		event.data1 = 0;
-//		event.data1 = buttons; // not needed
-		event.data2 = handlermouse2x << 1;
-		event.data3 = -handlermouse2y << 1;
-		handlermouse2x = 0;
-		handlermouse2y = 0;
-
-		D_PostEvent(&event);
-	}
-}
-#else
-void I_GetMouseEvents(void){};
-#endif
-
-//
-// I_StartupMouse2
-//
-void I_StartupMouse2(void)
-{
-#ifdef HAVE_TERMIOS
-	struct termios m2tio;
-	size_t i;
-	INT32 dtr = -1, rts = -1;;
-	I_ShutdownMouse2();
-	if (cv_usemouse2.value == 0) return;
-	if ((fdmouse2 = open(cv_mouse2port.string, O_RDONLY|O_NONBLOCK|O_NOCTTY)) == -1)
-	{
-		CONS_Printf(M_GetText("Error opening %s!\n"), cv_mouse2port.string);
-		return;
-	}
-	tcflush(fdmouse2, TCIOFLUSH);
-	m2tio.c_iflag = IGNBRK;
-	m2tio.c_oflag = 0;
-	m2tio.c_cflag = CREAD|CLOCAL|HUPCL|CS8|CSTOPB|B1200;
-	m2tio.c_lflag = 0;
-	m2tio.c_cc[VTIME] = 0;
-	m2tio.c_cc[VMIN] = 1;
-	tcsetattr(fdmouse2, TCSANOW, &m2tio);
-	for (i = 0; i < strlen(cv_mouse2opt.string); i++)
-	{
-		if (toupper(cv_mouse2opt.string[i]) == 'D')
-		{
-			if (cv_mouse2opt.string[i+1] == '-')
-				dtr = 0;
-			else
-				dtr = 1;
-		}
-		if (toupper(cv_mouse2opt.string[i]) == 'R')
-		{
-			if (cv_mouse2opt.string[i+1] == '-')
-				rts = 0;
-			else
-				rts = 1;
-		}
-		if (dtr != -1 || rts != -1)
-		{
-			INT32 c;
-			if (!ioctl(fdmouse2, TIOCMGET, &c))
-			{
-				if (!dtr)
-					c &= ~TIOCM_DTR;
-				else if (dtr > 0)
-					c |= TIOCM_DTR;
-			}
-			if (!rts)
-				c &= ~TIOCM_RTS;
-			else if (rts > 0)
-				c |= TIOCM_RTS;
-			ioctl(fdmouse2, TIOCMSET, &c);
-		}
-	}
-	mouse2_started = 1;
-	I_AddExitFunc(I_ShutdownMouse2);
-#elif defined (_WIN32)
-	DCB dcb;
-
-	if (mouse2filehandle != INVALID_HANDLE_VALUE)
-		I_ShutdownMouse2();
-
-	if (cv_usemouse2.value == 0)
-		return;
-
-	if (mouse2filehandle == INVALID_HANDLE_VALUE)
-	{
-		// COM file handle
-		mouse2filehandle = CreateFileA(cv_mouse2port.string, GENERIC_READ | GENERIC_WRITE,
-									   0,                     // exclusive access
-									   NULL,                  // no security attrs
-									   OPEN_EXISTING,
-									   FILE_ATTRIBUTE_NORMAL,
-									   NULL);
-		if (mouse2filehandle == INVALID_HANDLE_VALUE)
-		{
-			INT32 e = GetLastError();
-			if (e == 5)
-				CONS_Alert(CONS_ERROR, M_GetText("Can't open %s: Access denied\n"), cv_mouse2port.string);
-			else
-				CONS_Alert(CONS_ERROR, M_GetText("Can't open %s: error %d\n"), cv_mouse2port.string, e);
-			return;
-		}
-	}
-
-	// getevent when somthing happens
-	//SetCommMask(mouse2filehandle, EV_RXCHAR);
-
-	// buffers
-	SetupComm(mouse2filehandle, MOUSECOMBUFFERSIZE, MOUSECOMBUFFERSIZE);
-
-	// purge buffers
-	PurgeComm(mouse2filehandle, PURGE_TXABORT | PURGE_RXABORT
-			  | PURGE_TXCLEAR | PURGE_RXCLEAR);
-
-	// setup port to 1200 7N1
-	dcb.DCBlength = sizeof (DCB);
-
-	GetCommState(mouse2filehandle, &dcb);
-
-	dcb.BaudRate = CBR_1200;
-	dcb.ByteSize = 7;
-	dcb.Parity = NOPARITY;
-	dcb.StopBits = ONESTOPBIT;
-
-	dcb.fDtrControl = DTR_CONTROL_ENABLE;
-	dcb.fRtsControl = RTS_CONTROL_ENABLE;
-
-	dcb.fBinary = TRUE;
-	dcb.fParity = TRUE;
-
-	SetCommState(mouse2filehandle, &dcb);
-	I_AddExitFunc(I_ShutdownMouse2);
-#endif
-}
-
-//
-// I_Tactile
-//
-void I_Tactile(FFType pFFType, const JoyFF_t *FFEffect)
-{
-	// UNUSED.
-	(void)pFFType;
-	(void)FFEffect;
-}
-
-void I_Tactile2(FFType pFFType, const JoyFF_t *FFEffect)
-{
-	// UNUSED.
-	(void)pFFType;
-	(void)FFEffect;
-}
-
-void I_Tactile3(FFType pFFType, const JoyFF_t *FFEffect)
-{
-	// UNUSED.
-	(void)pFFType;
-	(void)FFEffect;
-}
-
-void I_Tactile4(FFType pFFType, const JoyFF_t *FFEffect)
-{
-	// UNUSED.
-	(void)pFFType;
-	(void)FFEffect;
-}
 
 /**	\brief empty ticcmd for player 1
 */
@@ -2272,7 +1895,10 @@ INT32 I_StartupSystem(void)
 	SDL_GetVersion(&SDLlinked);
 	I_StartupConsole();
 #ifdef NEWSIGNALHANDLER
-	I_Fork();
+	// This is useful when debugging. It lets GDB attach to
+	// the correct process easily.
+	if (!M_CheckParm("-nofork"))
+		I_Fork();
 #endif
 #ifdef HAVE_THREADS
 	I_start_threads();
@@ -2511,6 +2137,48 @@ void I_RemoveExitFunc(void (*func)())
 	}
 }
 
+#if !(defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON))
+static void Shittycopyerror(const char *name)
+{
+	I_OutputMsg(
+			"Error copying log file: %s: %s\n",
+			name,
+			strerror(errno)
+	);
+}
+
+static void Shittylogcopy(void)
+{
+	char buf[8192];
+	FILE *fp;
+	size_t r;
+	if (fseek(logstream, 0, SEEK_SET) == -1)
+	{
+		Shittycopyerror("fseek");
+	}
+	else if (( fp = fopen(logfilename, "wt") ))
+	{
+		while (( r = fread(buf, 1, sizeof buf, logstream) ))
+		{
+			if (fwrite(buf, 1, r, fp) < r)
+			{
+				Shittycopyerror("fwrite");
+				break;
+			}
+		}
+		if (ferror(logstream))
+		{
+			Shittycopyerror("fread");
+		}
+		fclose(fp);
+	}
+	else
+	{
+		Shittycopyerror(logfilename);
+	}
+}
+#endif/*!(defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON))*/
+
 //
 //  Closes down everything. This includes restoring the initial
 //  palette and video mode, and removing whatever mouse, keyboard, and
@@ -2522,9 +2190,10 @@ void I_ShutdownSystem(void)
 {
 	INT32 c;
 
-#ifndef NEWSIGNALHANDLER
-	I_ShutdownConsole();
+#ifdef NEWSIGNALHANDLER
+	if (M_CheckParm("-nofork"))
 #endif
+		I_ShutdownConsole();
 
 	for (c = MAX_QUIT_FUNCS-1; c >= 0; c--)
 		if (quit_funcs[c])
@@ -2533,6 +2202,9 @@ void I_ShutdownSystem(void)
 	if (logstream)
 	{
 		I_OutputMsg("I_ShutdownSystem(): end of logstream.\n");
+#if !(defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON))
+		Shittylogcopy();
+#endif
 		fclose(logstream);
 		logstream = NULL;
 	}
@@ -2650,38 +2322,6 @@ INT32 I_PutEnv(char *variable)
 	return SDL_putenv(variable);
 #else
 	return putenv(variable);
-#endif
-}
-
-size_t I_GetRandomBytes(char *destination, size_t count)
-{
-#if defined (__unix__) || defined (UNIXCOMMON) || defined(__APPLE__)
-	FILE *rndsource;
-	size_t actual_bytes;
-
-	if (!(rndsource = fopen("/dev/urandom", "r")))
-		if (!(rndsource = fopen("/dev/random", "r")))
-			actual_bytes = 0;
-
-	if (rndsource)
-	{
-		actual_bytes = fread(destination, 1, count, rndsource);
-		fclose(rndsource);
-	}
-
-	if (actual_bytes == 0)
-		I_OutputMsg("I_GetRandomBytes(): couldn't get any random bytes");
-
-	return actual_bytes;
-#elif defined (_WIN32)
-	if (RtlGenRandom(destination, count))
-		return count;
-
-	I_OutputMsg("I_GetRandomBytes(): couldn't get any random bytes");
-	return 0;
-#else
-	#warning SDL I_GetRandomBytes is not implemented on this platform.
-	return 0;
 #endif
 }
 

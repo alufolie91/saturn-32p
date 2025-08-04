@@ -661,6 +661,10 @@ boolean preparefilemenu(boolean samedepth, boolean replayhut)
 		return false;
 	}
 
+	if (dirmenu != coredirmenu)
+		Z_Free(dirmenu);
+	dirmenu = NULL;
+
 	for (; sizecoredirmenu > 0; sizecoredirmenu--) // clear out existing items
 	{
 		Z_Free(coredirmenu[sizecoredirmenu-1]);
@@ -797,7 +801,7 @@ boolean preparefilemenu(boolean samedepth, boolean replayhut)
 					}
 					else if (ext == EXT_TXT)
 					{
-						if (!strcmp(dent->d_name, "log.txt") || !strcmp(dent->d_name, "errorlog.txt"))
+						if (!strncmp(dent->d_name, "log-", 4) || !strcmp(dent->d_name, "errorlog.txt"))
 							ext |= EXT_LOADED;
 					}
 

@@ -74,7 +74,6 @@ void LUA_CVarChanged(const char *name); // lua_consolelib.c
 int Lua_optoption(lua_State *L, int narg, int def, int list_ref);
 int Lua_CreateFieldTable(lua_State *L, const char *const lst[]);
 void LUA_HookNetArchive(lua_CFunction archFunc, savebuffer_t *save);
-//void LUA_HookNetArchive(lua_CFunction archFunc);
 
 // Console wrapper
 void COM_Lua_f(void);
@@ -89,6 +88,15 @@ void COM_Lua_f(void);
 	if (!seen) {\
 		seen = 1;\
 		CONS_Alert(CONS_WARNING,"\"%s\" is deprecated and will be removed.\nUse \"%s\" instead.\n", this_func, use_instead);\
+	}\
+}
+
+#define LUA_LogDeprecated(L,this_func,use_instead)\
+{\
+	static UINT8 seen = 0;\
+	if (!seen) {\
+		seen = 1;\
+		CON_LogMessage(va("\"%s\" is deprecated and will be removed.\nUse \"%s\" instead.\n", this_func, use_instead));\
 	}\
 }
 
