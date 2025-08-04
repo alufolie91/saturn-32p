@@ -434,16 +434,29 @@ endif
 ifndef DEBUGMODE
 ifdef USELTO
 	# compile with LTO
+ifdef MINGW
+	CFLAGS+=-flto=auto -g
+	CPPFLAGS+=-flto=auto -g
+	LDFLAGS+=-flto=auto -g
+else
 	CFLAGS+=-flto=auto
 	CPPFLAGS+=-flto=auto
+	LDFLAGS+=-flto=auto
+endif
 endif
 endif
 
 ifdef USEASAN
 	# compile with asan
+ifdef MINGW
+	CFLAGS+=-fsanitize=address -g
+	CPPFLAGS+=-fsanitize=address -g
+	LDFLAGS+=-fsanitize=address -g
+else
 	CFLAGS+=-fsanitize=address
 	CPPFLAGS+=-fsanitize=address
 	LDFLAGS+=-fsanitize=address
+endif
 endif
 
 	CFLAGS+=-g $(OPTS) $(ARCHOPTS) $(WINDRESFLAGS)
