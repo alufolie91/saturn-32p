@@ -138,10 +138,10 @@ static CV_PossibleValue_t drawdist_precip_cons_t[] = {
 #endif
 
 static CV_PossibleValue_t maxinterpdist_cons_t[] = {
-       /*{256, "256"},*/ {512, "512"}, {768, "768"},
-       {1024, "1024"}, {1536, "1536"}, {2048, "2048"},
-       {3072, "3072"}, {4096, "4096"}, {6144, "6144"},
-       {8192, "8192"}, {0, "Infinite"}, {0, NULL}};
+	/*{256, "256"},*/ {512, "512"}, {768, "768"},
+	{1024, "1024"}, {1536, "1536"}, {2048, "2048"},
+	{3072, "3072"}, {4096, "4096"}, {6144, "6144"},
+	{8192, "8192"}, {0, "Infinite"}, {0, NULL}};
 
 static CV_PossibleValue_t fov_cons_t[] = {{MINFOV*FRACUNIT, "MIN"}, {MAXFOV*FRACUNIT, "MAX"}, {0, NULL}};
 
@@ -171,14 +171,14 @@ consvar_t cv_tailspickup = {"tailspickup", "On", CV_NETVAR|CV_NOSHOWHELP, CV_OnO
 consvar_t cv_precachetextures = {"precachetextures", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_chasecam[MAXSPLITSCREENPLAYERS] = {
-	{"chasecam", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL},
+	{"chasecam",  "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL},
 	{"chasecam2", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL},
 	{"chasecam3", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL},
 	{"chasecam4", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL}
 };
 
 consvar_t cv_flipcam[MAXSPLITSCREENPLAYERS] = {
-	{"flipcam", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam_OnChange, 0, NULL, NULL, 0, 0, NULL},
+	{"flipcam",  "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam_OnChange,  0, NULL, NULL, 0, 0, NULL},
 	{"flipcam2", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam2_OnChange, 0, NULL, NULL, 0, 0, NULL},
 	{"flipcam3", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam3_OnChange, 0, NULL, NULL, 0, 0, NULL},
 	{"flipcam4", "No", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, FlipCam4_OnChange, 0, NULL, NULL, 0, 0, NULL}
@@ -200,6 +200,7 @@ consvar_t cv_drawdist = {"drawdist", "Infinite", CV_SAVE, drawdist_cons_t, NULL,
 consvar_t cv_drawdist_precip = {"drawdist_precip", "1024", CV_SAVE|CV_CALL|CV_NOINIT, drawdist_precip_cons_t, Precipstuff_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_lessprecip = {"lessweathereffects", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Precipstuff_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_mobjscaleprecip = {"scaleprecipmobjscale", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Precipstuff_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_playerfade      = {"playerfade", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_maxinterpdist = {"maxinterpdist", "Infinite", CV_SAVE, maxinterpdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -402,7 +403,8 @@ angle_t R_PlayerSliptideAngle(player_t *player)
 	sprframe = &sprdef->spriteframes[rot];
 
 	// No sprite frame? I guess it is possible
-	if (!sprframe) return 0;
+	if (!sprframe)
+		return 0;
 
 	if (sprframe->rotate != SRF_SINGLE || (mo->frame & FF_PAPERSPRITE))
 		ang = R_PointToAngle(mo->x, mo->y) - mo->angle;
@@ -462,6 +464,7 @@ boolean R_DoCulling(line_t *cullheight, line_t *viewcullheight, fixed_t vz, fixe
 		return false;
 
 	cullplane = cullheight->frontsector->floorheight;
+
 	if (cullheight->flags & ML_NOCLIMB) // Group culling
 	{
 		if (!viewcullheight)
@@ -1062,7 +1065,7 @@ static void R_SetupCommonFrame(player_t * player, sector_t * sector)
 
 static void R_SetupAimingFrame(player_t *player, camera_t *thiscam)
 {
-	if (player->awayviewtics)
+	if (player->awayviewtics && player->awayviewmobj)
 	{
 		newview->aim = player->awayviewaiming;
 		newview->angle = player->awayviewmobj->angle;
@@ -1168,7 +1171,7 @@ void R_SkyboxFrame(int s)
 	{
 		mapheader_t *mh = mapheaderinfo[gamemap-1];
 
-		if (player->awayviewtics)
+		if (player->awayviewtics && player->awayviewmobj)
 		{
 			SETUPSKYVIEW(player->awayviewmobj, (player->awayviewmobj->z + 20*FRACUNIT));
 		}
@@ -1225,7 +1228,7 @@ void R_SetupFrame(int s, boolean skybox)
 
 	R_SetupAimingFrame(player, thiscam);
 
-	if (player->awayviewtics) // cut-away view stuff
+	if (player->awayviewtics && player->awayviewmobj) // cut-away view stuff
 	{
 		viewmobj = player->awayviewmobj; // should be a MT_ALTVIEWMAN
 		I_Assert(viewmobj != NULL);
@@ -1234,7 +1237,7 @@ void R_SetupFrame(int s, boolean skybox)
 		newview->y = viewmobj->y;
 		newview->z = viewmobj->z + 20*FRACUNIT;
 
-		if (!P_MobjWasRemoved(viewmobj) && viewmobj->subsector && viewmobj->subsector->sector)
+		if (viewmobj->subsector && viewmobj->subsector->sector)
 			sector = viewmobj->subsector->sector;
 
 		R_SetupCommonFrame(player, sector);
@@ -1252,7 +1255,7 @@ void R_SetupFrame(int s, boolean skybox)
 
 		R_SetupCommonFrame(player, sector);
 	}
-	else // use the player's eyes view
+	else if (player->mo) // use the player's eyes view
 	{
 		viewmobj = player->mo;
 		I_Assert(viewmobj != NULL);
@@ -1261,7 +1264,7 @@ void R_SetupFrame(int s, boolean skybox)
 		newview->y = viewmobj->y;
 		newview->z = player->viewz;
 
-		if (!P_MobjWasRemoved(viewmobj) && viewmobj->subsector && viewmobj->subsector->sector)
+		if (viewmobj->subsector && viewmobj->subsector->sector)
 			sector = viewmobj->subsector->sector;
 
 		R_SetupCommonFrame(player, sector);
@@ -1349,10 +1352,10 @@ void R_RenderPlayerView(player_t *player)
 
 	for (UINT8 j = 0; j <= splitscreen; j++)
 	{
-		if (player == &players[displayplayers[i]]
-			&& viewfov[i] != fov)
+		if (player == &players[displayplayers[j]]
+			&& viewfov[j] != fov)
 		{
-			viewfov[i] = fov;
+			viewfov[j] = fov;
 			R_SetFov(fov);
 		}
 	}
@@ -1522,10 +1525,6 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_fovchange);
 	CV_RegisterVar(&cv_fov);
 
-	for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
-	{
-		CV_RegisterVar(&cv_chasecam[i]);
-	}
 	CV_RegisterVar(&cv_shadow);
 	CV_RegisterVar(&cv_shadowoffs);
 	CV_RegisterVar(&cv_skybox);
@@ -1534,6 +1533,8 @@ void R_RegisterEngineStuff(void)
 
 	for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
 	{
+		CV_RegisterVar(&cv_chasecam[i]);
+
 		CV_RegisterVar(&cv_cam_dist[i]);
 		CV_RegisterVar(&cv_cam_still[i]);
 		CV_RegisterVar(&cv_cam_height[i]);
@@ -1549,6 +1550,8 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_quaketilt);
 	CV_RegisterVar(&cv_tiltsmoothing);
 	CV_RegisterVar(&cv_actionmovie);
+
+	CV_RegisterVar(&cv_screenquake);
 
 	CV_RegisterVar(&cv_driftsparkpulse);
 	CV_RegisterVar(&cv_gravstretch);
@@ -1567,6 +1570,7 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_randomdirlight);
 
 	CV_RegisterVar(&cv_maxinterpdist);
+	CV_RegisterVar(&cv_playerfade);
 
 	CV_RegisterVar(&cv_ripplewater);
 

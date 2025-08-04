@@ -149,6 +149,8 @@ boolean dedicated = false;
 
 boolean loaded_config = false; // true once config.cfg loaded AND executed
 
+static void D_CleanFile(char **filearray);
+
 //
 // D_PostEvent
 // Called by the I/O functions when input is detected
@@ -866,9 +868,24 @@ void D_SRB2Loop(void)
 			rendertimefrac_unpaused = FRACUNIT;
 		}
 
-		if ((interp || doDisplay) && !frameskip)
+		if (interp || doDisplay)
 		{
-			ranwipe = D_Display();
+			if (!frameskip)
+			{
+				ranwipe = D_Display();
+			}
+			else if (!dedicated)
+			{
+				// always update console and hud
+				// otherwise it may take minutes to open it
+				CON_Drawer();
+
+				if (gamestate == GS_LEVEL)
+				{
+					ST_Drawer();
+					HU_Drawer();
+				}
+			}
 		}
 
 		// Only take screenshots after drawing.
@@ -1185,7 +1202,7 @@ void D_AddPostloadFiles(void)
 	postautoloaded = true;
 }
 
-void D_CleanFile(char **filearray)
+static void D_CleanFile(char **filearray)
 {
 	size_t pnumwadfiles;
 	for (pnumwadfiles = 0; filearray[pnumwadfiles]; pnumwadfiles++)
@@ -1809,7 +1826,7 @@ void D_SRB2Main(void)
 		{
 			name = lumpinfo->name;
 
-			if (name[0] == 'M' && name[1] == 'A' && name[2] == 'P') // Ignore the headers
+			if (memcmp(name, "MAP", 3) == 0) // Ignore the headers
 			{
 				INT16 num;
 				if (name[5] != '\0')
@@ -1839,7 +1856,7 @@ void D_SRB2Main(void)
 		{
 			name = lumpinfo->name;
 
-			if (name[0] == 'M' && name[1] == 'A' && name[2] == 'P') // Ignore the headers
+			if (memcmp(name, "MAP", 3) == 0) // Ignore the headers
 			{
 				INT16 num;
 				if (name[5] != '\0')

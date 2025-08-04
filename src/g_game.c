@@ -124,7 +124,7 @@ boolean addedtogame;
 player_t players[MAXPLAYERS];
 
 INT32 consoleplayer; // player taking events and displaying
-INT32 displayplayers[MAXSPLITSCREENPLAYERS]; // view being displayed
+INT32 displayplayers[MAXSPLITSCREENPLAYERS] = {0}; // view being displayed
 
 tic_t gametic;
 tic_t levelstarttic; // gametic at level start
@@ -767,47 +767,49 @@ INT32 JoyAxis(axis_input_e axissel, UINT8 player)
 	INT32 axisval;
 	boolean flp = false;
 
+	UINT8 pnum = player-1;
+
 	//find what axis to get
 	switch (axissel)
 	{
 		case AXISTURN:
-			axisval = cv_turnaxis[player-1].value;
+			axisval = cv_turnaxis[pnum].value;
 			break;
 		case AXISMOVE:
-			axisval = cv_moveaxis[player-1].value;
+			axisval = cv_moveaxis[pnum].value;
 			break;
 		case AXISCAMTURN:
-			axisval = cv_camturnaxis[player-1].value;
+			axisval = cv_camturnaxis[pnum].value;
 			break;
 		case AXISCAMSTRAFE:
-			axisval = cv_camstrafeaxis[player-1].value;
+			axisval = cv_camstrafeaxis[pnum].value;
 			break;
 		case AXISBRAKE:
-			axisval = cv_brakeaxis[player-1].value;
+			axisval = cv_brakeaxis[pnum].value;
 			break;
 		case AXISAIM:
-			axisval = cv_aimaxis[player-1].value;
+			axisval = cv_aimaxis[pnum].value;
 			break;
 		case AXISLOOK:
-			axisval = cv_lookaxis[player-1].value;
+			axisval = cv_lookaxis[pnum].value;
 			break;
 		case AXISFIRE:
-			axisval = cv_fireaxis[player-1].value;
+			axisval = cv_fireaxis[pnum].value;
 			break;
 		case AXISDRIFT:
-			axisval = cv_driftaxis[player-1].value;
+			axisval = cv_driftaxis[pnum].value;
 			break;
 		case AXISLOOKBACK:
-			axisval = cv_lookbackaxis[player-1].value;
+			axisval = cv_lookbackaxis[pnum].value;
 			break;
 		case AXISCUSTOM1:
-			axisval = cv_custom1axis[player-1].value;
+			axisval = cv_custom1axis[pnum].value;
 			break;
 		case AXISCUSTOM2:
-			axisval = cv_custom2axis[player-1].value;
+			axisval = cv_custom2axis[pnum].value;
 			break;
 		case AXISCUSTOM3:
-			axisval = cv_custom3axis[player-1].value;
+			axisval = cv_custom3axis[pnum].value;
 			break;
 		default:
 			return 0;
@@ -818,44 +820,51 @@ INT32 JoyAxis(axis_input_e axissel, UINT8 player)
 		axisval = -axisval;
 		flp = true;
 	}
+
 	if (axisval > JOYAXISSET*2 || axisval == 0) //not there in array or None
 		return 0;
 
-	if (axisval%2)
+	if (axisval % 2)
 	{
 		axisval /= 2;
-		retaxis = joyxmove[axisval];
+		retaxis = joyxmove[pnum][axisval];
 
 		if (retaxis < (-JOYAXISRANGE))
 			retaxis = -JOYAXISRANGE;
 		if (retaxis > (+JOYAXISRANGE))
 			retaxis = +JOYAXISRANGE;
-		if (!Joystick[player-1].bGamepadStyle && axissel < AXISDEAD)
+		if (!Joystick[pnum].bGamepadStyle && axissel < AXISDEAD)
 		{
-			const INT32 jdeadzone = ((JOYAXISRANGE-1) * cv_xdeadzone[player-1].value) >> FRACBITS;
+			const INT32 jdeadzone = ((JOYAXISRANGE-1) * cv_xdeadzone[pnum].value) >> FRACBITS;
 			if (abs(retaxis) <= jdeadzone)
 				return 0;
 		}
-		if (flp) retaxis = -retaxis; //flip it around
+
+		if (flp)
+			retaxis = -retaxis; // flip it around
+
 		return retaxis;
 	}
 	else
 	{
 		axisval--;
 		axisval /= 2;
-		retaxis = joyymove[axisval];
+		retaxis = joyymove[pnum][axisval];
 
 		if (retaxis < (-JOYAXISRANGE))
 			retaxis = -JOYAXISRANGE;
 		if (retaxis > (+JOYAXISRANGE))
 			retaxis = +JOYAXISRANGE;
-		if (!Joystick[player-1].bGamepadStyle && axissel < AXISDEAD)
+		if (!Joystick[pnum].bGamepadStyle && axissel < AXISDEAD)
 		{
-			const INT32 jdeadzone = ((JOYAXISRANGE-1) * cv_ydeadzone[player-1].value) >> FRACBITS;
+			const INT32 jdeadzone = ((JOYAXISRANGE-1) * cv_ydeadzone[pnum].value) >> FRACBITS;
 			if (abs(retaxis) <= jdeadzone)
 				return 0;
 		}
-		if (flp) retaxis = -retaxis; //flip it around
+
+		if (flp)
+			retaxis = -retaxis; // flip it around
+
 		return retaxis;
 	}
 }
@@ -1302,15 +1311,9 @@ static void G_DoLoadLevel(boolean resetplayer)
 	}
 
 	// clear cmd building stuff
-	memset(gamekeydown, 0, sizeof (gamekeydown));
-
-	for (i = 0; i < JOYAXISSET; i++)
-	{
-		joyxmove[i]  = joyymove[i]  = 0;
-		joy2xmove[i] = joy2ymove[i] = 0;
-		joy3xmove[i] = joy3ymove[i] = 0;
-		joy4xmove[i] = joy4ymove[i] = 0;
-	}
+	memset(gamekeydown, 0, sizeof(gamekeydown));
+	memset(joyxmove, 0, sizeof(joyxmove));
+	memset(joyymove, 0, sizeof(joyymove));
 	mousex = mousey = 0;
 
 	// clear hud messages remains (usually from game startup)
@@ -4022,7 +4025,6 @@ void G_InitNew(UINT8 pencoremode, const char *mapname, boolean resetplayer, bool
 	}
 }
 
-
 char *G_BuildMapTitle(INT32 mapnum)
 {
 	char *title = NULL;
@@ -5489,33 +5491,36 @@ void G_GhostTicker(void)
 						break;
 					}
 				}
-				if (type == MT_GHOST)
+				if (type != -1)
 				{
-					mobj = P_SpawnGhostMobj(g->mo); // does a large portion of the work for us
-					mobj->frame = (mobj->frame & ~FF_FRAMEMASK)|tr_trans60<<FF_TRANSSHIFT; // P_SpawnGhostMobj sets trans50, we want trans60
-				}
-				else
-				{
-					mobj = P_SpawnMobj(g->mo->x, g->mo->y, g->mo->z - FixedDiv(FixedMul(g->mo->info->height, g->mo->scale) - g->mo->height,3*FRACUNIT), MT_THOK);
-					mobj->sprite = states[mobjinfo[type].spawnstate].sprite;
-					mobj->frame = (states[mobjinfo[type].spawnstate].frame & FF_FRAMEMASK) | tr_trans60<<FF_TRANSSHIFT;
-					mobj->tics = -1; // nope.
-					mobj->color = g->mo->color;
-					if (g->mo->eflags & MFE_VERTICALFLIP)
+					if (type == MT_GHOST)
 					{
-						mobj->flags2 |= MF2_OBJECTFLIP;
-						mobj->eflags |= MFE_VERTICALFLIP;
+						mobj = P_SpawnGhostMobj(g->mo); // does a large portion of the work for us
+						mobj->frame = (mobj->frame & ~FF_FRAMEMASK)|tr_trans60<<FF_TRANSSHIFT; // P_SpawnGhostMobj sets trans50, we want trans60
 					}
-					P_SetScale(mobj, g->mo->scale);
-					mobj->destscale = g->mo->scale;
+					else
+					{
+						mobj = P_SpawnMobj(g->mo->x, g->mo->y, g->mo->z - FixedDiv(FixedMul(g->mo->info->height, g->mo->scale) - g->mo->height,3*FRACUNIT), MT_THOK);
+						mobj->sprite = states[mobjinfo[type].spawnstate].sprite;
+						mobj->frame = (states[mobjinfo[type].spawnstate].frame & FF_FRAMEMASK) | tr_trans60<<FF_TRANSSHIFT;
+						mobj->tics = -1; // nope.
+						mobj->color = g->mo->color;
+						if (g->mo->eflags & MFE_VERTICALFLIP)
+						{
+							mobj->flags2 |= MF2_OBJECTFLIP;
+							mobj->eflags |= MFE_VERTICALFLIP;
+						}
+						P_SetScale(mobj, g->mo->scale);
+						mobj->destscale = g->mo->scale;
+					}
+					mobj->floorz = mobj->z;
+					mobj->ceilingz = mobj->z+mobj->height;
+					P_UnsetThingPosition(mobj);
+					mobj->flags = MF_NOBLOCKMAP|MF_NOCLIP|MF_NOCLIPHEIGHT|MF_NOGRAVITY; // make an ATTEMPT to curb crazy SOCs fucking stuff up...
+					P_SetThingPosition(mobj);
+					mobj->fuse = 8;
+					P_SetTarget(&mobj->target, g->mo);
 				}
-				mobj->floorz = mobj->z;
-				mobj->ceilingz = mobj->z+mobj->height;
-				P_UnsetThingPosition(mobj);
-				mobj->flags = MF_NOBLOCKMAP|MF_NOCLIP|MF_NOCLIPHEIGHT|MF_NOGRAVITY; // make an ATTEMPT to curb crazy SOCs fucking stuff up...
-				P_SetThingPosition(mobj);
-				mobj->fuse = 8;
-				P_SetTarget(&mobj->target, g->mo);
 			}
 			if (ziptic & EZT_HIT)
 			{ // Spawn hit poofs for killing things!
@@ -6092,15 +6097,19 @@ void G_BeginRecording(void)
 		char *title = G_BuildMapTitle(gamemap);
 
 		// Print to a separate temp buffer instead of demo.titlename, so we can use it in M_TextInputSetString
-		snprintf(demotitlename, 64, "%s - %s", title, modeattacking ? "Time Attack" : connectedservername);
+		if (title)
+		{
+			snprintf(demotitlename, 64, "%s - %s", title, modeattacking ? "Time Attack" : connectedservername);
+			Z_Free(title);
+		}
+		else
+			snprintf(demotitlename, 64, "%s", modeattacking ? "Time Attack" : connectedservername);
 
 		// Init just in case it isn't initialized already
 		M_TextInputInit(&demo.titlenameinput, demo.titlename, sizeof(demo.titlename));
 
 		// This will indirectly assign to demo.titlename too
 		M_TextInputSetString(&demo.titlenameinput, demotitlename);
-
-		Z_Free(title);
 	}
 
 	// demo checksum
@@ -8164,7 +8173,7 @@ void G_SaveDemo(void)
 		size_t i, strindex = 0;
 		boolean dash = true;
 
-		for (i = 0; i < 127 && demo.titlename[i]; i++)
+		for (i = 0; demo.titlename[i] && i < 127; i++)
 		{
 			if ((demo.titlename[i] >= 'a' && demo.titlename[i] <= 'z') ||
 				(demo.titlename[i] >= '0' && demo.titlename[i] <= '9'))

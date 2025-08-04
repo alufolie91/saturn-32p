@@ -94,7 +94,7 @@ UINT8 playernode[MAXPLAYERS];
 // The actual timeout will be longer depending on the savegame length
 tic_t jointimeout = (3*TICRATE);
 static boolean sendingsavegame[MAXNETNODES]; // Are we sending the savegame?
-static boolean resendingsavegame[MAXNETNODES]; // Are we resending the savegame?
+static tic_t resendingsavegame[MAXNETNODES]; // Are we resending the savegame?
 static tic_t savegameresendcooldown[MAXNETNODES]; // How long before we can resend again?
 static tic_t freezetimeout[MAXNETNODES]; // Until when can this node freeze the server before getting a timeout?
 
@@ -1070,13 +1070,7 @@ static void SV_SendPlayerInfo(INT32 node)
 
 	for (i = 0; i < MSCOMPAT_MAXPLAYERS; i++)
 	{
-		if (i >= MAXPLAYERS)
-		{
-			netbuffer->u.playerinfo[i].node = 255;
-			continue;
-		}
-
-		if (playeringame[i] == UINT8_MAX || !playeringame[i])
+		if ((i >= MAXPLAYERS) || !playeringame[i])
 		{
 			netbuffer->u.playerinfo[i].node = 255; // This slot is empty.
 			continue;
@@ -2624,7 +2618,7 @@ void CL_ClearPlayer(INT32 playernum)
 		P_RemoveMobj(players[playernum].mo);
 	}
 
-	memset(&players[playernum], 0, sizeof (player_t));
+	memset(&players[playernum], 0, sizeof(player_t));
 }
 
 //
@@ -3573,7 +3567,7 @@ static void ResetNode(INT32 node)
 	supposedtics[node] = gametic;
 
 	sendingsavegame[node] = false;
-	resendingsavegame[node] = false;
+	resendingsavegame[node] = 0;
 	savegameresendcooldown[node] = 0;
 	gamestate_resend_counter[node] = 0;
 
@@ -3604,14 +3598,14 @@ void SV_ResetServer(void)
 		sprintf(player_names[i], "Player %d", i + 1);
 	}
 
-	memset(player_name_changes, 0, sizeof player_name_changes);
+	memset(player_name_changes, 0, sizeof(player_name_changes));
 
-	memset(playeringame, false, sizeof playeringame);
-	memset(playernode, UINT8_MAX, sizeof playernode);
+	memset(playeringame, false, sizeof(playeringame));
+	memset(playernode, UINT8_MAX, sizeof(playernode));
 
 	pingmeasurecount = 1;
-	memset(realpingtable, 0, sizeof realpingtable);
-	memset(playerpingtable, 0, sizeof playerpingtable);
+	memset(realpingtable, 0, sizeof(realpingtable));
+	memset(playerpingtable, 0, sizeof(playerpingtable));
 
 	ClearAdminPlayers();
 
@@ -4251,7 +4245,7 @@ static void PT_CanReceiveGamestate(SINT8 node)
 	CONS_Printf(M_GetText("Resending game state to %s...\n"), player_names[nodetoplayer[node]]);
 
 	SV_SendSaveGame(node, true); // Resend a complete game state
-	resendingsavegame[node] = true;
+	resendingsavegame[node] = 1;
 }
 
 /** Handles a packet received from a node that isn't in game
@@ -4587,17 +4581,17 @@ static void HandlePacketFromPlayer(SINT8 node)
 			/// \todo Use a separate cvar for that kind of timeout?
 			freezetimeout[node] = I_GetTime() + connectiontimeout;
 
-			// If we've alredy received a ticcmd for this tic, just submit it for the next one.
-			tic_t faketic = maketic;
-			if ((!!(netcmds[maketic % TICQUEUE][netconsole].angleturn & TICCMD_RECEIVED))
-				&& (maketic - firstticstosend < TICQUEUE - 1))
-				faketic++;
-
 			// Don't do anything for packets of type NODEKEEPALIVE?
 			// Sryder 2018/07/01: Update the freezetimeout still!
 			if (netbuffer->packettype == PT_NODEKEEPALIVE
 				|| netbuffer->packettype == PT_NODEKEEPALIVEMIS)
 				break;
+
+			// If we've alredy received a ticcmd for this tic, just submit it for the next one.
+			tic_t faketic = maketic;
+			if ((!!(netcmds[maketic % TICQUEUE][netconsole].angleturn & TICCMD_RECEIVED))
+				&& (maketic - firstticstosend < TICQUEUE - 1))
+				faketic++;
 
 			// Copy ticcmd
 			G_MoveTiccmd(&netcmds[faketic%TICQUEUE][netconsole], &netbuffer->u.clientpak.cmd, 1);
@@ -4648,13 +4642,15 @@ static void HandlePacketFromPlayer(SINT8 node)
 			}
 
 			// Check player consistancy during the level
-			if (realstart <= gametic && realstart + TICQUEUE - 1 > gametic && gamestate == GS_LEVEL
+			if (gamestate == GS_LEVEL
+				&& (realstart <= gametic && realstart + TICQUEUE - 1 > gametic)
 				&& consistancy[realstart%TICQUEUE] != SHORT(netbuffer->u.clientpak.consistancy)
 				&& !resendingsavegame[node] && savegameresendcooldown[node] <= I_GetTime() && !SV_ResendingSavegameToAnyone())
 			{
 				// we need to send this so the client can tell us if it can receive the savegame
 				netbuffer->packettype = PT_WILLRESENDGAMESTATE;
 				HSendPacket(node, true, 0, 0);
+				resendingsavegame[node] = 0; // reset this before just in case
 
 				resendingsavegame[node] = true;
 
@@ -4667,10 +4663,13 @@ static void HandlePacketFromPlayer(SINT8 node)
 					}
 
 					if (cv_blamecfail.value)
+					{
 						CONS_Printf(M_GetText("Synch failure for player %d (%s); expected %hd, got %hd\n"),
 							netconsole+1, player_names[netconsole],
 							consistancy[realstart%TICQUEUE],
 							SHORT(netbuffer->u.clientpak.consistancy));
+					}
+
 					DEBFILE(va("Restoring player %d (synch failure) [%update] %d!=%d\n",
 						netconsole, realstart, consistancy[realstart%TICQUEUE],
 						SHORT(netbuffer->u.clientpak.consistancy)));
@@ -4878,7 +4877,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 				break;
 			}
 
-			//Update client ping table from the server.
+			// Update client ping table from the server.
 			if (client)
 			{
 				UINT8 i;
@@ -4907,6 +4906,11 @@ static void HandlePacketFromPlayer(SINT8 node)
 			}
 			if (client)
 				Got_Filetxpak();
+			break;
+		case PT_RECEIVEDGAMESTATE:
+			sendingsavegame[node] = false;
+			resendingsavegame[node] = 0;
+			savegameresendcooldown[node] = I_GetTime() + cv_resynchcooldown.value * TICRATE; // I_GetTime() + 5 * TICRATE;
 			break;
 		case PT_WILLRESENDGAMESTATE:
 			PT_WillResendGamestate();
@@ -5530,9 +5534,34 @@ static void SV_Maketic(void)
 	maketic++;
 }
 
+#ifdef SATURNPAK
+static void SV_UpdateResendGamestateTimeout(void)
+{
+	for (INT32 i = 0; i < MAXNETNODES; ++i)
+	{
+		if (!resendingsavegame[i])
+			continue;
+
+		resendingsavegame[i]++;
+
+		// Resending savegame took too long
+		if (resendingsavegame[i] > (tic_t)TICRATE*cv_pingtimeout.value)
+		{
+			resendingsavegame[i] = 0;
+			SendKick(i, KICK_MSG_CON_FAIL);
+		}
+	}
+}
+#endif
+
 boolean TryRunTics(tic_t realtics)
 {
 	boolean ticking;
+
+#ifdef SATURNPAK
+	if (server)
+		SV_UpdateResendGamestateTimeout();
+#endif
 
 	// the machine has lagged but it is not so bad
 	if (realtics > TICRATE/7) // FIXME: consistency failure!!
@@ -5674,7 +5703,6 @@ static inline void PingUpdate(void)
 				if (pingtimeout[i] > 0)
 					pingtimeout[i]--;
 			}
-
 		}
 
 		//kick lagging players... unless everyone but the server's ping sucks.

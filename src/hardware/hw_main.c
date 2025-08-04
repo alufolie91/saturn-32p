@@ -3707,6 +3707,9 @@ static void HWR_SplitSprite(gl_vissprite_t *spr, const boolean papersprite)
 		blend = HWR_GetBlendModeFlag(blendmode)|PF_Occlude;
 	}
 
+	if (cv_playerfade.value && spr->mobj->player)
+		Surf.PolyColor.s.alpha = FixedMul(R_DoPlayerFade(spr->mobj), Surf.PolyColor.s.alpha);
+
 	if (HWR_UseShader())
 	{
 		shader = SHADER_SPRITE;
@@ -3993,6 +3996,9 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
 		Surf.PolyColor.s.alpha = 0xFF;
 		blend = HWR_GetBlendModeFlag(blendmode)|PF_Occlude;
 	}
+
+	if (cv_playerfade.value && spr->mobj->player)
+		Surf.PolyColor.s.alpha = FixedMul(R_DoPlayerFade(spr->mobj), Surf.PolyColor.s.alpha);
 
 	if (HWR_UseShader())
 	{
@@ -4458,7 +4464,10 @@ static void HWR_DrawModels(void)
 			continue;
 		}
 
-		if (spr->mobj && spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
+		if (!spr->mobj)
+			continue;
+
+		if (spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
 		{
 			md2_t *md2;
 
@@ -5750,7 +5759,7 @@ static void HWR_TogglePaletteRendering(void)
 			// If the r_opengl "texture palette" stays the same during this switch, these textures
 			// will not be cleared out. However they are still out of date since the
 			// composite texture blending method has changed. Therefore they need to be cleared.
-			GL_ClearMipMapCache();
+			HWR_LoadMapTextures(numtextures);
 		}
 	}
 	else
@@ -5764,7 +5773,7 @@ static void HWR_TogglePaletteRendering(void)
 			// If the r_opengl "texture palette" stays the same during this switch, these textures
 			// will not be cleared out. However they are still out of date since the
 			// composite texture blending method has changed. Therefore they need to be cleared.
-			GL_ClearMipMapCache();
+			HWR_LoadMapTextures(numtextures);
 		}
 	}
 }

@@ -2450,32 +2450,38 @@ static menuitem_t OP_HudOffsetMenu[] =
 	{IT_STRING | IT_CVAR,	NULL,	"Vertical Offset",	  	  		&cv_stat_yoffset,     	185},
 };
 
+// FIXME: WE EFFECTIVELY HAVE NO MORE SPACE FOR GREEN RES
+// i had to put multiple names into single lines at this point
+// we ought to really do something better for this at this point
+// absolutely crazy how many people put work into this at this point <3
 static menuitem_t OP_SaturnCreditsMenu[] =
 {
-	{IT_HEADER, NULL, "Saturn Credits", 												NULL,       0},
+	{IT_HEADER, NULL, "Thanks to all contributers <3", 									NULL,       0},
 
-	{IT_HEADER, NULL, "Thanks to all contributers <3", 									NULL,      7},
+	{IT_STRING2+IT_SPACE, NULL, 	"Alug",      										NULL, 	   10},
+	{IT_STRING2+IT_SPACE, NULL, 	"Indev",        									NULL,      20},
+	{IT_STRING2+IT_SPACE, NULL, 	"Haya",       										NULL,      30},
+	{IT_STRING2+IT_SPACE, NULL, 	"Nepdisk", 		 									NULL, 	   40},
+	{IT_STRING2+IT_SPACE, NULL, 	"GenericHeroGuy", 		 							NULL, 	   50},
+	{IT_STRING2+IT_SPACE, NULL, 	"xyzzy",     										NULL, 	   60},
+	{IT_STRING2+IT_SPACE, NULL, 	"Chearii", 		 									NULL, 	   70},
+	{IT_STRING2+IT_SPACE, NULL, 	"riomccloud", 		 								NULL, 	   80},
+	{IT_STRING2+IT_SPACE, NULL, 	"chromaticpipe", 		 							NULL, 	   90},
+	{IT_STRING2+IT_SPACE, NULL, 	"PAS", 		 										NULL, 	  100},
+	{IT_STRING2+IT_SPACE, NULL, 	"$HOME", 		 									NULL, 	  110},
+	{IT_STRING2+IT_SPACE, NULL, 	"Achii", 		 									NULL, 	  120},
+	{IT_STRING2+IT_SPACE, NULL, 	"Anonimus", 		 								NULL, 	  130},
+	{IT_STRING2+IT_SPACE, NULL, 	"scizor300", 		 								NULL, 	  140},
+	{IT_STRING2+IT_SPACE, NULL, 	"Lugent", 		 									NULL, 	  150},
 
-	{IT_STRING2+IT_SPACE, NULL, 	"Alug",      										NULL, 	   17},
-	{IT_STRING2+IT_SPACE, NULL, 	"Indev",        									NULL,      27},
-	{IT_STRING2+IT_SPACE, NULL, 	"Haya",       										NULL,      37},
-	{IT_STRING2+IT_SPACE, NULL, 	"Nepdisk", 		 									NULL, 	   47},
-	{IT_STRING2+IT_SPACE, NULL, 	"GenericHeroGuy", 		 							NULL, 	   57},
-	{IT_STRING2+IT_SPACE, NULL, 	"xyzzy",     										NULL, 	   67},
-	{IT_STRING2+IT_SPACE, NULL, 	"Chearii", 		 									NULL, 	   77},
+	{IT_HEADER, 		  NULL, 	"", 												NULL,     124},
 
-	{IT_STRING2+IT_SPACE, NULL, 	"Sunflower aka AnimeSonic", 		 				NULL, 	   87},
-	{IT_STRING2+IT_SPACE, NULL, 	"Yuz aka Yuzler", 		  							NULL, 	   97},
-	{IT_STRING2+IT_SPACE, NULL, 	"Democrab", 		  								NULL, 	  107},
-	{IT_STRING2+IT_SPACE, NULL, 	"EXpand", 		 									NULL, 	  117},
-	{IT_STRING2+IT_SPACE, NULL, 	"Nexit", 		 									NULL, 	  127},
-	{IT_STRING2+IT_SPACE, NULL, 	"Spee", 		 									NULL, 	  137},
-	{IT_STRING2+IT_SPACE, NULL, 	"jin", 		 										NULL, 	  147},
-	{IT_STRING2+IT_SPACE, NULL, 	"riomccloud", 		 								NULL, 	  157},
-	{IT_STRING2+IT_SPACE, NULL, 	"chromaticpipe", 		 							NULL, 	  167},
-	{IT_STRING2+IT_SPACE, NULL, 	"Achii", 		 									NULL, 	  177},
-	{IT_STRING2+IT_SPACE, NULL, 	"Anonimus", 		 								NULL, 	  187},
-	{IT_STRING2+IT_SPACE, NULL, 	"scizor300", 		 								NULL, 	  197},
+	{IT_STRING2+IT_SPACE, NULL, 	"Sunflower	Yuz", 		 							NULL, 	  180},
+	{IT_STRING2+IT_SPACE, NULL, 	"Democrab	EXpand", 		  						NULL, 	  190},
+	{IT_STRING2+IT_SPACE, NULL, 	"Nexit	Spee", 		  								NULL, 	  200},
+	{IT_STRING2+IT_SPACE, NULL, 	"jin", 		 										NULL, 	  210},
+
+	{IT_HEADER, 		  NULL, 	"Special Thanks <3", 								NULL,     168},
 
 	{IT_HEADER, 		  NULL, 	"Special Thanks <3", 								NULL,     167},
 
@@ -2487,7 +2493,7 @@ static menuitem_t OP_SaturnCreditsMenu[] =
 	{IT_STRING, NULL, "", 																NULL,     267},	// dummy text II
 };
 
-// sry we dont have space for this anymore :/
+// sry we dont have space for this anymore :c
 /*static const char* OP_CreditTooltips[] =
 {
 	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
@@ -3586,8 +3592,8 @@ static void M_ChangeCvar(INT32 choice)
 		char s[20];
 		float increment;
 
-		increment = (currentMenu->menuitems[itemOn].status & IT_CV_BIGFLOAT) ? 0.5f : (1.0f/16.0f);
-		sprintf(s, "%f",FIXED_TO_FLOAT(cv->value)+(choice)*increment);
+		increment = FIXED_TO_FLOAT(cv->value)+(choice)*((currentMenu->menuitems[itemOn].status & IT_CV_BIGFLOAT) ? 0.5f : (1.0f/16.0f));
+		sprintf(s,"%ld%s",(long)increment,M_Ftrim(increment));
 		CV_Set(cv, s);
 	}
 	else
@@ -5702,8 +5708,16 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt)
 	{
 		case LLM_CREATESERVER:
 			// Should the map be hidden? <-- well imma wanna toggle it, its just annoying being unable to select hell maps in mapselect
-			if ((mapheaderinfo[mapnum]->menuflags & LF2_HIDEINMENU && mapnum+1 != gamemap) && (gt == GT_RACE && (mapheaderinfo[mapnum]->typeoflevel & TOL_RACE))) // map hell
-				return cv_showallmaps.value;
+
+			if (mapheaderinfo[mapnum]->menuflags & LF2_HIDEINMENU && mapnum+1 != gamemap)
+			{
+				if (cv_showallmaps.value &&
+					((gt == GT_RACE && (mapheaderinfo[mapnum]->typeoflevel & TOL_RACE)) ||                         // race map hell
+					((gt == GT_MATCH || gt == GT_TEAMMATCH) && (mapheaderinfo[mapnum]->typeoflevel & TOL_MATCH)))) // battle map hell
+					return true;
+				else
+					return false;
+			}
 
 			// same goes here, just show every map if i want to
 			if (M_MapLocked(mapnum+1)) // not unlocked
@@ -6045,8 +6059,8 @@ static void M_AddonsOptions(INT32 choice)
 	M_SetupNextMenu(&OP_AddonsOptionsDef);
 }
 
-#define LOCATIONSTRING1 "Visit \x83SRB2.ORG/MODS\x80 to get & make addons!"
-#define LOCATIONSTRING2 "Visit \x88SRB2.ORG/MODS\x80 to get & make addons!"
+#define LOCATIONSTRING1 "Visit \x83mb.srb2.org/addons\x80 to get & make addons!"
+#define LOCATIONSTRING2 "Visit \x88mb.srb2.org/addons\x80 to get & make addons!"
 
 static void M_AddonsInternal(void)
 {
@@ -7153,8 +7167,11 @@ static void DrawReplayHutReplayInfo(void)
 		if (mapheaderinfo[demolist[dir_on[menudepthleft]].map-1])
 		{
 			char *title = G_BuildMapTitle(demolist[dir_on[menudepthleft]].map);
-			V_DrawString(x, y, V_SNAPTOTOP|MENUCAPS, title);
-			Z_Free(title);
+			if (title)
+			{
+				V_DrawString(x, y, V_SNAPTOTOP|MENUCAPS, title);
+				Z_Free(title);
+			}
 		}
 		else
 			V_DrawString(x, y, V_SNAPTOTOP|V_ALLOWLOWERCASE|V_TRANSLUCENT, "Level is not loaded.");
@@ -8106,6 +8123,9 @@ UINT8 skyRoomMenuTranslations[MAXUNLOCKABLES];
 
 static char *M_GetConditionString(condition_t cond)
 {
+	char *title = NULL;
+	char *response = NULL;
+
 	switch(cond.type)
 	{
 		case UC_PLAYTIME:
@@ -8132,33 +8152,45 @@ static char *M_GetConditionString(condition_t cond)
 				G_TicsToSeconds(cond.requirement));
 		case UC_MAPVISITED:
 		{
-			char *title = G_BuildMapTitle(cond.requirement-1);
-			char *response = va("Visit %s", title);
-			Z_Free(title);
+			title = G_BuildMapTitle(cond.requirement-1);
+			if (title)
+			{
+				response = va("Visit %s", title);
+				Z_Free(title);
+			}
 			return response;
 		}
 		case UC_MAPBEATEN:
 		{
-			char *title = G_BuildMapTitle(cond.requirement-1);
-			char *response = va("Beat %s", title);
-			Z_Free(title);
+			title = G_BuildMapTitle(cond.requirement-1);
+			if (title)
+			{
+				response = va("Beat %s", title);
+				Z_Free(title);
+			}
 			return response;
 		}
 		case UC_MAPALLEMERALDS:
 		{
-			char *title = G_BuildMapTitle(cond.requirement-1);
-			char *response = va("Beat %s w/ all emeralds", title);
-			Z_Free(title);
+			title = G_BuildMapTitle(cond.requirement-1);
+			if (title)
+			{
+				response = va("Beat %s w/ all emeralds", title);
+				Z_Free(title);
+			}
 			return response;
 		}
 		case UC_MAPTIME:
 		{
-			char *title = G_BuildMapTitle(cond.extrainfo1-1);
-			char *response = va("Beat %s in %i:%02i.%02i", title,
-				G_TicsToMinutes(cond.requirement, true),
-				G_TicsToSeconds(cond.requirement),
-				G_TicsToCentiseconds(cond.requirement));
-			Z_Free(title);
+			title = G_BuildMapTitle(cond.extrainfo1-1);
+			if (title)
+			{
+				response = va("Beat %s in %i:%02i.%02i", title,
+					G_TicsToMinutes(cond.requirement, true),
+					G_TicsToSeconds(cond.requirement),
+					G_TicsToCentiseconds(cond.requirement));
+				Z_Free(title);
+			}
 			return response;
 		}
 		case UC_TOTALEMBLEMS:
