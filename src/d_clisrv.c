@@ -4652,8 +4652,6 @@ static void HandlePacketFromPlayer(SINT8 node)
 				HSendPacket(node, true, 0, 0);
 				resendingsavegame[node] = 0; // reset this before just in case
 
-				resendingsavegame[node] = true;
-
 				if (gamestate_resend_counter[node] < cv_gamestateattempts.value)
 				{
 					if (resendingsavegame[node])
@@ -4796,7 +4794,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 			break;
 		case PT_RECEIVEDGAMESTATE:
 			sendingsavegame[node] = false;
-			resendingsavegame[node] = false;
+			resendingsavegame[node] = 0;
 			savegameresendcooldown[node] = I_GetTime() + cv_resynchcooldown.value * TICRATE; // I_GetTime() + 5 * TICRATE;
 			break;
 		case PT_SERVERTICS:
@@ -4906,11 +4904,6 @@ static void HandlePacketFromPlayer(SINT8 node)
 			}
 			if (client)
 				Got_Filetxpak();
-			break;
-		case PT_RECEIVEDGAMESTATE:
-			sendingsavegame[node] = false;
-			resendingsavegame[node] = 0;
-			savegameresendcooldown[node] = I_GetTime() + cv_resynchcooldown.value * TICRATE; // I_GetTime() + 5 * TICRATE;
 			break;
 		case PT_WILLRESENDGAMESTATE:
 			PT_WillResendGamestate();
