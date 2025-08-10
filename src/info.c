@@ -94,7 +94,7 @@ state_t states[NUMSTATES] =
 	{SPR_THOK, FF_TRANS50, 8, {NULL}, 0, 0, S_NULL}, // S_THOK
 
 	// Player // SRB2kart
-	{SPR_PLAY,     0,   1, {NULL},   0, 0, S_KART_STND2},    // S_KART_STND1	A
+	{SPR_PLAY,     0,   1, {NULL},   0, 0, S_KART_STND1},    // S_KART_STND1	A
 	{SPR_PLAY,     1,   1, {NULL},   0, 0, S_KART_STND1},    // S_KART_STND2	B
 	{SPR_PLAY,     2,   1, {NULL},   0, 0, S_KART_STND2_L},  // S_KART_STND1_L	C
 	{SPR_PLAY,     3,   1, {NULL},   0, 0, S_KART_STND1_L},  // S_KART_STND2_L	D
