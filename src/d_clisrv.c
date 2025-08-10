@@ -5414,9 +5414,8 @@ static void SV_SendTics(void)
 				}
 			}
 			packsize = bufpos - (UINT8 *)&(netbuffer->u);
-			if (packsize > 1024)
+			if (packsize > MAXPACKETLENGTH)
 				CONS_Alert(CONS_ERROR, "Servertics packet went beyond allocated packet size (%ld/1024), and may have corrupted some memory...\n", packsize);
-
 
 			HSendPacket(n, false, 0, packsize);
 			// when tic are too large, only one tic is sent so don't go backward!
