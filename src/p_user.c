@@ -4970,37 +4970,42 @@ void P_PlayerThink(player_t *player)
 			player->mo->flags2 &= ~MF2_DONTDRAW;
 	}
 
-	// this is ass lmao
-	// but collision checks with 60 players tend to make everything run like butt
-	UINT8 pcount = 0;
+	const tic_t startcollisiontime = (starttime + TICRATE*2);
 
-	for (UINT8 j = 0; j < MAXPLAYERS; j++)
+	if (leveltime <= startcollisiontime)
 	{
-		if (!playeringame[j] || players[j].spectator)
-			continue;
-		pcount++;
-	}
+		// this is ass lmao
+		// but collision checks with 60 players tend to make everything run like butt
+		UINT8 pcount = 0;
 
-	if (pcount > 16)
-	{
-		if (leveltime < (starttime + TICRATE*2))
+		for (UINT8 j = 0; j < MAXPLAYERS; j++)
 		{
-			player->mo->flags |= (MF_NOBLOCKMAP|MF_NOCLIPTHING);
+			if (!playeringame[j] || players[j].spectator)
+				continue;
+			pcount++;
+		}
 
-			// add some flashing effect so you can atleast somewhat make out your player lel
-			if (leveltime & 1)
+		if (pcount > 16)
+		{
+			if (leveltime < startcollisiontime)
 			{
-				player->mo->flags2 |= MF2_DONTDRAW;
+				player->mo->flags |= (MF_NOBLOCKMAP|MF_NOCLIPTHING);
+
+				// add some flashing effect so you can atleast somewhat make out your player lel
+				if (leveltime & 1)
+				{
+					player->mo->flags2 |= MF2_DONTDRAW;
+				}
+				else
+				{
+					player->mo->flags2 &= ~MF2_DONTDRAW;
+				}
 			}
-			else
+			else if (leveltime == startcollisiontime)
 			{
+				player->mo->flags &= ~(MF_NOBLOCKMAP|MF_NOCLIPTHING);
 				player->mo->flags2 &= ~MF2_DONTDRAW;
 			}
-		}
-		else if (leveltime == (starttime + TICRATE*2))
-		{
-			player->mo->flags &= ~(MF_NOBLOCKMAP|MF_NOCLIPTHING);
-			player->mo->flags2 &= ~MF2_DONTDRAW;
 		}
 	}
 
