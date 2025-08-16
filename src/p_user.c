@@ -2004,49 +2004,6 @@ static void P_3dMovement(player_t *player)
 	}
 }
 
-//
-// P_SpectatorMovement
-//
-// Control for spectators in multiplayer
-//
-static void P_SpectatorMovement(player_t *player)
-{
-	ticcmd_t *cmd = &player->cmd;
-
-	player->mo->angle = (angle_t)(cmd->angleturn<<16 /* not FRACBITS */);
-
-	ticruned++;
-	if (!(cmd->angleturn & TICCMD_RECEIVED))
-		ticmiss++;
-
-	if (player->mo->z > player->mo->ceilingz - player->mo->height)
-		player->mo->z = player->mo->ceilingz - player->mo->height;
-	if (player->mo->z < player->mo->floorz)
-		player->mo->z = player->mo->floorz;
-
-	if (cmd->buttons & BT_ACCELERATE)
-		player->mo->z += 32*mapobjectscale;
-	else if (cmd->buttons & BT_BRAKE)
-		player->mo->z -= 32*mapobjectscale;
-
-	// Aiming needed for SEENAMES, etc.
-	// We may not need to fire as a spectator, but this is still handy!
-	player->aiming = cmd->aiming<<FRACBITS;
-
-	player->mo->momx = player->mo->momy = player->mo->momz = 0;
-	if (cmd->forwardmove != 0)
-	{
-		P_Thrust(player->mo, player->mo->angle, cmd->forwardmove*mapobjectscale);
-
-		// Quake-style flying spectators :D
-		player->mo->momz += FixedMul(cmd->forwardmove*mapobjectscale, AIMINGTOSLOPE(player->aiming));
-	}
-	/*if (cmd->sidemove != 0) -- was disabled in practice anyways, since sidemove was suppressed
-	{
-		P_Thrust(player->mo, player->mo->angle-ANGLE_90, cmd->sidemove*mapobjectscale);
-	}*/
-}
-
 void P_BlackOw(player_t *player)
 {
 	INT32 i;
@@ -2185,10 +2142,8 @@ static void P_MovePlayer(player_t *player)
 		}
 	}
 
-	// have to keep this crap for synch reasons
 	if (player->spectator)
 	{
-		P_SpectatorMovement(player);
 		return;
 	}
 
