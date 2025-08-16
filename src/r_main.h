@@ -147,23 +147,6 @@ R_POINTINSUBSECTOR(R_PointInSubsectorFast, R_PointOnSideFast)
 
 subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y);
 
-	nodenum = numnodes - 1;
-
-	while (!(nodenum & NF_SUBSECTOR))
-	{
-		node = &nodes[nodenum];
-		side = R_PointOnSide(x, y, node);
-		nodenum = node->children[side];
-	}
-
-	ret = &subsectors[nodenum & ~NF_SUBSECTOR];
-	for (i = 0; i < ret->numlines; i++)
-		if (P_PointOnLineSide(x, y, segs[ret->firstline + i].linedef) != segs[ret->firstline + i].side)
-			return 0;
-
-	return ret;
-}
-
 #define R_PointToDist(x, y) R_PointToDist2(viewx, viewy, x, y)
 #define R_PointToDist2(px2, py2, px1, py1) FixedHypot((px1) - (px2), (py1) - (py2))
 
