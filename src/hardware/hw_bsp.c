@@ -907,6 +907,8 @@ void HWR_CreatePlanePolygons(INT32 bspnum)
 	// reset the portal flag
 	gl_maphasportals = 0;
 
+	gl_maphashorizonlines = 0;
+
 	// find min/max boundaries of map
 	//CONS_Debug(DBG_RENDER, "Looking for boundaries of map...\n");
 	M_ClearBox(rootbbox);
