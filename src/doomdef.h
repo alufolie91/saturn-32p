@@ -112,9 +112,9 @@ extern char  logfilename[1024];
 // we use comprevision and compbranch instead.
 #else
 #define VERSION    1 // Game version
-#define SUBVERSION 59 // more precise version number
-#define VERSIONSTRING "Saturn - 126p v1.7"
-#define VERSIONSTRINGW L"Saturn - 126p v1.7"
+#define SUBVERSION 57 // more precise version number
+#define VERSIONSTRING "Saturn - 126p v1.8"
+#define VERSIONSTRINGW L"Saturn - 126p v1.8"
 
 // Hey! If you change this, add 1 to the MODVERSION below! Otherwise we can't force updates!
 // And change CMakeLists.txt (not src/, but in root), for CMake users!
@@ -303,7 +303,7 @@ typedef enum
 	SKINCOLOR_BYZANTIUM,
 	SKINCOLOR_POMEGRANATE,
 	SKINCOLOR_LILAC,
-	SKINCOLOR_BONE, // vanilla colors - shoutouts to Sonic Team Jr. 
+	SKINCOLOR_BONE, // vanilla colors - shoutouts to Sonic Team Jr.
 	SKINCOLOR_CARBON,
 	SKINCOLOR_INK,
 	SKINCOLOR_GHOST,
