@@ -3378,7 +3378,7 @@ static void P_DemoCameraMovement(camera_t *cam, UINT8 num)
 	}
 
 	// update subsector to avoid crashes;
-	cam->subsector = R_PointInSubsector(cam->x, cam->y);
+	cam->subsector = R_PointInSubsectorFast(cam->x, cam->y);
 }
 
 void P_ResetCamera(player_t *player, camera_t *thiscam)
@@ -3422,7 +3422,7 @@ void P_ResetCamera(player_t *player, camera_t *thiscam)
 
 	thiscam->relativex = 0;
 
-	thiscam->subsector = R_PointInSubsector(thiscam->x,thiscam->y);
+	thiscam->subsector = R_PointInSubsectorFast(thiscam->x,thiscam->y);
 
 	thiscam->radius = 20*FRACUNIT;
 	thiscam->height = 16*FRACUNIT;
@@ -3658,7 +3658,7 @@ static void P_MoveCameraToSpawn(UINT8 playernum)
 	thiscam->angle = player->mo->angle;
 	thiscam->aiming = 0;
 
-	thiscam->subsector = R_PointInSubsector(thiscam->x,thiscam->y);
+	thiscam->subsector = R_PointInSubsectorFast(thiscam->x,thiscam->y);
 
 	thiscam->reset_aiming = true;
 
