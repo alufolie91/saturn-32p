@@ -140,6 +140,7 @@ UINT8 *PutFileNeeded(UINT16 firstfile)
 {
 	size_t i;
 	UINT8 count = 0;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	UINT8 *p_start = netbuffer->packettype == PT_MOREFILESNEEDED ? netbuffer->u.filesneededcfg.files : netbuffer->u.serverinfo.fileneeded;
 	UINT8 *p = p_start;
 	char wadfilename[MAX_WADPATH] = "";
@@ -365,6 +366,8 @@ tryagain:
 	CONS_Printf("Preparing packet\n");
 #endif
 
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
+
 	netbuffer->packettype = PT_REQUESTFILE;
 	p = (char *)netbuffer->u.textcmd;
 
@@ -450,8 +453,10 @@ tryagain:
 boolean Got_RequestFilePak(INT32 node)
 {
 	char wad[MAX_WADPATH+1];
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	UINT8 *p = netbuffer->u.textcmd;
 	UINT8 id;
+
 	while (p < netbuffer->u.textcmd + MAXTEXTCMD) // Don't allow hacked client to overflow
 	{
 		id = READUINT8(p);
@@ -821,6 +826,7 @@ void SV_FileSendTicker(void)
 
 	packetsent = cv_downloadspeed.value;
 
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	netbuffer->packettype = PT_FILEFRAGMENT;
 
 	// (((sendbytes-nowsentbyte)*TICRATE)/(I_GetTime()-starttime)<(UINT32)net_bandwidth)
@@ -943,6 +949,7 @@ void SV_FileSendTicker(void)
 
 void Got_Filetxpak(void)
 {
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	INT32 filenum = netbuffer->u.filetxpak.fileid;
 	fileneeded_t *file = &fileneeded[filenum];
 	char *filename = file->filename;

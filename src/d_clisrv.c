@@ -152,6 +152,7 @@ boolean hu_stopped = false;
 // Client specific
 static ticcmd_t localcmds[MAXSPLITSCREENPLAYERS][MAXGENTLEMENDELAY];
 static boolean cl_packetmissed;
+static ticcmd_t playercmds[MAXPLAYERS];
 // here it is for the secondary local player (splitscreen)
 static UINT8 mynode; // my address pointofview server
 static boolean cl_redownloadinggamestate = false;
@@ -172,17 +173,10 @@ tic_t firstconnectattempttime = 0;
 // Must be a power of two
 #define TEXTCMD_HASH_SIZE 4
 
-typedef struct textcmdplayer_s
-{
-	INT32 playernum;
-	UINT8 cmd[MAXTEXTCMD];
-	struct textcmdplayer_s *next;
-} textcmdplayer_t;
-
 typedef struct textcmdtic_s
 {
 	tic_t tic;
-	textcmdplayer_t *playercmds[TEXTCMD_HASH_SIZE];
+	UINT8 *playercmds[MAXPLAYERS];
 	struct textcmdtic_s *next;
 } textcmdtic_t;
 
@@ -361,22 +355,13 @@ static void D_FreeTextcmd(tic_t tic)
 
 	if (textcmdtic)
 	{
-		INT32 i;
-
 		// Remove this tic from the list.
 		*tctprev = textcmdtic->next;
 
 		// Free all players.
-		for (i = 0; i < TEXTCMD_HASH_SIZE; i++)
+		for (INT32 i = 0; i < MAXPLAYERS; i++)
 		{
-			textcmdplayer_t *textcmdplayer = textcmdtic->playercmds[i];
-
-			while (textcmdplayer)
-			{
-				textcmdplayer_t *tcpnext = textcmdplayer->next;
-				Z_Free(textcmdplayer);
-				textcmdplayer = tcpnext;
-			}
+			Z_Free(textcmdtic->playercmds[i]);
 		}
 
 		// Free this tic's own memory.
@@ -393,10 +378,8 @@ static UINT8* D_GetExistingTextcmd(tic_t tic, INT32 playernum)
 	// Do we have an entry for the tic? If so, look for player.
 	if (textcmdtic)
 	{
-		textcmdplayer_t *textcmdplayer = textcmdtic->playercmds[playernum & (TEXTCMD_HASH_SIZE - 1)];
-		while (textcmdplayer && textcmdplayer->playernum != playernum) textcmdplayer = textcmdplayer->next;
-
-		if (textcmdplayer) return textcmdplayer->cmd;
+		UINT8 *cmd = textcmdtic->playercmds[playernum];
+		if (cmd) return cmd;
 	}
 
 	return NULL;
@@ -407,7 +390,6 @@ static UINT8* D_GetTextcmd(tic_t tic, INT32 playernum)
 {
 	textcmdtic_t *textcmdtic = textcmds[tic & (TEXTCMD_HASH_SIZE - 1)];
 	textcmdtic_t **tctprev = &textcmds[tic & (TEXTCMD_HASH_SIZE - 1)];
-	textcmdplayer_t *textcmdplayer, **tcpprev;
 
 	// Look for the tic.
 	while (textcmdtic && textcmdtic->tic != tic)
@@ -423,24 +405,11 @@ static UINT8* D_GetTextcmd(tic_t tic, INT32 playernum)
 		textcmdtic->tic = tic;
 	}
 
-	tcpprev = &textcmdtic->playercmds[playernum & (TEXTCMD_HASH_SIZE - 1)];
-	textcmdplayer = *tcpprev;
-
-	// Look for the player.
-	while (textcmdplayer && textcmdplayer->playernum != playernum)
-	{
-		tcpprev = &textcmdplayer->next;
-		textcmdplayer = textcmdplayer->next;
-	}
-
 	// If we don't have an entry for the player, make it.
-	if (!textcmdplayer)
-	{
-		textcmdplayer = *tcpprev = Z_Calloc(sizeof (textcmdplayer_t), PU_STATIC, NULL);
-		textcmdplayer->playernum = playernum;
-	}
+	if (!textcmdtic->playercmds[playernum])
+		textcmdtic->playercmds[playernum] = Z_Calloc(MAXTEXTCMD, PU_STATIC, NULL);
 
-	return textcmdplayer->cmd;
+	return textcmdtic->playercmds[playernum];
 }
 
 static void ExtraDataTicker(void)
@@ -847,6 +816,7 @@ static inline void CL_DrawConnectionStatus(void)
 
 static boolean CL_AskFileList(INT32 firstfile)
 {
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	netbuffer->packettype = PT_TELLFILESNEEDED;
 	netbuffer->u.filesneedednum = firstfile;
 
@@ -866,8 +836,11 @@ static boolean CL_AskFileList(INT32 firstfile)
 static boolean CL_SendJoin(void)
 {
 	UINT8 localplayers = 1;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
+
 	if (netgame)
 		CONS_Printf(M_GetText("Sending join request...\n"));
+
 	netbuffer->packettype = PT_CLIENTJOIN;
 
 	if (splitscreen)
@@ -954,6 +927,7 @@ static void SV_SendServerInfo(INT32 node, tic_t servertime)
 {
 	UINT8 *p;
 	size_t mirror_length;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	const char *httpurl = cv_httpsource.string;
 	UINT8 gt = (cv_kartgametypepreference.value == -1)
 		? gametype
@@ -1066,6 +1040,7 @@ static void SV_SendServerInfo(INT32 node, tic_t servertime)
 static void SV_SendPlayerInfo(INT32 node)
 {
 	UINT8 i;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	netbuffer->packettype = PT_PLAYERINFO;
 
 	for (i = 0; i < MSCOMPAT_MAXPLAYERS; i++)
@@ -1134,6 +1109,7 @@ static void SV_SendPlayerInfo(INT32 node)
 static boolean SV_SendServerConfig(INT32 node)
 {
 	boolean waspacketsent;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 
 	netbuffer->packettype = PT_SERVERCFG;
 
@@ -1373,6 +1349,7 @@ static void CL_LoadReceivedSavegame(boolean reloading)
 
 	// Tell the server we have received and reloaded the gamestate
 	// so they know they can resume the game
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	netbuffer->packettype = PT_RECEIVEDGAMESTATE;
 	HSendPacket(servernode, true, 0, 0);
 }
@@ -1414,6 +1391,8 @@ static void CL_ReloadReceivedSavegame(void)
 static void SendAskInfo(INT32 node)
 {
 	tic_t asktime;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
+
 #ifdef HOLEPUNCH
 	if (node != 0 && node != BROADCASTADDR &&
 			cv_rendezvousserver.string[0])
@@ -3431,7 +3410,9 @@ static void Command_ResendGamestate(void)
 		return;
 
 	// Send a PT_WILLRESENDGAMESTATE packet to the client so they know what's going on
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	netbuffer->packettype = PT_WILLRESENDGAMESTATE;
+
 	if (!HSendPacket(playernode[playernum], true, 0, 0))
 	{
 		CONS_Alert(CONS_ERROR, M_GetText("A problem occured, please try again.\n"));
@@ -3655,6 +3636,8 @@ static inline void SV_GenContext(void)
 //
 void D_QuitNetGame(void)
 {
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
+
 	if (!netgame || !netbuffer)
 		return;
 
@@ -3762,6 +3745,7 @@ static void Got_AddPlayer(UINT8 **p, INT32 playernum)
 				displayplayers[i] = newplayernum;
 			DEBFILE("spawning me\n");
 		}
+
 		D_SendPlayerConfig();
 		addedtogame = true;
 	}
@@ -3988,6 +3972,8 @@ void SV_StartSinglePlayerServer(void)
 
 static void SV_SendRefuse(INT32 node, const char *reason)
 {
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
+
 	strcpy(netbuffer->u.serverrefuse.reason, reason);
 
 	netbuffer->packettype = PT_SERVERREFUSE;
@@ -4023,6 +4009,7 @@ static void HandleConnect(SINT8 node)
 	// It's too much effort to legimately fix right now. Just prevent it from reaching that state.
 	UINT8 maxplayers = min((dedicated ? MAXPLAYERSLOTS-1 : MAXPLAYERSLOTS), cv_maxplayers.value);
 	UINT8 connectedplayers = 0;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 
 	for (UINT8 i = dedicated ? 1 : 0; i < MAXPLAYERSLOTS; i++)
 		if (playernode[i] != UINT8_MAX) // We use this to count players because it is affected by SV_AddWaitingPlayers when more than one client joins on the same tic, unlike playeringame and D_NumPlayers. UINT8_MAX denotes no node for that player
@@ -4193,6 +4180,8 @@ static void HandleTimeout(SINT8 node)
 static void HandleServerInfo(SINT8 node)
 {
 	char servername[MAXSERVERNAME];
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
+
 	// compute ping in ms
 	const tic_t ticnow = I_GetTime();
 	const tic_t ticthen = (tic_t)LONG(netbuffer->u.serverinfo.time);
@@ -4221,7 +4210,9 @@ static void PT_WillResendGamestate(void)
 
 	// Send back a PT_CANRECEIVEGAMESTATE packet to the server
 	// so they know they can start sending the game state
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	netbuffer->packettype = PT_CANRECEIVEGAMESTATE;
+
 	if (!HSendPacket(servernode, true, 0, 0))
 		return;
 
@@ -4258,6 +4249,8 @@ static void PT_CanReceiveGamestate(SINT8 node)
   */
 static void HandlePacketFromAwayNode(SINT8 node)
 {
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
+
 	if (node != servernode)
 		DEBFILE(va("Received packet from unknown host %d\n", node));
 
@@ -4272,31 +4265,7 @@ static void HandlePacketFromAwayNode(SINT8 node)
 	switch (netbuffer->packettype)
 	{
 		case PT_ASKINFOVIAMS:
-#if 0
-			if (server && serverrunning)
-			{
-				INT32 clientnode;
-				if (ms_RoomId < 0) // ignore if we're not actually on the MS right now
-				{
-					Net_CloseConnection(node); // and yes, close connection
-					return;
-				}
-				clientnode = I_NetMakeNode(netbuffer->u.msaskinfo.clientaddr);
-				if (clientnode != -1)
-				{
-					SV_SendServerInfo(clientnode, (tic_t)LONG(netbuffer->u.msaskinfo.time));
-					SV_SendPlayerInfo(clientnode); // Send extra info
-					Net_CloseConnection(clientnode);
-					// Don't close connection to MS...
-				}
-				else
-					Net_CloseConnection(node); // ...unless the IP address is not valid
-			}
-			else
-				Net_CloseConnection(node); // you're not supposed to get it, so ignore it
-#else
 			Net_CloseConnection(node);
-#endif
 			break;
 
 		case PT_TELLFILESNEEDED:
@@ -4523,6 +4492,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 	INT32 netconsole;
 	tic_t realend, realstart;
 	UINT8 *pak, *txtpak, numtxtpak;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 
 	txtpak = NULL;
 
@@ -4587,14 +4557,9 @@ static void HandlePacketFromPlayer(SINT8 node)
 				|| netbuffer->packettype == PT_NODEKEEPALIVEMIS)
 				break;
 
-			// If we've alredy received a ticcmd for this tic, just submit it for the next one.
-			tic_t faketic = maketic;
-			if ((!!(netcmds[maketic % TICQUEUE][netconsole].angleturn & TICCMD_RECEIVED))
-				&& (maketic - firstticstosend < TICQUEUE - 1))
-				faketic++;
-
 			// Copy ticcmd
-			G_MoveTiccmd(&netcmds[faketic%TICQUEUE][netconsole], &netbuffer->u.clientpak.cmd, 1);
+			// store it in an internal buffer so the last packet takes precedence, which minimizes input lag
+			G_MoveTiccmd(&playercmds[netconsole], &netbuffer->u.clientpak.cmd, 1);
 
 			// Check ticcmd for "speed hacks"
 			if (CheckForSpeedHacks((UINT8)netconsole))
@@ -4606,8 +4571,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 				|| (netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS))
 				&& (nodetoplayer2[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer2[node]],
-					&netbuffer->u.client2pak.cmd2, 1);
+				G_MoveTiccmd(&playercmds[(UINT8)nodetoplayer2[node]], &netbuffer->u.client2pak.cmd2, 1);
 
 				if (CheckForSpeedHacks((UINT8)nodetoplayer2[node]))
 					break;
@@ -4617,8 +4581,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 				|| (netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS))
 				&& (nodetoplayer3[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer3[node]],
-					&netbuffer->u.client3pak.cmd3, 1);
+				G_MoveTiccmd(&playercmds[(UINT8)nodetoplayer3[node]], &netbuffer->u.client3pak.cmd3, 1);
 
 				if (CheckForSpeedHacks((UINT8)nodetoplayer3[node]))
 					break;
@@ -4627,8 +4590,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 			if ((netbuffer->packettype == PT_CLIENT4CMD || netbuffer->packettype == PT_CLIENT4MIS)
 				&& (nodetoplayer4[node] >= 0))
 			{
-				G_MoveTiccmd(&netcmds[faketic%TICQUEUE][(UINT8)nodetoplayer4[node]],
-					&netbuffer->u.client4pak.cmd4, 1);
+				G_MoveTiccmd(&playercmds[(UINT8)nodetoplayer4[node]], &netbuffer->u.client4pak.cmd4, 1);
 
 				if (CheckForSpeedHacks((UINT8)nodetoplayer4[node]))
 					break;
@@ -4922,6 +4884,7 @@ static void HandlePacketFromPlayer(SINT8 node)
 static void GetPackets(void)
 {
 	SINT8 node; // The packet sender
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 
 	while (HGetPacket())
 	{
@@ -5137,6 +5100,7 @@ static INT16 Consistancy(void)
 // used during wipes to tell the server that a node is still connected
 static void CL_SendClientKeepAlive(void)
 {
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 	netbuffer->packettype = PT_BASICKEEPALIVE;
 
 	HSendPacket(servernode, false, 0, 0);
@@ -5145,6 +5109,7 @@ static void CL_SendClientKeepAlive(void)
 static void SV_SendServerKeepAlive(void)
 {
 	INT32 n;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 
 	for (n = 1; n < MAXNETNODES; n++)
 	{
@@ -5161,6 +5126,7 @@ static void CL_SendClientCmd(void)
 {
 	size_t packetsize = 0;
 	boolean mis = false;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 
 	netbuffer->packettype = PT_CLIENTCMD;
 
@@ -5314,6 +5280,8 @@ static void SV_SendTics(void)
 
 	UINT8 *bufpos;
 	UINT8 *ntextcmd;
+
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 
 	// send to all client but not to me
 	// for each node create a packet with x tics and send it
@@ -5500,36 +5468,7 @@ void SV_SpawnPlayer(INT32 playernum, INT32 x, INT32 y, angle_t angle)
 // create missed tic
 static void SV_Maketic(void)
 {
-	INT32 j;
-
-	for (j = 0; j < MAXNETNODES; j++)
-	{
-		if (!playerpernode[j])
-			continue;
-
-		INT32 player = nodetoplayer[j];
-		if ((netcmds[maketic%TICQUEUE][player].angleturn & TICCMD_RECEIVED) == 0)
-		{ // we didn't receive this tic
-			INT32 i;
-
-			DEBFILE(va("MISS tic%4d for node %d\n", maketic, j));
-#if defined(PARANOIA) && 0
-			CONS_Debug(DBG_NETPLAY, "Client Misstic %d\n", maketic);
-#endif
-			// copy the old tic
-			for (i = 0; i < playerpernode[j]; i++)
-			{
-				if (i == 0) player = nodetoplayer[j];
-				else if (i == 1) player = nodetoplayer2[j];
-				else if (i == 2) player = nodetoplayer3[j];
-				else if (i == 3) player = nodetoplayer4[j];
-				netcmds[maketic%TICQUEUE][player] = netcmds[(maketic-1)%TICQUEUE][player];
-				netcmds[maketic%TICQUEUE][player].angleturn &= ~TICCMD_RECEIVED;
-			}
-		}
-	}
-
-	// all tic are now proceed make the next
+	G_MoveTiccmd(netcmds[maketic % TICQUEUE], playercmds, MAXPLAYERS);
 	maketic++;
 }
 
@@ -5665,6 +5604,7 @@ static inline void PingUpdate(void)
 	INT32 i;
 	UINT8 pingkick[MAXPLAYERS];
 	UINT8 nonlaggers = 0;
+	doomdata_t *netbuffer = DOOMCOM_DATA(doomcom);
 
 	memset(pingkick, 0, sizeof(pingkick));
 
@@ -5978,7 +5918,7 @@ void NetUpdate(void)
 
 	UpdatePingTable();
 
-	if (client)
+	if (client) // wait with updating maketic until we're in-game
 		maketic = neededtic;
 
 	Local_Maketic(realtics); // make local tic, and call menu?
