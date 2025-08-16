@@ -459,7 +459,8 @@ else
 endif
 endif
 
-	CFLAGS+=-g $(OPTS) $(ARCHOPTS) $(WINDRESFLAGS)
+	CFLAGS+=-g -fwrapv $(OPTS) $(ARCHOPTS) $(WINDRESFLAGS)
+	CPPFLAGS+=-g -fwrapv
 
 ifdef PROFILEMODE
 	# build with profiling information
