@@ -4925,6 +4925,7 @@ void P_PlayerThink(player_t *player)
 			player->mo->flags2 &= ~MF2_DONTDRAW;
 	}
 
+	/*
 	const tic_t startcollisiontime = (starttime + TICRATE*2);
 
 	if (leveltime <= startcollisiontime)
@@ -4963,6 +4964,7 @@ void P_PlayerThink(player_t *player)
 			}
 		}
 	}
+	*/
 
 	player->pflags &= ~PF_SLIDING;
 
