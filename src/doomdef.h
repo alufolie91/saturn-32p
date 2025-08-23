@@ -198,7 +198,7 @@ extern char  logfilename[1024];
 #define MAXPLAYERNAME 21
 
 // Master Server compatibility ONLY
-#define MSCOMPAT_MAXPLAYERS (127)
+#define MSCOMPAT_MAXPLAYERS (32)
 
 typedef enum
 {
